@@ -91,8 +91,13 @@ export const isUnclaimedCandidate = raw =>
   (Number(raw.approved) === STATUS.RANKED || Number(raw.approved) === STATUS.APPROVED);
 
 export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
+  // A banned map keeps its scores, but every one of them is worth 0pp (as in the bot).
   const banned = bot.banned;
-  const usable = s => s && !banned.has(s.beatmap_id);
+  const tuple = s => {
+    const t = toTuple(s);
+    if (banned.has(s.beatmap_id)) t[S.PP] = 0;
+    return t;
+  };
   const catOf = (mapId, fallback) => {
     const raw = beatmaps.get(mapId);
     return raw ? classify(Number(raw.approved), Number(raw.playmode)) : fallback;
@@ -110,21 +115,21 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
     if (raw.country !== homeCountry) continue;
     const p = person(raw.user_id, raw.username);
     p.raw = raw;
-    p.lists.c.push(...(raw.TopConvertedScores || []).filter(usable).map(toTuple));
-    p.lists.u.push(...(raw.TopUnrankedScores || []).filter(usable).map(toTuple));
-    p.lists.r.push(...(raw.RankedSpecificScores || []).filter(usable).map(toTuple));
+    p.lists.c.push(...(raw.TopConvertedScores || []).filter(Boolean).map(tuple));
+    p.lists.u.push(...(raw.TopUnrankedScores || []).filter(Boolean).map(tuple));
+    p.lists.r.push(...(raw.RankedSpecificScores || []).filter(Boolean).map(tuple));
   }
   for (const dump of bot.ptCatch) {
     if (dump.country !== homeCountry) continue;
     const p = person(dump.user_id, dump.username);
     p.dump = dump;
-    p.dump_top = (dump.top_scores || []).filter(usable).map(toTuple);
+    p.dump_top = (dump.top_scores || []).filter(Boolean).map(tuple).sort((a, b) => b[S.PP] - a[S.PP]);
     // Ranked specifics from the dump top the tracked list up; a player the bot never registered (it normally
     // does, after every import) still gets their dump plays filed by category.
     for (const s of p.raw ? dump.top_scores || [] : dump.community_scores || []) {
-      if (!usable(s)) continue;
+      if (!s) continue;
       const cat = catOf(s.beatmap_id, null);
-      if (cat === CAT.RANKED || (!p.raw && cat)) p.lists[cat].push(toTuple(s));
+      if (cat === CAT.RANKED || (!p.raw && cat)) p.lists[cat].push(tuple(s));
     }
   }
   for (const p of people.values()) for (const cat of CATS) p.lists[cat] = bestPerMap(p.lists[cat]);
@@ -220,7 +225,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
   for (const [id, board] of [...boards].sort((a, b) => a[0] - b[0])) {
     const meta = mapTuple(id);
     const bucket = (mapBuckets[id % BUCKETS] ??= {});
-    bucket[id] = { m: meta, c: board.cat, s: board.entries };
+    bucket[id] = { m: meta, c: board.cat, s: board.entries, ...(banned.has(id) ? { banned: true } : {}) };
     mapsIndex.push([
       id, meta ? meta[M.SET] : 0, meta ? meta[M.ARTIST] : '', meta ? meta[M.TITLE] : '', meta ? meta[M.VERSION] : '',
       meta ? meta[M.STARS] : 0, board.cat, board.entries.length, board.entries[0][0],
@@ -381,7 +386,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
   const weeks = { ...(previous.weeks || {}) };
   if (!weeks[week.id] || !boards.has(weeks[week.id])) {
     const pool = [...boards]
-      .filter(([id, b]) => b.cat !== CAT.LOVED && b.entries.length >= 4 && hasTitle(meta(id)) &&
+      .filter(([id, b]) => b.cat !== CAT.LOVED && !banned.has(id) && b.entries.length >= 4 && hasTitle(meta(id)) &&
         meta(id).difficultyrating >= 3.5 && meta(id).difficultyrating <= 6.5 && !Object.values(weeks).includes(id))
       .map(([id]) => id)
       .sort((a, b) => a - b);
@@ -391,17 +396,20 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
   const weekBoard = weekMap ? boards.get(weekMap) : null;
 
   const beatable = contested
-    .filter(([id, b]) => b.entries.length >= 3 && hasTitle(meta(id)) && (b.entries[0][S.ACC + 1] < 97 || b.entries[0][S.MISS + 1] >= 3))
+    .filter(([id, b]) => b.entries.length >= 3 && !banned.has(id) && hasTitle(meta(id)) && (b.entries[0][S.ACC + 1] < 97 || b.entries[0][S.MISS + 1] >= 3))
     .sort((a, b) => b[1].entries.length - a[1].entries.length || meta(b[0]).difficultyrating - meta(a[0]).difficultyrating)
     .slice(0, 30)
     .map(([id, b]) => [id, b.cat, b.entries.length, b.entries[0]]);
+  // Loved/unranked maps at 10★ and up are mostly joke maps, so they're left out (filtered before the cap, so the
+  // list still fills up). Converts and ranked maps stay at any star rating.
   const lonely = [...boards]
-    .filter(([id, b]) => b.entries.length === 1 && hasTitle(meta(id)) && meta(id).difficultyrating >= 5)
+    .filter(([id, b]) => b.entries.length === 1 && !banned.has(id) && hasTitle(meta(id)) && meta(id).difficultyrating >= 5 &&
+      !(b.cat === CAT.LOVED && meta(id).difficultyrating >= 10))
     .sort((a, b) => meta(b[0]).difficultyrating - meta(a[0]).difficultyrating || a[0] - b[0])
     .slice(0, 30)
     .map(([id, b]) => [id, b.cat, b.entries[0]]);
   const unclaimed = [...beatmaps.values()]
-    .filter(raw => isUnclaimedCandidate(raw) && !boards.has(raw.beatmap_id))
+    .filter(raw => isUnclaimedCandidate(raw) && !boards.has(raw.beatmap_id) && !banned.has(raw.beatmap_id))
     .sort((a, b) => (b.playcount || 0) - (a.playcount || 0) || a.beatmap_id - b.beatmap_id)
     .slice(0, 40)
     .map(raw => [raw.beatmap_id, raw.playcount || 0, raw.favourite_count || 0]);

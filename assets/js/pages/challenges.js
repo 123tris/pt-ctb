@@ -81,7 +81,7 @@ export default async function challengesPage(root, { isCurrent }) {
     <section class="section grid grid-2">
       <div>
         <div class="section-head"><h2>One-player maps</h2></div>
-        <p class="muted small">Hard maps with a single Portuguese player. Just pass to take #2, or beat them for #1.</p>
+        <p class="muted small">Hard maps (5★ and up; loved and unranked ones under 10★) with a single Portuguese player. Just pass to take #2, or beat them for #1.</p>
         ${data.lonely.length ? html`<div class="rows">${data.lonely.map(([id, cat, [uid, ...s]]) => html`<div class="row" style="grid-template-columns:1fr">
           ${mapLink(id, maps[id])}
           <div class="row-meta" style="justify-content:flex-start">${catChip(cat)} ${playerLink(uid, index, 'avatar-sm')} ${ppText(s[S.PP])}</div>

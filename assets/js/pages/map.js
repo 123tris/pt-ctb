@@ -38,6 +38,7 @@ export default async function mapPage(root, { params, isCurrent }) {
           ${entry ? catChip(entry.c) : ''}
           ${meta ? starsBadge(meta[M.STARS]) : ''}
           ${danStage >= 0 ? html`<span class="badge badge-gold">Dan course: ${danName(danStage)}</span>` : ''}
+          ${entry?.banned ? html`<span class="badge badge-red" title="Scores on this map are kept but give no pp">Banned — no pp</span>` : ''}
         </div>
         <h1>${title}</h1>
         <div class="sub">${sub}</div>
@@ -64,7 +65,7 @@ export default async function mapPage(root, { params, isCurrent }) {
     <section class="section">
       <div class="section-head">
         <h2>Portuguese leaderboard</h2>
-        <span class="muted small">${entry?.c === CAT.LOVED ? 'Sorted by pp, as in the bot.' : 'Sorted by classic score, as on osu!.'}</span>
+        <span class="muted small">${entry?.c === CAT.LOVED && !entry.banned ? 'Sorted by pp, as in the bot.' : 'Sorted by classic score, as on osu!.'}</span>
       </div>
       ${board.length ? html`<div class="table-wrap"><table>
         <thead><tr><th>#</th><th>Player</th><th class="num">Score</th><th>Play</th><th class="num">pp</th><th class="num">Date</th></tr></thead>

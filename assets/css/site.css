@@ -430,6 +430,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 }
 .badge-gold { border-color: color-mix(in srgb, var(--gold) 40%, transparent); color: var(--gold); }
 .badge-accent { border-color: var(--accent-line); color: var(--accent); }
+.badge-red { border-color: color-mix(in srgb, var(--red) 40%, transparent); color: var(--red); }
 
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 12px 20px; margin: 0; }
 .kv dt { color: var(--text-faint); font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
