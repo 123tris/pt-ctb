@@ -28,13 +28,18 @@ if ($LASTEXITCODE -ne 0) { throw "Export failed (exit $LASTEXITCODE)" }
 
 git add -A data state
 git diff --cached --quiet
-if ($LASTEXITCODE -eq 0) {
+$dataChanged = $LASTEXITCODE -ne 0
+# Commits made by hand (e.g. site code) still need pushing even when the data didn't change.
+$unpushed = [int](git rev-list --count '@{u}..HEAD' 2>$null)
+if (-not $dataChanged -and $unpushed -eq 0) {
     Write-Host 'Nothing new to publish.'
     return
 }
 
-git commit -m "Update data ($(Get-Date -Format 'yyyy-MM-dd HH:mm'))" | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'git commit failed' }
+if ($dataChanged) {
+    git commit -m "Update data ($(Get-Date -Format 'yyyy-MM-dd HH:mm'))" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'git commit failed' }
+}
 if (-not $NoPush) {
     git push
     if ($LASTEXITCODE -ne 0) { throw 'git push failed' }
