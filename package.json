@@ -1,0 +1,10 @@
+{
+  "name": "pt-ctb",
+  "private": true,
+  "type": "module",
+  "description": "Site da comunidade portuguesa de osu!catch (PT-CTB)",
+  "scripts": {
+    "export": "node --max-old-space-size=4096 tools/export.mjs",
+    "serve": "node tools/serve.mjs"
+  }
+}

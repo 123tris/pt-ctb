@@ -1,0 +1,4 @@
+# Private notes (e.g. ideas drawn from the Discord chat) never go public.
+notes/
+node_modules/
+*.tmp
