@@ -1,10 +1,13 @@
 import { html } from '../core/html.js';
-import { playerFile, playerIndex, history } from '../core/data.js';
+import { playerFile, playerIndex, history, records } from '../core/data.js';
 import { S, CATS, DAN_STAGES, DAN_MAPS, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { lineChart } from '../core/charts.js';
+import { playerBadges, era, playerCard, cardPosition, signatureMap } from '../core/badges.js';
+import { THRONE_PLAYER } from '../core/lore.js';
 import {
-  setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT,
+  setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
+  mapLink, scoreStats, catChip,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -53,10 +56,15 @@ function historyChart(points) {
 
 export default async function player(root, { params, isCurrent }) {
   const id = Number(params.id);
-  const [file, index, hist] = await Promise.all([playerFile(id), playerIndex(), history()]);
+  const [file, index, hist, recs] = await Promise.all([playerFile(id), playerIndex(), history(), records().catch(() => null)]);
   if (!isCurrent()) return;
   const p = index.get(id);
   setTitle(p.name);
+  const badges = playerBadges(p, file, recs);
+  const playerEra = era(p, file);
+  const card = playerCard(p, [...index.values()]);
+  const position = cardPosition(file);
+  const signature = signatureMap(file);
 
   const counts = { converts: file.scores.c.length, loved: file.scores.u.length, ranked: file.scores.r.length, top: file.top.length, dan: file.dan.length };
   const tab = TAB_LIST.find(t => t.slug === params.tab) ?? TAB_LIST.find(t => t.slug !== 'dan' && counts[t.slug]) ?? TAB_LIST[0];
@@ -68,14 +76,16 @@ export default async function player(root, { params, isCurrent }) {
 
   root.innerHTML = String(html`
     <header class="profile-head">
-      ${avatar(id, 'avatar-lg')}
+      <a class="avatar-link" href="${osuUser(id)}" target="_blank" rel="noopener" aria-label="${p.name} on osu!" title="${p.name} on osu!">${avatar(id, 'avatar-lg')}</a>
       <div style="min-width:0">
         <h1>${p.name}</h1>
         <div class="links" style="margin-bottom:10px">
           ${role ? html`<span class="badge badge-gold">${role}</span>` : ''}
           ${firsts ? html`<span class="badge badge-accent">${fmt.plural(firsts, '#1', '#1s')} in Portugal</span>` : ''}
           ${p.last ? html`<span class="badge">Last played ${fmt.ago(p.last)}</span>` : ''}
+          ${playerEra ? html`<span class="badge badge-era">Era: ${playerEra}</span>` : ''}
         </div>
+        ${funChips(badges)}
         <div class="links">
           <a class="btn btn-small" href="${osuUser(id)}" target="_blank" rel="noopener">osu! profile ↗</a>
           <a class="btn btn-small" href="#/compare/${id}">Compare</a>
@@ -92,7 +102,16 @@ export default async function player(root, { params, isCurrent }) {
       ${stat('Accuracy', fmt.acc(p.acc), `Level ${fmt.num(p.level, 0)}`)}
       ${stat('Play count', fmt.num(p.plays), `${fmt.num(p.grades[0])} SS · ${fmt.num(p.grades[1])} S · ${fmt.num(p.grades[2])} A`)}
       ${stat('Dan points', fmt.num(p.danScore), `${p.dan.length} of ${DAN_STAGES.length} stages`)}
+      ${card && position ? stat('Player card', `${card.ovr} OVR`, `${position.position} (${position.mod})`, 'stat-card') : ''}
     </div>
+
+    ${id === THRONE_PLAYER ? html`<p class="notice" style="margin-top:16px">Every #1 on this profile is up for grabs. <a href="#/records?at=throne">Dethrone Tris →</a></p>` : ''}
+
+    ${signature ? html`<section class="section card signature">
+      <h3>Signature map <span class="faint">· ${signature.kind}</span></h3>
+      ${mapLink(signature.s[S.MAP], signature.meta)}
+      <div class="score-line" style="margin-top:10px">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
+    </section>` : ''}
 
     ${historyChart(points)}
 

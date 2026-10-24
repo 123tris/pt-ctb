@@ -46,7 +46,7 @@ const GROUPS = [
     ['/ping', 'Checks that the bot is awake.'],
     ['/help', 'The command list inside Discord.'],
   ]],
-  ['Moderation', [
+  ['Moderation', 'Only our lord and saviour has access to these commands.', [
     ['/ban · /showbanned', 'Removes a map from the leaderboards / shows removed maps.'],
     ['/loadrecentscores', 'Imports everyone’s recent plays now (the bot also does this by itself every four hours).'],
     ['/clear', 'Deletes recent messages in the channel.'],
@@ -61,9 +61,23 @@ export default async function commands(root) {
       <h1>What the bot can do</h1>
       <p>Type <span class="kbd">/</span> in Discord to see every command. Most also work with a <span class="kbd">!</span> prefix (for example <span class="kbd">!rs</span>).</p>
     </header>
-    ${GROUPS.map(([title, list]) => html`<section class="section">
-      <h2>${title}</h2>
-      <div class="cmd-list">${list.map(([name, text]) => html`<div class="cmd"><code>${name}</code><span class="muted">${text}</span></div>`)}</div>
-    </section>`)}
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Why is the bot called Alphonse?</h3>
+        <p style="margin:0">Tris used to be <b>Edward Elric</b> on osu!. When he relaunched the bot in 2021, Nelson suggested the obvious: the bot is his brother. The Discord account still says DanProject, after the Dan course it was first built for in 2018.</p>
+      </div>
+      <div class="card">
+        <h3>The most-typed command</h3>
+        <p style="margin:0">Not one of ours: owo’s <span class="kbd">&lt;rc</span> has been typed on the server about 11,800 times. Yes, we know you’ve typed <span class="kbd">&lt;rc</span> more often than “hello”.</p>
+      </div>
+    </div>
+    ${GROUPS.map(group => {
+      const [title, note, list] = group.length === 3 ? group : [group[0], null, group[1]];
+      return html`<section class="section">
+        <h2>${title}</h2>
+        ${note ? html`<p class="muted small">${note}</p>` : ''}
+        <div class="cmd-list">${list.map(([name, text]) => html`<div class="cmd"><code>${name}</code><span class="muted">${text}</span></div>`)}</div>
+      </section>`;
+    })}
   `);
 }

@@ -12,6 +12,14 @@ const MOD_FILTERS = ['NM', 'HD', 'HR', 'DT', 'FL', 'EZ', 'HT', 'HDHR', 'HDDT', '
 const PP_MILESTONES = 1000;
 const ACTIVITY_DAYS = 120;
 const MAX_EVENTS = 400;
+/** The player whose #1s the records page dares everyone to take (Tris, who keeps asking to be sniped). */
+const THRONE_PLAYER = 3821475;
+/** The supporter-challenge maps Fie tracks on the Discord: C = 1, B = 2, A = 3, S/SS = 4 points, first to 50 wins. */
+const HOUSE_POOL = [
+  2397952, 3677233, 3666577, 3060693, 2866964, 3450339, 3461274, 1637120, 3521814, 3638586, 1966809, 3587544,
+  2450533, 3000775, 3169318, 2566257, 2899706, 3572726, 3500160, 1975026, 1133219, 2169000, 3035752,
+];
+const HOUSE_POINTS = { C: 1, B: 2, A: 3, S: 4, SH: 4, X: 4, XH: 4 };
 
 const round = (n, places = 2) => Math.round(n * 10 ** places) / 10 ** places;
 // Older profiles hold accuracy as a 0-1 fraction, newer ones as a percentage.
@@ -38,6 +46,24 @@ function toMapTuple(raw) {
 }
 
 const hasTitle = raw => raw && raw.title && raw.title !== 'Unknown';
+
+/**
+ * A player's official osu!catch stats. The bot stamps a profile it refreshed from osu! (`profile_updated`; its sync
+ * looks every player up daily), and that copy is current, an inactive player's 0pp and missing ranks included.
+ * Without the stamp the bot's copy may be years old, so the monthly dump is fresher and comes first.
+ */
+function officialStats(raw, dump) {
+  const bot = raw && {
+    pp: raw.pp_raw, global: raw.pp_rank, country: raw.pp_country_rank, acc: raw.accuracy, level: raw.level,
+    plays: raw.playcount, grades: [raw.count_rank_ss, raw.count_rank_s, raw.count_rank_a],
+  };
+  if (bot && raw.profile_updated) return bot;
+  const fromDump = dump && {
+    pp: dump.pp, global: dump.global_rank, country: dump.country_rank, acc: dump.accuracy, level: dump.level,
+    plays: dump.playcount, grades: [dump.count_rank_ss, dump.count_rank_s, dump.count_rank_a],
+  };
+  return fromDump || bot || { grades: [] };
+}
 
 /** The best play per map (pp first, then score), sorted best-pp-first. */
 function bestPerMap(tuples) {
@@ -161,9 +187,10 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
     p.name = raw.username || dump.username || p.name;
     p.cv = round(weightedTotal(p.lists.c.map(t => t[S.PP])));
     p.ul = round(weightedTotal(p.lists.u.map(t => t[S.PP])));
-    p.pp = round(raw.pp_raw || dump.pp || 0);
-    p.global = raw.pp_rank || dump.global_rank || null;
-    p.country = raw.pp_country_rank || dump.country_rank || null;
+    p.official = officialStats(p.raw, p.dump);
+    p.pp = round(p.official.pp || 0);
+    p.global = p.official.global || null;
+    p.country = p.official.country || null;
     p.firsts = Object.fromEntries(CATS.map(cat => [cat, p.lists[cat].filter(t => position.get(`${p.id}:${t[S.MAP]}`) === 1).length]));
     p.dan = (raw.DanPasses || []).map((s, i) => (s ? [i, toTuple(s)] : null)).filter(Boolean);
     p.danScore = raw.DanScore || 0;
@@ -176,15 +203,14 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
   const rankOf = Object.fromEntries(CATS.map(cat => [cat, new Map(order[cat].map((p, i) => [p.id, i + 1]))]));
 
   const players = [...people.values()].sort((a, b) => a.name.localeCompare(b.name)).map(p => {
-    const raw = p.raw || {}, dump = p.dump || {};
     return {
       id: p.id, name: p.name,
       cv: p.cv, ul: p.ul, pp: p.pp,
       rank: { c: rankOf.c.get(p.id) || null, u: rankOf.u.get(p.id) || null, r: rankOf.r.get(p.id) || null },
       global: p.global, country: p.country,
-      acc: round(percent(raw.accuracy ?? dump.accuracy ?? 0)), level: round(raw.level ?? dump.level ?? 0),
-      plays: raw.playcount ?? dump.playcount ?? 0,
-      grades: [raw.count_rank_ss ?? dump.count_rank_ss ?? 0, raw.count_rank_s ?? dump.count_rank_s ?? 0, raw.count_rank_a ?? dump.count_rank_a ?? 0],
+      acc: round(percent(p.official.acc ?? 0)), level: round(p.official.level ?? 0),
+      plays: p.official.plays ?? 0,
+      grades: [0, 1, 2].map(i => p.official.grades[i] ?? 0),
       count: Object.fromEntries(CATS.map(cat => [cat, p.lists[cat].length])),
       firsts: p.firsts,
       danScore: p.danScore, dan: p.dan.map(([i]) => i),
@@ -374,11 +400,37 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
       fruits: allScores.reduce((n, x) => n + x.t[S.HITS], 0),
       ss: allScores.filter(x => isSS(x.t[S.GRADE])).length,
     },
+    // The Choke d'Or: who has the most plays with exactly one miss, and the biggest one of all.
+    oneMiss: leaders(p => CATS.reduce((n, cat) => n + p.lists[cat].filter(t => t[S.MISS] === 1).length, 0)),
+    highestChoke: asRow(best(allScores.filter(x => x.t[S.MISS] === 1), x => x.t[S.PP])),
+    // When you see it: every stored play that ended on exactly 727 combo.
+    wysi: allScores.filter(x => x.t[S.COMBO] === 727).sort((a, b) => b.t[S.TIME] - a.t[S.TIME]).map(asRow),
   };
+
+  // The throne: THRONE_PLAYER's #1s that still stand, oldest first, and who sits right behind them most often.
+  if (people.has(THRONE_PLAYER)) {
+    const held = [...boards].filter(([, b]) => b.entries[0][0] === THRONE_PLAYER);
+    const contestedHeld = held.filter(([, b]) => b.entries.length >= 2);
+    const behind = new Map();
+    for (const [, b] of contestedHeld) behind.set(b.entries[1][0], (behind.get(b.entries[1][0]) || 0) + 1);
+    records.throne = {
+      u: THRONE_PLAYER,
+      held: held.length,
+      contested: contestedHeld.length,
+      // [category, runner-up id, ...the #1 play]
+      oldest: contestedHeld
+        .sort((a, b) => a[1].entries[0][S.TIME + 1] - b[1].entries[0][S.TIME + 1] || a[0] - b[0])
+        .slice(0, 12)
+        .map(([, b]) => [b.cat, b.entries[1][0], ...b.entries[0].slice(1)]),
+      challengers: [...behind].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 5),
+    };
+  }
+
   const recordMapIds = [
     ...Object.values(records.topPlay), records.topCombo, ...Object.values(records.hardest), records.longest, records.oldestFirst,
+    records.highestChoke, ...records.wysi,
   ].filter(Boolean).map(r => r[S.MAP + 2]);
-  records.maps = mapsFor([...recordMapIds, ...records.popularMaps.map(r => r[0])]);
+  records.maps = mapsFor([...recordMapIds, ...records.popularMaps.map(r => r[0]), ...(records.throne?.oldest || []).map(r => r[S.MAP + 2])]);
 
   // ---- Challenges -------------------------------------------------------------------------------------------------
 
@@ -414,13 +466,29 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
     .slice(0, 40)
     .map(raw => [raw.beatmap_id, raw.playcount || 0, raw.favourite_count || 0]);
 
+  // Boss maps nobody in Portugal has full-combo'd: several players, 6.5★ and up, and every play has a miss.
+  const bounties = [...boards]
+    .filter(([id, b]) => b.entries.length >= 3 && !banned.has(id) && hasTitle(meta(id)) && meta(id).difficultyrating >= 6.5 &&
+      !(b.cat === CAT.LOVED && meta(id).difficultyrating >= 10) && b.entries.every(e => e[S.MISS + 1] > 0))
+    .sort((a, b) => b[1].entries.length - a[1].entries.length || meta(b[0]).difficultyrating - meta(a[0]).difficultyrating || a[0] - b[0])
+    .slice(0, 20)
+    .map(([id, b]) => [id, b.cat, b.entries.length, Math.min(...b.entries.map(e => e[S.MISS + 1]))]);
+
+  // The house challenge: each player's grade on every pool map, scored the way the Discord's challenges are.
+  const houseRows = [...people.values()].map(p => {
+    const grades = HOUSE_POOL.map(id => boards.get(id)?.entries.find(e => e[0] === p.id)?.[S.GRADE + 1] ?? null);
+    return [p.id, grades.reduce((n, g) => n + (HOUSE_POINTS[g] || 0), 0), grades];
+  }).filter(r => r[1] > 0).sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+
   const challenges = {
     week: weekBoard ? {
       id: week.id, start: week.start, end: week.end, map: weekMap, cat: weekBoard.cat,
       board: weekBoard.entries, weekly: weekBoard.entries.filter(e => e[S.TIME + 1] >= week.start),
     } : null,
-    beatable, lonely, unclaimed,
-    maps: mapsFor([weekMap, ...beatable.map(r => r[0]), ...lonely.map(r => r[0]), ...unclaimed.map(r => r[0])].filter(Boolean)),
+    beatable, lonely, unclaimed, bounties,
+    house: { pool: HOUSE_POOL, points: HOUSE_POINTS, target: 50, rows: houseRows },
+    maps: mapsFor([weekMap, ...beatable.map(r => r[0]), ...lonely.map(r => r[0]), ...unclaimed.map(r => r[0]),
+      ...bounties.map(r => r[0]), ...HOUSE_POOL].filter(Boolean)),
   };
 
   // ---- Quiz pool ---------------------------------------------------------------------------------------------------

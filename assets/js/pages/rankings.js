@@ -21,6 +21,16 @@ const INTRO = {
 const SOURCES = [['r', 'Ranked'], ['c', 'Converts'], ['u', 'Loved & Unranked']];
 const KEY = { c: 'cv', u: 'ul', r: 'pp' };
 
+// Footnotes in the community's words, per board.
+const FOOTNOTE = {
+  converts: 'Converts or specifics? Pick a side (and brace for the argument).',
+  loved: 'The higher the star rating, the better the #1. NF snipes aren’t real snipes.',
+};
+
+/** Players with no stored play in a year stay on the board, greyed out: legends don't disappear. */
+const INACTIVE_AFTER = 365 * 86400;
+const isInactive = p => !p.last || p.last < Date.now() / 1000 - INACTIVE_AFTER;
+
 function updateQuery(params) {
   const [path] = location.hash.split('?');
   history.replaceState(null, '', `${path}?${new URLSearchParams(params)}`);
@@ -36,9 +46,9 @@ function boardTable(list, cat, me) {
         ? html`<th class="num">Global</th><th class="num">Country</th><th class="num">Accuracy</th><th class="num">Level</th>`
         : html`<th class="num">Scores</th><th class="num">#1s in PT</th><th class="num">Last played</th>`}
     </tr></thead>
-    <tbody>${list.map(p => html`<tr class="${p.id === me ? 'me' : ''}" data-name="${p.name.toLowerCase()}">
+    <tbody>${list.map(p => html`<tr class="${p.id === me ? 'me' : ''} ${!ranked && isInactive(p) ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
       <td class="rank">${p.rank[cat]}</td>
-      <td>${playerLink(p)}</td>
+      <td>${playerLink(p)}${!ranked && isInactive(p) ? html` <span class="legend-tag" title="No new plays stored in over a year">legend</span>` : ''}</td>
       <td class="num">${ppText(p[key])}</td>
       ${ranked
         ? html`<td class="num">${fmt.rank(p.global)}</td><td class="num">${fmt.rank(p.country)}</td><td class="num">${fmt.acc(p.acc)}</td><td class="num">${fmt.num(p.level, 0)}</td>`
@@ -80,18 +90,23 @@ export default async function rankings(root, { params, query, isCurrent }) {
     <div class="toolbar">
       <input class="input" type="search" id="filter" placeholder="Search players…" aria-label="Search players">
       ${slug === 'mods' ? html`<div class="chips" id="sources">${SOURCES.map(([key, label]) => html`<button class="chip" data-src="${key}">${label}</button>`)}</div>` : ''}
+      ${slug === 'converts' || slug === 'loved' ? html`<span class="checks"><label><input type="checkbox" id="legends" checked> Show inactive legends</label></span>` : ''}
     </div>
     ${slug === 'mods' ? html`<div class="chips" id="modchips" style="margin-bottom:16px">${mods.filters.map(f => html`<button class="chip" data-mod="${f}">${f}</button>`)}</div>` : ''}
     <div id="board"></div>
+    ${FOOTNOTE[slug] ? html`<p class="small faint" style="margin-top:10px">${FOOTNOTE[slug]}</p>` : ''}
   `);
 
   const board = root.querySelector('#board');
   const filter = root.querySelector('#filter');
+  const legends = root.querySelector('#legends');
   const applyFilter = () => {
     const q = filter.value.trim().toLowerCase();
-    board.querySelectorAll('tbody tr').forEach(tr => tr.classList.toggle('hidden', q && !tr.dataset.name.includes(q)));
+    board.querySelectorAll('tbody tr').forEach(tr => tr.classList.toggle('hidden',
+      Boolean(q && !tr.dataset.name.includes(q)) || (legends && !legends.checked && tr.classList.contains('inactive'))));
   };
   filter.addEventListener('input', applyFilter);
+  legends?.addEventListener('change', applyFilter);
 
   if (slug !== 'mods') {
     const cat = SLUG_CAT[slug];

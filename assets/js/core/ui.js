@@ -2,6 +2,7 @@
 
 import { html, raw } from './html.js';
 import { S, M, modString } from './model.js';
+import { LOADING, pick } from './lore.js';
 import * as fmt from './fmt.js';
 
 export const CAT_LABEL = { c: 'Converts', u: 'Loved & Unranked', r: 'Ranked' };
@@ -143,7 +144,12 @@ export const tabs = items => html`<nav class="tabs">${items.map(t =>
   html`<a href="${t.href}" class="${t.active ? 'active' : ''}">${t.label}${t.count !== undefined ? html`<span class="count">${fmt.num(t.count)}</span>` : ''}</a>`)}</nav>`;
 
 export const empty = text => html`<div class="empty">${text}</div>`;
-export const loading = () => html`<div class="loading"><div class="center"><div class="spinner" style="margin-inline:auto"></div>Loading…</div></div>`;
+export const loading = () => html`<div class="loading"><div class="center"><div class="spinner" style="margin-inline:auto"></div>${pick(LOADING)}</div></div>`;
+
+/** In-joke badges or map tags ({ name, tip }), with the explanation on hover. */
+export const funChips = (list, cls = '') => (list.length
+  ? html`<div class="fun-chips ${cls}">${list.map(b => html`<span class="fun-chip" title="${b.tip}" tabindex="0">${b.name}</span>`)}</div>`
+  : '');
 
 /**
  * Renders `items` a page at a time into `container`, with previous/next buttons. `render(slice, offset)` returns

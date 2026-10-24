@@ -1,7 +1,9 @@
 import { html } from '../core/html.js';
-import { meta, players, activity, challenges } from '../core/data.js';
+import { meta, players, activity, challenges, records } from '../core/data.js';
 import { M } from '../core/model.js';
 import { eventItem } from '../core/events.js';
+import { LAST_REWORK, THRONE_PLAYER } from '../core/lore.js';
+import { season } from '../core/fun.js';
 import { setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { CONFIG } from '../config.js';
@@ -22,10 +24,13 @@ function miniBoard(list, key, cat) {
 }
 
 export default async function home(root, { isCurrent }) {
-  const [m, list, act, ch] = await Promise.all([meta(), players(), activity(), challenges()]);
+  const [m, list, act, ch, rec] = await Promise.all([meta(), players(), activity(), challenges(), records().catch(() => null)]);
   if (!isCurrent()) return;
   setTitle('');
   const index = new Map(list.map(p => [p.id, p]));
+  const reworkDays = Math.floor((Date.now() / 1000 - LAST_REWORK) / 86400);
+  const boss = index.get(THRONE_PLAYER);
+  const bossHeld = rec?.throne?.held ?? (boss ? boss.firsts.c + boss.firsts.u + boss.firsts.r : 0);
   const week = ch.week;
   const weekMeta = week ? ch.maps[week.map] : null;
   const weekText = week ? mapText(week.map, weekMeta) : null;
@@ -35,6 +40,7 @@ export default async function home(root, { isCurrent }) {
       <div>
         <span class="flag-rule" aria-hidden="true"></span>
         <h1>Portugal’s <em>osu!catch</em> community</h1>
+        <p class="hero-tag">Catching fruit and choking since 2018.</p>
         <p>Leaderboards, profiles, the Dan course, weekly challenges and games: everything the PT-CTB server’s bot tracks, in one place.</p>
         <div class="btn-row">
           ${CONFIG.discordInvite ? html`<a class="btn btn-discord" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>` : ''}
@@ -47,8 +53,17 @@ export default async function home(root, { isCurrent }) {
         <div><dt>Scores</dt><dd>${fmt.num(m.totals.scores)}</dd></div>
         <div><dt>Maps played</dt><dd>${fmt.num(m.totals.maps)}</dd></div>
         <div><dt>Fruits caught</dt><dd>${fmt.num(m.totals.fruits)}</dd></div>
+        <div class="hero-rework" title="Last osu!catch pp change: ${fmt.date(LAST_REWORK)}"><dt>Days without a pp rework</dt><dd>${fmt.num(reworkDays)}</dd></div>
       </dl>
     </section>
+
+    ${season() === 'xmas' ? html`<p class="notice" style="margin-top:16px">Feliz Natal, you lot. Play less, eat more. 🎅</p>` : ''}
+
+    ${boss && bossHeld ? html`<a class="throne-strip card-link" href="#/records?at=throne">
+      ${avatar(boss.id, 'avatar-md')}
+      <span><b>${boss.name} still holds ${fmt.num(bossHeld)} #1s.</b> <span class="muted">Snipe him. He keeps asking.</span></span>
+      <span class="throne-go">Dethrone Tris →</span>
+    </a>` : ''}
 
     <section class="section">
       <div class="section-head"><h2>Portugal’s best</h2><a href="#/rankings">All leaderboards →</a></div>

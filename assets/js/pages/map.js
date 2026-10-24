@@ -2,8 +2,10 @@ import { html } from '../core/html.js';
 import { mapEntry, playerIndex, challenges, dan } from '../core/data.js';
 import { S, M, CAT, STATUS, MODE, DAN_MAPS } from '../core/model.js';
 import { danName } from '../core/events.js';
+import { mapTags } from '../core/badges.js';
+import { mapLore } from '../core/lore.js';
 import {
-  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, mapText, osuMap, prefs, catChip,
+  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, mapText, osuMap, prefs, catChip, funChips,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -29,6 +31,13 @@ export default async function mapPage(root, { params, isCurrent }) {
   const me = prefs.get('me', null);
   const danStage = DAN_MAPS.indexOf(id);
   const board = entry?.s ?? [];
+  const lore = mapLore(meta);
+  const tags = [
+    ...(lore?.tuga ? [{ name: 'tuga certified 🇵🇹', tip: 'A Portuguese song or meme map.' }] : []), // PT text (intentional): "tuga"
+    ...mapTags(meta, board, entry?.c),
+  ];
+  const fcs = board.filter(e => e[S.MISS + 1] === 0).length;
+  const unrankedForever = meta && [STATUS.GRAVEYARD, STATUS.WIP, STATUS.PENDING].includes(meta[M.STATUS]) && board.length >= 3;
 
   root.innerHTML = String(html`
     <section class="banner">
@@ -42,8 +51,16 @@ export default async function mapPage(root, { params, isCurrent }) {
         </div>
         <h1>${title}</h1>
         <div class="sub">${sub}</div>
+        ${funChips(tags, 'map-tags')}
+        ${unrankedForever ? html`<p class="small faint" style="margin:10px 0 0">Still waiting to be ranked. Since 2018, probably.</p>` : ''}
       </div>
     </section>
+
+    ${lore ? html`<div class="lore-card">
+      <span class="eyebrow">${lore.title}</span>
+      <p>${lore.text(board.length, board.reduce((max, e) => Math.max(max, e[S.PP + 1]), 0))}</p>
+      ${board.length ? html`<p class="small muted" style="margin:0">FC watch: ${fmt.num(fcs)} of ${fmt.plural(board.length, 'Portuguese player')} ${fcs === 1 ? 'has' : 'have'} a full combo on this diff.</p>` : ''}
+    </div>` : ''}
 
     ${meta ? html`<dl class="kv kv-strip">
       <div><dt>Status</dt><dd>${STATUS_LABEL[meta[M.STATUS]] ?? '—'}</dd></div>

@@ -50,6 +50,36 @@ function weekSection(week, maps, index, me) {
     ${boardTable(week.board.slice(0, 10), index, me)}`;
 }
 
+/** The supporter challenge, scored the Discord's way: a grade on each pool map is worth points, first to 50 wins. */
+function houseSection(house, maps, index, me) {
+  const played = row => row[2].filter(Boolean).length;
+  return html`<section class="section">
+    <div class="section-head"><h2>The supporter challenge</h2><span class="muted small">The map pool Fie tracks for the Discord’s supporter challenges.</span></div>
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>House rules</h3>
+        <p>A <b>C</b> on a pool map is worth 1 point, a <b>B</b> 2, an <b>A</b> 3 and an <b>S</b> (or SS) 4. First to ${house.target} wins.</p>
+        <p class="muted">B’s and C’s are where it’s at. HD weeks pay more: an S with HD is worth 10, an A with HD 5.</p>
+        <p class="small faint" style="margin:0">Prize: a month of supporter (paid by Tris, as tradition demands). The standings here use each player’s best stored play on every pool map.</p>
+      </div>
+      <div>
+        ${house.rows.length ? html`<div class="table-wrap"><table class="table-compact">
+          <thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th>To ${house.target}</th><th class="num">Maps</th></tr></thead>
+          <tbody>${house.rows.slice(0, 12).map(([uid, points, grades], i) => html`<tr class="${uid === me ? 'me' : ''}">
+            <td class="rank">${i + 1}</td><td>${playerLink(uid, index, 'avatar-sm')}</td><td class="num"><b>${points}</b></td>
+            <td><span class="progress" title="${points} of ${house.target}"><span style="width:${Math.min(100, (points / house.target) * 100)}%"></span></span></td>
+            <td class="num faint">${played([uid, points, grades])}/${house.pool.length}</td>
+          </tr>`)}</tbody>
+        </table></div>` : empty('Nobody has scored on the pool yet.')}
+      </div>
+    </div>
+    <details class="pool">
+      <summary>The ${house.pool.length} pool maps</summary>
+      <div class="rows">${house.pool.map(id => html`<div class="row">${mapLink(id, maps[id])}</div>`)}</div>
+    </details>
+  </section>`;
+}
+
 export default async function challengesPage(root, { isCurrent }) {
   const [data, index] = await Promise.all([challenges(), playerIndex()]);
   if (!isCurrent()) return;
@@ -77,6 +107,17 @@ export default async function challengesPage(root, { isCurrent }) {
           <span class="faint">#1</span> ${playerLink(uid, index, 'avatar-sm')} ${scoreStats(s, { combo: false })} ${ppText(s[S.PP])}</div>
       </div>`)}</div>` : empty('Every #1 is well defended. For now.')}
     </section>
+
+    ${data.house ? houseSection(data.house, maps, index, me) : ''}
+
+    ${data.bounties?.length ? html`<section class="section">
+      <div class="section-head"><h2>Bounty board</h2><span class="muted small">Boss maps (6.5★ and up) that several Portuguese players have passed but nobody has FC’d.</span></div>
+      <div class="rows">${data.bounties.map(([id, cat, n, fewest]) => html`<div class="row">
+        <div>${mapLink(id, maps[id])}</div>
+        <div class="row-meta">${catChip(cat)} <span>${fmt.plural(n, 'player')}</span><span class="sep"></span>
+          <span>closest: ${fmt.plural(fewest, 'miss', 'misses')}</span><span class="bounty-tag">Nobody’s FC’d this. Yet.</span></div>
+      </div>`)}</div>
+    </section>` : ''}
 
     <section class="section grid grid-2">
       <div>

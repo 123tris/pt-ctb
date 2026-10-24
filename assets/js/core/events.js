@@ -1,8 +1,9 @@
 // How activity events read (home page and the activity page share this).
 
 import { html } from './html.js';
-import { S, DAN_STAGES } from './model.js';
+import { S, MOD, DAN_STAGES } from './model.js';
 import { catChip, CAT_LABEL, mapLabel, modsBadges, ppText, playerName } from './ui.js';
+import { QUIPS, THRONE_PLAYER, pick } from './lore.js';
 import * as fmt from './fmt.js';
 
 /** "Zeroth Dan", "7th Dan", "Aleph". */
@@ -49,8 +50,34 @@ function describe(e, index, maps) {
   }
 }
 
+const EVENT_EMOJI = { snipe: '🐐', top: '🔥', dan: '🫡', mile: '🗣️' };
+
+/** The Discord's reaction to an event, in its own words. Stable per event, so it doesn't change on redraw. */
+function quip(e) {
+  const seed = `${e.k}:${e.u}:${e.t}`;
+  const date = new Date(e.t * 1000);
+  switch (e.k) {
+    case 'snipe':
+      if (e.s[S.MODS] & MOD.NF) return QUIPS.noRealSnipe;
+      if (e.v === THRONE_PLAYER) return QUIPS.throne;
+      if (date.getUTCMonth() === 11 && (date.getUTCDate() === 24 || date.getUTCDate() === 25)) return QUIPS.christmas;
+      return pick(QUIPS.snipe, seed);
+    case 'top':
+      if (e.s[S.MISS] === 1) return pick(QUIPS.oneMiss, seed);
+      if (e.s[S.MISS] === 0 && e.s[S.GRADE] === 'A') return pick(QUIPS.trisAcc, seed);
+      return e.i === 1 ? pick(QUIPS.topFirst, seed) : null;
+    case 'mile':
+      return pick(QUIPS.mile, seed);
+    case 'join':
+      return pick(QUIPS.join, seed);
+    default:
+      return null;
+  }
+}
+
 export function eventItem(e, index, maps) {
   const { what, where } = describe(e, index, maps);
+  const line = quip(e);
   const play = e.s && (e.k === 'snipe' || e.k === 'top')
     ? html`<div class="event-play">${catChip(e.c)} ${modsBadges(e.s[S.MODS])} ${ppText(e.s[S.PP])}</div>`
     : '';
@@ -58,9 +85,11 @@ export function eventItem(e, index, maps) {
     <div class="event-head">
       <span class="event-kind">${EVENT_KINDS[e.k]?.tag}</span>
       <span title="${fmt.dateTime(e.t)}">${fmt.ago(e.t)}</span>
+      ${EVENT_EMOJI[e.k] ? html`<span class="event-emoji" aria-hidden="true">${EVENT_EMOJI[e.k]}</span>` : ''}
     </div>
     <div class="what">${what}</div>
     ${where ? html`<div class="where">${where}</div>` : ''}
     ${play}
+    ${line ? html`<div class="quip">${line}</div>` : ''}
   </div>`;
 }

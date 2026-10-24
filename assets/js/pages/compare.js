@@ -1,10 +1,14 @@
 import { html } from '../core/html.js';
 import { players, playerFile } from '../core/data.js';
-import { S, CATS, CAT, boardComparator } from '../core/model.js';
+import { S, M, CATS, CAT, boardComparator } from '../core/model.js';
 import {
   setTitle, avatar, playerPicker, pickedPlayer, prefs, mapLink, modsBadges, ppText, gradeBadge, paginate, empty, CAT_LABEL, tabs,
 } from '../core/ui.js';
+import { RIVALRIES } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
+
+/** The joke row: full combos on 7★ and up, from the player's own file. Data-backed, but still silly. */
+const aura = file => CATS.reduce((n, cat) => n + file.scores[cat].filter(s => s[S.MISS] === 0 && file.maps[s[S.MAP]]?.[M.STARS] >= 7).length, 0);
 
 /** Stat rows: label, value, how to show it, and whether lower wins (ranks). */
 const ROWS = [
@@ -68,10 +72,20 @@ export default async function compare(root, { params, query, isCurrent }) {
 
   if (!a || !b) {
     const rivals = a ? list.filter(p => p.id !== a.id && p.cv > 0).sort((x, y) => Math.abs(x.cv - a.cv) - Math.abs(y.cv - a.cv)).slice(0, 6) : [];
+    const presets = RIVALRIES.filter(([x, y]) => byId.has(x) && byId.has(y));
     root.innerHTML = String(html`
-      <header class="page-head"><span class="eyebrow">Compare</span><h1>Head to head</h1>
+      <header class="page-head"><span class="eyebrow">Compare · head to head</span><h1>Distory your enemies.</h1>
         <p>Pick two players to compare their stats and see who wins on the maps they’ve both played.</p></header>
       ${pickers}
+      ${!a && presets.length ? html`<section class="section"><h2>Classic rivalries</h2>
+        <div class="grid grid-3">${presets.map(([x, y, label]) => html`<a class="card card-link" href="#/compare/${x}/${y}">
+          <span class="eyebrow">${label}</span>
+          <div class="versus" style="margin-top:4px">
+            <span class="side">${avatar(x, 'avatar-sm')}<b>${byId.get(x).name}</b></span>
+            <span class="faint small">vs</span>
+            <span class="side right"><b>${byId.get(y).name}</b>${avatar(y, 'avatar-sm')}</span>
+          </div>
+        </a>`)}</div></section>` : ''}
       ${rivals.length ? html`<section class="section"><h2>Rivals for ${a.name}</h2>
         <p class="muted small">The players closest in Converts pp.</p>
         <div class="grid grid-3">${rivals.map(r => html`<a class="card card-link" href="#/compare/${a.id}/${r.id}">
@@ -99,6 +113,12 @@ export default async function compare(root, { params, query, isCurrent }) {
         <a class="side right" href="#/player/${b.id}" style="color:inherit"><b>${b.name}</b>${avatar(b.id, 'avatar-md')}</a>
       </div>
       ${statRows(a, b)}
+      ${(() => {
+        const [xa, xb] = [aura(fa), aura(fb)];
+        return html`<div class="cmp-row cmp-aura" title="Full combos on 7★ and up. Purely scientific.">
+          <span class="a ${xa > xb ? 'win' : ''}">${fmt.num(xa)}</span><span class="label">Aura</span><span class="${xb > xa ? 'win' : ''}">${fmt.num(xb)}</span>
+        </div>`;
+      })()}
     </section>
 
     <section class="section">

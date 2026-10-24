@@ -8,7 +8,7 @@ export default async function verify(root) {
     <header class="page-head">
       <span class="eyebrow">Verification</span>
       <h1>How /verify works</h1>
-      <p>The server is for Portuguese osu!catch players. To prove the osu! account really is yours, the bot uses osu!’s official sign-in, so nobody has to paste profile links or take anyone’s word for it.</p>
+      <p>PT flag on osu!? Come on in, we don’t bite (much). The server is for Portuguese osu!catch players. To prove the osu! account really is yours, the bot uses osu!’s official sign-in, so nobody has to paste profile links or take anyone’s word for it.</p>
     </header>
 
     <div class="grid grid-2">

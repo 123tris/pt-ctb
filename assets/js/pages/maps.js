@@ -11,6 +11,11 @@ const SORTS = {
   new: ['Newest (by id)', (a, b) => b[0] - a[0]],
 };
 const CATS = [['', 'All'], ['c', 'Converts'], ['u', 'Loved & Unranked'], ['r', 'Ranked']];
+// osu!catch's difficulty-name archetypes, plus every "-dose" pun (nekodose, himedose…) that isn't an Overdose.
+const DIFFS = [
+  ['', 'Any diff', null], ['cup', 'Cup', /\bcup\b/i], ['salad', 'Salad', /\bsalad\b/i], ['platter', 'Platter', /\bplatter\b/i],
+  ['rain', 'Rain', /\brain\b/i], ['overdose', 'Overdose', /\boverdose\b/i], ['dose', 'Other -doses', /\w+dose\b/i],
+];
 
 const row = (r, index) => {
   const titled = Boolean(r[3]);
@@ -46,17 +51,20 @@ export default async function maps(root, { query, isCurrent }) {
       <input class="input" type="search" id="q" placeholder="Artist, title, difficulty or id…" value="${query.q || ''}" aria-label="Search maps">
       <select class="select" id="sort" aria-label="Sort">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}">${label}</option>`)}</select>
     </div>
-    <div class="chips" id="cats" style="margin-bottom:16px">${CATS.map(([k, label]) => html`<button class="chip ${k === '' ? 'active' : ''}" data-cat="${k}">${label}</button>`)}</div>
+    <div class="chips" id="cats" style="margin-bottom:8px">${CATS.map(([k, label]) => html`<button class="chip ${k === '' ? 'active' : ''}" data-cat="${k}">${label}</button>`)}</div>
+    <div class="chips" id="diffs" style="margin-bottom:16px" title="Filter by the difficulty's name">${DIFFS.map(([k, label]) => html`<button class="chip ${k === '' ? 'active' : ''}" data-diff="${k}">${label}</button>`)}</div>
     <div id="list"></div>
   `);
 
   const q = root.querySelector('#q');
   const sort = root.querySelector('#sort');
   let cat = '';
+  let diff = null;
   const visible = () => {
     const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const filtered = list.filter(r => {
       if (cat && r[6] !== cat) return false;
+      if (diff && (!diff.test(r[4]) || (diff === DIFFS[6][2] && /overdose/i.test(r[4])))) return false;
       if (!words.length) return true;
       const text = `${r[0]} ${r[2]} ${r[3]} ${r[4]}`.toLowerCase();
       return words.every(w => text.includes(w));
@@ -71,6 +79,12 @@ export default async function maps(root, { query, isCurrent }) {
     if (e.target.dataset.cat === undefined) return;
     cat = e.target.dataset.cat;
     root.querySelectorAll('[data-cat]').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+    redraw(visible());
+  });
+  root.querySelector('#diffs').addEventListener('click', e => {
+    if (e.target.dataset.diff === undefined) return;
+    diff = DIFFS.find(([k]) => k === e.target.dataset.diff)[2];
+    root.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('active', b.dataset.diff === e.target.dataset.diff));
     redraw(visible());
   });
 }

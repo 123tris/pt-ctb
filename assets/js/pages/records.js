@@ -2,8 +2,44 @@ import { html } from '../core/html.js';
 import { records, playerIndex } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import { barChart } from '../core/charts.js';
-import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar } from '../core/ui.js';
+import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar, posBadge } from '../core/ui.js';
+import { FIRST_10K, mapLore } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
+
+/** Tris's #1s that still stand, and who's closest to taking them. */
+function throneSection(t, maps, index) {
+  const boss = index.get(t.u);
+  if (!boss) return '';
+  return html`<section class="section" id="throne">
+    <div class="section-head"><h2>Dethrone ${boss.name}</h2><a href="#/player/${t.u}">${boss.name}’s profile →</a></div>
+    <div class="throne-head card">
+      ${avatar(t.u, 'avatar-lg')}
+      <div>
+        <div class="stat-value">${fmt.num(t.held)} #1s</div>
+        <p class="muted" style="margin:4px 0 0">${boss.name} still holds ${fmt.num(t.held)} Portuguese #1s, ${fmt.num(t.contested)} of them on maps someone else has played too. He keeps asking to be sniped. Go on.</p>
+      </div>
+    </div>
+    <div class="grid grid-2" style="margin-top:16px">
+      <div>
+        <h3 class="small muted">His oldest #1s still standing</h3>
+        <div class="rows">${t.oldest.map(([cat, runner, ...s]) => html`<div class="row" style="grid-template-columns:1fr">
+          ${mapLink(s[S.MAP], maps[s[S.MAP]])}
+          <div class="row-meta" style="justify-content:flex-start">${catChip(cat)} <span class="faint">#1 since ${fmt.date(s[S.TIME])}</span><span class="sep"></span>
+            <span class="faint">next in line:</span> ${playerLink(runner, index, 'avatar-sm')}</div>
+        </div>`)}</div>
+      </div>
+      <div class="card">
+        <h3>Closest challengers</h3>
+        <p class="small muted">Who sits at #2, right behind ${boss.name}, on the most maps.</p>
+        <div class="mini-board">${t.challengers.map(([uid, n], i) => html`<a class="line" href="#/compare/${uid}/${t.u}">
+          <span class="n">${i + 1}</span>
+          <span class="player">${avatar(uid, 'avatar-sm')}<span>${index.get(uid)?.name ?? uid}</span></span>
+          <span class="pp">${fmt.num(n)}<small>maps</small></span>
+        </a>`)}</div>
+      </div>
+    </div>
+  </section>`;
+}
 
 /** A record that is one play: [userId, category, ...score]. */
 function playRecord(title, row, maps, index, highlight) {
@@ -29,7 +65,7 @@ function leaders(title, rows, index, unit) {
   </div>`;
 }
 
-export default async function recordsPage(root, { isCurrent }) {
+export default async function recordsPage(root, { query, isCurrent }) {
   const [r, index] = await Promise.all([records(), playerIndex()]);
   if (!isCurrent()) return;
   setTitle('Records');
@@ -62,6 +98,35 @@ export default async function recordsPage(root, { isCurrent }) {
         ${['c', 'u', 'r'].map(cat => playRecord(`Hardest map (${CAT_LABEL[cat]})`, r.hardest[cat], maps, index, (s, meta) => (meta ? `★ ${fmt.num(meta[M.STARS], 2)}` : '—')))}
       </div>
       <p class="small faint" style="margin-top:10px">Plays with EZ or HT don’t count for the hardest and longest maps.</p>
+    </section>
+
+    ${r.throne ? throneSection(r.throne, maps, index) : ''}
+
+    ${r.oneMiss ? html`<section class="section" id="choke">
+      <h2>The Choke d’Or</h2>
+      <p class="muted">Plays with exactly one miss: the community’s favourite subject. The 1-miss gods bless some players more than others.</p>
+      <div class="grid grid-2">
+        ${leaders('Most 1-miss plays', r.oneMiss, index)}
+        ${playRecord('The highest choke', r.highestChoke, maps, index, s => html`${fmt.pp(s[S.PP])} pp, 1 miss`)}
+      </div>
+    </section>` : ''}
+
+    ${r.wysi?.length ? html`<section class="section" id="wysi">
+      <h2>WYSI hall</h2>
+      <p class="muted">${fmt.plural(r.wysi.length, 'play')} ended on exactly 727 combo. When you see it…</p>
+      <div class="rows">${r.wysi.slice(0, 12).map(([uid, cat, ...s]) => html`<div class="row">
+        <div class="row-main">${mapLink(s[S.MAP], maps[s[S.MAP]])}<div>${playerLink(uid, index, 'avatar-sm')}</div></div>
+        <div class="row-meta">${catChip(cat)} ${scoreStats(s)}</div>
+      </div>`)}</div>
+    </section>` : ''}
+
+    <section class="section">
+      <h2>First past 10,000 pp</h2>
+      <p class="muted">The first Portuguese players to break 10k, and the play that took them there.</p>
+      <div class="rows">${FIRST_10K.map(([day, name, uid, play], i) => html`<div class="row">
+        <div class="score-line">${posBadge(i + 1)} ${uid && index.get(uid) ? playerLink(uid, index, 'avatar-sm') : html`<b>${name}</b>`} <span class="muted">${play}</span></div>
+        <div class="row-meta"><span class="faint">${fmt.date(Date.parse(`${day}T12:00:00Z`) / 1000)}</span></div>
+      </div>`)}</div>
     </section>
 
     <section class="section">
@@ -104,7 +169,9 @@ export default async function recordsPage(root, { isCurrent }) {
           <div>${mapLink(id, maps[id])}</div>
           <div class="row-meta">${catChip(cat)} ${fmt.plural(n, 'player')}</div>
         </div>`)}</div>
+        ${r.popularMaps[0] && mapLore(maps[r.popularMaps[0][0]]) ? html`<p class="small faint" style="margin:10px 0 0">${mapLore(maps[r.popularMaps[0][0]]).title}: ${fmt.plural(r.popularMaps[0][2], 'player')}, one dream.</p>` : ''}
       </div>
     </section>
   `);
+  if (query.at) root.querySelector(`#${CSS.escape(query.at)}`)?.scrollIntoView({ block: 'start' });
 }

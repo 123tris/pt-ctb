@@ -596,3 +596,148 @@ a.dan-stage:hover { text-decoration: none; }
 .countdown { font-weight: 700; color: var(--text); }
 .dim-link { color: var(--text-dim); }
 .dim-link:hover { color: var(--text); }
+
+/* ---- Community lore: in-joke badges, map stories, captions, easter eggs ------------------------------------ */
+
+.hero-tag { font: 600 var(--fs-lg)/1.3 var(--display); color: var(--accent) !important; letter-spacing: .01em; margin: -.2em 0 14px !important; }
+.hero-stats .hero-rework { grid-column: 1 / -1; padding-left: 0 !important; border-left: 0 !important; }
+.hero-rework dd { color: var(--accent); }
+
+.throne-strip {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; margin-top: 16px;
+  padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--gold); border-radius: var(--r);
+}
+.throne-strip .throne-go { color: var(--gold); font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; }
+@media (max-width: 560px) { .throne-strip { grid-template-columns: auto minmax(0, 1fr); } .throne-strip .throne-go { grid-column: 2; } }
+
+/* In-joke badges on profiles and tags on maps: dashed, so they read as jokes next to the real badges. */
+.fun-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.fun-chip {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-sm); cursor: help;
+  font-size: var(--fs-xs); font-weight: 600; color: var(--accent); border: 1px dashed var(--accent-line); background: color-mix(in srgb, var(--accent-bg) 55%, transparent);
+}
+.fun-chip:hover, .fun-chip:focus-visible { border-style: solid; }
+.map-tags { margin-top: 12px; }
+.badge-era { border-style: dashed; }
+
+.signature h3 .faint { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.lore-card { margin-top: 16px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: var(--r-sm); }
+.lore-card .eyebrow { margin-bottom: 4px; }
+.lore-card p { margin: 0 0 4px; }
+.role-lore { margin-top: 4px; font-size: var(--fs-xs); color: var(--text-faint); white-space: normal; max-width: 34ch; }
+
+.event .quip { margin-top: 4px; font-size: var(--fs-sm); color: var(--text-faint); font-style: italic; }
+.event-emoji { margin-left: auto; font-size: var(--fs-sm); }
+
+tr.inactive td { opacity: .5; }
+tr.inactive:hover td { opacity: .8; }
+.legend-tag { margin-left: 6px; font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); padding: 0 4px; }
+
+.progress { display: block; width: 100%; min-width: 80px; height: 6px; background: var(--surface-3); border-radius: var(--r-xs); overflow: hidden; }
+.progress span { display: block; height: 100%; background: var(--gold); }
+.pool { margin-top: 14px; }
+.pool summary { cursor: pointer; color: var(--text-dim); font-weight: 600; font-size: var(--fs-sm); margin-bottom: 10px; }
+.bounty-tag { color: var(--gold); font-weight: 600; }
+
+.throne-head { display: flex; gap: 18px; align-items: center; border-left: 2px solid var(--gold); }
+.cmp-aura .label { color: var(--gold); }
+.special-round { min-height: 1.4em; margin: -6px 0 10px; color: var(--gold); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: var(--fs-xs); }
+
+.timeline { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--border-strong); }
+.timeline li { position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; padding: 0 0 18px 18px; }
+.timeline li::before { content: ''; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.timeline-year { font: 700 var(--fs-lg)/1.3 var(--display); color: var(--text-faint); }
+.timeline-body p { margin: 2px 0 0; color: var(--text-dim); }
+
+/* Toasts, the WYSI flash and the emote wall. */
+.toasts { position: fixed; right: 16px; bottom: 16px; z-index: 80; display: grid; gap: 8px; max-width: min(380px, calc(100vw - 32px)); }
+.toast { background: var(--surface-2); border: 1px solid var(--border-strong); border-left: 2px solid var(--accent); border-radius: var(--r); padding: 12px 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+.toast-body { margin-bottom: 6px; }
+.toast-close { background: none; border: 0; padding: 0; color: var(--text-faint); font-size: var(--fs-xs); cursor: pointer; }
+.toast-close:hover { color: var(--text); }
+.flash { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; pointer-events: none; font: 800 clamp(4rem, 18vw, 12rem)/1 var(--display); color: var(--accent); animation: flash 1.4s ease-out forwards; }
+.flash-wall { font-size: clamp(2.5rem, 10vw, 6rem); }
+@keyframes flash { 0% { opacity: 0; transform: scale(.8); } 20% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.15); } }
+.emote-wall { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
+.emote-wall span { position: absolute; top: -60px; animation: fall 2.4s ease-in forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(25deg); } }
+@media (prefers-reduced-motion: reduce) { .flash { animation-duration: .9s; } }
+
+/* Bacalhau mode (type "bacalhau"): the loader catches cod instead of fruit. */
+.bacalhau .spinner { border: 0; width: auto; height: auto; animation: none; }
+.bacalhau .spinner::before { content: '🐟'; display: inline-block; font-size: 26px; animation: bob .8s ease-in-out infinite alternate; }
+@keyframes bob { to { transform: translateY(-8px) rotate(-12deg); } }
+
+/* The logo's seasonal hat: Santa in December, a bacalhau on Portugal Day. */
+[data-season] .brand::after { font-size: 1rem; margin-left: -2px; }
+[data-season='xmas'] .brand::after { content: '🎅'; }
+[data-season='ptday'] .brand::after { content: '🐟'; }
+
+/* =================================================================================================================
+   Player search in the top bar (core/search.js). Inline next to the brand from 1120px; below that a search button
+   that opens a full-width row under the bar. Kept as one block so it stays out of the way of other edits.
+   ================================================================================================================= */
+
+.search { position: relative; display: flex; align-items: center; }
+.search-toggle {
+  display: none; align-self: center; width: 40px; height: 40px; place-items: center; padding: 0;
+  background: none; border: 0; color: var(--text); cursor: pointer;
+}
+.search-toggle[aria-expanded='true'] { color: var(--accent); }
+.search-panel { display: block; }
+.search-field { position: relative; display: flex; align-items: center; }
+.search-field > svg { position: absolute; left: 10px; color: var(--text-faint); pointer-events: none; }
+.search-field input {
+  width: 220px; height: 34px; padding: 0 30px 0 32px; background: var(--surface); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--r); font-size: var(--fs-sm); transition: border-color .12s;
+}
+.search-field input::placeholder { color: var(--text-faint); }
+.search-field input:hover { border-color: var(--border-strong); }
+.search-field input:focus { outline: none; border-color: var(--accent); }
+.search-key {
+  position: absolute; right: 8px; min-width: 18px; padding: 0 4px; text-align: center; font: 600 .6875rem/16px var(--font);
+  color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); pointer-events: none;
+}
+.search-field input:focus ~ .search-key, .search-field input:not(:placeholder-shown) ~ .search-key { display: none; }
+
+.search-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; width: 340px; z-index: 55; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r);
+}
+.search-pop[hidden] { display: none; }
+.search-results { list-style: none; margin: 0; padding: 4px 0; max-height: min(420px, 70vh); overflow-y: auto; }
+.search-results [role='option'] {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 7px 12px; cursor: pointer;
+}
+.search-results [aria-selected='true'] { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
+.search-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.search-name mark { background: none; color: var(--accent); }
+.search-detail { color: var(--text-faint); font-size: var(--fs-xs); white-space: nowrap; }
+.search-none { padding: 12px; color: var(--text-dim); font-size: var(--fs-sm); }
+.search-all { display: block; padding: 9px 12px; border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 500; }
+.search-all:hover { background: var(--surface-2); text-decoration: none; }
+
+@media (max-width: 1119px) {
+  .search { position: static; order: 3; }
+  .nav-toggle { order: 4; }
+  .search-toggle { display: grid; }
+  .search-panel {
+    display: none; position: absolute; top: 56px; left: 0; right: 0; z-index: 51;
+    padding: 10px 16px 12px; background: var(--bg); border-bottom: 1px solid var(--border);
+  }
+  .search.open .search-panel { display: block; }
+  .search-field input, .search-field input:focus { width: 100%; height: 38px; font-size: var(--fs-md); }
+  .search-pop { position: static; width: auto; margin-top: 8px; }
+  .search-key { display: none; }
+}
+@media (max-width: 940px) {
+  .search { margin-left: auto; }
+  .search ~ .nav-toggle { margin-left: -24px; }
+}
+
+/* The profile picture on a player page links to their osu! profile: a quiet ring on hover, the usual focus ring. */
+.avatar-link { display: block; flex: none; border-radius: 50%; }
+.avatar-link .avatar { display: block; transition: box-shadow .12s, filter .12s; }
+.avatar-link:hover .avatar { box-shadow: 0 0 0 2px var(--border-strong); filter: brightness(1.08); }
+.avatar-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

@@ -1,6 +1,6 @@
 import { html } from '../core/html.js';
 import { playerFile, playerIndex } from '../core/data.js';
-import { S, M, CATS, isSS, modString } from '../core/model.js';
+import { S, M, MOD, CATS, isSS, modString } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { barChart } from '../core/charts.js';
 import { setTitle, avatar, mapLink, scoreStats, catChip, CAT_LABEL, mapText, empty } from '../core/ui.js';
@@ -13,6 +13,19 @@ const mostCommon = values => {
   for (const v of values) if (v) counts.set(v, (counts.get(v) || 0) + 1);
   return [...counts].sort((a, b) => b[1] - a[1])[0] ?? null;
 };
+
+/** The year's "era", in the Discord's terms: what most of the year's plays were. */
+function yearEra(w) {
+  const n = w.plays.length || 1;
+  const share = test => w.plays.filter(test).length / n;
+  if (share(p => p.s[S.MODS] & (MOD.DT | MOD.NC)) >= 0.5) return 'DT farming';
+  if (share(p => p.s[S.MODS] & MOD.HD) >= 0.6) return 'HD everything';
+  if (share(p => p.s[S.MODS] & MOD.HR) >= 0.5) return 'HR enjoyer';
+  if (w.perCat.c / n >= 0.6) return 'Farming converts';
+  if (w.perCat.u / n >= 0.5) return 'Hunting loved maps';
+  if (w.perCat.r / n >= 0.5) return 'Playing specifics';
+  return 'A bit of everything';
+}
 
 function summarise(file, year) {
   const inYear = s => new Date(s[S.TIME] * 1000).getFullYear() === year;
@@ -32,6 +45,7 @@ function summarise(file, year) {
     fruits: plays.reduce((n, p) => n + p.s[S.HITS], 0),
     ss: plays.filter(p => isSS(p.s[S.GRADE])).length,
     fc: plays.filter(p => p.s[S.MISS] === 0).length,
+    oneMiss: plays.filter(p => p.s[S.MISS] === 1).length,
     firsts: plays.filter(p => p.s[S.POS] === 1),
     best: Object.fromEntries(CATS.map(cat => [cat, best(cat)])),
     mods: mostCommon(plays.map(p => modString(p.s[S.MODS]))),
@@ -81,6 +95,11 @@ export default async function wrapped(root, { params, isCurrent }) {
         <div class="muted">In ${year}, ${p.name} set</div>
         <div class="big">${fmt.plural(w.plays.length, 'score')}</div>
         <div class="muted" style="margin-top:8px">${CATS.filter(c => w.perCat[c]).map((c, i) => html`${i ? ' · ' : ''}${fmt.num(w.perCat[c])} in ${CAT_LABEL[c]}`)}</div>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="slide"><div class="muted">Your era</div><div class="big" style="font-size:2rem">${yearEra(w)}</div></div>
+        <div class="slide"><div class="muted">1-miss plays</div><div class="big">${fmt.num(w.oneMiss)}</div><div class="muted small">${w.oneMiss ? 'The 1-miss gods have been busy.' : 'Not a single one. Suspicious.'}</div></div>
       </div>
 
       <div class="grid grid-3">

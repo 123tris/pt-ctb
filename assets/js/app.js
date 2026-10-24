@@ -4,6 +4,9 @@
 import { html } from './core/html.js';
 import { meta, NotFound } from './core/data.js';
 import { loading, setTitle } from './core/ui.js';
+import { NOT_FOUND, pick } from './core/lore.js';
+import { startFun } from './core/fun.js';
+import { initSearch } from './core/search.js';
 import * as fmt from './core/fmt.js';
 import { CONFIG } from './config.js';
 
@@ -24,6 +27,7 @@ const ROUTES = [
   ['recap/:id/:year?', () => import('./pages/wrapped.js')],
   ['commands', () => import('./pages/commands.js')],
   ['verify', () => import('./pages/verify.js')],
+  ['team', () => import('./pages/team.js')],
 ];
 
 function match(path) {
@@ -58,7 +62,7 @@ async function route() {
   closeMenus();
 
   const found = match(path);
-  if (!found) return showError('Page not found', 'This address doesn’t exist. Try going back to the home page.');
+  if (!found) return showError('Page not found', `${pick(NOT_FOUND)} Try going back to the home page.`);
 
   const spinner = setTimeout(() => { if (ticket === current) root.innerHTML = String(loading()); }, 150);
   try {
@@ -68,7 +72,10 @@ async function route() {
   } catch (e) {
     if (ticket !== current) return;
     console.error(e);
-    if (e instanceof NotFound) showError('Not found', 'There’s no data for this. The player or map may not be tracked yet.');
+    if (e instanceof NotFound) {
+      if (section === 'player' || section === 'recap') showError('Never heard of him!', 'There’s no Portuguese player with this id. They may not be tracked yet.');
+      else showError('Not found', 'There’s no data for this. The map may not be tracked yet.');
+    }
     else showError('Something went wrong', e.message);
   } finally {
     clearTimeout(spinner);
@@ -116,6 +123,8 @@ window.addEventListener('hashchange', () => {
 });
 lastPath = location.hash.split('?')[0];
 route();
+startFun();
+initSearch();
 
 meta().then(m => {
   const footer = document.getElementById('freshness');
