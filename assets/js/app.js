@@ -213,7 +213,7 @@ startTracking();
 
 if (CONFIG.discordInvite) {
   document.getElementById('footer-links')?.insertAdjacentHTML('afterbegin',
-    String(html`<a class="btn btn-small btn-discord" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>`));
+    String(html`<a class="btn btn-small" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>`));
 }
 
 meta().then(m => {
