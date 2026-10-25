@@ -3,7 +3,7 @@ import { challenges, playerIndex, dan } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
   setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, coverUrl, mapText, starsBadge, empty, osuMap, prefs,
-  pageHead,
+  pageHead, scoreWhen, mapLabel, scoreUrl,
 } from '../core/ui.js';
 import { renderDan, DAN_INTRO } from './dan.js';
 import * as fmt from '../core/fmt.js';
@@ -36,7 +36,7 @@ function boardTable(rows, index, me, label) {
       <td class="cell-player">${playerLink(uid, index, 'avatar-sm')}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span></span></td>
       <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
       <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td><td class="num">${ppText(s[S.PP])}</td>
-      <td class="num faint col-opt">${fmt.ago(s[S.TIME])}</td>
+      <td class="num faint col-opt">${scoreWhen(s, fmt.ago(s[S.TIME]))}</td>
     </tr>`)}</tbody>
   </table></div>`;
 }
@@ -98,7 +98,70 @@ function weekPanel(data, maps, index, me) {
     <section>
       <div class="section-head"><h2>Map of the week</h2><span class="muted small">Picked automatically every Monday.</span></div>
       ${weekSection(data.week, maps, index, me)}
-    </section>`;
+    </section>
+    ${highlights(data.weekly, maps, index)}`;
+}
+
+// ---- Weekly highlights: Score of the week, top pp play, most plays (the bot's Monday recap on Discord) ---------------
+
+const LENS = { topPp: 'Top pp', snipe: 'Biggest snipe', hardestFc: 'Hardest FC', fill: 'Next best pp' };
+const dayMonth = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', day: 'numeric', month: 'short' });
+
+/** "13–19 Jul" (Lisbon dates, Monday to Sunday). */
+function weekRange({ start, end }) {
+  const [from, to] = [start, end - 86400].map(t => dayMonth.formatToParts(new Date(t * 1000)));
+  const part = (parts, type) => parts.find(p => p.type === type).value;
+  return part(from, 'month') === part(to, 'month')
+    ? `${part(from, 'day')}–${part(to, 'day')} ${part(to, 'month')}`
+    : `${part(from, 'day')} ${part(from, 'month')}–${part(to, 'day')} ${part(to, 'month')}`;
+}
+
+/** A highlighted play ([user, category, ...tuple]) as a row, with what it's highlighted for. */
+const highlightRow = (label, [uid, cat, ...s], maps, index) => html`<div class="row">
+  <div class="row-main"><span class="muted small">${label}</span>${mapLink(s[S.MAP], maps[s[S.MAP]])}<div>${playerLink(uid, index, 'avatar-sm')}</div></div>
+  <div class="row-meta">${catChip(cat)} ${scoreStats(s)}<span class="sep"></span>${ppText(s[S.PP])}
+    <span class="faint" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.ago(s[S.TIME]))}</span></div>
+</div>`;
+
+/** A play in one table cell: who, pp (linked to the play on osu! when known) and the map. */
+function playCell([uid, , ...s], maps, index) {
+  const url = scoreUrl(s);
+  const pp = url ? html`<a href="${url}" target="_blank" rel="noopener" title="This play on osu!">${ppText(s[S.PP])}</a>` : ppText(s[S.PP]);
+  return html`${playerLink(uid, index, 'avatar-sm')} ${pp} <a class="dim-link small" href="#/map/${s[S.MAP]}">${mapLabel(s[S.MAP], maps[s[S.MAP]])}</a>`;
+}
+
+/** Nothing at all until the bot has closed a week or written the week so far. */
+function highlights(weekly, maps, index) {
+  if (!weekly) return '';
+  const { current, vote, past } = weekly;
+  return html`
+    ${current ? html`<section class="section">
+      <div class="section-head"><h2>This week so far</h2><span class="muted small">${weekRange(current)} · ${fmt.plural(current.passes, 'pass', 'passes')} by ${fmt.plural(current.players, 'player')}${current.complete ? '' : ' · some plays may be missing'}</span></div>
+      ${current.top || current.most.length ? html`<div class="rows">
+        ${current.top ? highlightRow('Top pp play', current.top, maps, index) : ''}
+        ${current.most.length ? html`<div class="row"><div class="row-main"><span class="muted small">Most plays</span></div>
+          <div class="row-meta">${current.most.map(([uid, n]) => html`${playerLink(uid, index, 'avatar-sm')} <span>${fmt.plural(n, 'play')}</span>`)}</div></div>` : ''}
+      </div>` : empty('Nothing yet this week. Go set something.')}
+    </section>` : ''}
+
+    ${vote ? html`<section class="section">
+      <div class="section-head"><h2>Vote: Score of the week</h2><span class="muted small">The candidates from ${weekRange(past.find(p => p.week === vote.week) ?? past[0])}. Vote with the reactions on Discord; it closes with Monday's recap.</span></div>
+      <div class="rows">${vote.candidates.map(([lens, row], i) => highlightRow(`${i + 1}. ${LENS[lens] ?? LENS.fill}`, row, maps, index))}</div>
+      <div class="btn-row" style="margin-top:12px"><a class="btn btn-primary" href="${vote.url}" target="_blank" rel="noopener">Vote on Discord ↗</a></div>
+    </section>` : ''}
+
+    ${past.length ? html`<section class="section">
+      <div class="section-head"><h2>Past weeks</h2><span class="muted small">Score of the week is voted on Discord; with no votes, the top pick wins.</span></div>
+      <div class="table-wrap" data-label="Past weeks"><table class="table-compact">
+        <thead><tr><th>Week</th><th>Score of the week</th><th class="col-opt">Top pp play</th><th class="col-opt">Most plays</th></tr></thead>
+        <tbody>${past.slice(0, 26).map(p => html`<tr>
+          <td title="${p.complete ? '' : 'The bot was offline for part of this week'}">${weekRange(p)}${p.complete ? '' : '*'}</td>
+          <td>${p.sotw ? playCell(p.sotw, maps, index) : html`<span class="faint">${p.week === vote?.week ? 'voting' : '—'}</span>`}</td>
+          <td class="col-opt">${p.top ? playCell(p.top, maps, index) : '—'}</td>
+          <td class="col-opt">${p.most ? html`${playerLink(p.most[0], index, 'avatar-sm')} ${fmt.num(p.most[1])}` : '—'}</td>
+        </tr>`)}</tbody>
+      </table></div>
+    </section>` : ''}`;
 }
 
 function targetsPanel(data, maps, index) {

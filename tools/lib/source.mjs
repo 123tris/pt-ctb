@@ -30,7 +30,33 @@ export function loadBotData(root) {
     ptCatch: readJsonOr(path.join(root, 'PtCatch', 'players.json'), []),
     ptCatchState: readJsonOr(path.join(root, 'PtCatch', 'state.json'), {}),
     banned: new Set(readJsonOr(path.join(root, 'BannedMaps.json'), [])),
+    weekly: loadWeekly(root),
   };
+}
+
+/**
+ * The weekly highlights the bot keeps in Weekly/: every closed week's summary (2026-W44.json…) and the week so far
+ * (current.json). Empty until the bot has closed a week; a file that won't parse is skipped.
+ */
+export function loadWeekly(root) {
+  const dir = path.join(root, 'Weekly');
+  if (!fs.existsSync(dir)) return { weeks: [], current: null };
+  const weeks = [];
+  for (const file of fs.readdirSync(dir)) {
+    if (!/^\d{4}-W\d\d\.json$/.test(file)) continue;
+    try {
+      weeks.push(readJson(path.join(dir, file)));
+    } catch (e) {
+      console.warn(`  skipped Weekly/${file}: ${e.message}`);
+    }
+  }
+  let current = null;
+  try {
+    current = readJsonOr(path.join(dir, 'current.json'), null);
+  } catch (e) {
+    console.warn(`  skipped Weekly/current.json: ${e.message}`);
+  }
+  return { weeks, current };
 }
 
 /**

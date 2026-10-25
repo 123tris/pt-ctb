@@ -3,9 +3,11 @@
 
 /**
  * Indices into a score tuple: [map, pp, acc, combo, miss, mods, grade, score, time, hits]. In a player's own file
- * each tuple also carries POS, the play's position among Portuguese players on that map.
+ * each tuple also carries POS, the play's position among Portuguese players on that map (null elsewhere). ID, when
+ * there, is the play's osu! score id: positive for osu!'s current id, negative for a stable play's legacy id (see
+ * scoreUrl in ui.js). Data from before 2026-10-26 has no ID, and plays the bot can't tell the id kind of leave it off.
  */
-export const S = { MAP: 0, PP: 1, ACC: 2, COMBO: 3, MISS: 4, MODS: 5, GRADE: 6, SCORE: 7, TIME: 8, HITS: 9, POS: 10 };
+export const S = { MAP: 0, PP: 1, ACC: 2, COMBO: 3, MISS: 4, MODS: 5, GRADE: 6, SCORE: 7, TIME: 8, HITS: 9, POS: 10, ID: 11 };
 
 /**
  * Indices into a beatmap tuple:
