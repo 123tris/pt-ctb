@@ -222,6 +222,12 @@ export const isUnclaimedCandidate = raw =>
   hasTitle(raw) && Number(raw.playmode) === MODE.CATCH &&
   (Number(raw.approved) === STATUS.RANKED || Number(raw.approved) === STATUS.APPROVED);
 
+/**
+ * A cached map osu!catch can play (a catch map or a convert), as the catch dump vouches: it gave the map a catch star
+ * rating. The cached mode can't say so on its own, as old cache entries file taiko and mania difficulties as catch.
+ */
+export const isSetDifficulty = raw => raw?.catch_difficulty === true;
+
 export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOfficial = {} }) {
   // A banned map keeps its scores, but every one of them is worth 0pp (as in the bot).
   const banned = bot.banned;
@@ -656,6 +662,49 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       ...bounties.map(r => r[0])].filter(Boolean)),
   };
 
+  // ---- Mapsets ------------------------------------------------------------------------------------------------------
+  // sets/{setId % 128}.json: the difficulties of each mapset a page here shows, { setId: [[mapId, version, stars,
+  // players]] } easiest first (as osu! orders them), for the map page's switcher. A set lists the maps with a page plus
+  // the rest of the set that osu!catch can play (isSetDifficulty), which get a page of their own: their details over an
+  // empty board. Sets with a single difficulty are left out.
+  const setRows = new Map(); // setId -> Map(mapId -> row)
+  const addRow = (set, row) => (setRows.get(set) ?? setRows.set(set, new Map()).get(set)).set(row[0], row);
+  for (const bucket of Object.values(mapBuckets)) {
+    for (const [id, e] of Object.entries(bucket)) if (e.m?.[M.SET]) addRow(e.m[M.SET], [Number(id), e.m[M.VERSION], e.m[M.STARS], e.s.length]);
+  }
+  // Dan stages and unclaimed maps have a page too (from dan.json and challenges.json).
+  for (const id of [...DAN_MAPS, ...unclaimed.map(r => r[0])]) {
+    const set = meta(id)?.beatmapset_id;
+    if (set && !setRows.has(set)) setRows.set(set, new Map());
+  }
+  // The dump's rows carry no title: a difficulty without one borrows its set's (and the set's ranked date).
+  const titled = new Map();
+  const unlisted = [];
+  for (const raw of beatmaps.values()) {
+    if (!setRows.has(raw.beatmapset_id)) continue;
+    if (hasTitle(raw) && !titled.has(raw.beatmapset_id)) titled.set(raw.beatmapset_id, raw);
+    if (isSetDifficulty(raw) && !setRows.get(raw.beatmapset_id).has(raw.beatmap_id)) unlisted.push(raw);
+  }
+  const newEntries = new Map(); // mapId -> bucket entry, for the difficulties with no page yet
+  for (const raw of unlisted) {
+    const cat = classify(Number(raw.approved), Number(raw.playmode));
+    if (!cat) continue;
+    const donor = titled.get(raw.beatmapset_id);
+    const sameStatus = donor && Number(donor.approved) === Number(raw.approved);
+    const m = toMapTuple(hasTitle(raw) || !donor ? raw : {
+      ...raw, artist: donor.artist, title: donor.title, creator: donor.creator,
+      approved_date: raw.approved_date ?? (sameStatus ? donor.approved_date : null),
+    });
+    newEntries.set(raw.beatmap_id, { m, c: cat, s: [] });
+    addRow(raw.beatmapset_id, [raw.beatmap_id, m[M.VERSION], m[M.STARS], 0]);
+  }
+  const setBuckets = {};
+  for (const [set, rows] of [...setRows].sort((a, b) => a[0] - b[0])) {
+    if (rows.size < 2) continue;
+    (setBuckets[set % BUCKETS] ??= {})[set] = [...rows.values()].sort((a, b) => a[2] - b[2] || a[0] - b[0]);
+    for (const id of rows.keys()) if (newEntries.has(id)) (mapBuckets[id % BUCKETS] ??= {})[id] = newEntries.get(id);
+  }
+
   // ---- Quiz pool ---------------------------------------------------------------------------------------------------
 
   const sets = new Map();
@@ -771,6 +820,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       ...Object.fromEntries(Object.entries(playerFiles).map(([id, file]) => [`players/${id}.json`, file])),
       ...Object.fromEntries(Object.entries(headFiles).map(([id, file]) => [`players/${id}-head.json`, file])),
       ...Object.fromEntries(Object.entries(mapBuckets).map(([b, file]) => [`maps/${b}.json`, file])),
+      ...Object.fromEntries(Object.entries(setBuckets).map(([b, file]) => [`sets/${b}.json`, file])),
     },
     state,
   };

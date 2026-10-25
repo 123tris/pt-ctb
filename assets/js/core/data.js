@@ -75,6 +75,16 @@ export async function mapEntry(id) {
   return bucket[id] ?? null;
 }
 
+/**
+ * A mapset's difficulties, [[mapId, version, stars, players]] easiest first, or null for a set with one, or data from
+ * before sets/ (then the map page shows no switcher).
+ */
+export async function mapSet(setId) {
+  const path = `sets/${setId % 128}.json`;
+  const m = await meta();
+  return m.files?.[path] ? (await load(path))[setId] ?? null : null;
+}
+
 /** Players by id. */
 let indexPromise = null;
 export function playerIndex() {

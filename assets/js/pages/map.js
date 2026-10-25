@@ -1,11 +1,11 @@
 import { html } from '../core/html.js';
-import { mapEntry, playerIndex, challenges, dan } from '../core/data.js';
+import { mapEntry, mapSet, playerIndex, challenges, dan } from '../core/data.js';
 import { S, M, CAT, STATUS, DAN_MAPS } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { mapTags } from '../core/badges.js';
 import { mapLore } from '../core/lore.js';
 import {
-  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, mapText, osuMap, osuGame, prefs, catChip,
+  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip,
   funChips,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
@@ -30,6 +30,15 @@ function statusDate(meta) {
   return at ? ['Last updated', at] : null;
 }
 
+/** The set's difficulties as links, easiest first, this one marked. */
+function diffSwitcher(id, diffs) {
+  return html`<nav class="diffs" aria-label="Difficulties">${diffs.map(([mapId, version, stars, players]) => {
+    const label = `${version}, ${fmt.num(stars, 2)} stars, ${players ? fmt.plural(players, 'Portuguese player') : 'no Portuguese scores yet'}`;
+    return html`<a class="diff ${players ? '' : 'diff-new'}" href="#/map/${mapId}" style="--s:${starColor(stars)}" title="${label}"
+      aria-label="${label}" aria-current="${mapId === id ? 'page' : 'false'}"><span>${version}</span><small>${fmt.num(stars, 2)}</small></a>`;
+  })}</nav>`;
+}
+
 async function otherMeta(id) {
   const [ch, d] = await Promise.all([challenges(), dan()]);
   return ch.maps[id] ?? d.stages.find(stage => stage.map === id)?.meta ?? null;
@@ -40,6 +49,9 @@ export default async function mapPage(root, { params, isCurrent }) {
   const [entry, index] = await Promise.all([mapEntry(id), playerIndex()]);
   // Maps nobody here has played (challenge suggestions, unplayed Dan stages) still have details elsewhere.
   const meta = entry?.m ?? await otherMeta(id);
+  // The set's difficulties, when the data has them (sets/ came after the map files) and they include this one.
+  const set = meta?.[M.SET] ? await mapSet(meta[M.SET]).catch(() => null) : null;
+  const diffs = set?.some(d => d[0] === id) ? set : null;
   if (!isCurrent()) return;
   const { title, sub } = mapText(id, meta);
   setTitle(title);
@@ -67,6 +79,7 @@ export default async function mapPage(root, { params, isCurrent }) {
         </div>
         <h1><a class="title-link" href="${osuMap(id)}" target="_blank" rel="noopener" title="${title} on osu!">${title}</a></h1>
         <div class="sub">${sub}</div>
+        ${diffs ? diffSwitcher(id, diffs) : ''}
         ${funChips(tags, 'map-tags')}
         ${unrankedForever ? html`<p class="small faint" style="margin:10px 0 0">Still waiting to be ranked. Since 2018, probably.</p>` : ''}
       </div>
@@ -127,4 +140,11 @@ export default async function mapPage(root, { params, isCurrent }) {
       </table></div>
     </section>` : ''}
   `);
+
+  // A long list scrolls (sideways on a phone): start it with this difficulty in view.
+  const nav = root.querySelector('.diffs'), current = nav?.querySelector('[aria-current="page"]');
+  if (current) {
+    nav.scrollLeft = current.offsetLeft - nav.offsetLeft - (nav.clientWidth - current.offsetWidth) / 2;
+    nav.scrollTop = current.offsetTop - nav.offsetTop - (nav.clientHeight - current.offsetHeight) / 2;
+  }
 }

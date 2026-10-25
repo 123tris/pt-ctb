@@ -441,6 +441,28 @@ a.row.card-link:last-child { border-bottom: 0; }
 .banner .sub { color: var(--text-dim); font-size: var(--fs-lg); }
 .banner .links { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
 .banner p { color: var(--text-dim); }
+/* The set's difficulties: small links with their star colour, wrapping, with a peek at the fourth row before it scrolls
+   (mapping packs run to a hundred); on phones one row to swipe, out to the banner's edges. The padding keeps focus
+   rings inside the scroll box. Dashed: no Portuguese scores there yet. */
+.diffs {
+  display: flex; flex-wrap: wrap; gap: 4px; max-height: 106px; overflow-y: auto; scrollbar-width: thin;
+  margin: 8px -4px 0; padding: 4px;
+}
+.diff {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; max-width: min(100%, 32ch); padding: 0 8px;
+  border: 1px solid var(--border-strong); border-radius: var(--r-sm); color: var(--text-dim); font-size: var(--fs-sm);
+  font-weight: 500; white-space: nowrap; flex: none;
+}
+.diff::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--s); flex: none; }
+.diff span { overflow: hidden; text-overflow: ellipsis; }
+.diff small { color: var(--text-faint); font-size: var(--fs-xs); }
+.diff:hover { color: var(--text); border-color: var(--text-faint); text-decoration: none; }
+.diff[aria-current='page'] { background: var(--accent-bg); border-color: var(--accent-line); color: var(--accent); }
+.diff-new { border-style: dashed; }
+@media (max-width: 600px) {
+  .diffs { flex-wrap: nowrap; max-height: none; overflow: auto hidden; scrollbar-width: none; margin: 8px -20px 0; padding: 4px 20px; }
+  .diffs::-webkit-scrollbar { display: none; }
+}
 .week-cover { display: block; width: 100%; aspect-ratio: 18 / 5; object-fit: cover; background: var(--surface-3); border-bottom: 1px solid var(--border); }
 
 .profile-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-bottom: 28px; }
