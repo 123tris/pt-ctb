@@ -12,6 +12,9 @@ export const SLUG_CAT = { converts: 'c', loved: 'u', ranked: 'r' };
 
 export const osuUser = id => `https://osu.ppy.sh/users/${id}/fruits`;
 export const osuMap = id => `https://osu.ppy.sh/beatmaps/${id}?mode=fruits`;
+// Opens the difficulty in the osu! game: the link osu!'s own osu!direct button uses. Stable jumps to it, or offers it
+// in osu!direct (supporters only) when it isn't downloaded; lazer opens it too. A custom scheme, so never a new tab.
+export const osuGame = id => `osu://b/${id}`;
 export const avatarUrl = id => `https://a.ppy.sh/${id}`;
 export const coverUrl = (set, kind = 'list') => (set ? `https://assets.ppy.sh/beatmaps/${set}/covers/${kind}.jpg` : '');
 

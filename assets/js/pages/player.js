@@ -194,7 +194,7 @@ export default async function player(root, { params, query, isCurrent }) {
     <header class="profile-head">
       <a class="avatar-link" href="${osuUser(id)}" target="_blank" rel="noopener" aria-label="${p.name} on osu!" title="${p.name} on osu!">${avatar(id, 'avatar-lg')}</a>
       <div class="profile-info">
-        <h1><a class="profile-name" href="${osuUser(id)}" target="_blank" rel="noopener" title="${p.name} on osu!">${p.name}</a>${isLegend(p) ? legendTag() : ''}</h1>
+        <h1><a class="title-link" href="${osuUser(id)}" target="_blank" rel="noopener" title="${p.name} on osu!">${p.name}</a>${isLegend(p) ? legendTag() : ''}</h1>
         <div class="links">
           ${role ? html`<span class="badge badge-gold">${role}</span>` : ''}
           ${firsts ? html`<span class="badge badge-accent">${fmt.plural(firsts, '#1', '#1s')} in Portugal</span>` : ''}

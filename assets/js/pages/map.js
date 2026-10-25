@@ -5,7 +5,8 @@ import { danName } from '../core/events.js';
 import { mapTags } from '../core/badges.js';
 import { mapLore } from '../core/lore.js';
 import {
-  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, mapText, osuMap, prefs, catChip, funChips,
+  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, mapText, osuMap, osuGame, prefs, catChip,
+  funChips,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -65,7 +66,7 @@ export default async function mapPage(root, { params, isCurrent }) {
           ${danStage >= 0 ? html`<span class="badge badge-gold">Dan course: ${danName(danStage)}</span>` : ''}
           ${entry?.banned ? html`<span class="badge badge-red" title="Scores on this map are kept but give no pp">Banned — no pp</span>` : ''}
         </div>
-        <h1>${title}</h1>
+        <h1><a class="title-link" href="${osuMap(id)}" target="_blank" rel="noopener" title="${title} on osu!">${title}</a></h1>
         <div class="sub">${sub}</div>
         ${funChips(tags, 'map-tags')}
         ${unrankedForever ? html`<p class="small faint" style="margin:10px 0 0">Still waiting to be ranked. Since 2018, probably.</p>` : ''}
@@ -90,7 +91,7 @@ export default async function mapPage(root, { params, isCurrent }) {
     </dl>` : ''}
 
     <div class="btn-row" style="margin-top:16px">
-      <a class="btn btn-small" href="${osuMap(id)}" target="_blank" rel="noopener">Open on osu! ↗</a>
+      <a class="btn btn-small" href="${osuGame(id)}" title="Opens this difficulty in the osu! game (on stable, downloading it through osu!direct needs supporter)">Open in osu!</a>
       ${meta?.[M.MAX_COMBO] ? html`<a class="btn btn-small" href="#/calculator?map=${id}">Calculate pp</a>` : ''}
     </div>
 
