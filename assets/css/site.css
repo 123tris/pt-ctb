@@ -429,14 +429,14 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* Hebrew letters come from a system font whose overlapping contours show through an outline, so unlit ones are a
    solid, faint gold instead. */
 .rung-he:not(.lit) .rung-glyph { color: color-mix(in srgb, var(--gold) 30%, var(--bg)); -webkit-text-stroke: 0; }
-.rung.top .rung-glyph { color: var(--accent); }
+.rung.top .rung-glyph { color: var(--text); }
 .rung.top::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: 0; height: 2px; border-radius: 1px; background: var(--accent); }
 .rung-n { font-size: var(--fs-xs); color: var(--text-faint); }
 .rung.mine .rung-n { color: var(--accent); font-weight: 700; }
 .ladder:hover .rung-glyph { transform: translateY(-2px); }
 .hero .ladder-caption { max-width: none; margin: 10px 0 0; font-size: var(--fs-sm); }
 .ladder-caption b { color: var(--text); font-weight: 600; }
-.ladder-caption [lang='pt-PT'] { font-family: var(--display); font-weight: 600; color: var(--gold); white-space: nowrap; }
+.ladder-caption [lang='pt-PT'] { font-family: var(--display); font-weight: 600; color: var(--text); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .ladder:hover .rung-glyph { transform: none; } }
 /* Phones: the numerals on one row, the Hebrew letters under them. */
 @media (max-width: 600px) {
@@ -448,8 +448,8 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* "Since 2018": the community's story on one line, a dot per year, the latest filled. */
 .since { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--border-strong); }
 .since li { position: relative; padding: 18px 20px 0 0; }
-.since li::before { content: ''; position: absolute; top: -4px; left: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--bg); border: 1px solid var(--accent); }
-.since li:last-child::before { background: var(--accent); }
+.since li::before { content: ''; position: absolute; top: -4px; left: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--bg); border: 1px solid var(--text-faint); }
+.since li:last-child::before { background: var(--text); border-color: var(--text); }
 .since-year { display: block; margin-bottom: 6px; font: 700 var(--fs-2xl)/1 var(--display); }
 .since p { margin: 0; color: var(--text-dim); font-size: var(--fs-sm); }
 @media (max-width: 760px) {
@@ -465,7 +465,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 .step { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: baseline; }
 .step::before {
   counter-increment: step; content: counter(step, decimal-leading-zero);
-  font: 700 var(--fs-xl)/1 var(--display); color: var(--accent);
+  font: 700 var(--fs-xl)/1 var(--display); color: var(--text-faint);
 }
 .step p { margin: 2px 0 0; color: var(--text-dim); }
 
@@ -492,6 +492,8 @@ a.row.card-link:last-child { border-bottom: 0; }
 .mini-board a.line:hover .player span { color: var(--accent); }
 .mini-board .n { color: var(--text-faint); font-weight: 700; font-size: var(--fs-sm); }
 .card-foot { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: var(--fs-sm); }
+.card-foot a { color: var(--text-dim); }
+.card-foot a:hover { color: var(--accent); }
 
 /* ---- Map banner / player header ---------------------------------------------------------------- */
 
@@ -615,8 +617,9 @@ a.dan-stage:hover { text-decoration: none; }
 .event { padding: 11px 14px 12px; border-bottom: 1px solid var(--border); min-width: 0; }
 .event:last-child { border-bottom: 0; }
 .event-head { display: flex; align-items: center; gap: 10px; font-size: var(--fs-xs); color: var(--text-faint); margin-bottom: 2px; }
-.event-kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--k); }
-.event-kind::before { content: ''; width: 6px; height: 6px; border-radius: 1px; background: currentColor; }
+/* An event's kind: its colour is only the small square; the word stays neutral. */
+.event-kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+.event-kind::before { content: ''; width: 6px; height: 6px; border-radius: 1px; background: var(--k); }
 .event .what { font-weight: 400; }
 .event .what a { color: var(--text); }
 .event .what a:hover { color: var(--accent); text-decoration: none; }
@@ -784,13 +787,13 @@ a.dan-stage:hover { text-decoration: none; }
 /* ---- Community lore: in-joke badges, map stories, captions, easter eggs ------------------------------------ */
 
 .hero-stats .hero-rework { grid-column: 1 / -1; padding-left: 0 !important; border-left: 0 !important; }
-.hero-rework dd { color: var(--accent); }
+.hero-rework dd { color: var(--text); }
 
 .throne-strip {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; margin-top: 16px;
   padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--gold); border-radius: var(--r);
 }
-.throne-strip .throne-go { color: var(--gold); font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; }
+.throne-strip .throne-go { color: var(--accent); font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; }
 @media (max-width: 560px) { .throne-strip { grid-template-columns: auto minmax(0, 1fr); } .throne-strip .throne-go { grid-column: 2; } }
 
 /* In-joke badges on profiles and tags on maps: dashed, so they read as jokes next to the real badges. */
@@ -1140,7 +1143,7 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 /* The home page's "Tris still holds…" line: a ruled row, not a gold-striped panel. */
 .throne-strip { background: none; border: 0; border-block: 1px solid var(--border); border-radius: 0; padding: 12px 0; }
 .throne-strip.card-link:hover { background: none; border-color: var(--border); }
-.throne-strip.card-link:hover b { color: var(--gold); }
+.throne-strip.card-link:hover b { color: var(--accent); }
 
 /* The home page's "This week so far" (core/weekly.js weeklySummary): a few ruled lines under the map of the week. */
 .week-summary { margin-top: 28px; }
@@ -1175,7 +1178,8 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 
 /* Home: one main action (the Discord), the rest as plain links; "How to join" as three steps side by side. */
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
-.hero-actions > a:not(.btn), .link-button { font-weight: 600; }
+.hero-actions > a:not(.btn), .hero-actions .link-button { font-weight: 600; color: var(--text); }
+.hero-actions > a:not(.btn):hover, .hero-actions .link-button:hover { color: var(--accent); }
 .link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
 .link-button:hover { text-decoration: underline; text-underline-offset: 3px; }
 .steps-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }

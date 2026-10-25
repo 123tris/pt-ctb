@@ -1,12 +1,11 @@
 /* The site's atmosphere and motion, a layer over site.css.
    - The page sits on faint azulejo tiles, lit rosa from the top left and tile blue from the right, with film grain.
-     The tiles live in the margins and along the top, and fade out behind the reading column so text stays clear.
+     The tiles live in the margins beside the page and fade out behind the reading column so text stays clear.
    - The logo's name is set in Unbounded.
    - Motion: sections fade up as they arrive, cards lift a little under the pointer, the Dan ladder's frontier pulses
      and "osu!catch" in the hero shimmers. All of it stops under prefers-reduced-motion. */
 
 :root {
-  --rosa-2: #ff9a76;                    /* the warm end of the hero's shimmer */
   --tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%2373c5e8' stroke-opacity='.08' stroke-width='1.2'%3E%3Cpath d='M0 0h72v72H0z'/%3E%3Ccircle cx='0' cy='0' r='20'/%3E%3Ccircle cx='72' cy='0' r='20'/%3E%3Ccircle cx='0' cy='72' r='20'/%3E%3Ccircle cx='72' cy='72' r='20'/%3E%3Cpath d='M36 16l20 20-20 20-20-20z'/%3E%3Ccircle cx='36' cy='36' r='7'/%3E%3Cpath d='M36 2v10M36 60v10M2 36h10M60 36h10'/%3E%3C/g%3E%3C/svg%3E");
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   /* Half the width the tiles keep clear in the middle of the page: a little less than the column, so they only reach
@@ -18,21 +17,19 @@
 
 body {
   background:
-    radial-gradient(1100px 620px at 8% -8%, color-mix(in srgb, var(--accent) 17%, transparent), transparent 62%),
-    radial-gradient(900px 700px at 108% 26%, color-mix(in srgb, var(--cat-c) 9%, transparent), transparent 60%),
+    radial-gradient(1100px 620px at 8% -8%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 62%),
+    radial-gradient(900px 700px at 108% 26%, color-mix(in srgb, var(--cat-c) 5%, transparent), transparent 60%),
     var(--bg);
   background-attachment: fixed;
 }
 /* The tiles: shown in the margins beside the page (full strength at the window's edges, gone 140px before the text)
-   and in a band along the top that fades out by 280px. Nothing sits behind the text in the middle. */
+   only: nothing sits behind the text in the middle or along the top. */
 body::before {
   content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--tile);
   -webkit-mask-image:
-    linear-gradient(90deg, #000 calc(50% - var(--tile-clear) - 140px), transparent calc(50% - var(--tile-clear)), transparent calc(50% + var(--tile-clear)), #000 calc(50% + var(--tile-clear) + 140px)),
-    linear-gradient(180deg, rgba(0, 0, 0, .6) 0, transparent 280px);
+    linear-gradient(90deg, #000 calc(50% - var(--tile-clear) - 140px), transparent calc(50% - var(--tile-clear)), transparent calc(50% + var(--tile-clear)), #000 calc(50% + var(--tile-clear) + 140px));
   mask-image:
-    linear-gradient(90deg, #000 calc(50% - var(--tile-clear) - 140px), transparent calc(50% - var(--tile-clear)), transparent calc(50% + var(--tile-clear)), #000 calc(50% + var(--tile-clear) + 140px)),
-    linear-gradient(180deg, rgba(0, 0, 0, .6) 0, transparent 280px);
+    linear-gradient(90deg, #000 calc(50% - var(--tile-clear) - 140px), transparent calc(50% - var(--tile-clear)), transparent calc(50% + var(--tile-clear)), #000 calc(50% + var(--tile-clear) + 140px));
 }
 body::after {
   content: ''; position: fixed; inset: 0; z-index: 200; pointer-events: none; opacity: .06; mix-blend-mode: overlay;
@@ -54,16 +51,16 @@ body::after {
 .reveal { opacity: 0; transform: translateY(16px); transition: opacity .55s ease, transform .55s cubic-bezier(.2, .7, .2, 1); }
 .reveal.in { opacity: 1; transform: none; }
 
-/* "osu!catch" in the hero shimmers slowly between rosa and coral. */
+/* "osu!catch" in the hero shimmers slowly, rosa to a lighter rosa: one hue, no second colour. */
 .hero h1 em {
-  background: linear-gradient(100deg, var(--accent) 0%, var(--rosa-2) 35%, var(--accent) 70%, var(--rosa-2) 100%); background-size: 220% 100%;
+  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-hover) 35%, var(--accent) 70%, var(--accent-hover) 100%); background-size: 220% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 7s ease-in-out infinite alternate;
 }
 @keyframes shimmer { to { background-position: 100% 0; } }
 
 /* The Dan ladder: the highest stage anyone has reached rises and glows, again and again. */
 .rung.top .rung-glyph { animation: frontier 2.4s ease-in-out infinite; }
-@keyframes frontier { 50% { text-shadow: 0 0 30px color-mix(in srgb, var(--accent) 80%, transparent); transform: translateY(-3px); } }
+@keyframes frontier { 50% { text-shadow: 0 0 24px color-mix(in srgb, var(--text) 45%, transparent); transform: translateY(-3px); } }
 
 /* Things you can pick up lift a little under the pointer; rows get the accent along their edge. */
 .game-cards .card-link, .subnav a, .dan-stage { transition: transform .2s, box-shadow .2s, border-color .2s, background-color .2s; }
