@@ -5,7 +5,7 @@ import { danName } from '../core/events.js';
 import { mapTags } from '../core/badges.js';
 import { mapLore } from '../core/lore.js';
 import {
-  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip, scoreWhen,
+  setTitle, playerLink, scoreStats, ppText, posBadge, bannerArt, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip, scoreWhen,
   funChips, setPressed,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
@@ -91,7 +91,7 @@ export default async function mapPage(root, { params, isCurrent }) {
 
   root.innerHTML = String(html`
     <section class="banner">
-      <div class="banner-art" style="${meta?.[M.SET] ? `background-image:url('${coverUrl(meta[M.SET], 'cover@2x')}')` : ''}"></div>
+      ${bannerArt(meta?.[M.SET])}
       <div class="banner-body">
         <div class="links">
           ${entry ? catChip(entry.c) : ''}

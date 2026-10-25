@@ -5,6 +5,31 @@
    green of the Portuguese flag and the blue of azulejo tiles, which become the ranked and converts colours. Loved keeps
    osu!'s own pink. */
 
+/* Fonts: served from here, not Google Fonts. Google's stylesheet was a render-blocking trip to two other hosts that
+   held up the first paint by most of a second on phones. These are Google's own woff2 files (variable weight; the
+   latin set, plus latin-ext only for names that need it) under the SIL Open Font License, see assets/fonts/OFL-*.txt.
+   tools/build-site.mjs versions the url()s with the code. */
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url(../fonts/inter-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url(../fonts/inter-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Josefin Sans'; font-style: normal; font-weight: 400 700; font-display: swap;
+  src: url(../fonts/josefin-sans-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Josefin Sans'; font-style: normal; font-weight: 400 700; font-display: swap;
+  src: url(../fonts/josefin-sans-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 :root {
   color-scheme: dark;
   --bg: #1f191b;
@@ -364,6 +389,13 @@ tr.target:not(.me) { background: var(--surface-2); }
   padding: 10px 14px; border-bottom: 1px solid var(--border);
 }
 .row:last-child { border-bottom: 0; }
+/* Rows and feed events off screen aren't laid out or painted until they come near it: on a phone that halved the
+   layout of long lists (seconds on Activity). The browser remembers each one's real height once it has been shown;
+   until then it reserves a typical one's (the median, measured 2026-10-26), so the scrollbar barely moves as they
+   render. Lists already clip (overflow: hidden), so nothing new is cut off. */
+.row { content-visibility: auto; contain-intrinsic-size: auto 100px; }
+.event { content-visibility: auto; contain-intrinsic-size: auto 140px; }
+@media (max-width: 640px) { .row { contain-intrinsic-size: auto 130px; } }
 .row-main { display: grid; gap: 6px; min-width: 0; }
 .row-main > .map + div { padding-left: 72px; }
 .row:hover { background: var(--surface-2); }
@@ -534,6 +566,9 @@ a.row.card-link:last-child { border-bottom: 0; }
 
 .banner { border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
 .banner-art { aspect-ratio: 18 / 5; max-height: 220px; width: 100%; background: var(--surface-3) center / cover no-repeat; border-bottom: 1px solid var(--border); }
+/* The art's two sizes come in as --art (900px) and --art-2x (1800px), from ui.js's bannerArt(): phones get the small one. */
+.banner-art { background-image: var(--art-2x, none); }
+@media (max-width: 640px) { .banner-art { background-image: var(--art, none); } }
 .banner-body { padding: 18px 20px 20px; }
 .banner h1 { margin-bottom: .25em; }
 .banner h1 a { color: inherit; }
@@ -651,6 +686,8 @@ a.dan-stage:hover { text-decoration: none; }
 }
 .event { padding: 11px 14px 12px; border-bottom: 1px solid var(--border); min-width: 0; }
 .event:last-child { border-bottom: 0; }
+.feed-more { display: flex; justify-content: center; margin-top: 12px; }
+.feed-more[hidden] { display: none; }
 .event-head { display: flex; align-items: center; gap: 10px; font-size: var(--fs-xs); color: var(--text-faint); margin-bottom: 2px; }
 /* An event's kind: its colour is only the small square; the word stays neutral. */
 .event-kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }

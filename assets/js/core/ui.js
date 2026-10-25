@@ -111,6 +111,13 @@ export function setCover(set, kind = 'list', cls = 'map-cover') {
 
 export const cover = (meta, kind = 'list', cls = 'map-cover') => setCover(meta?.[M.SET], kind, cls);
 
+/**
+ * The wide art at the top of a map or challenge banner. Both sizes go in as CSS variables and site.css picks one:
+ * the 1800px cover@2x on wide screens, the 900px cover on phones, where the banner is under 640px wide and the big one
+ * was 100–250 KB of picture nobody could see the difference in.
+ */
+export const bannerArt = set => html`<div class="banner-art"${set ? html` style="--art:url('${coverUrl(set, 'cover')}');--art-2x:url('${coverUrl(set, 'cover@2x')}')"` : ''}></div>`;
+
 /** A map with its cover, title and difficulty, linking to its page. */
 export function mapLink(id, meta, { showStars = true } = {}) {
   const { title, sub } = mapText(id, meta);

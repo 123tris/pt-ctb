@@ -2,7 +2,7 @@ import { html, raw } from '../core/html.js';
 import { challenges, playerIndex, dan } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
-  setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, coverUrl, mapText, starsBadge, empty, osuMap, prefs,
+  setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, bannerArt, mapText, starsBadge, empty, osuMap, prefs,
   pageHead, scoreWhen,
 } from '../core/ui.js';
 import { renderDan, DAN_INTRO } from './dan.js';
@@ -47,7 +47,7 @@ function weekSection(week, maps, index, me) {
   const { title, sub } = mapText(week.map, meta);
   return html`
     <section class="banner">
-      <div class="banner-art" style="${meta?.[M.SET] ? `background-image:url('${coverUrl(meta[M.SET], 'cover@2x')}')` : ''}"></div>
+      ${bannerArt(meta?.[M.SET])}
       <div class="banner-body">
         <div class="links">
           <span class="badge badge-accent">Week ${week.id.split('-W')[1]}</span>

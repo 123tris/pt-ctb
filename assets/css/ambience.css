@@ -36,6 +36,13 @@ body::after {
 
 /* ---- The logo's name --------------------------------------------------------------------------------------- */
 
+/* Unbounded only ever sets these eight letters, so the file holds just "PT Catch" (1.4 KB instead of 22 KB): a
+   subset made by Google Fonts (text=PT Catch). Re-make it if the name changes. */
+@font-face {
+  font-family: 'Unbounded'; font-style: normal; font-weight: 800; font-display: swap;
+  src: url(../fonts/unbounded-wordmark.woff2) format('woff2');
+  unicode-range: U+20, U+43, U+50, U+54, U+61, U+63, U+68, U+74;
+}
 .brand { font-family: 'Unbounded', var(--display); font-weight: 800; letter-spacing: -.02em; }
 
 /* ---- Motion ------------------------------------------------------------------------------------------------------ */

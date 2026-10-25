@@ -6,18 +6,45 @@ import { weeklyRecap, hasWeekly } from '../core/weekly.js';
 import { setTitle, tabs, scoreRow, empty, chipGroup, setPressed, writeQuery, announce, resultCount } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
-/** Events grouped under "Today", "Yesterday" or the date. */
-function feed(events, index, maps) {
-  if (!events.length) return empty('Nothing of this kind in recent months.');
+// The feed shows this many events at first and adds as many again per "Show more": all 400 at once made the page
+// about 6,000 elements, which took phones seconds to lay out.
+const FEED_STEP = 60;
+
+/** Events grouped under "Today", "Yesterday" or the date; `lastDay` is the day of the event shown just before them. */
+function feedItems(events, index, maps, lastDay = null) {
   const today = new Date().toDateString();
   const yesterday = new Date(Date.now() - 86400000).toDateString();
-  let lastDay = null;
-  return html`<div class="feed">${events.map(e => {
+  return html`${events.map(e => {
     const d = new Date(e.t * 1000).toDateString();
     const heading = d === lastDay ? '' : html`<div class="feed-day">${d === today ? 'Today' : d === yesterday ? 'Yesterday' : fmt.day(e.t)}</div>`;
     lastDay = d;
     return html`${heading}${eventItem(e, index, maps)}`;
-  })}</div>`;
+  })}`;
+}
+
+/** The feed's first events, and a "Show more" button under it that appends the next ones in place. */
+function feed(list, events, index, maps) {
+  if (!events.length) { list.innerHTML = String(empty('Nothing of this kind in recent months.')); return; }
+  let shown = Math.min(FEED_STEP, events.length);
+  list.innerHTML = String(html`<div class="feed">${feedItems(events.slice(0, shown), index, maps)}</div>
+    <div class="feed-more"><button class="btn" type="button"></button></div>`);
+  const box = list.querySelector('.feed');
+  const more = list.querySelector('.feed-more');
+  const button = more.querySelector('button');
+  const label = () => {
+    more.hidden = shown >= events.length;
+    button.textContent = `Show ${fmt.plural(Math.min(FEED_STEP, events.length - shown), 'more event')}`;
+  };
+  button.addEventListener('click', () => {
+    const next = events.slice(shown, shown + FEED_STEP);
+    const lastDay = new Date(events[shown - 1].t * 1000).toDateString();
+    box.insertAdjacentHTML('beforeend', String(feedItems(next, index, maps, lastDay)));
+    shown += next.length;
+    label();
+    // The button goes once everything is shown: keep keyboard focus on the page instead of losing it.
+    if (more.hidden) box.lastElementChild?.querySelector('a')?.focus();
+  });
+  label();
 }
 
 export default async function activityPage(root, { query, isCurrent }) {
@@ -63,7 +90,7 @@ export default async function activityPage(root, { query, isCurrent }) {
   const draw = ({ speak = false } = {}) => {
     setPressed(root, 'kind', kind);
     const shown = data.events.filter(e => !kind || e.k === kind);
-    list.innerHTML = String(feed(shown, index, data.maps));
+    feed(list, shown, index, data.maps);
     count.textContent = resultCount(shown.length, data.events.length, 'event');
     if (speak) announce(count.textContent);
     writeQuery({ kind });

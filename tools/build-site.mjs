@@ -55,16 +55,16 @@ if (settings) {
   }
 }
 
-// Every JS and CSS address gets ?v=<hash of all the code>, in index.html and in every import. The custom domain's
-// zone caches .js/.css in browsers for 4 hours whatever _headers says, and a stale module next to fresh ones breaks
-// the page ("does not provide an export named …"). With the version in the address, a deploy that changes any code
-// changes every address at once, and a data-only deploy changes none, so nothing is downloaded again for nothing.
+// Every JS, CSS and font address gets ?v=<hash of all the code and fonts>, in index.html, in every import and in the
+// CSS. _headers lets browsers keep them for a year, and a stale module next to fresh ones breaks the page ("does not
+// provide an export named …"). With the version in the address, a deploy that changes any code changes every address
+// at once, and a deploy that changes none leaves them all cached.
 const codeFiles = [];
 const collect = dir => {
   for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, d.name);
     if (d.isDirectory()) collect(p);
-    else if (/\.(js|css)$/.test(d.name)) codeFiles.push(p);
+    else if (/\.(js|css|woff2)$/.test(d.name)) codeFiles.push(p);
   }
 };
 collect(path.join(dist, 'assets'));
@@ -78,9 +78,11 @@ const version = code.digest('hex').slice(0, 10);
 const entries = ['assets/js/app.js', 'assets/js/moved.js'].map(f => path.join(dist, f));
 const preload = [...new Set(entries.flatMap(staticImports))].filter(f => !entries.includes(f))
   .map(f => `<link rel="modulepreload" href="${path.relative(dist, f).split(path.sep).join('/')}">`);
-// meta.json is the first data every page waits for: start it with the modules. data.js fetches it with cache: 'no-cache',
-// which still revalidates; the preload only saves the wait for the module graph.
-preload.push(`<link rel="preload" href="${CONFIG.data}meta.json" as="fetch" crossorigin>`);
+// meta.json isn't preloaded: a <link rel="preload"> fetches it with the default cache mode, so on a repeat visit it came
+// straight from the browser cache, and data.js's fetch (cache: 'no-cache') then took that preloaded copy instead of
+// revalidating: returning visitors kept an old manifest, and with it old data. app.js asks for meta.json as soon as it
+// runs, which is still before any page has its module. Opening the connection to the data host early is what's left.
+if (/^https?:/.test(CONFIG.data)) preload.push(`<link rel="preconnect" href="${new URL(CONFIG.data).origin}" crossorigin>`);
 edit('index.html', s => s.replace(/^([ \t]*)(<script type="module" src="assets\/js\/moved\.js")/m,
   (_, indent, tag) => `${preload.map(l => `${indent}${l}${s.includes('\r\n') ? '\r\n' : '\n'}`).join('')}${indent}${tag}`));
 const IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"?]+\.js)\2/g;
@@ -89,7 +91,14 @@ for (const file of codeFiles.filter(f => f.endsWith('.js'))) {
   const versioned = source.replace(IMPORT, `$1$2$3?v=${version}$2`);
   if (versioned !== source) fs.writeFileSync(file, versioned);
 }
-edit('index.html', s => s.replace(/((?:src|href)=")(assets\/(?:js|css)\/[^"?]+\.(?:js|css))"/g, `$1$2?v=${version}"`));
+// The fonts, named in the CSS (url(../fonts/x.woff2)), get the same version, so they can be cached as long as the code.
+const FONT_URL = /(url\(\s*['"]?)(\.\.\/fonts\/[^'")?]+\.woff2)(['"]?\s*\))/g;
+for (const file of codeFiles.filter(f => f.endsWith('.css'))) {
+  const source = fs.readFileSync(file, 'utf8');
+  const versioned = source.replace(FONT_URL, `$1$2?v=${version}$3`);
+  if (versioned !== source) fs.writeFileSync(file, versioned);
+}
+edit('index.html', s => s.replace(/((?:src|href)=")(assets\/(?:js|css|fonts)\/[^"?]+\.(?:js|css|woff2))"/g, `$1$2?v=${version}"`));
 
 // The CSP in _headers allows inline scripts only by hash: fill in the hashes of the ones the pages have right now.
 const sha256 = s => `'sha256-${crypto.createHash('sha256').update(s, 'utf8').digest('base64')}'`;

@@ -6,7 +6,7 @@
 # worked out by tools/build-site.mjs on every build, so editing those snippets can't silently get them blocked.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' {{inline-script-hashes}}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://a.ppy.sh https://assets.ppy.sh; connect-src 'self' https://data.ptcatch.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' {{inline-script-hashes}}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://a.ppy.sh https://assets.ppy.sh; connect-src 'self' https://data.ptcatch.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -20,10 +20,15 @@
 /assets/img/*
   Cache-Control: public, max-age=604800
 
-# A stale module next to fresh ones breaks the page ("does not provide an export named …"). On ptcatch.com the zone's
-# Browser Cache TTL still turns this into max-age=14400 (checked 2026-10-25), so the real fix is in
-# tools/build-site.mjs: every JS/CSS address carries ?v=<code hash>. This rule only helps on *.pages.dev.
+# Code and fonts are only ever asked for as x.js?v=<hash of all the code> (tools/build-site.mjs puts it on every
+# address in index.html, every import and every url() in the CSS), so a deploy that changes any of them changes every
+# address, and an address never gets other content: browsers can keep them for a year without asking again. (The old
+# no-cache here was turned into max-age=14400 by the zone's Browser Cache TTL anyway, which only raises shorter times;
+# after 4 hours each visit re-checked ~20 files.) A stale module next to fresh ones breaks the page ("does not provide
+# an export named …"), which is why nothing may load them without the ?v=.
 /assets/js/*
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=31536000, immutable
 /assets/css/*
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=31536000, immutable
+/assets/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
