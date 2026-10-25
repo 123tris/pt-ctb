@@ -1,8 +1,11 @@
 import { html } from '../core/html.js';
+import { meta, load } from '../core/data.js';
 import { setTitle } from '../core/ui.js';
 
-// The bot's slash commands (PT-CTB-Discord-Bot/Commands), described for players. Most also exist as !prefix commands.
-const GROUPS = [
+// The command list comes from the bot itself: on start it writes commands.json to its data folder, and the exporter
+// publishes it as data/commands.json, so this page can't drift from what /help shows in Discord. Until that file
+// exists, FALLBACK (written by hand, as the bot was on 2026-10-25) is shown instead.
+const FALLBACK = [
   ['Scores', [
     ['/rs [player]', 'Shows the most recent osu!catch score. Without a name, it uses the account linked with /setname.'],
     ['/rsnf [player]', 'The most recent score, not counting fails.'],
@@ -53,7 +56,31 @@ const GROUPS = [
   ]],
 ];
 
-export default async function commands(root) {
+/** commands.json → the same [title, note, [[name, text]]] groups as FALLBACK. */
+function fromBot(file) {
+  return file.groups.map(group => {
+    const moderators = group.commands.every(c => c.access !== 'everyone');
+    const list = group.commands.map(c => {
+      const options = (c.options ?? []).map(o => `[${o.name}]`).join(' ');
+      const aliases = (c.prefix ?? []).join(' · ');
+      return [[c.slash ?? c.prefix?.[0], options].filter(Boolean).join(' '),
+        html`${c.description}${aliases ? html` <span class="faint">Also ${aliases}.</span>` : ''}${!moderators && c.access !== 'everyone' ? html` <span class="faint">(moderators)</span>` : ''}`];
+    });
+    return moderators ? [group.name, 'Only our lord and saviour has access to these commands.', list] : [group.name, list];
+  });
+}
+
+async function loadGroups() {
+  try {
+    const m = await meta();
+    if (m.files?.['commands.json']) return fromBot(await load('commands.json'));
+  } catch { /* fall back to the list below */ }
+  return FALLBACK;
+}
+
+export default async function commands(root, { isCurrent }) {
+  const GROUPS = await loadGroups();
+  if (!isCurrent()) return;
   setTitle('Bot commands');
   root.innerHTML = String(html`
     <header class="page-head">

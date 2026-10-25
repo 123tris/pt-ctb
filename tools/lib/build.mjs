@@ -3,7 +3,7 @@
 
 import {
   S, M, CAT, CATS, STATUS, MODE, DAN_MAPS, classify, boardComparator, weightedTotal, matchesModFilter,
-  parseModFilter, modString, isSS,
+  parseModFilter, isSS,
 } from '../../assets/js/core/model.js';
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
 
@@ -445,15 +445,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   const fairMods = t => !(t[S.MODS] & (2 | 256)); // no EZ/HT: a record shouldn't come from making the map easier
 
   const ranksByHour = new Array(24).fill(0);
-  const perYear = {};
-  const modUsage = {};
-  for (const { t } of allScores) {
-    ranksByHour[Number(lisbonHour.format(new Date(t[S.TIME] * 1000)))]++;
-    const year = new Date(t[S.TIME] * 1000).getUTCFullYear();
-    perYear[year] = (perYear[year] || 0) + 1;
-    const mods = modString(t[S.MODS]);
-    modUsage[mods] = (modUsage[mods] || 0) + 1;
-  }
+  for (const { t } of allScores) ranksByHour[Number(lisbonHour.format(new Date(t[S.TIME] * 1000)))]++;
 
   const contested = [...boards].filter(([, b]) => b.entries.length >= 2);
   const oldestFirst = contested.reduce((old, [id, b]) => (!old || b.entries[0][S.TIME + 1] < old.entries[0][S.TIME + 1] ? { id, ...b } : old), null);
@@ -466,13 +458,11 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     longest: asRow(best(allScores.filter(x => fairMods(x.t) && meta(x.t[S.MAP])), x => meta(x.t[S.MAP]).hit_length)),
     oldestFirst: oldestFirst ? [oldestFirst.entries[0][0], oldestFirst.cat, ...oldestFirst.entries[0].slice(1)] : null,
     mostFirsts: Object.fromEntries(CATS.map(cat => [cat, leaders(p => p.firsts[cat])])),
-    mostScores: leaders(p => CATS.reduce((n, cat) => n + p.lists[cat].length, 0)),
     mostSS: leaders(p => CATS.reduce((n, cat) => n + p.lists[cat].filter(t => isSS(t[S.GRADE])).length, 0)),
     mostFC: leaders(p => CATS.reduce((n, cat) => n + p.lists[cat].filter(t => t[S.MISS] === 0).length, 0)),
-    mostFruits: leaders(p => CATS.reduce((n, cat) => n + p.lists[cat].reduce((sum, t) => sum + t[S.HITS], 0), 0)),
-    popularMaps: [...boards].map(([id, b]) => [id, b.cat, b.entries.length]).sort((a, b) => b[2] - a[2] || a[0] - b[0]).slice(0, 10),
-    mods: Object.entries(modUsage).sort((a, b) => b[1] - a[1]).slice(0, 12),
-    perYear: Object.entries(perYear).map(([y, n]) => [Number(y), n]).sort((a, b) => a[0] - b[0]),
+    // "The Soul wall", "the Edward wall": the players whose #1s have stood longest in numbers (2+ years). The top 3
+    // get The Wall badge.
+    wall: leaders(p => CATS.reduce((n, cat) => n + p.lists[cat].filter(t => position.get(`${p.id}:${t[S.MAP]}`) === 1 && t[S.TIME] < now - 2 * 365 * DAY).length, 0), 3),
     byHour: ranksByHour,
     totals: {
       players: people.size, scores: allScores.length, maps: boards.size,
@@ -509,7 +499,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     ...Object.values(records.topPlay), records.topCombo, ...Object.values(records.hardest), records.longest, records.oldestFirst,
     records.highestChoke, ...records.wysi,
   ].filter(Boolean).map(r => r[S.MAP + 2]);
-  records.maps = mapsFor([...recordMapIds, ...records.popularMaps.map(r => r[0]), ...(records.throne?.oldest || []).map(r => r[S.MAP + 2])]);
+  records.maps = mapsFor([...recordMapIds, ...(records.throne?.oldest || []).map(r => r[S.MAP + 2])]);
 
   // ---- Challenges -------------------------------------------------------------------------------------------------
 

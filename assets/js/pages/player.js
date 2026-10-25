@@ -177,7 +177,7 @@ export default async function player(root, { params, query, isCurrent }) {
           ${p.last ? html`<span class="badge">Last played ${fmt.ago(p.last)}</span>` : ''}
           ${playerEra ? html`<span class="badge badge-era">Era: ${playerEra}</span>` : ''}
         </div>
-        ${funChips(badges)}
+        ${funChips(badges, '', { show: 3 })}
         <div class="links">
           <a class="btn btn-small" href="${osuUser(id)}" target="_blank" rel="noopener">osu! profile ↗</a>
           <a class="btn btn-small" href="#/compare/${id}">Compare</a>

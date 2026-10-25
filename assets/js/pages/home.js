@@ -113,11 +113,11 @@ export default async function home(root, { isCurrent }) {
       <div class="card">
         <h2>How to join</h2>
         <div class="steps">
-          <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p>
-            ${CONFIG.discordInvite ? html`<a class="btn btn-small btn-discord" style="margin-top:8px" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>` : ''}</div></div>
-          <div class="step"><div><b>Verify your account with <span class="kbd">/verify</span></b><p>You sign in to osu! and, if your account is Portuguese, you get the verified role straight away. <a href="#/verify">How does it work?</a></p></div></div>
+          <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p></div></div>
+          <div class="step"><div><b>Verify your account with <span class="kbd">/verify</span></b><p>You sign in to osu! and, if your account is Portuguese, you get the verified role straight away. </p></div></div>
           <div class="step"><div><b>Play!</b><p>The bot fetches recent plays for everyone it tracks every 30 minutes. You can also use <span class="kbd">/rs</span> to show your latest one.</p></div></div>
         </div>
+        <p style="margin:12px 0 0"><a href="#/join">The full guide, with what /verify does →</a></p>
       </div>
       <div class="card">
         <h2>What’s here</h2>

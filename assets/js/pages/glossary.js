@@ -1,7 +1,6 @@
 import { html } from '../core/html.js';
 import { setTitle, pageHead, modsBadges, gradeBadge } from '../core/ui.js';
 import { MOD } from '../core/model.js';
-import { CONFIG } from '../config.js';
 
 // The words the site and the Discord use, for anyone who's new to osu!catch or to the community.
 const SECTIONS = [
@@ -41,7 +40,6 @@ export default async function glossary(root) {
       <h2>${title}</h2>
       <dl class="glossary">${terms.map(([term, text]) => html`<div><dt>${term}</dt><dd>${text}</dd></div>`)}</dl>
     </section>`)}
-    <p class="section muted">Still stuck? Ask in the Discord: someone’s always around.
-      ${CONFIG.discordInvite ? html`<a class="btn btn-small btn-discord" style="margin-left:8px" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>` : ''}</p>
+    <p class="section muted">Still stuck? Ask in the Discord: someone’s always around. <a href="#/join">How to join →</a></p>
   `);
 }

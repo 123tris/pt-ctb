@@ -34,7 +34,7 @@ const PAGES = [
   { name: 'Glossary', href: '#/glossary', detail: 'pp, FC, mods explained', words: 'glossary help words meaning new' },
   { name: 'Records', href: '#/records', detail: 'Biggest combos, most #1s', words: 'records record' },
   { name: 'Calculator', href: '#/calculator', detail: 'How much pp is a play worth', words: 'calculator calc pp' },
-  { name: 'Verification', href: '#/verify', detail: 'How /verify works', words: 'verify verification verified role' },
+  { name: 'How to join', href: '#/join', detail: 'Discord, /verify and playing', words: 'join verify verification verified role discord new' },
 ];
 
 function pageMatches(text) {

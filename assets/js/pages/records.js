@@ -3,7 +3,7 @@ import { records, playerIndex } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import { barChart } from '../core/charts.js';
 import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar, posBadge } from '../core/ui.js';
-import { FIRST_10K, mapLore } from '../core/lore.js';
+import { FIRST_10K } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
 
 /** Tris's #1s that still stand, and who's closest to taking them. */
@@ -72,7 +72,11 @@ export default async function recordsPage(root, { query, isCurrent }) {
   const maps = r.maps;
   const hours = r.byHour.map((value, hour) => ({ label: `${hour}h`, value, title: `${hour}h–${hour + 1}h: ${fmt.num(value)} plays` }));
   const peak = r.byHour.indexOf(Math.max(...r.byHour));
-  const totalMods = r.mods.reduce((sum, [, n]) => sum + n, 0);
+  // Most #1s across all three categories, from the player list (the records file has them per category only).
+  const mostFirsts = [...index.values()].map(p => [p.id, p.firsts.c + p.firsts.u + p.firsts.r]).filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 5);
+  const jumps = [['legendary', 'Legendary plays'], r.throne && ['throne', 'Dethrone Tris'], r.oneMiss && ['choke', 'Choke d’Or'],
+    r.wysi?.length && ['wysi', 'WYSI'], ['first10k', 'First 10k'], ['collectors', 'Collectors'], ['when', 'When we play']].filter(Boolean);
 
   root.innerHTML = String(html`
     <header class="page-head">
@@ -81,14 +85,15 @@ export default async function recordsPage(root, { query, isCurrent }) {
       <p>The biggest marks across every score the bot keeps: each player’s best play on each map.</p>
     </header>
 
+    <nav class="jump-links" aria-label="On this page">${jumps.map(([id, label]) => html`<a class="chip" href="#/records?at=${id}">${label}</a>`)}</nav>
+
     <div class="stats">
       ${stat('Scores', fmt.num(r.totals.scores))}
       ${stat('Different maps', fmt.num(r.totals.maps))}
       ${stat('SS', fmt.num(r.totals.ss))}
-      ${stat('Fruits caught', fmt.num(r.totals.fruits))}
     </div>
 
-    <section class="section">
+    <section class="section" id="legendary">
       <h2>Legendary plays</h2>
       <div class="grid grid-3">
         ${['c', 'u', 'r'].map(cat => playRecord(`Most pp in ${CAT_LABEL[cat]}`, r.topPlay[cat], maps, index, s => html`${fmt.pp(s[S.PP])} pp`))}
@@ -120,7 +125,7 @@ export default async function recordsPage(root, { query, isCurrent }) {
       </div>`)}</div>
     </section>` : ''}
 
-    <section class="section">
+    <section class="section" id="first10k">
       <h2>First past 10,000 pp</h2>
       <p class="muted">The first Portuguese players to break 10k, and the play that took them there.</p>
       <div class="rows">${FIRST_10K.map(([day, name, uid, play], i) => html`<div class="row">
@@ -129,48 +134,21 @@ export default async function recordsPage(root, { query, isCurrent }) {
       </div>`)}</div>
     </section>
 
-    <section class="section">
+    <section class="section" id="collectors">
       <h2>The collectors</h2>
-      <div class="grid grid-3">
-        ${leaders('Most #1s in Converts', r.mostFirsts.c, index)}
-        ${leaders('Most #1s in Loved', r.mostFirsts.u, index)}
-        ${leaders('Most #1s in Ranked', r.mostFirsts.r, index)}
-        ${leaders('Most scores', r.mostScores, index)}
+      <p class="muted">Each category’s own #1 count is on the leaderboards.</p>
+      <div class="grid grid-2">
+        ${leaders('Most #1s', mostFirsts, index)}
+        ${r.wall?.length ? leaders('The biggest walls (#1s standing 2+ years)', r.wall, index) : ''}
         ${leaders('Most SSs', r.mostSS, index)}
         ${leaders('Most full combos', r.mostFC, index)}
-        ${leaders('Most fruits caught', r.mostFruits, index)}
       </div>
     </section>
 
-    <section class="section grid grid-2">
-      <div class="card">
-        <h3>When does Portugal play?</h3>
-        ${barChart(hours, { every: 3 })}
-        <p class="small muted" style="margin:8px 0 0">Lisbon time when each score was set. Peak time is between ${peak}h and ${peak + 1}h.</p>
-      </div>
-      <div class="card">
-        <h3>Scores per year</h3>
-        ${barChart(r.perYear.map(([year, n]) => ({ label: String(year).slice(2), value: n, title: `${year}: ${fmt.num(n)} scores` })), { color: 'var(--cat-c)' })}
-        <p class="small muted" style="margin:8px 0 0">The year each stored score was set (better scores replace older ones).</p>
-      </div>
-    </section>
-
-    <section class="section grid grid-2">
-      <div class="card">
-        <h3>Most used mods</h3>
-        <div class="hbars">${r.mods.map(([mods, n]) => html`<div class="hbar">
-          <span>${mods}</span><span class="track"><span class="fill" style="display:block;width:${(n / r.mods[0][1]) * 100}%"></span></span>
-          <span class="val">${fmt.num((n / totalMods) * 100, 1)}%</span>
-        </div>`)}</div>
-      </div>
-      <div class="card">
-        <h3>Most played maps in Portugal</h3>
-        <div class="rows">${r.popularMaps.map(([id, cat, n]) => html`<div class="row">
-          <div>${mapLink(id, maps[id])}</div>
-          <div class="row-meta">${catChip(cat)} ${fmt.plural(n, 'player')}</div>
-        </div>`)}</div>
-        ${r.popularMaps[0] && mapLore(maps[r.popularMaps[0][0]]) ? html`<p class="small faint" style="margin:10px 0 0">${mapLore(maps[r.popularMaps[0][0]]).title}: ${fmt.plural(r.popularMaps[0][2], 'player')}, one dream.</p>` : ''}
-      </div>
+    <section class="section card" id="when">
+      <h2 class="card-h">When does Portugal play?</h2>
+      ${barChart(hours, { every: 3 })}
+      <p class="small muted" style="margin:8px 0 0">Lisbon time when each score was set. Peak time is between ${peak}h and ${peak + 1}h.</p>
     </section>
   `);
   if (query.at) root.querySelector(`#${CSS.escape(query.at)}`)?.scrollIntoView({ block: 'start' });
