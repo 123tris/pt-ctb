@@ -44,7 +44,7 @@ export function initSearch() {
   const box = document.createElement('div');
   box.className = 'search';
   box.innerHTML = `
-    <button class="search-toggle" type="button" aria-label="Search players" aria-expanded="false" aria-controls="search-panel">${ICON}</button>
+    <button class="search-toggle" type="button" aria-label="Search players" aria-expanded="false" aria-controls="search-panel">${ICON}<span class="search-toggle-label" aria-hidden="true">Search</span></button>
     <div class="search-panel" id="search-panel" role="search">
       <div class="search-field">
         ${ICON}
@@ -54,6 +54,7 @@ export function initSearch() {
       </div>
       <div class="search-pop" hidden>
         <ul class="search-results" id="search-results" role="listbox" aria-label="Players"></ul>
+        <p class="search-status" id="search-status" role="status"></p>
         <a class="search-all" href="#/players">Search all players →</a>
       </div>
     </div>`;
@@ -91,11 +92,15 @@ export function initSearch() {
     const l = await load();
     if (text !== input.value.trim()) return; // typed on while loading
     results = rank(l, text);
-    listEl.innerHTML = String(results.length
-      ? html`${results.map((p, i) => html`<li role="option" id="search-opt-${i}" data-i="${i}" aria-selected="false">
+    listEl.innerHTML = String(html`${results.map((p, i) => html`<li role="option" id="search-opt-${i}" data-i="${i}" aria-selected="false">
           ${avatar(p.id, 'avatar-sm')}<span class="search-name">${highlight(p.name, text)}</span><span class="search-detail">${detail(p)}</span>
-        </li>`)}`
-      : html`<li class="search-none" role="presentation">No players found</li>`);
+        </li>`)}`);
+    listEl.hidden = !results.length;
+    // Outside the listbox, in a live region, so screen readers hear "No players found" or how many matched.
+    const status = box.querySelector('.search-status');
+    status.textContent = results.length ? '' : 'No players found';
+    status.classList.toggle('sr-only', Boolean(results.length));
+    if (results.length) status.textContent = `${fmt.plural(results.length, 'player')} found${results.length === 8 ? ' (showing the best 8)' : ''}`;
     all.href = `#/players?q=${encodeURIComponent(text)}`;
     showPop(true);
     setActive(results.length ? 0 : -1);

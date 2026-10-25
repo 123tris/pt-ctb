@@ -6,8 +6,8 @@ export default async function team(root) {
   setTitle('Team Portugal');
   root.innerHTML = String(html`
     <header class="page-head">
-      <span class="eyebrow">Team Portugal · A Seleção</span>
-      <h1>From “we do it for fun” to a first series win</h1>
+      <h1>Team Portugal <span class="faint" lang="pt-PT">· A Seleção</span></h1>
+      <p class="page-tag">From “we do it for fun” to a first series win</p>
       <p>Portugal at the Catch World Cup and its 4-digit edition, as the Discord remembers it. The tournament channels are where this community is proudest and loudest.</p>
     </header>
 

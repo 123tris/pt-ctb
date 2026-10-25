@@ -59,10 +59,26 @@ export function starColor(stars) {
   return `rgb(${mix(a[0], b[0])}, ${mix(a[1], b[1])}, ${mix(a[2], b[2])})`;
 }
 
+/** WCAG relative luminance of an `rgb(r, g, b)` or `#rrggbb` colour. */
+function luminance(color) {
+  const rgb = color.startsWith('#') ? [1, 3, 5].map(k => parseInt(color.slice(k, k + 2), 16)) : color.match(/\d+/g).map(Number);
+  const [r, g, b] = rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Black or white, whichever reads better on `background` (osu!'s spectrum spans both). Pure black and white keep
+ * even the worst mid-tone (about 18% luminance) at 4.58:1; any softer pair dips under 4.5:1 on the purples.
+ */
+function textOn(background) {
+  const l = luminance(background);
+  return (l + 0.05) / 0.05 >= 1.05 / (l + 0.05) ? '#000000' : '#ffffff';
+}
+
 export function starsBadge(stars) {
   if (!stars) return '';
-  const color = stars >= 6.5 ? '#ffd966' : 'rgba(0,0,0,.8)';
-  return html`<span class="stars" style="background:${starColor(stars)};color:${color}">★ ${fmt.num(stars, 2)}</span>`;
+  const bg = starColor(stars);
+  return html`<span class="stars" style="background:${bg};color:${textOn(bg)}">★ ${fmt.num(stars, 2)}</span>`;
 }
 
 /** A beatmapset's cover image (`kind`: list, card, cover, cover@2x), or an empty placeholder of the same size. */
@@ -103,7 +119,7 @@ export function modsBadges(mask) {
 const GRADE_TEXT = { X: 'SS', XH: 'SS', S: 'S', SH: 'S' };
 export const gradeBadge = g => html`<span class="grade grade-${g}">${GRADE_TEXT[g] ?? g}</span>`;
 export const catChip = cat => html`<span class="cat cat-${cat}">${CAT_SHORT[cat]}</span>`;
-export const posBadge = n => (n ? html`<span class="pos pos-${n <= 3 ? n : 'n'}" title="Position in Portugal">#${n}</span>` : '');
+export const posBadge = n => (n ? html`<span class="pos pos-${n <= 3 ? n : 'n'}" title="Position in Portugal"><span class="sr-only">Position in Portugal: </span>#${n}</span>` : '');
 export const ppText = n => html`<span class="pp">${fmt.pp(n)}<small>pp</small></span>`;
 
 /** The stats of a play: mods, grade, accuracy, combo, misses. */
@@ -112,7 +128,7 @@ export function scoreStats(s, { combo = true } = {}) {
     ${gradeBadge(s[S.GRADE])}
     <span class="acc">${fmt.acc(s[S.ACC])}</span>
     ${combo ? html`<span class="combo">${fmt.num(s[S.COMBO])}x</span>` : ''}
-    <span class="miss ${s[S.MISS] ? 'miss-n' : 'miss-fc'}" title="Misses">${s[S.MISS] ? html`${fmt.num(s[S.MISS])} ✕` : 'FC'}</span>`;
+    <span class="miss ${s[S.MISS] ? 'miss-n' : 'miss-fc'}" title="${s[S.MISS] ? 'Misses' : 'Full combo'}">${s[S.MISS] ? html`${fmt.num(s[S.MISS])} ✕<span class="sr-only"> misses</span>` : 'FC'}</span>`;
 }
 
 /**
@@ -137,42 +153,139 @@ export function scoreRow({ s, meta, player, index, pos, showMap = true, cat }) {
 
 // ---- Layout helpers ----------------------------------------------------------------------------------------
 
+/**
+ * A page heading: a plain H1 that says what the page is, then (optionally) a line in the community's own voice and
+ * an intro. In-jokes stay, but next to a heading a newcomer can understand.
+ */
+export const pageHead = ({ title, tag, intro, extra }) => html`<header class="page-head">
+  <h1>${title}</h1>
+  ${tag ? html`<p class="page-tag">${tag}</p>` : ''}
+  ${intro ? html`<p>${intro}</p>` : ''}
+  ${extra ?? ''}
+</header>`;
+
 export const stat = (label, value, sub = '', cls = '') =>
   html`<div class="stat ${cls}"><div class="stat-label">${label}</div><div class="stat-value">${value}</div>${sub ? html`<div class="stat-sub">${sub}</div>` : ''}</div>`;
 
-export const tabs = items => html`<nav class="tabs">${items.map(t =>
-  html`<a href="${t.href}" class="${t.active ? 'active' : ''}">${t.label}${t.count !== undefined ? html`<span class="count">${fmt.num(t.count)}</span>` : ''}</a>`)}</nav>`;
+/** A strip of links between sibling pages (real URLs, so not an ARIA tablist). `label` names the landmark. */
+export const tabs = (items, label = 'Sections') => html`<nav class="tabs" aria-label="${label}">${items.map(t =>
+  html`<a href="${t.href}" class="${t.active ? 'active' : ''}" ${t.active ? raw('aria-current="page"') : ''}>${t.label}${t.count !== undefined ? html`<span class="count">${fmt.num(t.count)}</span>` : ''}</a>`)}</nav>`;
+
+/**
+ * A labelled row of toggle chips: `items` = [[value, label]]. Each chip is a button with aria-pressed, and the
+ * visible label names the group. Update the state with setPressed().
+ */
+export const chipGroup = (label, attr, items, current) => html`<div class="chips" role="group" aria-label="${label}">
+  <span class="chips-label" aria-hidden="true">${label}</span>
+  ${items.map(([value, text]) => html`<button class="chip ${value === current ? 'active' : ''}" type="button" data-${raw(attr)}="${value}" aria-pressed="${value === current}">${text}</button>`)}
+</div>`;
+
+/** Marks the chip (or other toggle) whose data-`attr` equals `value` as pressed, the rest as not. */
+export function setPressed(scope, attr, value) {
+  scope.querySelectorAll(`[data-${attr}]`).forEach(b => {
+    const on = b.dataset[attr.replace(/-(\w)/g, (_, c) => c.toUpperCase())] === String(value);
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
 
 export const empty = text => html`<div class="empty">${text}</div>`;
+
+/** An empty result after filtering, with a way back. Pages handle clicks on [data-clear]. */
+export const emptyFiltered = text => html`<div class="empty"><p>${text}</p><button class="btn btn-small" type="button" data-clear>Clear filters</button></div>`;
+
+/** "12 of 53,734 maps", or "53,734 maps" when nothing is filtered out. */
+export const resultCount = (shown, total, one, many = `${one}s`) =>
+  (shown === total ? fmt.plural(total, one, many) : `${fmt.num(shown)} of ${fmt.plural(total, one, many)}`);
+
+/** Says `text` through the page's polite live region (#status in index.html), e.g. a new result count. */
+export function announce(text) {
+  const el = document.getElementById('status');
+  if (!el) return;
+  el.textContent = '';
+  setTimeout(() => { el.textContent = text; }, 50);
+}
+
+/** The hash's query (#/maps?q=x&page=2) as an object. */
+export const readQuery = () => Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] ?? ''));
+
+/**
+ * Rewrites the hash's query in place, so filters, sort and page survive Back and can be shared. No history entry
+ * and no re-render. Empty, false and default values (`defaults[key]`) are left out.
+ */
+export function writeQuery(params, defaults = {}) {
+  const [path] = location.hash.split('?');
+  const kept = Object.entries(params).filter(([k, v]) => v !== '' && v !== null && v !== undefined && v !== false && String(v) !== String(defaults[k] ?? ''));
+  const q = String(new URLSearchParams(kept.map(([k, v]) => [k, v === true ? '1' : v])));
+  history.replaceState(history.state, '', `${path || '#/'}${q ? `?${q}` : ''}`);
+}
+
+/** Opens and focuses the header player search, the same as pressing "/". */
+export const openSearch = () => document.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true }));
+
+export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+export const scrollBehavior = () => (reducedMotion() ? 'auto' : 'smooth');
 export const loading = () => html`<div class="loading"><div class="center"><div class="spinner" style="margin-inline:auto"></div>${pick(LOADING)}</div></div>`;
 
-/** In-joke badges or map tags ({ name, tip }), with the explanation on hover. */
+/**
+ * In-joke badges or map tags ({ name, tip }). Each is a toggle button: tapping it shows its explanation in the line
+ * under the row (a "toggletip"), so it works on touch and is read out, unlike a title tooltip.
+ */
 export const funChips = (list, cls = '') => (list.length
-  ? html`<div class="fun-chips ${cls}">${list.map(b => html`<span class="fun-chip" title="${b.tip}" tabindex="0">${b.name}</span>`)}</div>`
+  ? html`<div class="fun-chips-wrap ${cls}">
+      <div class="fun-chips">${list.map(b => html`<button class="fun-chip" type="button" aria-pressed="false" data-tip="${b.tip}">${b.name}</button>`)}</div>
+      <p class="fun-tip" role="status" hidden></p>
+    </div>`
   : '');
+
+// One listener for every badge row on the site.
+document.addEventListener('click', e => {
+  const chip = e.target.closest('.fun-chip');
+  const wraps = document.querySelectorAll('.fun-chips-wrap');
+  wraps.forEach(wrap => {
+    if (chip && wrap.contains(chip)) return;
+    wrap.querySelectorAll('.fun-chip[aria-pressed="true"]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    wrap.querySelector('.fun-tip').hidden = true;
+  });
+  if (!chip) return;
+  const wrap = chip.closest('.fun-chips-wrap');
+  const tip = wrap.querySelector('.fun-tip');
+  const open = chip.getAttribute('aria-pressed') !== 'true';
+  wrap.querySelectorAll('.fun-chip').forEach(b => b.setAttribute('aria-pressed', String(b === chip && open)));
+  tip.hidden = !open;
+  tip.innerHTML = open ? String(html`<b>${chip.textContent}</b> ${chip.dataset.tip}`) : '';
+});
 
 /**
  * Renders `items` a page at a time into `container`, with previous/next buttons. `render(slice, offset)` returns
  * the markup for one page. Returns a function that re-renders from the first page (after a filter changes).
+ * Options: `page` to start on (0-based, e.g. from the URL), `onPage(page)` when it changes, and `empty()` for the
+ * markup when nothing matches. After paging, focus moves to the list and the new page is announced.
  */
-export function paginate(container, items, render, size = 50) {
-  let page = 0;
+export function paginate(container, items, render, size = 50, { page: start = 0, onPage, empty: emptyView } = {}) {
+  let page = Math.max(0, start);
   const pages = () => Math.max(1, Math.ceil(items.length / size));
   const draw = () => {
+    page = Math.min(page, pages() - 1);
     const slice = items.slice(page * size, page * size + size);
-    container.innerHTML = String(html`${slice.length ? render(slice, page * size) : empty('Nothing to show.')}
-      ${pages() > 1 ? html`<div class="pager">
-        <button class="btn btn-small" data-page="prev" ${page === 0 ? raw('disabled') : ''}>← Previous</button>
+    container.innerHTML = String(html`${slice.length ? render(slice, page * size) : emptyView?.() ?? empty('Nothing to show.')}
+      ${pages() > 1 ? html`<nav class="pager" aria-label="Pages">
+        <button class="btn btn-small" type="button" data-page="prev" ${page === 0 ? raw('disabled') : ''}>← Previous</button>
         <span>Page ${page + 1} of ${pages()}</span>
-        <button class="btn btn-small" data-page="next" ${page >= pages() - 1 ? raw('disabled') : ''}>Next →</button>
-      </div>` : ''}`);
+        <button class="btn btn-small" type="button" data-page="next" ${page >= pages() - 1 ? raw('disabled') : ''}>Next →</button>
+      </nav>` : ''}`);
   };
   container.addEventListener('click', e => {
     const button = e.target.closest('[data-page]');
     if (!button) return;
     page += button.dataset.page === 'next' ? 1 : -1;
     draw();
-    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    onPage?.(page);
+    // The clicked button is gone; put focus at the top of the new page instead of dropping it to <body>.
+    container.tabIndex = -1;
+    container.focus({ preventScroll: true });
+    container.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+    announce(`Page ${page + 1} of ${pages()}`);
   });
   draw();
   // keepPage: the same list in the same order, only longer (e.g. the full set arriving after a first slice).
@@ -180,7 +293,40 @@ export function paginate(container, items, render, size = 50) {
     items = newItems ?? items;
     page = keepPage ? Math.min(page, pages() - 1) : 0;
     draw();
+    onPage?.(page);
   };
+}
+
+/**
+ * Makes data tables usable by keyboard and screen readers: the scroll box becomes a labelled, focusable region,
+ * tables get a caption and header cells a scope. Runs on whatever is in `scope`, so call it after rendering.
+ */
+export function enhanceTables(scope) {
+  scope.querySelectorAll('.table-wrap:not([data-ok])').forEach(wrap => {
+    wrap.dataset.ok = '';
+    const table = wrap.querySelector('table');
+    const label = wrap.dataset.label || headingBefore(wrap) || 'Table';
+    wrap.setAttribute('role', 'region');
+    wrap.setAttribute('aria-label', label);
+    wrap.tabIndex = 0;
+    if (table && !table.caption) {
+      const caption = table.createCaption();
+      caption.className = 'sr-only';
+      caption.textContent = label;
+    }
+    table?.querySelectorAll('thead th').forEach(th => th.setAttribute('scope', 'col'));
+  });
+}
+
+/** The text of the nearest heading before `el` (siblings first, then up the tree). */
+function headingBefore(el) {
+  for (let node = el; node && node !== document.body; node = node.parentElement) {
+    for (let prev = node.previousElementSibling; prev; prev = prev.previousElementSibling) {
+      const h = prev.matches('h1, h2, h3') ? prev : prev.querySelector('h1, h2, h3');
+      if (h) return h.textContent.trim();
+    }
+  }
+  return '';
 }
 
 /** A name box with every player as a suggestion; read it back with pickedPlayer(). */

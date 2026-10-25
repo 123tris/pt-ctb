@@ -37,8 +37,8 @@ function hub(root) {
   const quizBest = prefs.get('quiz-best', null);
   root.innerHTML = String(html`
     <header class="page-head">
-      <span class="eyebrow">Games</span>
-      <h1>For when your wrist needs a break</h1>
+      <h1>Games</h1>
+      <p class="page-tag">For when your wrist needs a break</p>
       <p>Quick games made from the community’s data. Your records are saved in this browser.</p>
     </header>
     <div class="grid grid-2">

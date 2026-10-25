@@ -9,6 +9,10 @@ export default async function verify(root) {
       <span class="eyebrow">Verification</span>
       <h1>How /verify works</h1>
       <p>PT flag on osu!? Come on in, we don’t bite (much). The server is for Portuguese osu!catch players. To prove the osu! account really is yours, the bot uses osu!’s official sign-in, so nobody has to paste profile links or take anyone’s word for it.</p>
+      ${CONFIG.discordInvite ? html`<div class="btn-row" style="margin-top:14px">
+        <a class="btn btn-discord" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>
+        <span class="small muted" style="align-self:center">Step one: join the server, then type <span class="kbd">/verify</span> there.</span>
+      </div>` : ''}
     </header>
 
     <div class="grid grid-2">

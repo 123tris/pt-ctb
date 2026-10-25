@@ -70,7 +70,7 @@ function setBacalhau(on) {
 const TRIGGERS = [
   ['727', () => wysi()],
   ['<rc', () => { location.hash = '#/activity?view=plays'; toast(html`Yes, we know you’ve typed <span class="kbd">&lt;rc</span> more often than “hello”.`); }],
-  ['aqui', () => toast(html`<b>Eu estou aqui</b>… e tu? <a href="#/map/2311555">Go and see the map →</a>`)], // PT text (intentional)
+  ['aqui', () => toast(html`<b lang="pt-PT">Eu estou aqui</b>… <span lang="pt-PT">e tu?</span> <a href="#/map/2311555">Go and see the map →</a>`)], // PT text (intentional)
   ['bacalhau', () => { const on = !bacalhauOn(); setBacalhau(on); toast(on ? html`<b>BACALHAU!</b> 🐟 The catcher only catches cod now.` : html`Back to fruit. 🍎`); }],
   ...RPS.map(word => [word, () => rockPaperScissors(word)]),
 ];

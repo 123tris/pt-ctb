@@ -74,7 +74,7 @@ export default async function compare(root, { params, query, isCurrent }) {
     const rivals = a ? list.filter(p => p.id !== a.id && p.cv > 0).sort((x, y) => Math.abs(x.cv - a.cv) - Math.abs(y.cv - a.cv)).slice(0, 6) : [];
     const presets = RIVALRIES.filter(([x, y]) => byId.has(x) && byId.has(y));
     root.innerHTML = String(html`
-      <header class="page-head"><span class="eyebrow">Compare · head to head</span><h1>Distory your enemies.</h1>
+      <header class="page-head"><h1>Compare two players</h1><p class="page-tag">Distory your enemies.</p>
         <p>Pick two players to compare their stats and see who wins on the maps they’ve both played.</p></header>
       ${pickers}
       ${!a && presets.length ? html`<section class="section"><h2>Classic rivalries</h2>

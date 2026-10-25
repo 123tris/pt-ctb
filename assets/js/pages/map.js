@@ -15,6 +15,21 @@ const STATUS_LABEL = {
 };
 const MODE_LABEL = { [MODE.OSU]: 'osu!standard (convert)', [MODE.TAIKO]: 'taiko', [MODE.CATCH]: 'osu!catch', [MODE.MANIA]: 'mania' };
 
+// The date next to the status: when a ranked, approved, qualified or loved map got that status ("Ranked 14 Mar 2021"),
+// or when a graveyard, pending or WIP map was last updated ("Last updated 2 Jun 2023"). Both are unix seconds at the
+// end of the beatmap tuple and are often missing (older data has neither), so a null shows nothing.
+const DATED = new Set([STATUS.RANKED, STATUS.APPROVED, STATUS.QUALIFIED, STATUS.LOVED]);
+
+/** [label, unix seconds] for the date to show after the status, or null. */
+function statusDate(meta) {
+  if (DATED.has(meta[M.STATUS])) {
+    const at = meta[M.RANKED_AT] ?? null;
+    return at ? [STATUS_LABEL[meta[M.STATUS]], at] : null;
+  }
+  const at = meta[M.UPDATED_AT] ?? null;
+  return at ? ['Last updated', at] : null;
+}
+
 async function otherMeta(id) {
   const [ch, d] = await Promise.all([challenges(), dan()]);
   return ch.maps[id] ?? d.stages.find(stage => stage.map === id)?.meta ?? null;
@@ -38,6 +53,7 @@ export default async function mapPage(root, { params, isCurrent }) {
   ];
   const fcs = board.filter(e => e[S.MISS + 1] === 0).length;
   const unrankedForever = meta && [STATUS.GRAVEYARD, STATUS.WIP, STATUS.PENDING].includes(meta[M.STATUS]) && board.length >= 3;
+  const dated = meta ? statusDate(meta) : null;
 
   root.innerHTML = String(html`
     <section class="banner">
@@ -63,14 +79,13 @@ export default async function mapPage(root, { params, isCurrent }) {
     </div>` : ''}
 
     ${meta ? html`<dl class="kv kv-strip">
-      <div><dt>Status</dt><dd>${STATUS_LABEL[meta[M.STATUS]] ?? '—'}</dd></div>
+      <div><dt>Status</dt><dd>${STATUS_LABEL[meta[M.STATUS]] ?? '—'}${dated ? html`<span class="status-date">${dated[0] === STATUS_LABEL[meta[M.STATUS]] ? ' ' : html`<span class="sep-dot"> · </span>${dated[0]} `}<time datetime="${new Date(dated[1] * 1000).toISOString()}">${fmt.date(dated[1])}</time></span>` : ''}</dd></div>
       <div><dt>Mode</dt><dd>${MODE_LABEL[meta[M.MODE]] ?? '—'}</dd></div>
       <div><dt>Length</dt><dd>${fmt.duration(meta[M.LENGTH])}</dd></div>
       <div><dt>BPM</dt><dd>${fmt.num(meta[M.BPM])}</dd></div>
       <div><dt>Max combo</dt><dd>${meta[M.MAX_COMBO] ? `${fmt.num(meta[M.MAX_COMBO])}x` : '—'}</dd></div>
       <div><dt>CS</dt><dd>${fmt.num(meta[M.CS], 1)}</dd></div>
       <div><dt>AR</dt><dd>${fmt.num(meta[M.AR], 1)}</dd></div>
-      <div><dt>OD</dt><dd>${fmt.num(meta[M.OD], 1)}</dd></div>
       <div><dt>HP</dt><dd>${fmt.num(meta[M.HP], 1)}</dd></div>
     </dl>` : ''}
 
@@ -85,14 +100,14 @@ export default async function mapPage(root, { params, isCurrent }) {
         <span class="muted small">${entry?.c === CAT.LOVED && !entry.banned ? 'Sorted by pp, as in the bot.' : 'Sorted by classic score, as on osu!.'}</span>
       </div>
       ${board.length ? html`<div class="table-wrap"><table>
-        <thead><tr><th>#</th><th>Player</th><th class="num">Score</th><th>Play</th><th class="num">pp</th><th class="num">Date</th></tr></thead>
+        <thead><tr><th>#</th><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">pp</th><th class="num col-opt">Date</th></tr></thead>
         <tbody>${board.map(([uid, ...s], i) => html`<tr class="${uid === me ? 'me' : ''}">
           <td class="rank">${posBadge(i + 1)}</td>
-          <td>${playerLink(uid, index)}</td>
-          <td class="num">${fmt.num(s[S.SCORE])}</td>
-          <td><span class="score-line">${scoreStats(s)}</span></td>
+          <td class="cell-player">${playerLink(uid, index)}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span> ${fmt.num(s[S.SCORE])} · <time datetime="${new Date(s[S.TIME] * 1000).toISOString()}">${fmt.date(s[S.TIME])}</time></span></td>
+          <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
+          <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td>
           <td class="num">${ppText(s[S.PP])}</td>
-          <td class="num faint" title="${fmt.dateTime(s[S.TIME])}">${fmt.date(s[S.TIME])}</td>
+          <td class="num faint col-opt" title="${fmt.dateTime(s[S.TIME])}">${fmt.date(s[S.TIME])}</td>
         </tr>`)}</tbody>
       </table></div>` : html`<div class="empty">No Portuguese player has a score on this map yet. Why not be the first?</div>`}
     </section>
@@ -103,11 +118,11 @@ export default async function mapPage(root, { params, isCurrent }) {
         <span class="muted small">Set on an earlier version of the map, before it was ranked. Kept for the record; they count toward nothing.</span>
       </div>
       <div class="table-wrap"><table>
-        <thead><tr><th>Player</th><th class="num">Score</th><th>Play</th><th class="num">Date</th></tr></thead>
+        <thead><tr><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">Date</th></tr></thead>
         <tbody>${entry.pre.map(([uid, ...s]) => html`<tr class="${uid === me ? 'me' : ''}">
-          <td>${playerLink(uid, index)}</td>
-          <td class="num">${fmt.num(s[S.SCORE])}</td>
-          <td><span class="score-line">${scoreStats(s)}</span></td>
+          <td class="cell-player">${playerLink(uid, index)}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span></span></td>
+          <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
+          <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td>
           <td class="num faint" title="${fmt.dateTime(s[S.TIME])}">${fmt.date(s[S.TIME])}</td>
         </tr>`)}</tbody>
       </table></div>

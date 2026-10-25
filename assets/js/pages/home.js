@@ -4,7 +4,7 @@ import { M } from '../core/model.js';
 import { eventItem } from '../core/events.js';
 import { LAST_REWORK, THRONE_PLAYER } from '../core/lore.js';
 import { season } from '../core/fun.js';
-import { setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL, prefs } from '../core/ui.js';
+import { setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL, prefs, openSearch } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { CONFIG } from '../config.js';
 
@@ -29,7 +29,8 @@ export default async function home(root, { isCurrent }) {
   if (!isCurrent()) return;
   setTitle('');
   const index = new Map(list.map(p => [p.id, p]));
-  const reworkDays = Math.floor((Date.now() / 1000 - LAST_REWORK) / 86400);
+  const mine = index.get(prefs.get('me', null)) ?? null;
+  const reworkDays =Math.floor((Date.now() / 1000 - LAST_REWORK) / 86400);
   const boss = index.get(THRONE_PLAYER);
   const bossHeld = rec?.throne?.held ?? (boss ? boss.firsts.c + boss.firsts.u + boss.firsts.r : 0);
   const week = ch.week;
@@ -48,6 +49,8 @@ export default async function home(root, { isCurrent }) {
           <a class="btn btn-primary" href="#/rankings">See the leaderboards</a>
           <a class="btn" href="#/games">Play a game</a>
         </div>
+        ${mine ? html`<p class="find-me">Welcome back, <a href="#/player/${mine.id}">${mine.name}</a>. Your rows are highlighted on every leaderboard.</p>`
+          : html`<p class="find-me">Play osu!catch in Portugal? <button type="button" data-find>Find yourself</button> and press “This is me” on your profile. New to all this? <a href="#/glossary">Read the glossary</a>.</p>`}
       </div>
       <dl class="hero-stats">
         <div><dt>Players tracked</dt><dd>${fmt.num(m.totals.players)}</dd></div>
@@ -77,7 +80,7 @@ export default async function home(root, { isCurrent }) {
 
     <section class="section grid grid-2">
       <div>
-        <div class="section-head"><h2>Map of the week</h2><a href="#/challenges">Challenges →</a></div>
+        <div class="section-head"><h2>Map of the week</h2><a href="#/challenges/week">Challenges →</a></div>
         ${week ? html`<a class="card card-link" href="#/map/${week.map}" style="padding:0;overflow:hidden">
           ${cover(weekMeta, 'cover', 'week-cover')}
           <div style="padding:16px">
@@ -97,7 +100,8 @@ export default async function home(root, { isCurrent }) {
       <div class="card">
         <h2>How to join</h2>
         <div class="steps">
-          <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p></div></div>
+          <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p>
+            ${CONFIG.discordInvite ? html`<a class="btn btn-small btn-discord" style="margin-top:8px" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>` : ''}</div></div>
           <div class="step"><div><b>Verify your account with <span class="kbd">/verify</span></b><p>You sign in to osu! and, if your account is Portuguese, you get the verified role straight away. <a href="#/verify">How does it work?</a></p></div></div>
           <div class="step"><div><b>Play!</b><p>The bot fetches recent plays for everyone it tracks every four hours. You can also use <span class="kbd">/rs</span> to show your latest one.</p></div></div>
         </div>
@@ -105,14 +109,17 @@ export default async function home(root, { isCurrent }) {
       <div class="card">
         <h2>What’s here</h2>
         <div class="link-list">
-          <a href="#/dan"><b>Dan course</b><span>19 stages, from Zeroth Dan to Shin.</span></a>
+          <a href="#/challenges/dan"><b>Dan course</b><span>19 stages, from Zeroth Dan to Shin.</span></a>
           <a href="#/records"><b>Records</b><span>Biggest combos, most #1s, hardest maps.</span></a>
           <a href="#/games/guess"><b>Guess the map</b><span>Do you recognise the cover?</span></a>
           <a href="#/calculator"><b>Calculator</b><span>How much pp is that play worth?</span></a>
           <a href="#/compare"><b>Compare</b><span>Head to head with a rival.</span></a>
           <a href="#/commands"><b>Commands</b><span>Everything the bot can do.</span></a>
+          <a href="#/glossary"><b>Glossary</b><span>pp, converts, FC, mods: the words explained.</span></a>
+          <a href="#/players"><b>All players</b><span>Every Portuguese player the bot tracks.</span></a>
         </div>
       </div>
     </section>
   `);
+  root.querySelector('[data-find]')?.addEventListener('click', openSearch);
 }

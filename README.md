@@ -31,17 +31,20 @@ and is imported by both the exporter and the pages, so the two can't drift apart
 |---|---|
 | `#/` | Home: top 5s, map of the week, latest activity, how to join |
 | `#/rankings/{converts,loved,ranked,mods}` | Leaderboards, plus osupepe-style mod rankings |
-| `#/players`, `#/player/{id}/{tab}` | Player list and profiles (scores, Dan, pp history) |
+| `#/players`, `#/player/{id}/{tab}` | Player list (the header search's "all results", not in the nav) and profiles (scores, Dan, pp history) |
 | `#/maps`, `#/map/{id}` | Map search and per-map Portuguese leaderboards |
-| `#/dan?stage={n}` | The Dan course ladder, passers and roles |
 | `#/activity`, `#/activity?view=plays` | Snipes, top plays, Dan passes, overtakes; recent plays |
-| `#/challenges` | Map of the week, vulnerable #1s, one-player maps, unclaimed ranked maps |
+| `#/challenges/{week,dan,targets}` | This week (map of the week, supporter challenge); the Dan course (`?stage={n}`; old `#/dan` links redirect here); snipe targets (vulnerable #1s, bounties, one-player maps, unclaimed) |
+| `#/glossary` | pp, converts, grades, mods and the community's words, for newcomers |
 | `#/games/{guess,higher-lower}` | Guess the map from its cover; higher or lower |
 | `#/calculator` | Catch pp calculator and "what if" pp gain |
 | `#/compare/{a}/{b}` | Head to head |
 | `#/records` | Records and community stats |
 | `#/recap/{id}/{year}` | A player's year in review |
-| `#/commands`, `#/verify` | Bot commands and how `/verify` works |
+| `#/commands`, `#/verify`, `#/team` | Bot commands, how `/verify` works, Team Portugal |
+
+Filters, sort and page are kept in the hash's query (e.g. `#/maps?q=freedom&cat=r&page=2`), so Back and shared links
+restore them.
 
 ## Running it
 

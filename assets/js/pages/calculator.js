@@ -1,4 +1,4 @@
-import { html } from '../core/html.js';
+import { html, raw } from '../core/html.js';
 import { players, playerFile, mapEntry } from '../core/data.js';
 import { S, M, MOD, catchPp, adjustedAr, weightedTotal } from '../core/model.js';
 import { setTitle, playerPicker, pickedPlayer, prefs, mapLink, ppText } from '../core/ui.js';
@@ -30,18 +30,18 @@ export default async function calculator(root, { query, isCurrent }) {
 
   root.innerHTML = String(html`
     <header class="page-head">
-      <span class="eyebrow">Calculator</span>
-      <h1>How much pp is it worth?</h1>
+      <h1>Calculator</h1>
+      <p class="page-tag">How much pp is it worth?</p>
       <p>The current osu!catch pp formula (the same one the bot uses) and a "what if I set this play?" simulator. Do the maths before the next rework.</p>
     </header>
 
     <section class="grid grid-2">
       <div class="card">
         <h2>pp calculator</h2>
-        <div class="chips" style="margin-bottom:14px" aria-label="Preset maps">
+        <nav class="chips" style="margin-bottom:14px" aria-label="Preset maps">
           <span class="small faint" style="align-self:center;margin-right:4px">Try:</span>
-          ${CALC_PRESETS.map(([id, label]) => html`<a class="chip ${id === mapId ? 'active' : ''}" href="#/calculator?map=${id}">${label}</a>`)}
-        </div>
+          ${CALC_PRESETS.map(([id, label]) => html`<a class="chip ${id === mapId ? 'active' : ''}" href="#/calculator?map=${id}" ${id === mapId ? raw('aria-current="page"') : ''}>${label}</a>`)}
+        </nav>
         ${meta ? html`<div style="margin-bottom:14px">${mapLink(mapId, meta)}</div>` : ''}
         <div class="grid grid-2" style="gap:12px">
           <div class="field"><label for="stars">Stars (with mods applied)</label><input class="input" id="stars" type="number" step="0.01" min="0" value="${meta ? meta[M.STARS] : 5}"></div>
@@ -52,8 +52,8 @@ export default async function calculator(root, { query, isCurrent }) {
           <div class="field"><label for="miss">Misses</label><input class="input" id="miss" type="number" min="0" value="0"></div>
         </div>
         <div class="field" style="margin-top:12px">
-          <label>Mods</label>
-          <div class="chips" id="mods">${CALC_MODS.map(m => html`<button class="chip" type="button" data-mod="${m}">${m}</button>`)}</div>
+          <span class="field-label" id="mods-label">Mods</span>
+          <div class="chips" id="mods" role="group" aria-labelledby="mods-label">${CALC_MODS.map(m => html`<button class="chip" type="button" data-mod="${m}" aria-pressed="false">${m}</button>`)}</div>
         </div>
         <p class="small faint" style="margin:10px 0 0">EZ, HR, DT and HT change the star rating: enter the one osu! shows with the chosen mods. AR is adjusted here automatically. Copium included.</p>
         <div style="margin-top:18px">
@@ -91,7 +91,10 @@ export default async function calculator(root, { query, isCurrent }) {
       : mask & (MOD.EZ | MOD.HR | MOD.DT | MOD.HT) ? `AR with mods: ${fmt.num(ar, 2)}` : '';
     $('acc-table').innerHTML = String(html`${[95, 96, 97, 98, 99, 99.5, 100].map(a => html`<tr>
       <td>${fmt.acc(a)}</td><td class="num">${ppText(catchPp({ ...base, combo: base.maxCombo, acc: a }))}</td></tr>`)}`);
-    root.querySelectorAll('[data-mod]').forEach(b => b.classList.toggle('active', mods.has(b.dataset.mod)));
+    root.querySelectorAll('[data-mod]').forEach(b => {
+      b.classList.toggle('active', mods.has(b.dataset.mod));
+      b.setAttribute('aria-pressed', String(mods.has(b.dataset.mod)));
+    });
   };
   $('mods').addEventListener('click', e => {
     const name = e.target.dataset.mod;

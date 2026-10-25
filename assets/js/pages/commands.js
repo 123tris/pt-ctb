@@ -57,17 +57,17 @@ export default async function commands(root) {
   setTitle('Bot commands');
   root.innerHTML = String(html`
     <header class="page-head">
-      <span class="eyebrow">Commands</span>
-      <h1>What the bot can do</h1>
+      <h1>Bot commands</h1>
+      <p class="page-tag">What the bot can do</p>
       <p>Type <span class="kbd">/</span> in Discord to see every command. Most also work with a <span class="kbd">!</span> prefix (for example <span class="kbd">!rs</span>).</p>
     </header>
     <div class="grid grid-2">
       <div class="card">
-        <h3>Why is the bot called Alphonse?</h3>
+        <h2 class="card-h">Why is the bot called Alphonse?</h2>
         <p style="margin:0">Tris used to be <b>Edward Elric</b> on osu!. When he relaunched the bot in 2021, Nelson suggested the obvious: the bot is his brother. The Discord account still says DanProject, after the Dan course it was first built for in 2018.</p>
       </div>
       <div class="card">
-        <h3>The most-typed command</h3>
+        <h2 class="card-h">The most-typed command</h2>
         <p style="margin:0">Not one of ours: owo’s <span class="kbd">&lt;rc</span> has been typed on the server about 11,800 times. Yes, we know you’ve typed <span class="kbd">&lt;rc</span> more often than “hello”.</p>
       </div>
     </div>
