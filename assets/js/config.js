@@ -1,19 +1,27 @@
-// Site settings that aren't data. Edit these by hand.
+// Site settings that aren't data. Edit these by hand; the ones marked "per branch" are filled in by
+// tools/build-site.mjs for each Cloudflare Pages build (main → release, dev → development), see SETUP-HOSTING.md.
 export const CONFIG = {
   /** Discord invite link for the "Entrar no Discord" buttons. Empty hides them. */
   discordInvite: '',
   /** Where the site's source lives (footer link). */
   repository: 'https://github.com/123tris/pt-ctb',
-  /** The site's own address, e.g. 'https://ptcatch.com' (no trailing slash). See SETUP-HOSTING.md. */
+  /** The release site (built from main) and the development one (built from dev). No trailing slash. */
+  production: 'https://ptcatch.com',
+  development: 'https://dev.ptcatch.com',
+  /** Per branch: this copy's own address. Empty when served from anywhere else (npm run serve, GitHub Pages). */
   home: '',
   /**
-   * Show "Sign in with osu!" in the top bar. Needs the /auth/* Functions and their osu! secrets on Cloudflare Pages,
-   * and only shows on `home`, the one address the osu! app knows. "This is me" works either way.
+   * Per branch: show "Sign in with osu!" in the top bar (the SIGN_IN build variable). Needs the /auth/* Functions and
+   * an osu! app whose callback is on `home`, so it only shows there. "This is me" works either way.
    */
   signIn: false,
+  /** Per branch: 'dev' on development builds, which shows a DEV marker in the top bar. Empty on the release site. */
+  env: '',
+  /** Per branch: where the data files are. Development builds read the release site's, so they're always current. */
+  data: 'data/',
   /**
-   * Send visitors of the old GitHub Pages address (https://123tris.github.io/pt-ctb/) to the same page on `home`
-   * (assets/js/moved.js). Turn on once the site works there.
+   * Send visitors of the old GitHub Pages address (https://123tris.github.io/pt-ctb/) to the same page on
+   * `production` (assets/js/moved.js). Turn on once the release site works.
    */
   leaveGithub: false,
 };

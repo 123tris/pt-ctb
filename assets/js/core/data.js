@@ -1,5 +1,8 @@
 // Loads the exported JSON (data/*.json). meta.json is always revalidated; everything else is fetched with the
 // export's timestamp as a cache-buster, so a new export is picked up at once and old files stay cacheable.
+// CONFIG.data says where they are: data/ here, or the release site's on development builds.
+
+import { CONFIG } from '../config.js';
 
 const cache = new Map();
 let metaPromise = null;
@@ -7,7 +10,7 @@ let metaPromise = null;
 export class NotFound extends Error {}
 
 export function meta() {
-  metaPromise ??= fetch('data/meta.json', { cache: 'no-cache' }).then(r => {
+  metaPromise ??= fetch(`${CONFIG.data}meta.json`, { cache: 'no-cache' }).then(r => {
     if (!r.ok) throw new Error('The site data hasn’t been generated yet.');
     return r.json();
   });
@@ -17,7 +20,7 @@ export function meta() {
 export function load(path) {
   if (!cache.has(path)) {
     const promise = meta()
-      .then(m => fetch(`data/${path}?v=${m.generatedAt}`))
+      .then(m => fetch(`${CONFIG.data}${path}?v=${m.generatedAt}`))
       .then(r => {
         if (r.status === 404) throw new NotFound(path);
         if (!r.ok) throw new Error(`Couldn’t load ${path} (${r.status}).`);

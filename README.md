@@ -50,18 +50,25 @@ npm run export            # node --max-old-space-size=4096 tools/export.mjs
 npm run serve             # http://localhost:8080/
 npm run build             # dist/: what Cloudflare Pages publishes (tools/build-site.mjs)
 npm test                  # sign-in tests
-.\publish.ps1             # export (with --fetch-titles), commit data/ + state/, push (Cloudflare redeploys)
+.\publish.ps1             # on main only: export (with --fetch-titles), commit data/ + state/, push
 .\install-publish-task.ps1   # optional: run publish.ps1 every 4 hours
 ```
 
-Needs Node 18+. Settings that aren't data (the Discord invite link, the site's address, sign-in on/off) live in
-`assets/js/config.js`.
+Needs Node 18+. Settings that aren't data (the Discord invite link, the site's addresses) live in
+`assets/js/config.js`; the per-branch ones are filled in by the build.
 
-## Hosting and "Sign in with osu!"
+## Branches, hosting and "Sign in with osu!"
+
+`main` is the release site, <https://ptcatch.com>, and `dev` is the development site, <https://dev.ptcatch.com>.
+Cloudflare Pages builds both on every push. Work happens on `dev` and is released by merging `dev` into `main`. Data
+only goes to `main` (publish.ps1 refuses other branches); the dev site reads the release site's data, so it's always
+current.
 
 Cloudflare Pages publishes only what `tools/build-site.mjs` copies to `dist/` (the pages, `assets/`, `data/` and
-`_headers`), so `tools/`, `state/` and the scripts stay private. `_headers` sets the security and cache headers.
+`_headers`), so `tools/`, `state/` and the scripts stay private. The same script applies each branch's settings:
+address, DEV marker and noindex on dev, sign-in from the `SIGN_IN` build variable. `_headers` sets the security and
+cache headers.
 `functions/auth/` (code in `signin/oauth.js`) runs osu!'s OAuth on the site's own address, because the exchange
 needs a client secret a static page can't hold. Visitors get back only their osu! id and name, which fill the same
-"This is me" preference. The setup steps (Pages project, domain, osu! app, secrets) are in
+"This is me" preference. The setup steps (Pages project, domains, branches, osu! apps, secrets) are in
 [SETUP-HOSTING.md](SETUP-HOSTING.md).

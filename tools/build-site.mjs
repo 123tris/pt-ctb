@@ -4,11 +4,19 @@
 // functions/ (the sign-in endpoints) stays at the repo root, where Pages looks for it. No dependencies.
 // PUBLIC lists whole folders, so new pages, modules, images or fonts under assets/ are picked up by themselves; only
 // a new top-level folder the site loads at runtime has to be added here.
+//
+// Each branch gets its own settings, layered over assets/js/config.js in dist/ only (the repo copy stays as GitHub Pages
+// and `npm run serve` use it). Cloudflare sets CF_PAGES_BRANCH; set it by hand to try a branch locally:
+//   main → the release site (CONFIG.production), with the data files and CORS for the development site to read them;
+//   dev  → the development site (CONFIG.development): DEV marker, noindex, and no data files of its own, since it
+//          reads the release site's, which are always current (publish.ps1 only ever commits data to main).
+// SIGN_IN=1 (a Pages build variable, set per environment) turns "Sign in with osu!" on for that build.
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { CONFIG } from '../assets/js/config.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
@@ -17,9 +25,41 @@ const PUBLIC = ['index.html', '404.html', '_headers', 'assets', 'data'];
 const MAX_FILES = 20000;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
+const branch = process.env.CF_PAGES_BRANCH || '';
+const release = branch === 'main';
+// No branch: a plain local build, left exactly as the repo has it. Any other branch is a development build; only dev
+// has a domain of its own (CONFIG.development), the rest live on their *.pages.dev preview address.
+const settings = !branch ? null : release
+  ? { home: CONFIG.production }
+  : { home: branch === 'dev' ? CONFIG.development : '', env: 'dev', data: `${CONFIG.production}/data/` };
+if (settings) settings.signIn = process.env.SIGN_IN === '1';
+
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist);
-for (const entry of PUBLIC) fs.cpSync(path.join(root, entry), path.join(dist, entry), { recursive: true });
+for (const entry of PUBLIC) {
+  if (entry === 'data' && settings?.data) continue; // development builds read the release site's data
+  fs.cpSync(path.join(root, entry), path.join(dist, entry), { recursive: true });
+}
+
+const edit = (file, change) => {
+  const target = path.join(dist, file);
+  const before = fs.readFileSync(target, 'utf8');
+  const after = change(before);
+  if (after === before) throw new Error(`build-site: expected to change ${file}, but nothing matched.`);
+  fs.writeFileSync(target, after);
+};
+
+if (settings) {
+  edit('assets/js/config.js', s => `${s}\n// Set by tools/build-site.mjs for the "${branch}" branch.\nObject.assign(CONFIG, ${JSON.stringify(settings)});\n`);
+  if (release) {
+    // Let the development site read the release site's data files.
+    edit('_headers', s => `${s}\n/data/*\n  Access-Control-Allow-Origin: ${CONFIG.development}\n`);
+  } else {
+    edit('index.html', s => s.replace('<html lang="en">', `<html lang="en" data-env="${settings.env}">`));
+    edit('_headers', s => s.replace("connect-src 'self'", `connect-src 'self' ${CONFIG.production}`));
+    edit('_headers', s => `${s}\n# A development build: keep it out of search engines.\n/*\n  X-Robots-Tag: noindex\n`);
+  }
+}
 
 // The CSP in _headers allows inline scripts only by hash: fill in the hashes of the ones the pages have right now.
 const sha256 = s => `'sha256-${crypto.createHash('sha256').update(s, 'utf8').digest('base64')}'`;
@@ -50,6 +90,7 @@ const walk = dir => {
 walk(dist);
 
 const mb = n => (n / 1024 / 1024).toFixed(1);
-console.log(`dist/: ${files} files, ${mb(bytes)} MiB; largest ${largest.file} (${mb(largest.size)} MiB)`);
+console.log(`dist/ for ${branch ? `branch "${branch}"` : 'a local build'}: ${files} files, ${mb(bytes)} MiB; largest ${largest.file} (${mb(largest.size)} MiB)`);
+if (settings) console.log(`settings: ${JSON.stringify(settings)}`);
 if (files > MAX_FILES) throw new Error(`${files} files is over Cloudflare Pages' limit of ${MAX_FILES}.`);
 if (largest.size > MAX_FILE_BYTES) throw new Error(`${largest.file} is over Cloudflare Pages' 25 MiB per-file limit.`);

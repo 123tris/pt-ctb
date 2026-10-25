@@ -792,3 +792,14 @@ tr.inactive:hover td { opacity: .8; }
 }
 .you-signin:hover { border-color: var(--accent); color: var(--accent); }
 .you-signin:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* =================================================================================================================
+   Development builds (tools/build-site.mjs sets <html data-env="dev"> on every branch but main): a gold line along the
+   top bar and a DEV tag after the logo, so dev.ptcatch.com can't be mistaken for the real site.
+   ================================================================================================================= */
+
+html[data-env] .topbar { box-shadow: inset 0 3px 0 var(--gold); }
+html[data-env] .brand::after {
+  content: 'DEV'; padding: 3px 5px 2px; border-radius: var(--r-xs); background: var(--gold); color: #1f191b;
+  font: 800 .625rem/1 var(--font); letter-spacing: .08em;
+}

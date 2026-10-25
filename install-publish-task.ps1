@@ -23,5 +23,5 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnB
     -ExecutionTimeLimit (New-TimeSpan -Hours 1)
 
 Register-ScheduledTask -TaskName 'PT-CTB site publish' -Action $action -Trigger $trigger -Settings $settings `
-    -Description 'Exports the PT-CTB bot data to the site and pushes it to GitHub Pages.' -Force | Out-Null
+    -Description 'Exports the PT-CTB bot data to the site and pushes it to main (the release site).' -Force | Out-Null
 Write-Host "Scheduled 'PT-CTB site publish' every $EveryHours hours."
