@@ -1,7 +1,8 @@
 import { html } from '../core/html.js';
-import { activity, playerIndex } from '../core/data.js';
+import { activity, challenges, playerIndex } from '../core/data.js';
 import { S } from '../core/model.js';
 import { eventItem, EVENT_KINDS } from '../core/events.js';
+import { weeklyRecap, hasWeekly } from '../core/weekly.js';
 import { setTitle, tabs, scoreRow, empty, chipGroup, setPressed, writeQuery, announce, resultCount } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -20,10 +21,12 @@ function feed(events, index, maps) {
 }
 
 export default async function activityPage(root, { query, isCurrent }) {
-  const [data, index] = await Promise.all([activity(), playerIndex()]);
+  const [data, index, ch] = await Promise.all([activity(), playerIndex(), challenges().catch(() => null)]);
   if (!isCurrent()) return;
   setTitle('Activity');
-  const view = query.view === 'plays' ? 'plays' : 'events';
+  // "This week" (the bot's Monday recap) only appears once the bot has written something for it.
+  const weekly = hasWeekly(ch?.weekly) ? ch.weekly : null;
+  const view = query.view === 'plays' ? 'plays' : query.view === 'week' && weekly ? 'week' : 'events';
   const kinds = Object.entries(EVENT_KINDS).filter(([k]) => data.events.some(e => e.k === k));
   let kind = kinds.some(([k]) => k === query.kind) ? query.kind : '';
 
@@ -35,6 +38,7 @@ export default async function activityPage(root, { query, isCurrent }) {
     ${tabs([
       { href: '#/activity', label: 'Events', active: view === 'events' },
       { href: '#/activity?view=plays', label: 'Recent plays', active: view === 'plays' },
+      ...(weekly ? [{ href: '#/activity?view=week', label: 'This week', active: view === 'week' }] : []),
     ], 'Activity views')}
     ${view === 'events' ? html`<div id="kinds" style="margin-bottom:12px">${chipGroup('Show', 'kind', [
       ['', 'All'], ...kinds.map(([k, { label }]) => [k, html`<span class="event-kind ev-${k}">${label}</span>`]),
@@ -44,6 +48,10 @@ export default async function activityPage(root, { query, isCurrent }) {
   `);
 
   const list = root.querySelector('#list');
+  if (view === 'week') {
+    list.innerHTML = String(weeklyRecap(weekly, ch.maps, index));
+    return;
+  }
   if (view === 'plays') {
     list.innerHTML = String(html`<div class="rows">${data.recent.map(([uid, cat, ...s]) =>
       scoreRow({ s, meta: data.maps[s[S.MAP]], player: uid, index, cat }))}</div>`);

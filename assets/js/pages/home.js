@@ -4,6 +4,7 @@ import { M, DAN_STAGES } from '../core/model.js';
 import { eventItem, danName } from '../core/events.js';
 import { LAST_REWORK, THRONE_PLAYER, HISTORY } from '../core/lore.js';
 import { ladderBand, passCounts, highestDan, topStage } from '../core/ladder.js';
+import { weeklySummary } from '../core/weekly.js';
 import { season } from '../core/fun.js';
 import {
   setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
@@ -111,6 +112,7 @@ export default async function home(root, { isCurrent }) {
             <p class="small muted" style="margin:10px 0 0">${fmt.plural(week.weekly.length, 'play')} this week · ${fmt.plural(week.board.length, 'player')} in total. Ends ${fmt.ago(week.end)}.</p>
           </div>
         </a>` : html`<div class="empty">No map of the week yet.</div>`}
+        ${weeklySummary(ch.weekly, ch.maps, index)}
       </div>
       <div>
         <div class="section-head"><h2>Recent activity</h2><a href="#/activity">See all →</a></div>

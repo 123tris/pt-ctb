@@ -1135,3 +1135,13 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .throne-strip { background: none; border: 0; border-block: 1px solid var(--border); border-radius: 0; padding: 12px 0; }
 .throne-strip.card-link:hover { background: none; border-color: var(--border); }
 .throne-strip.card-link:hover b { color: var(--gold); }
+
+/* The home page's "This week so far" (core/weekly.js weeklySummary): a few ruled lines under the map of the week. */
+.week-summary { margin-top: 28px; }
+.week-summary .section-head { margin-bottom: 6px; }
+.week-summary .section-head h2 { font-size: var(--fs-xl); }
+.week-summary > p { margin: 0; }
+.week-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.week-summary > p.muted { margin-bottom: 8px; }
+.week-top > .faint { min-width: 7.5em; }
+.week-top .dim-link { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
