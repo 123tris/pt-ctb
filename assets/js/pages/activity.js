@@ -33,7 +33,7 @@ export default async function activityPage(root, { query, isCurrent }) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>Activity</h1>
-      <p>Snipes, new top plays, Dan passes and leaderboard climbs from the last four months. The bot picks up new plays every 30 minutes; they show up here with the site’s next data update (see the footer).</p>
+      <p>Snipes, new top plays, Dan passes and leaderboard climbs from the last four months.</p>
     </header>
     ${tabs([
       { href: '#/activity', label: 'Events', active: view === 'events' },

@@ -18,11 +18,11 @@ const BOARDS = [
 ];
 
 const INTRO = {
-  converts: html`osu!standard maps played in catch mode. Each player’s best plays add up the way osu! does it: every play is worth 95% of the one before. <a class="help-link" href="#/glossary">What’s pp?</a>`,
-  loved: 'Loved, pending and graveyarded maps. osu! gives no pp for these, so the bot works them out with the current osu!catch formula.',
-  ranked: 'The official osu!catch leaderboard. The pp and global rank come from each player’s osu! profile. Players who are inactive on osu! (where they show as 0 pp) stay here with their last known pp, or one estimated from their plays.',
-  mods: 'Each player is ranked by the weighted pp of their plays that include the chosen mod (the “osupepe” way). An HDDT play counts for HD, DT and HDDT; NM counts plays without EZ, HD, HR, DT, HT or FL. Players inactive on osu! are ranked by the plays the bot keeps.',
-  plays: 'Portugal’s best single plays, most pp first, like the top plays on an osu! profile. Ranked is what osu! gives pp for: ranked catch maps and converts. A mod keeps the plays that include it (an HDDT play counts for HD, DT and HDDT); NM is plays without EZ, HD, HR, DT, HT or FL.',
+  converts: html`osu!standard maps played in catch mode, weighted the way osu! does it. <a class="help-link" href="#/glossary">What’s pp?</a>`,
+  loved: 'Loved, pending and graveyarded maps, with pp the bot works out from the current formula.',
+  ranked: 'The official leaderboard, from each player’s osu! profile. Players inactive on osu! keep their last known pp.',
+  mods: 'Weighted pp from the plays that include the chosen mod. An HDDT play counts for HD, DT and HDDT.',
+  plays: 'Portugal’s best single plays, most pp first.',
 };
 
 const SOURCES = [['r', 'Ranked'], ['c', 'Converts'], ['u', 'Loved & Unranked']];

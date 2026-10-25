@@ -61,15 +61,12 @@ export default async function home(root, { isCurrent }) {
     <section class="hero">
       <div>
         <h1>Portugal’s <em>osu!catch</em> community</h1>
-        <p class="hero-tag">Catching fruit and choking since 2018.</p>
-        <p>Leaderboards, profiles, the Dan course, weekly challenges and games: everything the PT-CTB server’s bot tracks, in one place.</p>
-        <div class="btn-row">
-          ${CONFIG.discordInvite ? html`<a class="btn btn-discord" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>` : ''}
-          <a class="btn btn-primary" href="#/rankings">See the leaderboards</a>
-          <a class="btn" href="#/games">Play a game</a>
+        <p>Leaderboards, the Dan course and weekly challenges, from everything the PT-CTB Discord’s bot tracks.</p>
+        <div class="hero-actions">
+          ${CONFIG.discordInvite ? html`<a class="btn btn-primary" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>` : ''}
+          <a href="#/rankings">See the leaderboards</a>
+          ${mine ? html`<a href="#/player/${mine.id}">Your profile</a>` : html`<button type="button" class="link-button" data-find>Find yourself</button>`}
         </div>
-        ${mine ? html`<p class="find-me">Welcome back, <a href="#/player/${mine.id}">${mine.name}</a>. Your rows are highlighted on every leaderboard.</p>`
-          : html`<p class="find-me">Play osu!catch in Portugal? <button type="button" data-find>Find yourself</button> and press “This is me” on your profile. New to all this? <a href="#/glossary">Read the glossary</a>.</p>`}
       </div>
       <dl class="hero-stats">
         <div><dt>Players tracked</dt><dd>${fmt.num(m.totals.players)}</dd></div>
@@ -125,29 +122,13 @@ export default async function home(root, { isCurrent }) {
       <ol class="since">${HISTORY.map(([year, text]) => html`<li><span class="since-year">${year}</span><p>${text}</p></li>`)}</ol>
     </section>
 
-    <section class="section grid grid-2">
-      <div class="card">
-        <h2>How to join</h2>
-        <div class="steps">
+    <section class="section">
+      <div class="section-head"><h2>How to join</h2><a href="#/join">The full guide →</a></div>
+      <div class="steps steps-row">
           <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p></div></div>
           <div class="step"><div><b>Verify your account with <span class="kbd">/verify</span></b><p>You sign in to osu! and, if your account is Portuguese, you get the verified role straight away. </p></div></div>
           <div class="step"><div><b>Play!</b><p>The bot fetches recent plays for everyone it tracks every 30 minutes. You can also use <span class="kbd">/rs</span> to show your latest one.</p></div></div>
         </div>
-        <p style="margin:12px 0 0"><a href="#/join">The full guide, with what /verify does →</a></p>
-      </div>
-      <div class="card">
-        <h2>What’s here</h2>
-        <div class="link-list">
-          <a href="#/challenges/dan"><b>Dan course</b><span>19 stages, from Zeroth Dan to Shin.</span></a>
-          <a href="#/records"><b>Records</b><span>Biggest combos, most #1s, hardest maps.</span></a>
-          <a href="#/games/guess"><b>Guess the map</b><span>Do you recognise the cover?</span></a>
-          <a href="#/calculator"><b>Calculator</b><span>How much pp is that play worth?</span></a>
-          <a href="#/compare"><b>Compare</b><span>Head to head with a rival.</span></a>
-          <a href="#/commands"><b>Commands</b><span>Everything the bot can do.</span></a>
-          <a href="#/glossary"><b>Glossary</b><span>pp, converts, FC, mods: the words explained.</span></a>
-          <a href="#/players"><b>All players</b><span>Every Portuguese player the bot tracks.</span></a>
-        </div>
-      </div>
     </section>
   `);
   root.querySelector('[data-find]')?.addEventListener('click', openSearch);

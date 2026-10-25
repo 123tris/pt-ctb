@@ -190,9 +190,9 @@ export function officialPpNote(p) {
   return p.ppSeen ? `last seen on osu! ${fmt.date(p.ppSeen)}` : 'last known';
 }
 
-/** The stats of a play: mods, grade, accuracy, combo, misses. */
+/** The stats of a play: mods (none shown for nomod), grade, accuracy, combo, misses. */
 export function scoreStats(s, { combo = true } = {}) {
-  return html`${modsBadges(s[S.MODS])}
+  return html`${modString(s[S.MODS]) === 'NM' ? '' : modsBadges(s[S.MODS])}
     ${gradeBadge(s[S.GRADE])}
     <span class="acc">${fmt.acc(s[S.ACC])}</span>
     ${combo ? html`<span class="combo">${fmt.num(s[S.COMBO])}x</span>` : ''}
@@ -210,8 +210,7 @@ export function scoreRow({ s, meta, player, index, pos, showMap = true, cat }) {
     </div>
     <div class="row-meta">
       ${cat ? catChip(cat) : ''}
-      ${scoreStats(s)}
-      <span class="sep"></span>
+      <span class="row-stats">${scoreStats(s)}</span>
       ${posBadge(pos)}
       ${ppText(s[S.PP])}
       <span class="faint" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.ago(s[S.TIME]))}</span>

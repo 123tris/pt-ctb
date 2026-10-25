@@ -774,7 +774,6 @@ a.dan-stage:hover { text-decoration: none; }
 
 /* ---- Community lore: in-joke badges, map stories, captions, easter eggs ------------------------------------ */
 
-.hero-tag { font: 600 var(--fs-lg)/1.3 var(--display); color: var(--accent) !important; letter-spacing: .01em; margin: -.2em 0 14px !important; }
 .hero-stats .hero-rework { grid-column: 1 / -1; padding-left: 0 !important; border-left: 0 !important; }
 .hero-rework dd { color: var(--accent); }
 
@@ -1043,8 +1042,6 @@ p a.dim-link { text-decoration: underline; }
 .not-you { font-size: var(--fs-sm); }
 
 /* Home: find yourself, and the Discord. */
-.find-me { margin-top: 14px; font-size: var(--fs-sm); color: var(--text-dim); }
-.find-me button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .footer-links { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 10px !important; }
 
 /* D8: the glossary. */
@@ -1145,3 +1142,44 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .week-summary > p.muted { margin-bottom: 8px; }
 .week-top > .faint { min-width: 7.5em; }
 .week-top .dim-link { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+
+/* =================================================================================================================
+   Quieter rows and labels. In a score row one number leads (pp); the rest of the play is one dim run of text, nomod
+   shows nothing, FC is a word rather than a colour, and only a #1 is marked in gold. Labels are in sentence case:
+   spaced capitals stay only on table headers.
+   ================================================================================================================= */
+
+.row-stats { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--text-dim); }
+.row-stats .acc { color: var(--text-dim); }
+.row-meta .pp { font-size: var(--fs-lg); }
+.miss-fc { color: var(--text-dim); font-weight: 500; }
+.row-meta .pos { min-width: 0; padding: 0; background: none; line-height: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text-faint); }
+.row-meta .pos-1 { color: var(--gold); }
+
+.eyebrow, .card > h3, .card > h2.card-h, .history > summary > h2.card-h, .stat-label, .cat, .hero-stats dt, .kv dt, .feed-day,
+.event-kind, .scoreboard, .cmp-row .label, .wrapped .slide > .muted:first-child, .legend-tag, .chips-label, .you-label,
+.special-round { text-transform: none; letter-spacing: 0; }
+.card > h3, .card > h2.card-h, .history > summary > h2.card-h { font-size: var(--fs-md); color: var(--text); }
+.stat-label, .hero-stats dt, .kv dt, .feed-day, .chips-label, .scoreboard, .cmp-row .label { font-size: var(--fs-sm); font-weight: 500; }
+.stat-label, .hero-stats dt, .kv dt { color: var(--text-dim); }
+.cat, .event-kind { font-weight: 500; }
+
+/* Home: one main action (the Discord), the rest as plain links; "How to join" as three steps side by side. */
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.hero-actions > a:not(.btn), .link-button { font-weight: 600; }
+.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
+.link-button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.steps-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+@media (max-width: 760px) { .steps-row { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+
+/* A profile's role, #1s, last play and era as one line of text under the name, and its badges as a list lower down. */
+.profile-line { color: var(--text-dim); }
+.profile-role { color: var(--gold); font-weight: 600; }
+.badge-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; }
+.badge-list b { color: var(--text); font-weight: 600; }
+.badge-list span { color: var(--text-dim); font-size: var(--fs-sm); }
+@media (max-width: 620px) { .badge-list { grid-template-columns: minmax(0, 1fr); } }
+
+/* app.js moves focus to a new page's heading (for keyboards and screen readers); no ring around it, as nobody tabbed
+   there. */
+h1[tabindex='-1']:focus { outline: none; }

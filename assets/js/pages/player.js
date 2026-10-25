@@ -7,7 +7,7 @@ import { playerBadges, era, signatureMap } from '../core/badges.js';
 import { THRONE_PLAYER } from '../core/lore.js';
 import { jersey } from '../core/ladder.js';
 import {
-  setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
+  setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
   isLegend, legendTag, gradeBadge, chipGroup, setPressed, placeholderRows,
 } from '../core/ui.js';
@@ -196,20 +196,18 @@ export default async function player(root, { params, query, isCurrent }) {
       <a class="avatar-link" href="${osuUser(id)}" target="_blank" rel="noopener" aria-label="${p.name} on osu!" title="${p.name} on osu!">${avatar(id, 'avatar-lg')}</a>
       <div class="profile-info">
         <h1><a class="title-link" href="${osuUser(id)}" target="_blank" rel="noopener" title="${p.name} on osu!">${p.name}</a>${isLegend(p) ? legendTag() : ''}</h1>
-        <div class="links">
-          ${role ? html`<span class="badge badge-gold">${role}</span>` : ''}
-          ${firsts ? html`<span class="badge badge-accent">${fmt.plural(firsts, '#1', '#1s')} in Portugal</span>` : ''}
-          ${p.last ? html`<span class="badge">Last played ${fmt.ago(p.last)}</span>` : ''}
-          ${playerEra ? html`<span class="badge badge-era">Era: ${playerEra}</span>` : ''}
-        </div>
-        ${funChips(badges, '', { show: 3 })}
+        <p class="profile-line">${[
+          role && html`<span class="profile-role">${role}</span>`,
+          firsts && `${fmt.plural(firsts, '#1', '#1s')} in Portugal`,
+          p.last && `last played ${fmt.ago(p.last)}`,
+          playerEra && `era: ${playerEra}`,
+        ].filter(Boolean).map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>
         <div class="links">
           <a class="btn btn-small" href="#/compare/${id}">Compare</a>
           ${years.length ? html`<a class="btn btn-small" href="#/recap/${id}/${years[0]}">${years[0]} recap</a>` : ''}
-          <button class="btn btn-small" id="me" type="button" aria-pressed="false">This is me</button>
+          <button class="btn btn-small" id="me" type="button" aria-pressed="false" title="Highlights your rows on every leaderboard (saved in this browser)">This is me</button>
           <a class="not-you" id="not-you" href="#/player/${id}" hidden>Not you?</a>
         </div>
-        <p class="small faint" id="me-hint" ${prefs.get('me', null) === null ? '' : raw('hidden')}>Mark your own profile to highlight your rows on every leaderboard (saved in this browser).</p>
       </div>
       ${jersey(p)}
     </header>
@@ -240,6 +238,11 @@ export default async function player(root, { params, query, isCurrent }) {
       <h2 class="card-h">Signature map <span class="faint">· ${signature.kind}</span></h2>
       ${mapLink(signature.s[S.MAP], signature.meta)}
       <div class="score-line" style="margin-top:10px">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
+    </section>` : ''}
+
+    ${badges.length ? html`<section class="section card">
+      <h2 class="card-h">Badges</h2>
+      <ul class="badge-list">${badges.map(b => html`<li><b>${b.name}</b> <span>${b.tip}</span></li>`)}</ul>
     </section>` : ''}
 
     ${historySection(points, rebuilt)}
@@ -286,16 +289,13 @@ export default async function player(root, { params, query, isCurrent }) {
   });
 
   // "This is me" is a toggle: the label stays the same, aria-pressed and a check mark show the state, and "Not you?"
-  // undoes it without having to guess that the same button does. The hint under it is for visitors who haven't
-  // marked anyone yet: once a profile (any) is theirs it's gone, on every profile, and it's back if they clear it.
+  // undoes it without having to guess that the same button does. Its tooltip says what it's for.
   const meButton = root.querySelector('#me');
   const notYou = root.querySelector('#not-you');
-  const hint = root.querySelector('#me-hint');
   const drawMe = () => {
     const me = prefs.get('me', null);
     meButton.setAttribute('aria-pressed', String(me === id));
     notYou.hidden = me !== id;
-    hint.hidden = me !== null;
   };
   meButton.addEventListener('click', () => {
     prefs.set('me', prefs.get('me', null) === id ? null : id);

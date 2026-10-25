@@ -11,7 +11,7 @@ import * as fmt from '../core/fmt.js';
 // Three sub-pages with their own URLs (#/challenges/week, /dan, /targets). "Dan" keeps the community's own word, and
 // the three are shown as big cards under the heading so the Dan course can't be missed.
 const TABS = [
-  { slug: 'week', label: 'This week', blurb: 'The map of the week', intro: html`A new map every week, picked automatically on Mondays: this week’s plays and the all-time top. The week’s best plays and the Score of the week vote are on <a href="#/activity?view=week">Activity</a>.` },
+  { slug: 'week', label: 'This week', blurb: 'The map of the week', intro: html`A new map every Monday. The week’s best plays and the Score of the week vote are on <a href="#/activity?view=week">Activity</a>.` },
   { slug: 'dan', label: 'Dan course', blurb: '19 stages, Zeroth Dan to Shin', intro: DAN_INTRO },
   { slug: 'targets', label: 'Snipe targets', blurb: '#1s up for grabs', intro: '#1s that are begging to be sniped, boss maps nobody has FC’d, and maps nobody in Portugal has played yet.' },
 ];
@@ -96,7 +96,7 @@ export default async function challengesPage(root, { params, query, isCurrent })
 function weekPanel(data, maps, index, me) {
   return html`
     <section>
-      <div class="section-head"><h2>Map of the week</h2><span class="muted small">Picked automatically every Monday.</span></div>
+      <div class="section-head"><h2>Map of the week</h2></div>
       ${weekSection(data.week, maps, index, me)}
     </section>`;
 }
