@@ -6,7 +6,7 @@ import { mapTags } from '../core/badges.js';
 import { mapLore } from '../core/lore.js';
 import {
   setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip, scoreWhen,
-  funChips,
+  funChips, setPressed,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -39,6 +39,26 @@ function diffSwitcher(id, diffs) {
   })}</nav>`;
 }
 
+/**
+ * Leaderboard rows. `pre`: plays from before the map was ranked, which count toward nothing, so a plain position and a
+ * dash for pp (a "0pp" would read as a play worth nothing rather than one that isn't counted).
+ */
+function boardRows(entries, me, index, pre = false) {
+  return entries.map(([uid, ...s], i) => html`<tr class="${uid === me ? 'me' : ''}">
+    <td class="rank">${pre ? i + 1 : posBadge(i + 1)}</td>
+    <td class="cell-player">${playerLink(uid, index)}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span> ${fmt.num(s[S.SCORE])} · <time datetime="${new Date(s[S.TIME] * 1000).toISOString()}">${fmt.date(s[S.TIME])}</time></span></td>
+    <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
+    <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td>
+    <td class="num">${pre ? html`<span class="faint" title="Set before the map was ranked: counts toward nothing">—</span>` : ppText(s[S.PP])}</td>
+    <td class="num faint col-opt" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.date(s[S.TIME]))}</td>
+  </tr>`);
+}
+
+const boardTable = rows => html`<div class="table-wrap"><table>
+  <thead><tr><th>#</th><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">pp</th><th class="num col-opt">Date</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table></div>`;
+
 async function otherMeta(id) {
   const [ch, d] = await Promise.all([challenges(), dan()]);
   return ch.maps[id] ?? d.stages.find(stage => stage.map === id)?.meta ?? null;
@@ -58,6 +78,8 @@ export default async function mapPage(root, { params, isCurrent }) {
   const me = prefs.get('me', null);
   const danStage = DAN_MAPS.indexOf(id);
   const board = entry?.s ?? [];
+  // Plays from before the map was ranked: a second view of the leaderboard, offered only when there are any.
+  const pre = entry?.pre ?? [];
   const lore = mapLore(meta);
   const tags = [
     ...(lore?.tuga ? [{ name: 'tuga certified 🇵🇹', tip: 'A Portuguese song or meme map.' }] : []), // PT text (intentional): "tuga"
@@ -106,40 +128,32 @@ export default async function mapPage(root, { params, isCurrent }) {
       ${meta?.[M.MAX_COMBO] ? html`<a class="btn btn-small" href="#/calculator?map=${id}">Calculate pp</a>` : ''}
     </div>
 
-    <section class="section">
+    <section class="section map-board">
       <div class="section-head">
         <h2>Portuguese leaderboard</h2>
-        <span class="muted small">${entry?.c === CAT.LOVED && !entry.banned ? 'Sorted by pp, as in the bot.' : 'Sorted by classic score, as on osu!.'}</span>
+        <span class="muted small" data-view="now">${entry?.c === CAT.LOVED && !entry.banned ? 'Sorted by pp, as in the bot.' : 'Sorted by classic score, as on osu!.'}</span>
+        ${pre.length ? html`<span class="muted small" data-view="pre" hidden>Set before the map was ranked. Kept for the record; they count toward nothing.</span>` : ''}
       </div>
-      ${board.length ? html`<div class="table-wrap"><table>
-        <thead><tr><th>#</th><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">pp</th><th class="num col-opt">Date</th></tr></thead>
-        <tbody>${board.map(([uid, ...s], i) => html`<tr class="${uid === me ? 'me' : ''}">
-          <td class="rank">${posBadge(i + 1)}</td>
-          <td class="cell-player">${playerLink(uid, index)}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span> ${fmt.num(s[S.SCORE])} · <time datetime="${new Date(s[S.TIME] * 1000).toISOString()}">${fmt.date(s[S.TIME])}</time></span></td>
-          <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
-          <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td>
-          <td class="num">${ppText(s[S.PP])}</td>
-          <td class="num faint col-opt" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.date(s[S.TIME]))}</td>
-        </tr>`)}</tbody>
-      </table></div>` : html`<div class="empty">No Portuguese player has a score on this map yet. Why not be the first?</div>`}
+      ${pre.length ? html`<div class="chips board-views" role="group" aria-label="Plays shown">
+        <button class="chip active" type="button" data-board="now" aria-pressed="true">${STATUS_LABEL[meta?.[M.STATUS]] ?? 'Ranked'} <span class="faint">${fmt.num(board.length)}</span></button>
+        <button class="chip" type="button" data-board="pre" aria-pressed="false">Before ranking <span class="faint">${fmt.num(pre.length)}</span></button>
+      </div>` : ''}
+      <div data-view="now">
+        ${board.length ? boardTable(boardRows(board, me, index))
+          : html`<div class="empty">No Portuguese player has a score on ${pre.length ? 'the ranked version of this map' : 'this map'} yet. Why not be the first?</div>`}
+      </div>
+      ${pre.length ? html`<div data-view="pre" hidden>${boardTable(boardRows(pre, me, index, true))}</div>` : ''}
     </section>
-
-    ${entry?.pre?.length ? html`<section class="section">
-      <div class="section-head">
-        <h2>Played before ranked</h2>
-        <span class="muted small">Set on an earlier version of the map, before it was ranked. Kept for the record; they count toward nothing.</span>
-      </div>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">Date</th></tr></thead>
-        <tbody>${entry.pre.map(([uid, ...s]) => html`<tr class="${uid === me ? 'me' : ''}">
-          <td class="cell-player">${playerLink(uid, index)}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span></span></td>
-          <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
-          <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td>
-          <td class="num faint" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.date(s[S.TIME]))}</td>
-        </tr>`)}</tbody>
-      </table></div>
-    </section>` : ''}
   `);
+
+  // The two views of the leaderboard: the plays that count, and those from before the map was ranked.
+  const boardSection = root.querySelector('.map-board');
+  boardSection.addEventListener('click', e => {
+    const view = e.target.closest('[data-board]')?.dataset.board;
+    if (!view) return;
+    setPressed(boardSection, 'board', view);
+    boardSection.querySelectorAll('[data-view]').forEach(el => { el.hidden = el.dataset.view !== view; });
+  });
 
   // A long list scrolls (sideways on a phone): start it with this difficulty in view.
   const nav = root.querySelector('.diffs'), current = nav?.querySelector('[aria-current="page"]');
