@@ -61,6 +61,31 @@ if (settings) {
   }
 }
 
+// Every JS and CSS address gets ?v=<hash of all the code>, in index.html and in every import. The custom domain's
+// zone caches .js/.css in browsers for 4 hours whatever _headers says, and a stale module next to fresh ones breaks
+// the page ("does not provide an export named …"). With the version in the address, a deploy that changes any code
+// changes every address at once, and a data-only deploy changes none, so nothing is downloaded again for nothing.
+const codeFiles = [];
+const collect = dir => {
+  for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, d.name);
+    if (d.isDirectory()) collect(p);
+    else if (/\.(js|css)$/.test(d.name)) codeFiles.push(p);
+  }
+};
+collect(path.join(dist, 'assets'));
+codeFiles.sort();
+const code = crypto.createHash('sha256');
+for (const file of codeFiles) code.update(path.relative(dist, file)).update(fs.readFileSync(file));
+const version = code.digest('hex').slice(0, 10);
+const IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"?]+\.js)\2/g;
+for (const file of codeFiles.filter(f => f.endsWith('.js'))) {
+  const source = fs.readFileSync(file, 'utf8');
+  const versioned = source.replace(IMPORT, `$1$2$3?v=${version}$2`);
+  if (versioned !== source) fs.writeFileSync(file, versioned);
+}
+edit('index.html', s => s.replace(/((?:src|href)=")(assets\/(?:js|css)\/[^"?]+\.(?:js|css))"/g, `$1$2?v=${version}"`));
+
 // The CSP in _headers allows inline scripts only by hash: fill in the hashes of the ones the pages have right now.
 const sha256 = s => `'sha256-${crypto.createHash('sha256').update(s, 'utf8').digest('base64')}'`;
 const inline = { scripts: [], handlers: [] };
@@ -90,7 +115,7 @@ const walk = dir => {
 walk(dist);
 
 const mb = n => (n / 1024 / 1024).toFixed(1);
-console.log(`dist/ for ${branch ? `branch "${branch}"` : 'a local build'}: ${files} files, ${mb(bytes)} MiB; largest ${largest.file} (${mb(largest.size)} MiB)`);
+console.log(`dist/ for ${branch ? `branch "${branch}"` : 'a local build'}: ${files} files, ${mb(bytes)} MiB; largest ${largest.file} (${mb(largest.size)} MiB); code version ${version}`);
 if (settings) console.log(`settings: ${JSON.stringify(settings)}`);
 if (files > MAX_FILES) throw new Error(`${files} files is over Cloudflare Pages' limit of ${MAX_FILES}.`);
 if (largest.size > MAX_FILE_BYTES) throw new Error(`${largest.file} is over Cloudflare Pages' 25 MiB per-file limit.`);

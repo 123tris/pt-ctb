@@ -16,14 +16,15 @@
   --border-strong: #4c3e42;
   --text: #f4ebee;
   --text-dim: #c1b3b7;
-  --text-faint: #948489;
+  --text-faint: #a09095;      /* 5.24:1 on --surface, 4.69:1 on --surface-2 */
 
   --accent: #ff6b89;          /* rosa */
   --accent-hover: #ff8fa5;
   --accent-ink: #25090f;      /* text on the accent */
   --accent-bg: #402127;       /* solid tint for selected things */
   --accent-line: #783643;
-  --red: #e7555a;             /* misses and wrong answers */
+  --red: #f06a6e;             /* misses and wrong answers; 5.30:1 on --surface */
+  --input-border: #806e73;    /* 3.6:1 against the page, so a text field's edge is visible (WCAG 1.4.11) */
   --red-bg: #3e1e1f;
 
   --cat-c: #73c5e8;   /* converts: azulejo blue */
@@ -56,7 +57,7 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body {
   margin: 0; min-height: 100vh; display: flex; flex-direction: column;
   background: var(--bg); color: var(--text); font: 400 var(--fs-md)/1.55 var(--font);
@@ -159,7 +160,8 @@ button, input, select { font: inherit; color: inherit; }
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; min-width: 0; }
 .card > h2 { margin-bottom: 14px; }
-.card > h3 {
+/* .card-h: a card title that has to be an h2 for the outline (WCAG 1.3.1) but looks like the small h3 titles. */
+.card > h3, .card > h2.card-h {
   display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
   font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim);
 }
@@ -186,14 +188,14 @@ button, input, select { font: inherit; color: inherit; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .input, .select {
-  height: 36px; background: var(--bg-2); border: 1px solid var(--border-strong); border-radius: var(--r); padding: 0 12px;
+  height: 36px; background: var(--bg-2); border: 1px solid var(--input-border); border-radius: var(--r); padding: 0 12px;
   min-width: 0; width: 100%;
 }
 .input::placeholder { color: var(--text-faint); }
 .input:hover, .select:hover { border-color: var(--text-faint); }
 .input:focus, .select:focus { border-color: var(--accent); outline: none; }
 .field { display: grid; grid-template-rows: 1fr auto; gap: 6px; }
-.field label { align-self: end; font-size: var(--fs-sm); color: var(--text-dim); font-weight: 500; }
+.field label, .field .field-label { align-self: end; font-size: var(--fs-sm); color: var(--text-dim); font-weight: 500; }
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
 .toolbar .input { max-width: 320px; }
 .toolbar .select { width: auto; }
@@ -208,8 +210,7 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 .chip:hover { color: var(--text); border-color: var(--border-strong); text-decoration: none; }
 .chip.active { background: var(--accent-bg); border-color: var(--accent-line); color: var(--accent); }
 
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { display: none; }
+.tabs { display: flex; flex-wrap: wrap; column-gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
 .tabs a { padding: 10px 12px 11px; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
 .tabs a:first-child { padding-left: 0; }
 .tabs a:hover { color: var(--text); text-decoration: none; }
@@ -341,13 +342,28 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* ---- Stat tiles ---------------------------------------------------------------------------------- */
 
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
-.stat { display: grid; grid-template-rows: 1fr auto auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 16px 14px; min-width: 0; }
+/* Label, value and subtitle sit on the same lines across a row of tiles, whatever wraps: each tile spans three rows of
+   the parent grid (subgrid), so a two-line label or subtitle grows that line for the whole row instead of pushing one
+   tile's value out of line. Without subgrid, tiles top-align on their own. */
+.stat { display: grid; grid-template-rows: auto auto 1fr; align-content: start; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 16px 14px; min-width: 0; }
+@supports (grid-template-rows: subgrid) {
+  .stat { grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
+}
 .stat-label {
   display: flex; align-items: center; gap: 6px; color: var(--text-faint); font-size: .6875rem; font-weight: 600;
   letter-spacing: .08em; text-transform: uppercase; align-self: end;
 }
 .stat-value { font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stat-sub { color: var(--text-dim); font-size: var(--fs-sm); }
+/* stat() wraps the value in .stat-fit, which scales with the tile's width (never above full size), so long numbers
+   like 106,719,378 fit narrow tiles instead of being cut off. The container is the value line, not the tile: a size
+   container can't be a subgrid. */
+.stat-value:has(> .stat-fit) { container-type: inline-size; }
+.stat-fit { font-size: clamp(var(--fs-xl), 16cqi, var(--fs-2xl)); }
+.stat-sub { color: var(--text-dim); font-size: var(--fs-sm); align-self: start; }
+/* Grade counts as compact chips ("SS 281  S 2,379  A 354"); they wrap between chips, never inside one. */
+.grade-counts { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.grade-counts > span { white-space: nowrap; }
+.grade-counts .grade { min-width: 0; margin-right: 2px; font-size: inherit; }
 .stat-c .stat-label::before, .stat-u .stat-label::before, .stat-r .stat-label::before { content: ''; width: 7px; height: 7px; border-radius: 1px; }
 .stat-c .stat-label::before { background: var(--cat-c); }
 .stat-u .stat-label::before { background: var(--cat-u); }
@@ -423,6 +439,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 
 .profile-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-bottom: 28px; }
 .profile-head h1 { margin: 0 0 10px; }
+.profile-head h1 .legend-tag { margin-left: 10px; vertical-align: middle; font-family: var(--font); line-height: 1.5; }
 .profile-head .links { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .badge {
   display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: var(--r-sm);
@@ -449,7 +466,8 @@ a.row.card-link:last-child { border-bottom: 0; }
 a.dan-stage:hover { text-decoration: none; }
 .dan-stage:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .dan-stage.selected { border-color: var(--accent); background: var(--accent-bg); }
-.dan-stage.locked { opacity: .45; }
+.dan-stage.locked { color: var(--text-dim); border-style: dashed; }
+.dan-stage.locked .dan-glyph { color: var(--text-dim); }
 .dan-glyph { font: 700 2.25rem/1 var(--display); margin-bottom: 10px; color: var(--text); }
 .dan-stage.hebrew .dan-glyph { color: var(--gold); }
 .dan-stage .points { position: absolute; top: 12px; right: 12px; font-size: var(--fs-xs); color: var(--text-faint); font-weight: 600; }
@@ -613,10 +631,13 @@ a.dan-stage:hover { text-decoration: none; }
 /* In-joke badges on profiles and tags on maps: dashed, so they read as jokes next to the real badges. */
 .fun-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .fun-chip {
-  display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--r-sm); cursor: help;
+  display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--r-sm); cursor: pointer; font-family: inherit;
   font-size: var(--fs-xs); font-weight: 600; color: var(--accent); border: 1px dashed var(--accent-line); background: color-mix(in srgb, var(--accent-bg) 55%, transparent);
 }
-.fun-chip:hover, .fun-chip:focus-visible { border-style: solid; }
+.fun-chip:hover, .fun-chip:focus-visible, .fun-chip[aria-pressed='true'] { border-style: solid; }
+.fun-chip[aria-pressed='true'] { background: var(--accent-bg); }
+.fun-tip { margin: 8px 0 0; padding: 8px 12px; max-width: 60ch; background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--text-dim); }
+.fun-tip b { color: var(--text); margin-right: 4px; }
 .map-tags { margin-top: 12px; }
 .badge-era { border-style: dashed; }
 
@@ -629,14 +650,10 @@ a.dan-stage:hover { text-decoration: none; }
 .event .quip { margin-top: 4px; font-size: var(--fs-sm); color: var(--text-faint); font-style: italic; }
 .event-emoji { margin-left: auto; font-size: var(--fs-sm); }
 
-tr.inactive td { opacity: .5; }
-tr.inactive:hover td { opacity: .8; }
+tr.inactive td, tr.inactive .player, tr.inactive .pp { color: var(--text-dim); }
+tr.inactive .avatar { filter: grayscale(.7); }
 .legend-tag { margin-left: 6px; font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); padding: 0 4px; }
 
-.progress { display: block; width: 100%; min-width: 80px; height: 6px; background: var(--surface-3); border-radius: var(--r-xs); overflow: hidden; }
-.progress span { display: block; height: 100%; background: var(--gold); }
-.pool { margin-top: 14px; }
-.pool summary { cursor: pointer; color: var(--text-dim); font-weight: 600; font-size: var(--fs-sm); margin-bottom: 10px; }
 .bounty-tag { color: var(--gold); font-weight: 600; }
 
 .throne-head { display: flex; gap: 18px; align-items: center; border-left: 2px solid var(--gold); }
@@ -718,7 +735,11 @@ tr.inactive:hover td { opacity: .8; }
 .search-all { display: block; padding: 9px 12px; border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 500; }
 .search-all:hover { background: var(--surface-2); text-decoration: none; }
 
-@media (max-width: 1179px) {
+@media (max-width: 1100px) {
+  .search-field input { width: 170px; }
+  .nav a, .nav-more-btn { padding-inline: 9px; }
+}
+@media (max-width: 940px) {
   .search { position: static; order: 3; }
   .nav-toggle { order: 4; }
   .search-toggle { display: grid; }
@@ -771,8 +792,15 @@ tr.inactive:hover td { opacity: .8; }
 .you-menu a:hover, .you-forget:hover { background: var(--surface-2); text-decoration: none; }
 .you-forget { color: var(--text-dim); }
 .you-note { margin: 4px 14px 6px; color: var(--text-faint); font-size: var(--fs-xs); }
+/* The avatar and name at the top link to your profile, with the profile page avatar's quiet hover and focus ring. */
+.you-menu a.you-head { display: flex; width: auto; padding: 8px 14px 12px; font-size: var(--fs-md); border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.you-menu a.you-head:hover { background: none; }
+.you-head .avatar { transition: box-shadow .12s, filter .12s; }
+.you-head:hover .avatar { box-shadow: 0 0 0 2px var(--border-strong); filter: brightness(1.08); }
+.you-head:hover b { text-decoration: underline; text-underline-offset: 2px; }
+.you-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 
-@media (max-width: 1179px) {
+@media (max-width: 940px) {
   .you { order: 4; margin-left: -20px; }
   .nav-toggle { order: 5; }
 }
@@ -802,4 +830,119 @@ html[data-env] .topbar { box-shadow: inset 0 3px 0 var(--gold); }
 html[data-env] .brand::after {
   content: 'DEV'; padding: 3px 5px 2px; border-radius: var(--r-xs); background: var(--gold); color: #1f191b;
   font: 800 .625rem/1 var(--font); letter-spacing: .08em;
+}
+
+/* =================================================================================================================
+   Accessibility and UX review fixes (notes/ux-review.md): shared states, phone tables, filters, newcomer help.
+   ================================================================================================================= */
+
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* A5: links inside running text are underlined, not told apart by colour alone. */
+p a:not(.btn), li a:not(.btn), dd a:not(.btn), .muted a:not(.btn), .notice a:not(.btn) { text-decoration: underline; text-underline-offset: 3px; }
+p a.dim-link { text-decoration: underline; }
+
+/* A2/D2: "More" shows where you are when one of its pages is open. */
+.nav-more-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+@media (max-width: 940px) { .nav-more-btn.active { border-left-color: var(--accent); } }
+
+/* Headings: a plain H1, then the community's own line under it (pageHead() in ui.js). */
+.page-tag { font: 600 var(--fs-lg)/1.3 var(--display); color: var(--accent) !important; letter-spacing: .01em; margin: 2px 0 0 !important; }
+
+/* U7: chip groups say what they filter. */
+.chips-label { align-self: center; margin-right: 4px; color: var(--text-dim); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+
+/* U4/A3: result counts and empty states with a way back. */
+.result-count { margin: 0 0 10px; color: var(--text-dim); font-size: var(--fs-sm); }
+.empty p { margin: 0 0 12px; }
+.empty p:last-child { margin-bottom: 0; }
+
+/* U1: data tables are focusable, labelled regions; on phones they keep only rank, player and the key number. */
+.table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cell-sub { display: none; margin-top: 2px; color: var(--text-dim); font-size: var(--fs-xs); font-weight: 400; white-space: normal; }
+.cell-sub .score-line { font-size: var(--fs-xs); gap: 4px 8px; }
+@media (max-width: 600px) {
+  .col-opt { display: none; }
+  .cell-sub { display: block; }
+  td.cell-player { white-space: normal; }
+}
+
+/* D3: on phones the search button says "Search", not just a magnifier. */
+.search-toggle-label { display: none; }
+@media (max-width: 940px) {
+  .search-toggle { width: auto; gap: 6px; padding: 0 8px; grid-auto-flow: column; font: 600 var(--fs-sm)/1 var(--font); color: var(--text); }
+  .search-toggle-label { display: inline; }
+}
+.search-status { padding: 10px 12px; color: var(--text-dim); font-size: var(--fs-sm); }
+.search-status:empty { display: none; }
+
+/* D5: "This is me" is a toggle with a visible state. */
+.btn[aria-pressed='true'] { border-color: var(--accent-line); background: var(--accent-bg); color: var(--accent); }
+.btn[aria-pressed='true']::before { content: '✓'; }
+.not-you { font-size: var(--fs-sm); }
+
+/* Home: find yourself, and the Discord. */
+.find-me { margin-top: 14px; font-size: var(--fs-sm); color: var(--text-dim); }
+.find-me button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.footer-links { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 10px !important; }
+
+/* D8: the glossary. */
+.glossary { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--border); }
+.glossary > div { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: 4px 20px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.glossary dt { font-weight: 700; color: var(--text); }
+.glossary dd { margin: 0; color: var(--text-dim); }
+@media (max-width: 600px) { .glossary > div { grid-template-columns: 1fr; } }
+.help-link { margin-left: 6px; font-size: var(--fs-xs); font-weight: 600; }
+
+/* The map of the week's title sits under the "Map of the week" heading, so it's an h3 styled like a title. */
+.banner .banner-title { font: 700 clamp(1.5rem, 3.6vw, 2.25rem)/1.1 var(--display); margin: 0 0 .25em; }
+.banner .banner-title a { color: inherit; }
+/* The play's stats under a player's name on phones: no desktop column widths, so they pack onto one or two lines. */
+.cell-sub .score-line > * { min-width: 0; text-align: left; }
+@media (max-width: 600px) { .rows .map-sub { white-space: normal; } }
+/* WCAG 2.5.8: the map link under each activity event stands on its own line, so it gets a 24px-tall target. */
+.event .where a { display: inline-block; padding-block: 4px; margin-block: -4px; }
+/* "Ranked 14 Mar 2021" on a map page: the date after the status, a little quieter. */
+.kv .status-date { font-weight: 500; color: var(--text-dim); white-space: nowrap; }
+
+/* Players inactive on osu! keep their official pp: an "est." after an estimated value, the "inactive" tag beside names. */
+.est { margin-left: 3px; font-size: .75em; font-weight: 600; color: var(--text-dim); cursor: help; }
+.mini-board .player .legend-tag { flex: none; overflow: visible; }
+.stat-sub .legend-tag { margin-left: 0; margin-right: 4px; }
+/* In a table the "(estimated)" sits on its own small line, so the pp column stays aligned. */
+td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height: 1.1; }
+
+/* Challenges' three sub-pages (This week · Dan course · Snipe targets) as big cards under the heading. */
+.subnav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0 16px; }
+.subnav a {
+  display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r);
+  background: var(--surface); color: var(--text); transition: border-color .12s, background-color .12s;
+}
+.subnav a:hover { border-color: var(--text-faint); background: var(--surface-2); text-decoration: none; }
+.subnav a.active { border-color: var(--accent); background: var(--accent-bg); box-shadow: inset 0 -3px 0 var(--accent); }
+.subnav b { font: 700 var(--fs-lg)/1.2 var(--display); }
+.subnav a.active b { color: var(--accent); }
+.subnav span { color: var(--text-dim); font-size: var(--fs-sm); }
+.subnav-intro { margin: 0 0 20px; max-width: 75ch; }
+@media (max-width: 600px) {
+  .subnav { gap: 6px; }
+  .subnav a { padding: 10px; }
+  .subnav b { font-size: var(--fs-md); }
+  .subnav span { display: none; }
+}
+/* Pages in the header search's results (e.g. "Dan course"), above the players. */
+.search-results .search-page-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
+
+/* The Dan course's own strip on the home page (it lives under Challenges, so it gets a front-page way in). */
+.dan-strip {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; margin-top: 16px;
+  padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--r);
+}
+.dan-strip-glyphs { font: 700 1.5rem/1 var(--display); color: var(--gold); white-space: nowrap; }
+.dan-strip-go { color: var(--gold); font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; }
+@media (max-width: 560px) {
+  .dan-strip { grid-template-columns: minmax(0, 1fr); gap: 6px; }
 }

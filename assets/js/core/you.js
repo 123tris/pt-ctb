@@ -86,10 +86,10 @@ export function initYou() {
       return;
     }
     box.innerHTML = String(html`
-      <button class="you-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="you-menu"
+      <button class="you-btn" type="button" aria-expanded="false" aria-controls="you-menu"
         aria-label="You: ${p.name}" title="You: ${p.name}">${avatar(id, 'avatar-sm')}</button>
       <div class="you-menu" id="you-menu" hidden>
-        <div class="you-head">${avatar(id, 'avatar-md')}<div><span class="you-label">You</span><b>${p.name}</b></div></div>
+        <a class="you-head" href="#/player/${id}" aria-label="Your profile: ${p.name}">${avatar(id, 'avatar-md')}<div><span class="you-label">You</span><b>${p.name}</b></div></a>
         <a href="#/player/${id}">Your profile</a>
         <a href="#/compare/${id}">Compare with someone</a>
         <button class="you-forget" type="button">${viaOsu ? 'Sign out' : 'This isn’t me'}</button>
@@ -111,6 +111,8 @@ export function initYou() {
     if (e.key === 'Escape') { setMenu(false); box.querySelector('.you-btn')?.focus(); }
   });
   document.addEventListener('click', e => { if (!box.contains(e.target)) setMenu(false); });
+  // A disclosure, not a menu: it closes when focus leaves it (APG disclosure navigation).
+  box.addEventListener('focusout', e => { if (e.relatedTarget && !box.contains(e.relatedTarget)) setMenu(false); });
   window.addEventListener('hashchange', () => setMenu(false));
   window.addEventListener('ptctb:pref', e => { if (e.detail.key === 'me') draw(); });
   window.addEventListener('storage', e => { if (e.key === 'ptctb:me') draw(); }); // another tab changed it

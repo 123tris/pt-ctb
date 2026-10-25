@@ -1,21 +1,26 @@
 import { html } from '../core/html.js';
 import { players, modRankings, meta } from '../core/data.js';
 import { S } from '../core/model.js';
-import { setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, prefs, SLUG_CAT, CAT_LABEL } from '../core/ui.js';
+import {
+  setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, prefs, SLUG_CAT, CAT_LABEL, pageHead,
+  chipGroup, setPressed, writeQuery, announce, resultCount, isInactiveOnOsu, isInactive, isLegend, inactiveTag, legendTag,
+  statusTag, officialPp,
+} from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
+// `label` is the short tab text (all four fit on a phone); `title` names the page.
 const BOARDS = [
-  { slug: 'converts', label: 'Converts' },
-  { slug: 'loved', label: 'Loved & Unranked' },
-  { slug: 'ranked', label: 'Ranked (official)' },
-  { slug: 'mods', label: 'By mods' },
+  { slug: 'converts', label: 'Converts', title: 'Converts' },
+  { slug: 'loved', label: 'Loved', title: 'Loved & Unranked' },
+  { slug: 'ranked', label: 'Ranked', title: 'Ranked (official)' },
+  { slug: 'mods', label: 'Mods', title: 'By mods' },
 ];
 
 const INTRO = {
-  converts: 'osu!standard maps played in catch mode. Each player’s best plays add up the way osu! does it: every play is worth 95% of the one before.',
+  converts: html`osu!standard maps played in catch mode. Each player’s best plays add up the way osu! does it: every play is worth 95% of the one before. <a class="help-link" href="#/glossary">What’s pp?</a>`,
   loved: 'Loved, pending and graveyarded maps. osu! gives no pp for these, so the bot works them out with the current osu!catch formula.',
-  ranked: 'The official osu!catch leaderboard. The pp and global rank come from each player’s osu! profile.',
-  mods: 'osupepe style: each player is ranked by the weighted pp of their plays that include the chosen mod. An HDDT play counts for HD, DT and HDDT; NM counts plays without EZ, HD, HR, DT, HT or FL.',
+  ranked: 'The official osu!catch leaderboard. The pp and global rank come from each player’s osu! profile. Players who are inactive on osu! (where they show as 0 pp) stay here with their last known pp, or one estimated from their plays.',
+  mods: 'Each player is ranked by the weighted pp of their plays that include the chosen mod (the “osupepe” way). An HDDT play counts for HD, DT and HDDT; NM counts plays without EZ, HD, HR, DT, HT or FL.',
 };
 
 const SOURCES = [['r', 'Ranked'], ['c', 'Converts'], ['u', 'Loved & Unranked']];
@@ -27,104 +32,154 @@ const FOOTNOTE = {
   loved: 'The higher the star rating, the better the #1. NF snipes aren’t real snipes.',
 };
 
-/** Players with no stored play in a year stay on the board, greyed out: legends don't disappear. */
-const INACTIVE_AFTER = 365 * 86400;
-const isInactive = p => !p.last || p.last < Date.now() / 1000 - INACTIVE_AFTER;
-
-function updateQuery(params) {
-  const [path] = location.hash.split('?');
-  history.replaceState(null, '', `${path}?${new URLSearchParams(params)}`);
-}
-
-function boardTable(list, cat, me) {
+/** On phones only rank, player and pp stay; the other numbers move under the name. */
+function boardTable(list, cat, me, title) {
   const key = KEY[cat];
   const ranked = cat === 'r';
-  return html`<div class="table-wrap"><table>
+  return html`<div class="table-wrap" data-label="${title} leaderboard"><table>
     <thead><tr>
       <th>#</th><th>Player</th><th class="num">pp</th>
       ${ranked
-        ? html`<th class="num">Global</th><th class="num">Country</th><th class="num">Accuracy</th><th class="num">Level</th>`
-        : html`<th class="num">Scores</th><th class="num">#1s in PT</th><th class="num">Last played</th>`}
+        ? html`<th class="num col-opt">Global</th><th class="num col-opt">Country</th><th class="num col-opt">Accuracy</th><th class="num col-opt">Level</th>`
+        : html`<th class="num col-opt">Scores</th><th class="num col-opt">#1s in PT</th><th class="num col-opt">Last played</th>`}
     </tr></thead>
-    <tbody>${list.map(p => html`<tr class="${p.id === me ? 'me' : ''} ${!ranked && isInactive(p) ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
-      <td class="rank">${p.rank[cat]}</td>
-      <td>${playerLink(p)}${!ranked && isInactive(p) ? html` <span class="legend-tag" title="No new plays stored in over a year">legend</span>` : ''}</td>
-      <td class="num">${ppText(p[key])}</td>
-      ${ranked
-        ? html`<td class="num">${fmt.rank(p.global)}</td><td class="num">${fmt.rank(p.country)}</td><td class="num">${fmt.acc(p.acc)}</td><td class="num">${fmt.num(p.level, 0)}</td>`
-        : html`<td class="num">${fmt.num(p.count[cat])}</td><td class="num">${fmt.num(p.firsts[cat])}</td><td class="num faint">${p.last ? fmt.ago(p.last) : '—'}</td>`}
-    </tr>`)}</tbody>
+    <tbody>${list.map((p, i) => {
+      // Inactive players stay on the board, greyed out (Ranked: those inactive on osu!, kept with their official pp).
+      // Legends (lore.js) are tagged as such; everyone else inactive gets the quiet "inactive" tag.
+      const offOsu = ranked && isInactiveOnOsu(p);
+      const greyed = ranked ? offOsu : isInactive(p);
+      const tag = ranked ? (isLegend(p) ? legendTag() : offOsu ? inactiveTag() : '') : statusTag(p);
+      const noRank = html`<span class="faint" title="Inactive on osu!, so no global or country rank">—</span>`;
+      return html`<tr class="${p.id === me ? 'me' : ''} ${greyed ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
+        <td class="rank">${ranked ? i + 1 : p.rank[cat]}</td>
+        <td class="cell-player">${playerLink(p)}${tag ? html` ${tag}` : ''}
+          <span class="cell-sub">${ranked
+            ? (offOsu ? `Inactive on osu! · ${p.ppSource === 'estimated' ? 'pp estimated from their plays' : p.ppSeen ? `pp last seen ${fmt.date(p.ppSeen)}` : 'last known pp'}` : `${fmt.rank(p.global)} global · ${fmt.acc(p.acc)}`)
+            : `${fmt.plural(p.count[cat], 'score')} · ${fmt.plural(p.firsts[cat], '#1', '#1s')}`}</span></td>
+        <td class="num">${ranked ? officialPp(p) : ppText(p[key])}</td>
+        ${ranked
+          ? html`<td class="num col-opt">${offOsu ? noRank : fmt.rank(p.global)}</td><td class="num col-opt">${offOsu ? noRank : fmt.rank(p.country)}</td><td class="num col-opt">${fmt.acc(p.acc)}</td><td class="num col-opt">${fmt.num(p.level, 0)}</td>`
+          : html`<td class="num col-opt">${fmt.num(p.count[cat])}</td><td class="num col-opt">${fmt.num(p.firsts[cat])}</td><td class="num faint col-opt">${p.last ? fmt.ago(p.last) : '—'}</td>`}
+      </tr>`;
+    })}</tbody>
   </table></div>`;
 }
 
-function modsTable(rows, maps, index, me) {
+function modsTable(rows, maps, index, me, mod) {
   if (!rows.length) return empty('Nobody has plays with this mod combination.');
-  return html`<div class="table-wrap"><table>
-    <thead><tr><th>#</th><th>Player</th><th class="num">Weighted pp</th><th class="num">Plays</th><th>Best play</th><th class="num">pp</th></tr></thead>
+  return html`<div class="table-wrap" data-label="${mod} leaderboard"><table>
+    <thead><tr><th>#</th><th>Player</th><th class="num">Weighted pp</th><th class="num col-opt">Plays</th><th class="col-opt">Best play</th><th class="num col-opt">pp</th></tr></thead>
     <tbody>${rows.map(([id, pp, count, top], i) => html`<tr class="${id === me ? 'me' : ''}" data-name="${(index.get(id)?.name || '').toLowerCase()}">
       <td class="rank">${i + 1}</td>
-      <td>${playerLink(id, index)}</td>
+      <td class="cell-player">${playerLink(id, index)}<span class="cell-sub">${fmt.plural(count, 'play')} · best ${fmt.pp(top[S.PP])} pp</span></td>
       <td class="num">${ppText(pp)}</td>
-      <td class="num">${fmt.num(count)}</td>
-      <td class="wide">${mapLink(top[S.MAP], maps[top[S.MAP]])}</td>
-      <td class="num">${modsBadges(top[S.MODS])} ${ppText(top[S.PP])}</td>
+      <td class="num col-opt">${fmt.num(count)}</td>
+      <td class="wide col-opt">${mapLink(top[S.MAP], maps[top[S.MAP]])}</td>
+      <td class="num col-opt">${modsBadges(top[S.MODS])} ${ppText(top[S.PP])}</td>
     </tr>`)}</tbody>
   </table></div>`;
 }
 
 export default async function rankings(root, { params, query, isCurrent }) {
-  const slug = BOARDS.some(b => b.slug === params.board) ? params.board : 'converts';
+  const board = BOARDS.find(b => b.slug === params.board) ?? BOARDS[0];
+  const slug = board.slug;
   const [list, m, mods] = await Promise.all([players(), meta(), slug === 'mods' ? modRankings() : null]);
   if (!isCurrent()) return;
-  setTitle(`${BOARDS.find(b => b.slug === slug).label} leaderboard`);
+  setTitle(`${board.title} leaderboard`);
   const index = new Map(list.map(p => [p.id, p]));
   const me = prefs.get('me', null);
 
+  let source = SOURCES.some(([k]) => k === query.src) ? query.src : 'r';
+  let mod = mods?.filters.includes(query.mod) ? query.mod : 'HD';
+
   root.innerHTML = String(html`
-    <header class="page-head">
-      <span class="eyebrow">Leaderboards</span>
-      <h1>Who rules Portuguese catch</h1>
-    </header>
-    ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b.slug === slug })))}
+    ${pageHead({ title: 'Leaderboards', tag: 'Who rules Portuguese catch' })}
+    ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), 'Leaderboard type')}
     <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">Players and plays imported from the osu! data dump of ${m.dump.replaceAll('_', '-')}.</span>` : ''}</p>
     <div class="toolbar">
-      <input class="input" type="search" id="filter" placeholder="Search players…" aria-label="Search players">
-      ${slug === 'mods' ? html`<div class="chips" id="sources">${SOURCES.map(([key, label]) => html`<button class="chip" data-src="${key}">${label}</button>`)}</div>` : ''}
-      ${slug === 'converts' || slug === 'loved' ? html`<span class="checks"><label><input type="checkbox" id="legends" checked> Show inactive legends</label></span>` : ''}
+      <input class="input" type="search" id="filter" placeholder="Search players…" aria-label="Search this leaderboard" value="${query.q || ''}">
+      ${slug === 'converts' || slug === 'loved' ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show inactive players</label></span>` : ''}
+      ${slug === 'ranked' && list.some(p => isInactiveOnOsu(p) && p.pp > 0) ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show players inactive on osu!</label></span>` : ''}
     </div>
-    ${slug === 'mods' ? html`<div class="chips" id="modchips" style="margin-bottom:16px">${mods.filters.map(f => html`<button class="chip" data-mod="${f}">${f}</button>`)}</div>` : ''}
+    ${slug === 'mods' ? html`
+      <div id="sources" style="margin-bottom:8px">${chipGroup('Plays from', 'src', SOURCES, source)}</div>
+      <div id="modchips" style="margin-bottom:16px">${chipGroup('Mod', 'mod', mods.filters.map(f => [f, f]), mod)}</div>` : ''}
+    <p class="result-count" id="count"></p>
     <div id="board"></div>
-    ${FOOTNOTE[slug] ? html`<p class="small faint" style="margin-top:10px">${FOOTNOTE[slug]}</p>` : ''}
+    <div id="board-empty"></div>
+    <p class="small" style="margin-top:12px"><a href="#/players">Browse all ${fmt.num(list.length)} players →</a></p>
+    ${FOOTNOTE[slug] ? html`<p class="small faint" style="margin-top:6px">${FOOTNOTE[slug]}</p>` : ''}
   `);
 
-  const board = root.querySelector('#board');
+  const boardEl = root.querySelector('#board');
   const filter = root.querySelector('#filter');
   const legends = root.querySelector('#legends');
-  const applyFilter = () => {
+  const count = root.querySelector('#count');
+  const emptyEl = root.querySelector('#board-empty');
+
+  const saveQuery = () => writeQuery({
+    q: filter.value.trim(), legends: legends && !legends.checked ? '0' : '',
+    ...(slug === 'mods' ? { src: source, mod } : {}),
+  }, { src: 'r', mod: 'HD' });
+
+  const applyFilter = ({ speak = false } = {}) => {
     const q = filter.value.trim().toLowerCase();
-    board.querySelectorAll('tbody tr').forEach(tr => tr.classList.toggle('hidden',
-      Boolean(q && !tr.dataset.name.includes(q)) || (legends && !legends.checked && tr.classList.contains('inactive'))));
+    const rows = [...boardEl.querySelectorAll('tbody tr')];
+    let shown = 0;
+    rows.forEach(tr => {
+      const hide = Boolean(q && !tr.dataset.name.includes(q)) || (legends && !legends.checked && tr.classList.contains('inactive'));
+      tr.classList.toggle('hidden', hide);
+      if (!hide) shown++;
+    });
+    const text = rows.length ? resultCount(shown, rows.length, 'player') : '';
+    count.textContent = text;
+    // A filter that matches nobody says so (with the way back) instead of leaving a table of headers.
+    boardEl.querySelector('.table-wrap')?.classList.toggle('hidden', rows.length > 0 && !shown);
+    emptyEl.innerHTML = rows.length && !shown ? String(emptyFiltered(q ? `No player on this leaderboard matches “${filter.value.trim()}”.` : 'Nobody here is active right now.')) : '';
+    if (speak) announce(text);
   };
-  filter.addEventListener('input', applyFilter);
-  legends?.addEventListener('change', applyFilter);
+  let timer;
+  filter.addEventListener('input', () => {
+    applyFilter();
+    clearTimeout(timer);
+    timer = setTimeout(() => { saveQuery(); announce(count.textContent); }, 400);
+  });
+  legends?.addEventListener('change', () => { applyFilter({ speak: true }); saveQuery(); });
+  emptyEl.addEventListener('click', e => {
+    if (!e.target.closest('[data-clear]')) return;
+    filter.value = '';
+    if (legends) legends.checked = true;
+    applyFilter({ speak: true });
+    saveQuery();
+    filter.focus();
+  });
 
   if (slug !== 'mods') {
     const cat = SLUG_CAT[slug];
-    const rows = list.filter(p => p.rank[cat]).sort((a, b) => a.rank[cat] - b.rank[cat]);
-    board.innerHTML = String(rows.length ? boardTable(rows, cat, me) : empty(`Nobody is on the ${CAT_LABEL[cat]} leaderboard yet.`));
+    // The official board is everyone with an osu! rank plus players inactive on osu! (kept with their official pp),
+    // all ordered by pp; the other boards come ranked from the exporter.
+    const rows = cat === 'r'
+      ? list.filter(p => p.rank.r || (isInactiveOnOsu(p) && p.pp > 0)).sort((a, b) => b.pp - a.pp || (a.rank.r ?? Infinity) - (b.rank.r ?? Infinity))
+      : list.filter(p => p.rank[cat]).sort((a, b) => a.rank[cat] - b.rank[cat]);
+    boardEl.innerHTML = String(rows.length ? boardTable(rows, cat, me, board.title) : empty(`Nobody is on the ${CAT_LABEL[cat]} leaderboard yet.`));
+    applyFilter();
     return;
   }
 
-  let source = SOURCES.some(([k]) => k === query.src) ? query.src : 'r';
-  let mod = mods.filters.includes(query.mod) ? query.mod : 'HD';
-  const draw = () => {
-    root.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('active', b.dataset.src === source));
-    root.querySelectorAll('[data-mod]').forEach(b => b.classList.toggle('active', b.dataset.mod === mod));
-    board.innerHTML = String(modsTable(mods.sources[source][mod], mods.maps, index, me));
-    applyFilter();
-    updateQuery({ src: source, mod });
+  const draw = ({ speak = false } = {}) => {
+    setPressed(root, 'src', source);
+    setPressed(root, 'mod', mod);
+    boardEl.innerHTML = String(modsTable(mods.sources[source][mod], mods.maps, index, me, mod));
+    applyFilter({ speak });
+    saveQuery();
   };
-  root.querySelector('#sources').addEventListener('click', e => { if (e.target.dataset.src) { source = e.target.dataset.src; draw(); } });
-  root.querySelector('#modchips').addEventListener('click', e => { if (e.target.dataset.mod) { mod = e.target.dataset.mod; draw(); } });
+  root.querySelector('#sources').addEventListener('click', e => {
+    const b = e.target.closest('[data-src]');
+    if (b) { source = b.dataset.src; draw({ speak: true }); }
+  });
+  root.querySelector('#modchips').addEventListener('click', e => {
+    const b = e.target.closest('[data-mod]');
+    if (b) { mod = b.dataset.mod; draw({ speak: true }); }
+  });
   draw();
 }

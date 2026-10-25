@@ -3,6 +3,7 @@
 
 import { html } from './html.js';
 import { FOOTER, pick } from './lore.js';
+import { track } from './track.js';
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -70,7 +71,7 @@ function setBacalhau(on) {
 const TRIGGERS = [
   ['727', () => wysi()],
   ['<rc', () => { location.hash = '#/activity?view=plays'; toast(html`Yes, we know you’ve typed <span class="kbd">&lt;rc</span> more often than “hello”.`); }],
-  ['aqui', () => toast(html`<b>Eu estou aqui</b>… e tu? <a href="#/map/2311555">Go and see the map →</a>`)], // PT text (intentional)
+  ['aqui', () => toast(html`<b lang="pt-PT">Eu estou aqui</b>… <span lang="pt-PT">e tu?</span> <a href="#/map/2311555">Go and see the map →</a>`)], // PT text (intentional)
   ['bacalhau', () => { const on = !bacalhauOn(); setBacalhau(on); toast(on ? html`<b>BACALHAU!</b> 🐟 The catcher only catches cod now.` : html`Back to fruit. 🍎`); }],
   ...RPS.map(word => [word, () => rockPaperScissors(word)]),
 ];
@@ -84,11 +85,11 @@ function onKey(e) {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
   konami = e.key === KONAMI[konami] ? konami + 1 : e.key === KONAMI[0] ? 1 : 0;
-  if (konami === KONAMI.length) { konami = 0; emoteWall(); return; }
+  if (konami === KONAMI.length) { konami = 0; track('egg', 'konami'); emoteWall(); return; }
   if (e.key.length !== 1) return;
   typed = (typed + e.key.toLowerCase()).slice(-12);
   const hit = TRIGGERS.find(([word]) => typed.endsWith(word));
-  if (hit) { typed = ''; hit[1](); }
+  if (hit) { typed = ''; track('egg', RPS.includes(hit[0]) ? 'rock paper scissors' : hit[0]); hit[1](); }
 }
 
 /** December gets a Santa hat on the logo; 10 June (Portugal Day) gets a bacalhau. */

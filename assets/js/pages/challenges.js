@@ -1,10 +1,25 @@
-import { html } from '../core/html.js';
-import { challenges, playerIndex } from '../core/data.js';
+import { html, raw } from '../core/html.js';
+import { challenges, playerIndex, dan } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
   setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, coverUrl, mapText, starsBadge, empty, osuMap, prefs,
+  pageHead,
 } from '../core/ui.js';
+import { renderDan, DAN_INTRO } from './dan.js';
 import * as fmt from '../core/fmt.js';
+
+// Three sub-pages with their own URLs (#/challenges/week, /dan, /targets). "Dan" keeps the community's own word, and
+// the three are shown as big cards under the heading so the Dan course can't be missed.
+const TABS = [
+  { slug: 'week', label: 'This week', blurb: 'The map of the week', intro: 'A new map every week, picked automatically on Mondays: this week’s plays and the all-time top.' },
+  { slug: 'dan', label: 'Dan course', blurb: '19 stages, Zeroth Dan to Shin', intro: DAN_INTRO },
+  { slug: 'targets', label: 'Snipe targets', blurb: '#1s up for grabs', intro: '#1s that are begging to be sniped, boss maps nobody has FC’d, and maps nobody in Portugal has played yet.' },
+];
+
+/** The sub-page switcher: three labelled cards, a real nav with aria-current (the pages have their own URLs). */
+const subnav = current => html`<nav class="subnav" aria-label="Challenges">${TABS.map(t => html`<a href="#/challenges/${t.slug}" class="${t === current ? 'active' : ''}" ${t === current ? raw('aria-current="page"') : ''}>
+  <b>${t.label}</b><span>${t.blurb}</span>
+</a>`)}</nav>`;
 
 function countdown(end) {
   const left = Math.max(0, end - Date.now() / 1000);
@@ -12,13 +27,16 @@ function countdown(end) {
   return `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
-function boardTable(rows, index, me) {
-  return html`<div class="table-wrap"><table class="table-compact">
-    <thead><tr><th>#</th><th>Player</th><th class="num">Score</th><th>Play</th><th class="num">pp</th><th class="num">When</th></tr></thead>
+/** On phones: rank, player (with the play under the name) and pp; score, play and time are desktop columns. */
+function boardTable(rows, index, me, label) {
+  return html`<div class="table-wrap" data-label="${label}"><table class="table-compact">
+    <thead><tr><th>#</th><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">pp</th><th class="num col-opt">When</th></tr></thead>
     <tbody>${rows.map(([uid, ...s], i) => html`<tr class="${uid === me ? 'me' : ''}">
-      <td>${posBadge(i + 1)}</td><td>${playerLink(uid, index, 'avatar-sm')}</td><td class="num">${fmt.num(s[S.SCORE])}</td>
-      <td><span class="score-line">${scoreStats(s)}</span></td><td class="num">${ppText(s[S.PP])}</td>
-      <td class="num faint">${fmt.ago(s[S.TIME])}</td>
+      <td>${posBadge(i + 1)}</td>
+      <td class="cell-player">${playerLink(uid, index, 'avatar-sm')}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span></span></td>
+      <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
+      <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td><td class="num">${ppText(s[S.PP])}</td>
+      <td class="num faint col-opt">${fmt.ago(s[S.TIME])}</td>
     </tr>`)}</tbody>
   </table></div>`;
 }
@@ -35,7 +53,7 @@ function weekSection(week, maps, index, me) {
           <span class="badge badge-accent">Week ${week.id.split('-W')[1]}</span>
           ${catChip(week.cat)} ${meta ? starsBadge(meta[M.STARS]) : ''}
         </div>
-        <h1><a href="#/map/${week.map}">${title}</a></h1>
+        <h3 class="banner-title"><a href="#/map/${week.map}">${title}</a></h3>
         <div class="sub">${sub}</div>
         <p style="margin:12px 0 0">Ends in <span class="countdown" id="countdown">${countdown(week.end)}</span></p>
       </div>
@@ -45,61 +63,47 @@ function weekSection(week, maps, index, me) {
       <a class="btn" href="#/map/${week.map}">Full leaderboard</a>
     </div>
     <div class="section-head"><h2>This week’s plays</h2></div>
-    ${week.weekly.length ? boardTable(week.weekly, index, me) : empty('Nobody has played this map this week. Be the first!')}
+    ${week.weekly.length ? boardTable(week.weekly, index, me, 'This week’s plays on the map of the week') : empty('Nobody has played this map this week. Be the first!')}
     <div class="section-head" style="margin-top:28px"><h2>All-time top</h2></div>
-    ${boardTable(week.board.slice(0, 10), index, me)}`;
+    ${boardTable(week.board.slice(0, 10), index, me, 'All-time top 10 on the map of the week')}`;
 }
 
-/** The supporter challenge, scored the Discord's way: a grade on each pool map is worth points, first to 50 wins. */
-function houseSection(house, maps, index, me) {
-  const played = row => row[2].filter(Boolean).length;
-  return html`<section class="section">
-    <div class="section-head"><h2>The supporter challenge</h2><span class="muted small">The map pool Fie tracks for the Discord’s supporter challenges.</span></div>
-    <div class="grid grid-2">
-      <div class="card">
-        <h3>House rules</h3>
-        <p>A <b>C</b> on a pool map is worth 1 point, a <b>B</b> 2, an <b>A</b> 3 and an <b>S</b> (or SS) 4. First to ${house.target} wins.</p>
-        <p class="muted">B’s and C’s are where it’s at. HD weeks pay more: an S with HD is worth 10, an A with HD 5.</p>
-        <p class="small faint" style="margin:0">Prize: a month of supporter (paid by Tris, as tradition demands). The standings here use each player’s best stored play on every pool map.</p>
-      </div>
-      <div>
-        ${house.rows.length ? html`<div class="table-wrap"><table class="table-compact">
-          <thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th>To ${house.target}</th><th class="num">Maps</th></tr></thead>
-          <tbody>${house.rows.slice(0, 12).map(([uid, points, grades], i) => html`<tr class="${uid === me ? 'me' : ''}">
-            <td class="rank">${i + 1}</td><td>${playerLink(uid, index, 'avatar-sm')}</td><td class="num"><b>${points}</b></td>
-            <td><span class="progress" title="${points} of ${house.target}"><span style="width:${Math.min(100, (points / house.target) * 100)}%"></span></span></td>
-            <td class="num faint">${played([uid, points, grades])}/${house.pool.length}</td>
-          </tr>`)}</tbody>
-        </table></div>` : empty('Nobody has scored on the pool yet.')}
-      </div>
-    </div>
-    <details class="pool">
-      <summary>The ${house.pool.length} pool maps</summary>
-      <div class="rows">${house.pool.map(id => html`<div class="row">${mapLink(id, maps[id])}</div>`)}</div>
-    </details>
-  </section>`;
-}
-
-export default async function challengesPage(root, { isCurrent }) {
-  const [data, index] = await Promise.all([challenges(), playerIndex()]);
+export default async function challengesPage(root, { params, query, isCurrent }) {
+  const tab = TABS.find(t => t.slug === params.tab) ?? TABS[0];
+  const [data, index, danData] = await Promise.all([challenges(), playerIndex(), tab.slug === 'dan' ? dan() : null]);
   if (!isCurrent()) return;
-  setTitle('Challenges');
+  setTitle(tab.slug === 'week' ? 'Challenges' : `${tab.label} · Challenges`);
   const me = prefs.get('me', null);
   const { maps } = data;
 
   root.innerHTML = String(html`
-    <header class="page-head">
-      <span class="eyebrow">Challenges</span>
-      <h1>There’s always something to conquer</h1>
-      <p>A new map every week, #1s that are begging to be sniped, and maps nobody in Portugal has played yet.</p>
-    </header>
+    ${pageHead({ title: 'Challenges', tag: 'There’s always something to conquer' })}
+    ${subnav(tab)}
+    <p class="muted subnav-intro">${tab.intro}</p>
+    <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me) : tab.slug === 'targets' ? targetsPanel(data, maps, index) : ''}</div>
+  `);
 
+  if (tab.slug === 'dan') renderDan(root.querySelector('#panel'), danData, index, query);
+  if (tab.slug === 'week' && data.week) {
+    const el = root.querySelector('#countdown');
+    const timer = setInterval(() => {
+      if (!isCurrent() || !el.isConnected) return clearInterval(timer);
+      el.textContent = countdown(data.week.end);
+    }, 1000);
+  }
+}
+
+function weekPanel(data, maps, index, me) {
+  return html`
     <section>
       <div class="section-head"><h2>Map of the week</h2><span class="muted small">Picked automatically every Monday.</span></div>
       ${weekSection(data.week, maps, index, me)}
-    </section>
+    </section>`;
+}
 
-    <section class="section">
+function targetsPanel(data, maps, index) {
+  return html`
+    <section>
       <div class="section-head"><h2>Vulnerable #1s</h2><span class="muted small">Contested maps where the #1 has misses or under 97% accuracy.</span></div>
       ${data.beatable.length ? html`<div class="rows">${data.beatable.map(([id, cat, n, [uid, ...s]]) => html`<div class="row">
         <div>${mapLink(id, maps[id])}</div>
@@ -107,8 +111,6 @@ export default async function challengesPage(root, { isCurrent }) {
           <span class="faint">#1</span> ${playerLink(uid, index, 'avatar-sm')} ${scoreStats(s, { combo: false })} ${ppText(s[S.PP])}</div>
       </div>`)}</div>` : empty('Every #1 is well defended. For now.')}
     </section>
-
-    ${data.house ? houseSection(data.house, maps, index, me) : ''}
 
     ${data.bounties?.length ? html`<section class="section">
       <div class="section-head"><h2>Bounty board</h2><span class="muted small">Boss maps (6.5★ and up) that several Portuguese players have passed but nobody has FC’d.</span></div>
@@ -136,14 +138,5 @@ export default async function challengesPage(root, { isCurrent }) {
           <div class="row-meta" style="justify-content:flex-start">${fmt.num(plays)} plays on osu! · ${fmt.num(favs)} favourites</div>
         </div>`)}</div>` : empty('Nothing left to claim. Impressive.')}
       </div>
-    </section>
-  `);
-
-  if (data.week) {
-    const el = root.querySelector('#countdown');
-    const timer = setInterval(() => {
-      if (!isCurrent() || !el.isConnected) return clearInterval(timer);
-      el.textContent = countdown(data.week.end);
-    }, 1000);
-  }
+    </section>`;
 }

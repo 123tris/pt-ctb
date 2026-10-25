@@ -76,8 +76,8 @@ export default async function recordsPage(root, { query, isCurrent }) {
 
   root.innerHTML = String(html`
     <header class="page-head">
-      <span class="eyebrow">Records</span>
-      <h1>The Portuguese catch record book</h1>
+      <h1>Records</h1>
+      <p class="page-tag">The Portuguese catch record book</p>
       <p>The biggest marks across every score the bot keeps: each player’s best play on each map.</p>
     </header>
 

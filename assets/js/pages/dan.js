@@ -1,14 +1,16 @@
 import { html } from '../core/html.js';
-import { dan, playerIndex } from '../core/data.js';
 import { S, DAN_STAGES, DAN_ROLES, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { DAN_ROLE_LORE } from '../core/lore.js';
-import { setTitle, playerLink, mapLink, scoreStats, posBadge, empty, prefs } from '../core/ui.js';
+import { playerLink, mapLink, scoreStats, posBadge, empty, prefs, scrollBehavior } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
+
+// The Dan course is the "Dan course" tab of Challenges (pages/challenges.js); #/dan still redirects there.
+export const DAN_INTRO = html`The Dan course is the community’s ladder of challenges: 19 maps, each harder than the last. Up to the 10th Dan you pass with 98% accuracy; from the Hebrew letters on (Aleph to Shin) you need 99%. Every stage gives points, and points give Discord roles. Use <span class="kbd">/updatedan</span> and <span class="kbd">/claimdanrole</span>.`;
 
 function stageCard(stage, data, index, selected) {
   const passers = data.passers;
-  return html`<button class="dan-stage ${stage.index > 10 ? 'hebrew' : ''} ${selected ? 'selected' : ''}" data-stage="${stage.index}" type="button">
+  return html`<button class="dan-stage ${stage.index > 10 ? 'hebrew' : ''} ${selected ? 'selected' : ''}" data-stage="${stage.index}" type="button" aria-pressed="${selected}">
     <span class="points">${stage.points} pts</span>
     <div class="dan-glyph">${stage.glyph}</div>
     <b>${danName(stage.index)}</b>
@@ -27,42 +29,38 @@ function stageDetail(stage, data, index) {
       <span class="faint small">${stage.points} points · needs ${stage.passAcc}%</span>
     </div>
     <div style="margin-bottom:14px">${mapLink(data.map, data.meta)}</div>
-    ${data.passers.length ? html`<div class="table-wrap"><table class="table-compact">
-      <thead><tr><th>#</th><th>Player</th><th class="num">Score</th><th>Play</th><th class="num">Date</th></tr></thead>
+    ${data.passers.length ? html`<div class="table-wrap" data-label="Players who passed the ${danName(stage.index)}"><table class="table-compact">
+      <thead><tr><th>#</th><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">Date</th></tr></thead>
       <tbody>${data.passers.map(([uid, ...s], i) => html`<tr>
-        <td>${posBadge(i + 1)}</td><td>${playerLink(uid, index)}</td><td class="num">${fmt.num(s[S.SCORE])}</td>
-        <td><span class="score-line">${scoreStats(s)}</span></td><td class="num faint">${fmt.date(s[S.TIME])}</td>
+        <td>${posBadge(i + 1)}</td>
+        <td class="cell-player">${playerLink(uid, index)}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span></span></td>
+        <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
+        <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td><td class="num faint">${fmt.date(s[S.TIME])}</td>
       </tr>`)}</tbody>
     </table></div>` : empty('Nobody has passed this stage yet. Glory awaits.')}
   </div>`;
 }
 
-export default async function danPage(root, { query, isCurrent }) {
-  const [data, index] = await Promise.all([dan(), playerIndex()]);
-  if (!isCurrent()) return;
-  setTitle('Dan course');
+/** Renders the Dan course (ladder, chosen stage, leaderboard, roles) into `root`: the Challenges page's Dan tab. */
+export function renderDan(root, data, index, query) {
   let selected = Number(query.stage ?? data.stages.findLastIndex(s => s.passers.length)) || 0;
   const me = prefs.get('me', null);
 
   root.innerHTML = String(html`
-    <header class="page-head">
-      <span class="eyebrow">Dan course</span>
-      <h1>From Zeroth Dan to Shin</h1>
-      <p>The Dan course is the community’s ladder of challenges: 19 maps, each harder than the last. Up to the 10th Dan you pass with 98% accuracy; from the Hebrew letters on (Aleph to Shin) you need 99%. Every stage gives points, and points give Discord roles. Use <span class="kbd">/updatedan</span> and <span class="kbd">/claimdanrole</span>.</p>
-      <p class="small faint">The Dan has run on the server since June 2018. Alphonse sleeps; the site doesn’t.</p>
-    </header>
-
-    <div class="dan-ladder" id="ladder"></div>
+    <div class="section-head"><h2>From Zeroth Dan to Shin</h2><span class="muted small">The Dan has run on the server since June 2018. Alphonse sleeps; the site doesn’t.</span></div>
+    <div class="dan-ladder" id="ladder" role="group" aria-label="Dan stages"></div>
     <section class="section" id="detail"></section>
 
     <section class="section grid grid-2">
       <div>
         <h2>Dan leaderboard</h2>
         ${data.ladder.length ? html`<div class="table-wrap"><table class="table-compact">
-          <thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num">Stages</th><th>Highest</th></tr></thead>
+          <thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num col-opt">Stages</th><th class="col-opt">Highest</th></tr></thead>
           <tbody>${data.ladder.map(([uid, points, count, highest], i) => html`<tr class="${uid === me ? 'me' : ''}">
-            <td class="rank">${i + 1}</td><td>${playerLink(uid, index, 'avatar-sm')}</td><td class="num">${fmt.num(points)}</td>
-            <td class="num">${count}</td><td>${highest >= 0 ? danName(highest) : '—'}</td>
+            <td class="rank">${i + 1}</td>
+            <td class="cell-player">${playerLink(uid, index, 'avatar-sm')}<span class="cell-sub">${fmt.plural(count, 'stage')}${highest >= 0 ? ` · highest ${danName(highest)}` : ''}</span></td>
+            <td class="num">${fmt.num(points)}</td>
+            <td class="num col-opt">${count}</td><td class="col-opt">${highest >= 0 ? danName(highest) : '—'}</td>
           </tr>`)}</tbody>
         </table></div>` : empty('Nobody has Dan points yet.')}
       </div>
@@ -96,8 +94,10 @@ export default async function danPage(root, { query, isCurrent }) {
     if (!button) return;
     selected = Number(button.dataset.stage);
     draw();
-    history.replaceState(null, '', `#/dan?stage=${selected}`);
-    detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // The ladder was rebuilt, so put focus back on the stage that was just chosen rather than losing it.
+    ladder.querySelector(`[data-stage="${selected}"]`)?.focus({ preventScroll: true });
+    history.replaceState(null, '', `#/challenges/dan?stage=${selected}`);
+    detail.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   });
   draw();
 }

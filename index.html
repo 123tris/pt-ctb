@@ -25,17 +25,16 @@
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Open menu">
       <span></span><span></span><span></span>
     </button>
-    <nav id="nav" class="nav">
-      <a href="#/rankings" data-section="rankings">Leaderboards</a>
-      <a href="#/players" data-section="players player compare recap">Players</a>
+    <nav id="nav" class="nav" aria-label="Main">
+      <a href="#/rankings" data-section="rankings players player recap">Leaderboards</a>
       <a href="#/maps" data-section="maps map">Maps</a>
-      <a href="#/dan" data-section="dan">Dan</a>
-      <a href="#/activity" data-section="activity">Activity</a>
       <a href="#/challenges" data-section="challenges">Challenges</a>
+      <a href="#/activity" data-section="activity">Activity</a>
       <a href="#/games" data-section="games">Games</a>
       <div class="nav-more">
-        <button type="button" class="nav-more-btn" aria-expanded="false">More</button>
-        <div class="nav-more-menu">
+        <button type="button" class="nav-more-btn" aria-expanded="false" aria-controls="nav-more-menu">More</button>
+        <div class="nav-more-menu" id="nav-more-menu">
+          <a href="#/challenges/dan">Dan course</a>
           <a href="#/records" data-section="records">Records</a>
           <a href="#/team" data-section="team">Team Portugal</a>
           <a href="#/calculator" data-section="calculator">Calculator</a>
@@ -50,10 +49,12 @@
 <main id="content" class="page" tabindex="-1">
   <noscript><p class="notice">This site needs JavaScript to show its data.</p></noscript>
 </main>
+<div id="status" class="sr-only" role="status" aria-live="polite"></div>
 <footer class="footer">
   <div class="footer-inner">
+    <p class="footer-links" id="footer-links"><a href="#/glossary">New here? Read the glossary</a></p>
     <p>Made by the <b>PT-CTB</b> community with data from the server's bot. <span id="quip"></span> <span id="freshness"></span></p>
-    <p class="footer-dim">osu! is a trademark of ppy Pty Ltd. This site is not official.</p>
+    <p class="footer-dim">osu! is a trademark of ppy Pty Ltd. This site is not official. We count page views and clicks anonymously, to see what gets used: no cookies, no IP addresses, and Do Not Track is respected.</p>
   </div>
 </footer>
 </body>

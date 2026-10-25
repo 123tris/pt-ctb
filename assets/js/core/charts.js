@@ -15,7 +15,7 @@ function niceStep(range, ticks) {
 /**
  * Lines over time. `series` = [{ label, color, points: [[x, y]] }] with x as unix seconds.
  */
-export function lineChart(series, { height = 240, format = v => fmt.num(v) } = {}) {
+export function lineChart(series, { height = 240, format = v => fmt.num(v), label } = {}) {
   const all = series.flatMap(s => s.points);
   if (all.length < 2) return raw('');
   const pad = { l: 56, r: 16, t: 14, b: 28 };
@@ -30,7 +30,10 @@ export function lineChart(series, { height = 240, format = v => fmt.num(v) } = {
   const x = v => pad.l + ((v - x0) / (x1 - x0)) * (W - pad.l - pad.r);
   const y = v => height - pad.b - ((v - y0) / (y1 - y0)) * (height - pad.t - pad.b);
 
-  let svg = `<svg class="chart" viewBox="0 0 ${W} ${height}" role="img">`;
+  // The chart's text alternative: the caller's summary, or where each line starts and ends.
+  const alt = label ?? series.filter(s => s.points.length).map(s =>
+    `${s.label}: ${format(s.points[0][1])} to ${format(s.points[s.points.length - 1][1])}`).join('; ');
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${height}" role="img" aria-label="${escape(alt)}">`;
   for (let v = y0; v <= y1 + 1e-9; v += step) {
     svg += `<line class="grid-line" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/>`;
     svg += `<text x="${pad.l - 8}" y="${y(v) + 4}" text-anchor="end">${escape(format(v))}</text>`;
@@ -48,13 +51,15 @@ export function lineChart(series, { height = 240, format = v => fmt.num(v) } = {
 }
 
 /** Vertical bars. `bars` = [{ label, value, title? }]. */
-export function barChart(bars, { height = 200, color = 'var(--accent)', every = 1 } = {}) {
+export function barChart(bars, { height = 200, color = 'var(--accent)', every = 1, label } = {}) {
   if (!bars.length) return raw('');
   const pad = { l: 8, r: 8, t: 10, b: 24 };
   const max = Math.max(...bars.map(b => b.value), 1);
   const slot = (W - pad.l - pad.r) / bars.length;
   const width = Math.max(2, slot * 0.72);
-  let svg = `<svg class="chart" viewBox="0 0 ${W} ${height}" role="img">`;
+  // The chart's text alternative: the caller's summary, or every bar's value (they're short lists: hours, months).
+  const alt = label ?? bars.map(b => `${b.label}: ${fmt.num(b.value)}`).join(', ');
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${height}" role="img" aria-label="${escape(alt)}">`;
   bars.forEach((b, i) => {
     const h = (b.value / max) * (height - pad.t - pad.b);
     const bx = pad.l + i * slot + (slot - width) / 2;
