@@ -67,30 +67,36 @@ const isWeekId = id => /^\d{4}-W\d\d$/.test(id ?? '');
 /**
  * The weekly block of challenges.json, or null when the bot hasn't written any weekly data yet:
  *   current: the week so far (top pp play, most plays) from Weekly/current.json, when it's this week's;
- *   vote:    the newest closed week's Score of the week candidates, while its vote runs (with the Discord post);
+ *   vote:    the newest closed week's Score of the week candidates, while its vote runs (with the Discord post), each
+ *            with its number on that post;
  *   past:    every closed week, newest first: the Score of the week (once decided), top pp play and most plays.
  * Also returns the Score of the week count per player and the map ids the rows mention.
+ *
+ * The players in `hidden` (restricted on osu!) are left out: a play of theirs shows as none (the bot's summary has no
+ * runner-up to put in its place), a candidate of theirs is dropped, and most plays goes to the next player.
  */
-export function weeklyBlock({ weeks = [], current = null } = {}, now) {
+export function weeklyBlock({ weeks = [], current = null } = {}, now, hidden = new Set()) {
   const closed = weeks.filter(w => isWeekId(w?.week)).sort((a, b) => a.week.localeCompare(b.week));
   const live = isWeekId(current?.week) && current.week === lisbonWeek(now).id ? current : null;
   if (!closed.length && !live) return { block: null, sotw: new Map(), mapIds: [] };
 
   const latest = closed.at(-1);
-  const winnerOf = w => (Number.isInteger(w.winner) ? w.candidates?.[w.winner]?.play ?? null : null);
+  const shown = play => (play && !hidden.has(play.u) ? play : null);
+  const most = rows => (rows ?? []).filter(r => !hidden.has(r[0]));
+  const winnerOf = w => shown(Number.isInteger(w.winner) ? w.candidates?.[w.winner]?.play ?? null : null);
+  const candidates = latest?.vote?.url && latest.winner == null
+    ? (latest.candidates ?? []).map((c, i) => [c.lens, row(shown(c.play)), i + 1]).filter(c => c[1])
+    : [];
   const block = {
     current: live ? {
       week: live.week, start: live.start, end: live.end, complete: live.complete, passes: live.passes, players: live.players,
-      top: row(live.topPp), most: (live.mostPlays ?? []).slice(0, 3),
+      top: row(shown(live.topPp)), most: most(live.mostPlays).slice(0, 3),
     } : null,
-    vote: latest?.vote?.url && latest.winner == null && latest.candidates?.length ? {
-      week: latest.week, url: latest.vote.url,
-      candidates: latest.candidates.map(c => [c.lens, row(c.play)]),
-    } : null,
+    vote: candidates.length ? { week: latest.week, url: latest.vote.url, candidates } : null,
     past: closed.slice().reverse().map(w => ({
       week: w.week, start: w.start, end: w.end, complete: w.complete,
-      sotw: row(winnerOf(w)), votes: w.votes ? w.votes[w.winner] ?? 0 : null,
-      top: row(w.topPp), most: w.mostPlays?.[0] ?? null,
+      sotw: row(winnerOf(w)), votes: w.votes && winnerOf(w) ? w.votes[w.winner] ?? 0 : null,
+      top: row(shown(w.topPp)), most: most(w.mostPlays)[0] ?? null,
     })),
   };
 
@@ -106,14 +112,14 @@ export function weeklyBlock({ weeks = [], current = null } = {}, now) {
 
 /**
  * Activity events for the decided Scores of the week: { t, k: 'sotw', u, w, s } at the moment the vote closed (the
- * next week's recap), or the following Monday when that isn't known.
+ * next week's recap), or the following Monday when that isn't known. None for the players in `hidden`.
  */
-export function sotwEvents(weeks = [], since, now) {
+export function sotwEvents(weeks = [], since, now, hidden = new Set()) {
   const closed = weeks.filter(w => isWeekId(w?.week)).sort((a, b) => a.week.localeCompare(b.week));
   const events = [];
   closed.forEach((w, i) => {
     const play = Number.isInteger(w.winner) ? w.candidates?.[w.winner]?.play : null;
-    if (!play) return;
+    if (!play || hidden.has(play.u)) return;
     const posted = closed[i + 1]?.vote?.posted;
     const t = posted ? Math.floor(Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(posted) ? posted : `${posted}Z`) / 1000) : w.end + 7 * DAY;
     if (t >= since && t <= now) events.push({ t, k: 'sotw', u: play.u, w: w.week, s: logTuple(play) });

@@ -70,6 +70,27 @@ function rankedAt(raw) {
   return Number.isFinite(time) ? time : null;
 }
 
+/**
+ * How long before its ranked date a play on osu!'s ranked leaderboard can have been set: osu! keeps the plays from a
+ * map's qualified period, and the cache has no qualified date. As in the bot (CatchScoreRules.QualifiedAllowance).
+ */
+const QUALIFIED_ALLOWANCE = 14 * DAY;
+
+/**
+ * Whether a stored play is from before its map was ranked, so it counts toward nothing and belongs with the pre-rank
+ * plays (as in the bot). Only ranked and approved maps have such plays; a loved map's earlier plays stay on its board,
+ * which anyone can still play for pp. A play from a ranked board or the dump (`onRankedBoard`) may be from the qualified
+ * period, so it gets QUALIFIED_ALLOWANCE; one recorded while the map was unranked must be on or after the ranked date.
+ * With no ranked date or no play date there is nothing to go by, and the play stays where the bot filed it.
+ */
+export function setBeforeRanking(s, raw, onRankedBoard) {
+  if (!raw || ![STATUS.RANKED, STATUS.APPROVED].includes(Number(raw.approved))) return false;
+  const ranked = rankedAt(raw);
+  const time = s.date ? isoTime(s.date) : NaN;
+  if (ranked === null || !(time > 0)) return false;
+  return time < ranked - (onRankedBoard ? QUALIFIED_ALLOWANCE : 0);
+}
+
 const hasTitle = raw => raw && raw.title && raw.title !== 'Unknown';
 
 /**
@@ -193,17 +214,25 @@ function hash(text) {
 
 const lisbonHour = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Lisbon', hour: 'numeric', hourCycle: 'h23' });
 
+/**
+ * The players osu! has restricted (or deleted): the bot stamps `restricted_since` on them once its profile sync can't
+ * find them (see Player.RestrictedSince in the bot) and lifts it when it can again. The export leaves them out of
+ * everything, as if untracked (their dump record included), and they come back by themselves with the stamp lifted.
+ */
+export const restrictedIds = players => new Set(players.filter(p => p.restricted_since).map(p => p.user_id));
+
 /** Which beatmap ids the export needs metadata for, so the 140 MB cache can be filtered while loading. */
 export function neededMapIds(bot, homeCountry) {
   const ids = new Set(DAN_MAPS);
   const add = list => { for (const s of list || []) ids.add(s.beatmap_id); };
+  const hidden = restrictedIds(bot.players);
   for (const p of bot.players) {
-    if (p.country !== homeCountry) continue;
+    if (p.country !== homeCountry || hidden.has(p.user_id)) continue;
     add(p.TopConvertedScores); add(p.TopUnrankedScores); add(p.RankedSpecificScores); add(p.PreRankScores);
     for (const s of p.DanPasses || []) if (s) ids.add(s.beatmap_id);
   }
   for (const p of bot.ptCatch) {
-    if (p.country !== homeCountry) continue;
+    if (p.country !== homeCountry || hidden.has(p.user_id)) continue;
     add(p.top_scores); add(p.community_scores);
   }
   return ids;
@@ -223,8 +252,11 @@ export const isSetDifficulty = raw => raw?.catch_difficulty === true;
 export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOfficial = {} }) {
   // A banned map keeps its scores, but every one of them is worth 0pp (as in the bot).
   const banned = bot.banned;
+  // Restricted players (see restrictedIds) are in none of the files: never made a person, so off every board, ranking
+  // and list, and the map boards' positions close up around them.
+  const hidden = restrictedIds(bot.players);
   // The weekly highlights (Score of the week, top pp play, most plays), as the bot closed them.
-  const weekly = weeklyBlock(bot.weekly, now);
+  const weekly = weeklyBlock(bot.weekly, now, hidden);
   // Taiko and mania maps can't be played in catch: a score on one (filed off a wrong cached mode) is never shown.
   const playable = s => !!s && ![MODE.TAIKO, MODE.MANIA].includes(Number(beatmaps.get(s.beatmap_id)?.playmode));
   const tuple = s => {
@@ -241,34 +273,52 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const people = new Map();
   const person = (id, name) => {
-    if (!people.has(id)) people.set(id, { id, name, raw: null, dump: null, lists: { c: [], u: [], r: [] }, dump_top: [], pre: [] });
+    if (!people.has(id)) people.set(id, { id, name, raw: null, dump: null, lists: { c: [], u: [], r: [] }, dump_top: [], pre: [], early: [] });
     return people.get(id);
+  };
+  // A play from before its map was ranked counts toward nothing, wherever the bot filed it: it goes with the player's
+  // pre-rank plays instead (p.early until they're merged). The bot moves such plays itself; this keeps the site right
+  // until it has, and leaves out the copy it filed on a board as well as in the archive.
+  const filed = (p, list, onRankedBoard) => {
+    const kept = [];
+    for (const s of (list || []).filter(playable))
+      (setBeforeRanking(s, beatmaps.get(s.beatmap_id), onRankedBoard) ? p.early : kept).push(s);
+    return kept.map(tuple);
   };
 
   for (const raw of bot.players) {
-    if (raw.country !== homeCountry) continue;
+    if (raw.country !== homeCountry || hidden.has(raw.user_id)) continue;
     const p = person(raw.user_id, raw.username);
     p.raw = raw;
-    p.lists.c.push(...(raw.TopConvertedScores || []).filter(playable).map(tuple));
-    p.lists.u.push(...(raw.TopUnrankedScores || []).filter(playable).map(tuple));
-    p.lists.r.push(...(raw.RankedSpecificScores || []).filter(playable).map(tuple));
+    p.lists.c.push(...filed(p, raw.TopConvertedScores, true));
+    p.lists.u.push(...filed(p, raw.TopUnrankedScores, false));
+    p.lists.r.push(...filed(p, raw.RankedSpecificScores, true));
     // Plays from before their map was ranked: shown for the record, counted nowhere (they're 0pp in the bot too).
-    p.pre = (raw.PreRankScores || []).filter(playable).map(toTuple).sort((a, b) => b[S.SCORE] - a[S.SCORE]);
+    p.early.push(...(raw.PreRankScores || []).filter(playable));
   }
   for (const dump of bot.ptCatch) {
-    if (dump.country !== homeCountry) continue;
+    if (dump.country !== homeCountry || hidden.has(dump.user_id)) continue;
     const p = person(dump.user_id, dump.username);
     p.dump = dump;
-    p.dump_top = (dump.top_scores || []).filter(playable).map(tuple).sort((a, b) => b[S.PP] - a[S.PP]);
+    p.dump_top = filed(p, dump.top_scores, true).sort((a, b) => b[S.PP] - a[S.PP]);
     // Ranked specifics from the dump top the tracked list up; a player the bot never registered (it normally
     // does, after every import) still gets their dump plays filed by category.
     for (const s of p.raw ? dump.top_scores || [] : dump.community_scores || []) {
-      if (!playable(s)) continue;
+      if (!playable(s) || setBeforeRanking(s, beatmaps.get(s.beatmap_id), true)) continue;
       const cat = catOf(s.beatmap_id, null);
       if (cat === CAT.RANKED || (!p.raw && cat)) p.lists[cat].push(tuple(s));
     }
   }
-  for (const p of people.values()) for (const cat of CATS) p.lists[cat] = bestPerMap(p.lists[cat]);
+  for (const p of people.values()) {
+    for (const cat of CATS) p.lists[cat] = bestPerMap(p.lists[cat]);
+    // One pre-rank play per map, the best score, at 0pp.
+    const pre = new Map();
+    for (const t of p.early.map(toTuple)) {
+      t[S.PP] = 0;
+      if (!(pre.get(t[S.MAP])?.[S.SCORE] >= t[S.SCORE])) pre.set(t[S.MAP], t);
+    }
+    p.pre = [...pre.values()].sort((a, b) => b[S.SCORE] - a[S.SCORE] || a[S.MAP] - b[S.MAP]);
+  }
 
   // ---- Per-map boards --------------------------------------------------------------------------------------
 
@@ -476,7 +526,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // ---- Activity --------------------------------------------------------------------------------------------------
 
   const since = now - ACTIVITY_DAYS * DAY;
-  const derived = [...sotwEvents(bot.weekly?.weeks, since, now)];
+  const derived = [...sotwEvents(bot.weekly?.weeks, since, now, hidden)];
   // A #1 set after the current runner-up's score must have taken the spot from them: their score already stood
   // and was the best of everyone else's (nobody's best ever goes down), so no history is needed to see snipes.
   for (const [id, board] of boards) {
@@ -497,7 +547,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   // State-based events: who overtook whom on the pp boards, pp milestones and newly tracked players, found by
   // comparing with the previous export. The first export has nothing to compare with, so it only records.
-  const stateEvents = [...(previous.events || [])];
+  // Earlier events about a player since restricted go, whichever side of them they were on.
+  const involvesHidden = e => hidden.has(e.u) || [].concat(e.v ?? []).some(id => hidden.has(id));
+  const stateEvents = (previous.events || []).filter(e => !involvesHidden(e));
   if (previous.boards) {
     // An inactive player's official pp is frozen (or estimated), and the real one replaces it when they're back: a
     // move on the ranked board either way isn't an overtake.
@@ -722,6 +774,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const today = new Date(now * 1000).toISOString().slice(0, 10);
   const history = { days: [...(previous.history?.days || [])], series: { ...(previous.history?.series || {}) }, reconstructed: null };
+  for (const id of hidden) delete history.series[id]; // a restricted player's line (it starts over if they're back)
   if (history.days[history.days.length - 1] !== today) history.days.push(today);
   const dayIndex = history.days.length - 1;
   // Official pp is only recorded when osu! reports it live. An inactive player's is an estimate (or an old copy), so
@@ -796,7 +849,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     },
     inactive: [...people.values()].filter(p => p.inactive).map(p => p.id).sort((a, b) => a - b),
     officialLiveOnly: true,
-    known: [...people.keys()].sort((a, b) => a - b),
+    // Restricted players stay known, so being unrestricted isn't a "join".
+    known: [...new Set([...people.keys(), ...(previous.known || []).filter(id => hidden.has(id))])].sort((a, b) => a - b),
     events: keptStateEvents,
     weeks,
   };

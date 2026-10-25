@@ -146,7 +146,7 @@ function highlights(weekly, maps, index) {
 
     ${vote ? html`<section class="section">
       <div class="section-head"><h2>Vote: Score of the week</h2><span class="muted small">The candidates from ${weekRange(past.find(p => p.week === vote.week) ?? past[0])}. Vote with the reactions on Discord; it closes with Monday's recap.</span></div>
-      <div class="rows">${vote.candidates.map(([lens, row], i) => highlightRow(`${i + 1}. ${LENS[lens] ?? LENS.fill}`, row, maps, index))}</div>
+      <div class="rows">${vote.candidates.map(([lens, row, n], i) => highlightRow(`${n ?? i + 1}. ${LENS[lens] ?? LENS.fill}`, row, maps, index))}</div>
       <div class="btn-row" style="margin-top:12px"><a class="btn btn-primary" href="${vote.url}" target="_blank" rel="noopener">Vote on Discord ↗</a></div>
     </section>` : ''}
 
