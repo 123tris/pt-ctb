@@ -1,0 +1,24 @@
+# Response headers for Cloudflare Pages (tools/build-site.mjs copies this file into dist/; it isn't served itself).
+# Rules that match the same path add up, so they're kept from overlapping on any one header. Pages doesn't apply
+# these to the /auth/* Functions, which set their own.
+#
+# {{inline-script-hashes}} becomes the hashes of the inline <script>s and on…="" handlers in index.html and 404.html,
+# worked out by tools/build-site.mjs on every build, so editing those snippets can't silently get them blocked.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' {{inline-script-hashes}}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://a.ppy.sh https://assets.ppy.sh; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+# Data files are fetched as data/x.json?v=<export time> (core/data.js), so each export gets fresh URLs and old ones
+# can be kept. meta.json, which holds that time, is always fetched with cache: 'no-cache', so it's revalidated anyway.
+/data/*
+  Cache-Control: public, max-age=604800
+
+# Images rarely change. JS and CSS keep Pages' default (revalidate every time): their names carry no version, and a
+# stale module mixed with fresh ones would break the page.
+/assets/img/*
+  Cache-Control: public, max-age=604800

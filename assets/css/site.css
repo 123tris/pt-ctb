@@ -674,7 +674,7 @@ tr.inactive:hover td { opacity: .8; }
 [data-season='ptday'] .brand::after { content: '🐟'; }
 
 /* =================================================================================================================
-   Player search in the top bar (core/search.js). Inline next to the brand from 1120px; below that a search button
+   Player search in the top bar (core/search.js). Inline next to the brand from 1180px; below that a search button
    that opens a full-width row under the bar. Kept as one block so it stays out of the way of other edits.
    ================================================================================================================= */
 
@@ -718,7 +718,7 @@ tr.inactive:hover td { opacity: .8; }
 .search-all { display: block; padding: 9px 12px; border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 500; }
 .search-all:hover { background: var(--surface-2); text-decoration: none; }
 
-@media (max-width: 1119px) {
+@media (max-width: 1179px) {
   .search { position: static; order: 3; }
   .nav-toggle { order: 4; }
   .search-toggle { display: grid; }
@@ -741,3 +741,54 @@ tr.inactive:hover td { opacity: .8; }
 .avatar-link .avatar { display: block; transition: box-shadow .12s, filter .12s; }
 .avatar-link:hover .avatar { box-shadow: 0 0 0 2px var(--border-strong); filter: brightness(1.08); }
 .avatar-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* =================================================================================================================
+   "You" in the top bar (core/you.js): the avatar of whoever this browser marked with "This is me", and its menu.
+   Sits last on wide screens; on narrow ones between the search button and the menu button.
+   ================================================================================================================= */
+
+.you { position: relative; display: flex; align-items: center; order: 5; margin-left: -12px; }
+.you[hidden] { display: none; }
+.you-btn {
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
+  background: none; cursor: pointer;
+}
+.you-btn .avatar { width: 28px; height: 28px; box-shadow: 0 0 0 2px var(--border-strong); transition: box-shadow .12s; }
+.you-btn:hover .avatar, .you-btn[aria-expanded='true'] .avatar { box-shadow: 0 0 0 2px var(--accent); }
+.you-menu {
+  position: absolute; top: calc(100% - 2px); right: 0; z-index: 56; width: 240px; padding: 6px 0;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r);
+}
+.you-menu[hidden] { display: none; }
+.you-head { display: flex; align-items: center; gap: 10px; padding: 8px 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.you-head > div { display: grid; min-width: 0; }
+.you-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.you-label { color: var(--text-faint); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.you-menu a, .you-forget {
+  display: block; width: 100%; padding: 8px 14px; color: var(--text); font-size: var(--fs-sm); text-align: left;
+  background: none; border: 0; cursor: pointer;
+}
+.you-menu a:hover, .you-forget:hover { background: var(--surface-2); text-decoration: none; }
+.you-forget { color: var(--text-dim); }
+.you-note { margin: 4px 14px 6px; color: var(--text-faint); font-size: var(--fs-xs); }
+
+@media (max-width: 1179px) {
+  .you { order: 4; margin-left: -20px; }
+  .nav-toggle { order: 5; }
+}
+
+/* Your row on the home page's top 5s. */
+.mini-board a.line.me { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); padding-inline: 8px; margin-inline: -8px; }
+
+/* =================================================================================================================
+   "Sign in with osu!" (core/you.js, only when CONFIG.signIn is set): takes the avatar's place while nobody is chosen.
+   ================================================================================================================= */
+
+.you:has(.you-signin) { margin-left: 0; }
+.you-signin {
+  height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--r);
+  background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); font-weight: 600; white-space: nowrap;
+  cursor: pointer; transition: border-color .12s, color .12s;
+}
+.you-signin:hover { border-color: var(--accent); color: var(--accent); }
+.you-signin:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

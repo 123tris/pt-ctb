@@ -7,6 +7,7 @@ import { loading, setTitle } from './core/ui.js';
 import { NOT_FOUND, pick } from './core/lore.js';
 import { startFun } from './core/fun.js';
 import { initSearch } from './core/search.js';
+import { initYou } from './core/you.js';
 import * as fmt from './core/fmt.js';
 import { CONFIG } from './config.js';
 
@@ -113,6 +114,9 @@ more.querySelector('button').addEventListener('click', e => {
 });
 document.addEventListener('click', e => { if (!more.contains(e.target)) more.classList.remove('open'); });
 
+// "Skip to content" focuses the page rather than following #content, which the router would treat as a route.
+document.querySelector('.skip')?.addEventListener('click', e => { e.preventDefault(); root.focus(); });
+
 // Scroll to the top on a new page, but not when only the query changes (e.g. a filter on the same page).
 let lastPath = null;
 window.addEventListener('hashchange', () => {
@@ -125,6 +129,7 @@ lastPath = location.hash.split('?')[0];
 route();
 startFun();
 initSearch();
+initYou();
 
 meta().then(m => {
   const footer = document.getElementById('freshness');

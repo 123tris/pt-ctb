@@ -4,16 +4,17 @@ import { M } from '../core/model.js';
 import { eventItem } from '../core/events.js';
 import { LAST_REWORK, THRONE_PLAYER } from '../core/lore.js';
 import { season } from '../core/fun.js';
-import { setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL } from '../core/ui.js';
+import { setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL, prefs } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { CONFIG } from '../config.js';
 
 function miniBoard(list, key, cat) {
   const rows = list.filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 5);
+  const me = prefs.get('me', null);
   return html`<div class="card">
     <h3><span class="cat cat-${cat}">${CAT_LABEL[cat]}</span></h3>
     <div class="mini-board">
-      ${rows.map((p, i) => html`<a class="line" href="#/player/${p.id}">
+      ${rows.map((p, i) => html`<a class="line ${p.id === me ? 'me' : ''}" href="#/player/${p.id}">
         <span class="n">${i + 1}</span>
         <span class="player">${avatar(p.id, 'avatar-sm')}<span>${p.name}</span></span>
         <span class="pp">${fmt.pp(p[key])}<small>pp</small></span>

@@ -190,12 +190,16 @@ export const pickedPlayer = (input, list) => {
   return list.find(p => p.name.toLowerCase() === name) ?? null;
 };
 
-/** Tiny persistent preference (localStorage may be unavailable, so every access is guarded). */
+/**
+ * Tiny persistent preference (localStorage may be unavailable, so every access is guarded). Setting one fires a
+ * `ptctb:pref` event on window with `{ key, value }`, so the header can follow "This is me" as it changes.
+ */
 export const prefs = {
   get(key, fallback) {
     try { const v = localStorage.getItem(`ptctb:${key}`); return v === null ? fallback : JSON.parse(v); } catch { return fallback; }
   },
   set(key, value) {
     try { localStorage.setItem(`ptctb:${key}`, JSON.stringify(value)); } catch { /* private mode */ }
+    window.dispatchEvent(new CustomEvent('ptctb:pref', { detail: { key, value } }));
   },
 };

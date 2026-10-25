@@ -3,7 +3,7 @@ import { dan, playerIndex } from '../core/data.js';
 import { S, DAN_STAGES, DAN_ROLES, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { DAN_ROLE_LORE } from '../core/lore.js';
-import { setTitle, playerLink, mapLink, scoreStats, posBadge, empty } from '../core/ui.js';
+import { setTitle, playerLink, mapLink, scoreStats, posBadge, empty, prefs } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
 function stageCard(stage, data, index, selected) {
@@ -42,6 +42,7 @@ export default async function danPage(root, { query, isCurrent }) {
   if (!isCurrent()) return;
   setTitle('Dan course');
   let selected = Number(query.stage ?? data.stages.findLastIndex(s => s.passers.length)) || 0;
+  const me = prefs.get('me', null);
 
   root.innerHTML = String(html`
     <header class="page-head">
@@ -59,7 +60,7 @@ export default async function danPage(root, { query, isCurrent }) {
         <h2>Dan leaderboard</h2>
         ${data.ladder.length ? html`<div class="table-wrap"><table class="table-compact">
           <thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num">Stages</th><th>Highest</th></tr></thead>
-          <tbody>${data.ladder.map(([uid, points, count, highest], i) => html`<tr>
+          <tbody>${data.ladder.map(([uid, points, count, highest], i) => html`<tr class="${uid === me ? 'me' : ''}">
             <td class="rank">${i + 1}</td><td>${playerLink(uid, index, 'avatar-sm')}</td><td class="num">${fmt.num(points)}</td>
             <td class="num">${count}</td><td>${highest >= 0 ? danName(highest) : '—'}</td>
           </tr>`)}</tbody>

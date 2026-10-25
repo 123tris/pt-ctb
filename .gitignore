@@ -2,3 +2,8 @@
 notes/
 node_modules/
 *.tmp
+# Wrangler's local cache and secrets for `wrangler pages dev`.
+.wrangler/
+.dev.vars*
+# Cloudflare Pages build output (npm run build).
+dist/
