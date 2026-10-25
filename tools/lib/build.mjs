@@ -238,16 +238,22 @@ export function neededMapIds(bot, homeCountry) {
   return ids;
 }
 
-/** Ranked/approved osu!catch-specific maps with a title: the pool for "maps nobody here has played yet". */
-export const isUnclaimedCandidate = raw =>
-  hasTitle(raw) && Number(raw.playmode) === MODE.CATCH &&
-  (Number(raw.approved) === STATUS.RANKED || Number(raw.approved) === STATUS.APPROVED);
+/** A map whose mode is known to be taiko or mania (an osu! API lookup says so; the bot's cache never does). */
+const isOtherMode = raw => [MODE.TAIKO, MODE.MANIA].includes(Number(raw?.playmode));
 
 /**
  * A cached map osu!catch can play (a catch map or a convert), as the catch dump vouches: it gave the map a catch star
- * rating. The cached mode can't say so on its own, as old cache entries file taiko and mania difficulties as catch.
+ * rating. The cached mode can't say so on its own: the bot's cache files every non-standard map as catch, about 31k
+ * taiko and 7k mania difficulties included. Every map the export picks from the cache rather than from PT plays (the
+ * unclaimed maps, a set's other difficulties) has to pass this. It's strict: a real catch map the dump never flagged
+ * is left out too, which beats letting a mania map in.
  */
-export const isSetDifficulty = raw => raw?.catch_difficulty === true;
+export const isCatchPlayable = raw => raw?.catch_difficulty === true && !isOtherMode(raw);
+
+/** Ranked/approved osu!catch-specific maps with a title: the pool for "maps nobody here has played yet". */
+export const isUnclaimedCandidate = raw =>
+  hasTitle(raw) && isCatchPlayable(raw) && Number(raw.playmode) === MODE.CATCH &&
+  (Number(raw.approved) === STATUS.RANKED || Number(raw.approved) === STATUS.APPROVED);
 
 export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOfficial = {} }) {
   // A banned map keeps its scores, but every one of them is worth 0pp (as in the bot).
@@ -257,8 +263,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   const hidden = restrictedIds(bot.players);
   // The weekly highlights (Score of the week, top pp play, most plays), as the bot closed them.
   const weekly = weeklyBlock(bot.weekly, now, hidden);
-  // Taiko and mania maps can't be played in catch: a score on one (filed off a wrong cached mode) is never shown.
-  const playable = s => !!s && ![MODE.TAIKO, MODE.MANIA].includes(Number(beatmaps.get(s.beatmap_id)?.playmode));
+  // Taiko and mania maps can't be played in catch: a score on one (filed off a wrong cached mode) is never shown. Plays
+  // only need the map not to be known as another mode: they prove it's catch-playable, flagged by the dump or not.
+  const playable = s => !!s && !isOtherMode(beatmaps.get(s.beatmap_id));
   const tuple = s => {
     const t = toTuple(s);
     if (banned.has(s.beatmap_id)) t[S.PP] = 0;
@@ -715,7 +722,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // ---- Mapsets ------------------------------------------------------------------------------------------------------
   // sets/{setId % 128}.json: the difficulties of each mapset a page here shows, { setId: [[mapId, version, stars,
   // players]] } easiest first (as osu! orders them), for the map page's switcher. A set lists the maps with a page plus
-  // the rest of the set that osu!catch can play (isSetDifficulty), which get a page of their own: their details over an
+  // the rest of the set that osu!catch can play (isCatchPlayable), which get a page of their own: their details over an
   // empty board. Sets with a single difficulty are left out.
   const setRows = new Map(); // setId -> Map(mapId -> row)
   const addRow = (set, row) => (setRows.get(set) ?? setRows.set(set, new Map()).get(set)).set(row[0], row);
@@ -733,7 +740,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   for (const raw of beatmaps.values()) {
     if (!setRows.has(raw.beatmapset_id)) continue;
     if (hasTitle(raw) && !titled.has(raw.beatmapset_id)) titled.set(raw.beatmapset_id, raw);
-    if (isSetDifficulty(raw) && !setRows.get(raw.beatmapset_id).has(raw.beatmap_id)) unlisted.push(raw);
+    if (isCatchPlayable(raw) && !setRows.get(raw.beatmapset_id).has(raw.beatmap_id)) unlisted.push(raw);
   }
   const newEntries = new Map(); // mapId -> bucket entry, for the difficulties with no page yet
   for (const raw of unlisted) {

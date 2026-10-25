@@ -24,7 +24,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { loadBotData, loadBeatmaps, loadPastOfficial, loadCommands } from './lib/source.mjs';
-import { build, neededMapIds, isUnclaimedCandidate, isSetDifficulty } from './lib/build.mjs';
+import { build, neededMapIds, isUnclaimedCandidate, isCatchPlayable } from './lib/build.mjs';
 import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, fetchDates, hasCatchDifficulty } from './lib/osu-api.mjs';
 import { STATUS } from '../assets/js/core/model.js';
 import { decodeMapsSearch } from '../assets/js/core/maps-search.js';
@@ -75,8 +75,8 @@ const started = Date.now();
 console.log(`Reading bot data from ${dataRoot}`);
 const bot = loadBotData(dataRoot);
 const needed = neededMapIds(bot, country);
-// isSetDifficulty keeps the rest of each shown map's set, for the map page's difficulty switcher.
-const beatmaps = loadBeatmaps(dataRoot, raw => needed.has(raw.beatmap_id) || isUnclaimedCandidate(raw) || isSetDifficulty(raw));
+// isCatchPlayable keeps the rest of each shown map's set, for the map page's difficulty switcher.
+const beatmaps = loadBeatmaps(dataRoot, raw => needed.has(raw.beatmap_id) || isUnclaimedCandidate(raw) || isCatchPlayable(raw));
 console.log(`  ${bot.players.length} tracked players, ${bot.ptCatch.length} dump players, ${beatmaps.size} beatmaps kept`);
 
 // Top up maps the bot only knows by id (no title) from our own cache, fetching new ones when asked to.

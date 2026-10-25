@@ -26,7 +26,7 @@ export const avatarUrl = id => `https://a.ppy.sh/${id}`;
 export const coverUrl = (set, kind = 'list') => (set ? `https://assets.ppy.sh/beatmaps/${set}/covers/${kind}.jpg` : '');
 
 export function setTitle(title) {
-  document.title = title ? `${title} · PT-CTB` : 'PT-CTB · osu!catch in Portugal';
+  document.title = title ? `${title} · PT Catch` : 'PT Catch · osu!catch in Portugal';
 }
 
 // ---- Players ------------------------------------------------------------------------------------------

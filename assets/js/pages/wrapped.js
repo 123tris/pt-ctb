@@ -69,7 +69,7 @@ export default async function wrapped(root, { params, isCurrent }) {
   const w = summarise(file, year);
   const topBest = CATS.map(c => w.best[c]).filter(Boolean).sort((a, b) => b.s[S.PP] - a.s[S.PP])[0];
   const share = [
-    `My ${year} in osu!catch (PT-CTB) ✨`,
+    `My ${year} in osu!catch (PT Catch) ✨`,
     `${w.plays.length} scores · ${fmt.num(w.fruits)} fruits caught · ${w.ss} SS · ${w.firsts.length} #1s in Portugal`,
     topBest ? `Best play: ${mapText(topBest.s[S.MAP], topBest.meta).title} — ${fmt.pp(topBest.s[S.PP])} pp` : '',
     `${location.href}`,

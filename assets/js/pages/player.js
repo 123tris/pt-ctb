@@ -32,12 +32,14 @@ const TAB_LIST = [
 
 /**
  * A pp tile that leads with the rank: the rank big ("#5 PT") and the pp under it, before `sub` if there is one. With
- * no rank (unranked, or no official rank) the pp stays the big figure and `noRank` says why.
+ * no rank (unranked, or no official rank) the pp stays the big figure and `noRank` says why. The rank links to its
+ * leaderboard (`board`, a slug of rankings.js), which scrolls to and marks this player's row (`at`).
  */
-function rankStat(label, rank, where, pp, { sub = '', noRank, cls }) {
+function rankStat(label, rank, where, pp, { sub = '', noRank, cls, board, id }) {
   const ppText = `${fmt.pp(pp)} pp`;
+  const boardName = `${board === 'ranked' ? 'Ranked' : label} leaderboard`; // as the Leaderboards page names it
   return rank
-    ? stat(label, html`${fmt.rank(rank)} <span class="stat-unit">${where}</span>`, sub ? html`<span class="keep">${ppText}</span> · <span class="keep">${sub}</span>` : ppText, cls)
+    ? stat(label, html`<a class="stat-link" href="#/rankings/${board}?at=${id}" aria-label="${boardName}, ${fmt.rank(rank)} ${where}" title="See the ${boardName}">${fmt.rank(rank)} <span class="stat-unit">${where}</span></a>`, sub ? html`<span class="keep">${ppText}</span> · <span class="keep">${sub}</span>` : ppText, cls)
     : stat(label, ppText, noRank, cls);
 }
 
@@ -230,13 +232,13 @@ export default async function player(root, { params, query, isCurrent }) {
     </header>
 
     <div class="stats">
-      ${rankStat('Converts', p.rank.c, 'PT', p.cv, { noRank: 'Unranked', cls: 'stat-c' })}
-      ${rankStat('Loved & Unranked', p.rank.u, 'PT', p.ul, { noRank: 'Unranked', cls: 'stat-u' })}
+      ${rankStat('Converts', p.rank.c, 'PT', p.cv, { noRank: 'Unranked', cls: 'stat-c', board: 'converts', id })}
+      ${rankStat('Loved & Unranked', p.rank.u, 'PT', p.ul, { noRank: 'Unranked', cls: 'stat-u', board: 'loved', id })}
       ${!isInactiveOnOsu(p)
         // osu!'s own country rank leads, like the two tiles before it; the global rank goes under the pp.
         ? p.country
-          ? rankStat('Official pp', p.country, 'PT', p.pp, { sub: p.global ? `${fmt.rank(p.global)} global` : '', cls: 'stat-r' })
-          : rankStat('Official pp', p.global, 'global', p.pp, { noRank: 'No official rank', cls: 'stat-r' })
+          ? rankStat('Official pp', p.country, 'PT', p.pp, { sub: p.global ? `${fmt.rank(p.global)} global` : '', cls: 'stat-r', board: 'ranked', id })
+          : rankStat('Official pp', p.global, 'global', p.pp, { noRank: 'No official rank', cls: 'stat-r', board: 'ranked', id })
         : p.pp > 0
           ? stat('Official pp', p.ppSource === 'estimated'
             // "(estimated)" is only for screen readers here: the subtitle already says it, and the value stays one line.

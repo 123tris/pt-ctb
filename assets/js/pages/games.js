@@ -110,7 +110,7 @@ async function dailyGame(root, isCurrent) {
           <p class="center muted small">${answer[1]} - ${answer[2]}, mapped by ${answer[3]}. A new map tomorrow.</p>
           <div class="btn-row" style="justify-content:center"><button class="btn" id="share" type="button">Copy result</button></div>` : ''}
       </div>`);
-    if (done) copyButton(root, `Guess the map (daily) · PT-CTB ${today}: ${tried ? `${'🍎'.repeat(tried - 1)}🎯 (${tried}/3)` : '❌'} · streak ${streak}`);
+    if (done) copyButton(root, `Guess the map (daily) · PT Catch ${today}: ${tried ? `${'🍎'.repeat(tried - 1)}🎯 (${tried}/3)` : '❌'} · streak ${streak}`);
   };
 
   if (already !== null) { draw(true, already, saved.streak); return; }
@@ -287,7 +287,7 @@ async function guessGame(root, isCurrent) {
           <button class="btn" id="share" type="button">Copy result</button>
         </div>
       </div>`);
-    copyButton(root, `Guess the map · PT-CTB: ${score}/${ROUNDS * 3} 🍎 ${location.href.split('#')[0]}#/games/guess?mode=practice`);
+    copyButton(root, `Guess the map · PT Catch: ${score}/${ROUNDS * 3} 🍎 ${location.href.split('#')[0]}#/games/guess?mode=practice`);
   };
 
   // A set without a cover can't be guessed: quietly swap it for the next one in the deck.
@@ -399,7 +399,7 @@ async function higherLower(root, isCurrent) {
       [a, b] = roundPair();
       draw();
     });
-    if (revealed && !result) copyButton(root, `Higher or lower? · PT-CTB: a streak of ${streak} ⬆️⬇️`);
+    if (revealed && !result) copyButton(root, `Higher or lower? · PT Catch: a streak of ${streak} ⬆️⬇️`);
   };
 
   [a, b] = roundPair();

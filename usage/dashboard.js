@@ -125,7 +125,7 @@ export function renderDashboard(r, { nonce = '' } = {}) {
     'No page views in this period.');
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex"><title>Usage · PT-CTB</title>
+<meta name="robots" content="noindex"><title>Usage · PT Catch</title>
 <style>
 :root { --bg:#1f191b; --surface:#2a2225; --line:#3d3236; --text:#f3ecee; --muted:#a09095; --accent:#ff6b89; }
 * { box-sizing:border-box; }

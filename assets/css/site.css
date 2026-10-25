@@ -1,4 +1,4 @@
-/* PT-CTB — one stylesheet, dark, warm and flat. Solid surfaces, 1px borders and type do the work.
+/* PT Catch — one stylesheet, dark, warm and flat. Solid surfaces, 1px borders and type do the work.
 
    Colour: one warm accent, with greys tinted towards its hue so the page never reads as cold blue-black. The accent,
    rosa, is osu!'s pink warmed towards the rose of a glass of port; its split complements (+150° and +210°) are the
@@ -86,7 +86,6 @@ button, input, select { font: inherit; color: inherit; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font: 700 1.375rem/1 var(--display); letter-spacing: .02em; padding-top: 3px; }
 .brand:hover { text-decoration: none; }
 .brand img { display: block; }
-.brand-dot { color: var(--text-faint); margin: 0 1px; }
 .nav { display: flex; align-items: stretch; gap: 0; margin-left: auto; }
 /* Categories (index.html): the name links to the most-used page; its menu of the rest drops down under the bar on
    hover (after a short pause, so sweeping across the bar doesn't flash every menu) or when a keyboard focus is inside. */
@@ -315,6 +314,9 @@ td.rank { width: 1%; color: var(--text-faint); font-weight: 700; }
 td.wide { white-space: normal; min-width: 260px; max-width: 460px; }
 tr.me, .row.me { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); }
 tr.me:hover, .row.me:hover { background: var(--accent-bg); }
+/* The row a profile's rank link points at (rankings.js, ?at=): framed, so it still reads beside "This is me". */
+tr.target { outline: 1px solid var(--accent-line); outline-offset: -1px; }
+tr.target:not(.me) { background: var(--surface-2); }
 .table-compact td, .table-compact th { padding: 7px 12px; }
 .card .table-wrap { border-radius: var(--r-sm); }
 @media (max-width: 600px) { th, td { padding: 8px 10px; } }
@@ -380,6 +382,13 @@ a.row.card-link:last-child { border-bottom: 0; }
 .stat-sub .keep { white-space: nowrap; }
 /* Where a rank on a tile counts ("#5 PT"): small and faint beside the big figure. */
 .stat-unit { font-size: .5em; font-weight: 600; letter-spacing: .04em; color: var(--text-faint); }
+/* A rank that links to its leaderboard (player.js): the figure's own colour with a faint dotted underline, rosa on
+   hover. The value line clips (it ellipsises), which would cut a focus ring off, so the ring goes round the tile. */
+.stat-link { color: inherit; text-decoration: underline dotted var(--text-faint); text-decoration-thickness: 2px; text-underline-offset: 4px; transition: color .12s, text-decoration-color .12s; }
+.stat-link:hover { color: var(--accent); text-decoration: underline solid var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.stat-link:hover .stat-unit { color: inherit; }
+.stat-link:focus-visible { outline: none; }
+.stat:has(.stat-link:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-xs); }
 /* Grade counts as compact chips ("SS 281  S 2,379  A 354"); they wrap between chips, never inside one. */
 .grade-counts { display: flex; flex-wrap: wrap; gap: 2px 8px; }
 .grade-counts > span { white-space: nowrap; }

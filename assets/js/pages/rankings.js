@@ -50,7 +50,7 @@ function inactiveMark(p, official) {
 }
 
 /** On phones only rank, player and pp stay; the other numbers move under the name. */
-function boardTable(list, cat, me, title) {
+function boardTable(list, cat, me, title, at) {
   const key = KEY[cat];
   const ranked = cat === 'r';
   return html`<div class="table-wrap" data-label="${title} leaderboard"><table>
@@ -65,7 +65,7 @@ function boardTable(list, cat, me, title) {
       const offOsu = ranked && isInactiveOnOsu(p);
       const { greyed, tag } = inactiveMark(p, ranked);
       const noRank = html`<span class="faint" title="Inactive on osu!, so no global or country rank">—</span>`;
-      return html`<tr class="${p.id === me ? 'me' : ''} ${greyed ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
+      return html`<tr class="${p.id === me ? 'me' : ''} ${p.id === at ? 'target' : ''} ${greyed ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
         <td class="rank">${ranked ? i + 1 : p.rank[cat]}</td>
         <td class="cell-player">${playerLink(p)}${tag ? html` ${tag}` : ''}
           <span class="cell-sub">${ranked
@@ -213,8 +213,11 @@ export default async function rankings(root, { params, query, isCurrent }) {
     const rows = cat === 'r'
       ? list.filter(p => p.rank.r || (isInactiveOnOsu(p) && p.pp > 0)).sort((a, b) => b.pp - a.pp || (a.rank.r ?? Infinity) - (b.rank.r ?? Infinity))
       : list.filter(p => p.rank[cat]).sort((a, b) => a.rank[cat] - b.rank[cat]);
-    boardEl.innerHTML = String(rows.length ? boardTable(rows, cat, me, board.title) : empty(`Nobody is on the ${CAT_LABEL[cat]} leaderboard yet.`));
+    // ?at=<player id> (a profile's rank links here): mark that player's row and bring it into view.
+    const at = Number(query.at) || null;
+    boardEl.innerHTML = String(rows.length ? boardTable(rows, cat, me, board.title, at) : empty(`Nobody is on the ${CAT_LABEL[cat]} leaderboard yet.`));
     applyFilter();
+    boardEl.querySelector('tr.target:not(.hidden)')?.scrollIntoView({ block: 'center' });
     return;
   }
 
