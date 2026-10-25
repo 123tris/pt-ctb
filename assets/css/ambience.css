@@ -1,6 +1,6 @@
 /* The site's atmosphere and motion, a layer over site.css.
    - The page sits on faint azulejo tiles, lit rosa from the top left and tile blue from the right, with film grain.
-     The tiles live in the margins and along the top, and fade out behind the reading column so text stays clear.
+     The tiles live in the margins beside the page and fade out behind the reading column so text stays clear.
    - The logo's name is set in Unbounded.
    - Motion: sections fade up as they arrive, cards lift a little under the pointer, the Dan ladder's frontier pulses
      and "osu!catch" in the hero shimmers. All of it stops under prefers-reduced-motion. */
@@ -23,15 +23,13 @@ body {
   background-attachment: fixed;
 }
 /* The tiles: shown in the margins beside the page (full strength at the window's edges, gone 140px before the text)
-   and in a band along the top that fades out by 280px. Nothing sits behind the text in the middle. */
+   only: nothing sits behind the text in the middle or along the top. */
 body::before {
   content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--tile);
   -webkit-mask-image:
-    linear-gradient(90deg, #000 calc(50% - var(--tile-clear) - 140px), transparent calc(50% - var(--tile-clear)), transparent calc(50% + var(--tile-clear)), #000 calc(50% + var(--tile-clear) + 140px)),
-    linear-gradient(180deg, rgba(0, 0, 0, .6) 0, transparent 280px);
+    linear-gradient(90deg, #000 calc(50% - var(--tile-clear) - 140px), transparent calc(50% - var(--tile-clear)), transparent calc(50% + var(--tile-clear)), #000 calc(50% + var(--tile-clear) + 140px));
   mask-image:
-    linear-gradient(90deg, #000 calc(50% - var(--tile-clear) - 140px), transparent calc(50% - var(--tile-clear)), transparent calc(50% + var(--tile-clear)), #000 calc(50% + var(--tile-clear) + 140px)),
-    linear-gradient(180deg, rgba(0, 0, 0, .6) 0, transparent 280px);
+    linear-gradient(90deg, #000 calc(50% - var(--tile-clear) - 140px), transparent calc(50% - var(--tile-clear)), transparent calc(50% + var(--tile-clear)), #000 calc(50% + var(--tile-clear) + 140px));
 }
 body::after {
   content: ''; position: fixed; inset: 0; z-index: 200; pointer-events: none; opacity: .06; mix-blend-mode: overlay;
