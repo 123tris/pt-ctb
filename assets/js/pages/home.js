@@ -26,7 +26,7 @@ function miniBoard(list, key, cat) {
   const rows = list.filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 5);
   const me = prefs.get('me', null);
   return html`<div class="card">
-    <h3><span class="cat cat-${cat}">${CAT_LABEL[cat]}</span></h3>
+    <h3 class="board-title"><span class="cat cat-${cat}">${CAT_LABEL[cat]}</span></h3>
     <div class="mini-board">
       ${rows.map((p, i) => {
         // The official top 5 includes players inactive on osu! (osu! shows them at 0 pp), tagged as such; legends

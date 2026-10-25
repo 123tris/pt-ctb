@@ -1183,3 +1183,43 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 /* app.js moves focus to a new page's heading (for keyboards and screen readers); no ring around it, as nobody tabbed
    there. */
 h1[tabindex='-1']:focus { outline: none; }
+
+/* Home, "Portugal's best": the three boards' names in spaced capitals, as headers over each top 5. */
+.card > h3.board-title .cat { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text); }
+
+/* Profile actions: "This is me", compare as an icon, and the badges folded into one button. */
+.btn-icon { width: 30px; padding: 0; }
+.peek { position: relative; display: inline-flex; }
+.peek-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--border-strong);
+  border-radius: var(--r); background: none; color: var(--gold); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+  transition: border-color .12s;
+}
+.peek-btn:hover, .peek.open .peek-btn { border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
+/* The card hangs under the button; its top padding bridges the gap so the pointer can travel into it. */
+.peek-pop {
+  position: absolute; top: 100%; left: 0; z-index: 30; width: min(440px, calc(100vw - 32px)); padding-top: 8px;
+  visibility: hidden; opacity: 0; transform: translateY(-4px); transition: opacity .14s, transform .14s, visibility 0s .14s;
+}
+.peek-pop .badge-list {
+  grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px 16px; background: var(--surface-2);
+  border: 1px solid var(--border-strong); border-radius: var(--r); box-shadow: 0 14px 36px rgba(0, 0, 0, .45);
+}
+.peek-pop .badge-list li { display: grid; gap: 2px; }
+.peek-pop .badge-list b { color: var(--gold); }
+@media (hover: hover) {
+  .peek:hover .peek-pop { visibility: visible; opacity: 1; transform: none; transition: opacity .14s .1s, transform .14s .1s, visibility 0s .1s; }
+}
+.peek.open .peek-pop { visibility: visible; opacity: 1; transform: none; transition: opacity .14s, transform .14s; }
+.peek.shut .peek-pop { visibility: hidden; opacity: 0; }
+/* Phones: the card drops under the whole header, edge to edge, instead of hanging off the button. */
+@media (max-width: 600px) {
+  .peek { position: static; }
+  .peek-pop { left: 0; right: 0; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .peek-pop { transform: none !important; } }
+
+/* Quiet links to a section's other pages, under the heading (Leaderboards: all players, compare). */
+.page-head .page-links { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 6px 0 0; font-size: var(--fs-sm); }
+.page-head .page-links a { text-decoration: none; font-weight: 500; }
+.page-head .page-links a:hover { text-decoration: underline; }

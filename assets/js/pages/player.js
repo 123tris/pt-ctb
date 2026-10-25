@@ -41,6 +41,24 @@ function rankStat(label, rank, where, pp, { sub = '', noRank, cls }) {
     : stat(label, ppText, noRank, cls);
 }
 
+/** Two arrows facing each other: "compare". */
+const COMPARE_ICON = raw('<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 5h10M9 2l3 3-3 3M14 11H4M7 8l-3 3 3 3"/></svg>');
+
+/**
+ * The in-joke badges, folded into one small "6 badges" button beside the others: hovering or keyboard focus opens a
+ * card with each badge and what earned it; on touch a tap toggles it (wired up in the page, with Escape and an
+ * outside click to close).
+ */
+const badgePeek = badges => html`<span class="peek">
+  <button type="button" class="peek-btn" aria-expanded="false" aria-controls="badge-pop">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1.5l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.3l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
+    ${fmt.plural(badges.length, 'badge')}
+  </button>
+  <span class="peek-pop" id="badge-pop" role="group" aria-label="Badges">
+    <ul class="badge-list">${badges.map(b => html`<li><b>${b.name}</b><span>${b.tip}</span></li>`)}</ul>
+  </span>
+</span>`;
+
 function danGrid(file) {
   const passes = new Map(file.dan.map(([i, s]) => [i, s]));
   return html`<div class="dan-ladder">${DAN_STAGES.map(stage => {
@@ -181,7 +199,6 @@ export default async function player(root, { params, query, isCurrent }) {
   const shownTabs = TAB_LIST.filter(t => counts[t.slug] || t === tab);
   const role = danRole(p.danScore);
   const firsts = p.firsts.c + p.firsts.u + p.firsts.r;
-  const years = extras?.years ?? [...new Set(CATS.flatMap(c => file.scores[c].map(s => new Date(s[S.TIME] * 1000).getFullYear())))].sort((a, b) => b - a);
   const dayTime = d => Date.parse(`${d}T12:00:00Z`) / 1000;
   const points = (hist.series[id] || []).map(([d, cv, ul, pp]) => [dayTime(hist.days[d]), cv, ul, pp]);
   // Monthly points rebuilt from score dates (history.json `reconstructed`, as of 00:00 UTC), only for the time before
@@ -203,10 +220,10 @@ export default async function player(root, { params, query, isCurrent }) {
           playerEra && `era: ${playerEra}`,
         ].filter(Boolean).map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>
         <div class="links">
-          <a class="btn btn-small" href="#/compare/${id}">Compare</a>
-          ${years.length ? html`<a class="btn btn-small" href="#/recap/${id}/${years[0]}">${years[0]} recap</a>` : ''}
           <button class="btn btn-small" id="me" type="button" aria-pressed="false" title="Highlights your rows on every leaderboard (saved in this browser)">This is me</button>
           <a class="not-you" id="not-you" href="#/player/${id}" hidden>Not you?</a>
+          <a class="btn btn-small btn-icon" href="#/compare/${id}" aria-label="Compare ${p.name} with another player" title="Compare with another player">${COMPARE_ICON}</a>
+          ${badges.length ? badgePeek(badges) : ''}
         </div>
       </div>
       ${jersey(p)}
@@ -240,10 +257,6 @@ export default async function player(root, { params, query, isCurrent }) {
       <div class="score-line" style="margin-top:10px">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
     </section>` : ''}
 
-    ${badges.length ? html`<section class="section card">
-      <h2 class="card-h">Badges</h2>
-      <ul class="badge-list">${badges.map(b => html`<li><b>${b.name}</b> <span>${b.tip}</span></li>`)}</ul>
-    </section>` : ''}
 
     ${historySection(points, rebuilt)}
 
@@ -308,6 +321,30 @@ export default async function player(root, { params, query, isCurrent }) {
     meButton.focus();
   });
   drawMe();
+
+  // The badges card opens on hover (site.css, pointers only); a click or tap opens it until a second click, Escape or a
+  // click anywhere else.
+  const peek = root.querySelector('.peek');
+  if (peek) {
+    const peekButton = peek.querySelector('.peek-btn');
+    const setOpen = open => {
+      peek.classList.toggle('open', open);
+      peekButton.setAttribute('aria-expanded', String(open));
+    };
+    peekButton.addEventListener('click', () => setOpen(!peek.classList.contains('open')));
+    const outside = e => {
+      if (!peek.isConnected) document.removeEventListener('click', outside);
+      else if (!peek.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('click', outside);
+    peek.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      peek.classList.add('shut');
+      peekButton.focus();
+    });
+    peek.addEventListener('mouseleave', () => peek.classList.remove('shut'));
+  }
 
   if (tab.slug === 'dan') return;
   const cat = SLUG_CAT[tab.slug] ?? null;
