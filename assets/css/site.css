@@ -463,6 +463,9 @@ a.row.card-link:last-child { border-bottom: 0; }
   .diffs { flex-wrap: nowrap; max-height: none; overflow: auto hidden; scrollbar-width: none; margin: 8px -20px 0; padding: 4px 20px; }
   .diffs::-webkit-scrollbar { display: none; }
 }
+/* A map's leaderboard views (the plays that count, and those from before it was ranked), when it has both. */
+.board-views { margin: -4px 0 12px; }
+.board-views .faint { font-size: var(--fs-xs); }
 .week-cover { display: block; width: 100%; aspect-ratio: 18 / 5; object-fit: cover; background: var(--surface-3); border-bottom: 1px solid var(--border); }
 
 .profile-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-bottom: 28px; }
