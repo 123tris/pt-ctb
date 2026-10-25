@@ -21,6 +21,13 @@ export const M = {
   UPDATED_AT: 16,
 };
 
+/**
+ * The map fields a player's files (players/{id}.json and players/{id}-head.json) carry: the ones the profile, compare,
+ * recap and the badges read. The others are null there and the dates are left off, which keeps the biggest files
+ * about a third smaller. A page that needs another field from a player's file adds it here.
+ */
+export const PLAYER_MAP_FIELDS = [M.ARTIST, M.TITLE, M.VERSION, M.SET, M.STARS, M.AR, M.MAX_COMBO, M.MODE, M.CREATOR];
+
 /** Tris: the player whose #1s the records page dares everyone to take (he keeps asking to be sniped). */
 export const THRONE_PLAYER = 3821475;
 

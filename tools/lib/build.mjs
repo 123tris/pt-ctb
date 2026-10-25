@@ -2,15 +2,18 @@
 // the current time, and returns { files, state } - nothing here touches the disk.
 
 import {
-  S, M, CAT, CATS, STATUS, MODE, DAN_MAPS, THRONE_PLAYER, classify, boardComparator, weightedTotal, matchesModFilter,
-  parseModFilter, modString, isSS,
+  S, M, CAT, CATS, STATUS, MODE, DAN_MAPS, THRONE_PLAYER, PLAYER_MAP_FIELDS, classify, boardComparator, weightedTotal,
+  matchesModFilter, parseModFilter, modString, isSS,
 } from '../../assets/js/core/model.js';
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
+import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js';
 
 const DAY = 86400;
 const BUCKETS = 128;
 /** Rows in maps-top.json: the Maps page's first ten pages (most players first) before the full index is needed. */
 const MAPS_TOP = 500;
+/** Rows per list in a player's head file: the profile's first page in its default order (most pp first). */
+const HEAD_ROWS = 50;
 const MOD_FILTERS = ['NM', 'HD', 'HR', 'DT', 'FL', 'EZ', 'HT', 'HDHR', 'HDDT', 'HRDT'];
 const PP_MILESTONES = 1000;
 const ACTIVITY_DAYS = 120;
@@ -273,6 +276,14 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     for (const id of [...new Set(ids)].sort((a, b) => a - b)) out[id] = mapTuple(id);
     return out;
   };
+  // Player files only carry the fields the site reads from them (PLAYER_MAP_FIELDS in model.js).
+  const keepField = new Set(PLAYER_MAP_FIELDS);
+  const lastField = Math.max(...PLAYER_MAP_FIELDS);
+  const playerMapsFor = ids => {
+    const out = mapsFor(ids);
+    for (const id in out) out[id] = out[id] && out[id].slice(0, lastField + 1).map((v, i) => (keepField.has(i) ? v : null));
+    return out;
+  };
 
   // ---- Per-player files ------------------------------------------------------------------------------------------
 
@@ -289,7 +300,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       dan: p.dan,
       // Plays from before their map was ranked (no pp, no positions); left out when there are none.
       ...(p.pre.length ? { pre: p.pre } : {}),
-      maps: mapsFor(ids),
+      maps: playerMapsFor(ids),
     };
   }
 
@@ -586,6 +597,39 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     history.series[p.id] = series;
   }
 
+  // ---- Player head files -----------------------------------------------------------------------------------------
+  // players/{id}-head.json: what a profile needs to show its first page without the whole file. Each list's first
+  // HEAD_ROWS rows in the profile's default order (most pp first; a stable sort, as in the browser, so ties match),
+  // the full lengths, the Dan passes, and the badges, era, signature map and recap years, worked out here from the
+  // whole file with the profile's own functions (records.json's Choke d'Or included). The profile loads the full file
+  // on the first search, sort, filter or page change. Shown as of the export, like everything else.
+  const playerEntry = new Map(players.map(p => [p.id, p]));
+  const headFiles = {};
+  for (const [id, file] of Object.entries(playerFiles)) {
+    const first = list => [...list].sort((a, b) => b[S.PP] - a[S.PP]).slice(0, HEAD_ROWS);
+    const scores = Object.fromEntries(CATS.map(cat => [cat, first(file.scores[cat])]));
+    const top = first(file.top);
+    const pre = file.pre ? first(file.pre) : null;
+    const shown = [...CATS.flatMap(cat => scores[cat]), ...top, ...(pre || []), ...file.dan.map(([, t]) => t)];
+    const entry = playerEntry.get(Number(id));
+    headFiles[id] = {
+      id: file.id, name: file.name, head: true,
+      counts: {
+        c: file.scores.c.length, u: file.scores.u.length, r: file.scores.r.length, top: file.top.length,
+        dan: file.dan.length, pre: file.pre?.length ?? 0,
+      },
+      scores, top, dan: file.dan,
+      ...(pre ? { pre } : {}),
+      maps: Object.fromEntries(shown.map(t => t[S.MAP]).sort((a, b) => a - b).map(m => [m, file.maps[m]])),
+      extras: {
+        badges: playerBadges(entry, file, records, now),
+        era: era(entry, file, now),
+        signature: signatureMap(file),
+        years: [...new Set(CATS.flatMap(cat => file.scores[cat].map(t => new Date(t[S.TIME] * 1000).getFullYear())))].sort((a, b) => b - a),
+      },
+    };
+  }
+
   // ---- Meta + state -----------------------------------------------------------------------------------------------
 
   const metaFile = {
@@ -623,6 +667,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'maps-top.json': { total: mapsIndex.length, rows: mapsIndex.slice(0, MAPS_TOP) },
       'maps-search.json': encodeMapsSearch(mapsIndex),
       ...Object.fromEntries(Object.entries(playerFiles).map(([id, file]) => [`players/${id}.json`, file])),
+      ...Object.fromEntries(Object.entries(headFiles).map(([id, file]) => [`players/${id}-head.json`, file])),
       ...Object.fromEntries(Object.entries(mapBuckets).map(([b, file]) => [`maps/${b}.json`, file])),
     },
     state,

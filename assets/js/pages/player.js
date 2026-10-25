@@ -1,5 +1,5 @@
 import { html, raw } from '../core/html.js';
-import { playerFile, playerIndex, history, records } from '../core/data.js';
+import { playerFile, playerHead, playerIndex, history, records } from '../core/data.js';
 import { S, CATS, DAN_STAGES, DAN_MAPS, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { lineChart, chartHover } from '../core/charts.js';
@@ -8,7 +8,7 @@ import { THRONE_PLAYER } from '../core/lore.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
-  isLegend, legendTag, gradeBadge, chipGroup, setPressed,
+  isLegend, legendTag, gradeBadge, chipGroup, setPressed, placeholderRows,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -137,17 +137,30 @@ function historySection(recorded, rebuilt) {
   </details>`;
 }
 
+/** The last full player file this page loaded, so switching tabs on that profile doesn't go back to the head file. */
+let lastFull = null;
+
 export default async function player(root, { params, query, isCurrent }) {
   const id = Number(params.id);
-  const [file, index, hist, recs] = await Promise.all([playerFile(id), playerIndex(), history(), records().catch(() => null)]);
+  // The small head file shows the first page in the default order. A link straight to a search, sort, filter or later
+  // page needs the whole file, as does data from before head files (playerHead gives null).
+  const needsAll = Boolean(query.q || query.firsts || (query.sort && query.sort !== 'pp') || Number(query.page) > 1);
+  const loaded = lastFull?.id === id ? lastFull : null;
+  const head = needsAll || loaded ? null : playerHead(id);
+  const filePromise = loaded ? Promise.resolve(loaded) : head ? head.then(h => h ?? playerFile(id)) : playerFile(id);
+  // Records only feed the badges, which a head file brings already worked out.
+  const recsPromise = (head ?? Promise.resolve(null)).then(h => (h ? null : records().catch(() => null)));
+  let [file, index, hist, recs] = await Promise.all([filePromise, playerIndex(), history(), recsPromise]);
   if (!isCurrent()) return;
+  if (!file.head) lastFull = file;
   const p = index.get(id);
   setTitle(p.name);
-  const badges = playerBadges(p, file, recs);
-  const playerEra = era(p, file);
-  const signature = signatureMap(file);
+  const extras = file.extras;
+  const badges = extras ? extras.badges : playerBadges(p, file, recs);
+  const playerEra = extras ? extras.era : era(p, file);
+  const signature = extras ? extras.signature : signatureMap(file);
 
-  const counts = {
+  const counts = file.counts ? { ...file.counts, converts: file.counts.c, loved: file.counts.u, ranked: file.counts.r } : {
     converts: file.scores.c.length, loved: file.scores.u.length, ranked: file.scores.r.length, top: file.top.length, dan: file.dan.length,
     pre: file.pre?.length ?? 0,
   };
@@ -156,7 +169,7 @@ export default async function player(root, { params, query, isCurrent }) {
   const shownTabs = TAB_LIST.filter(t => counts[t.slug] || t === tab);
   const role = danRole(p.danScore);
   const firsts = p.firsts.c + p.firsts.u + p.firsts.r;
-  const years = [...new Set(CATS.flatMap(c => file.scores[c].map(s => new Date(s[S.TIME] * 1000).getFullYear())))].sort((a, b) => b - a);
+  const years = extras?.years ?? [...new Set(CATS.flatMap(c => file.scores[c].map(s => new Date(s[S.TIME] * 1000).getFullYear())))].sort((a, b) => b - a);
   const dayTime = d => Date.parse(`${d}T12:00:00Z`) / 1000;
   const points = (hist.series[id] || []).map(([d, cv, ul, pp]) => [dayTime(hist.days[d]), cv, ul, pp]);
   // Monthly points rebuilt from score dates (history.json `reconstructed`, as of 00:00 UTC), only for the time before
@@ -284,8 +297,12 @@ export default async function player(root, { params, query, isCurrent }) {
 
   if (tab.slug === 'dan') return;
   const cat = SLUG_CAT[tab.slug] ?? null;
-  const all = tab.list(file);
-  if (!all.length) {
+  let all = tab.list(file);
+  const total = counts[tab.slug];
+  // A head file holds this list's first page only (in the default order). Until the whole file is in, `items` is that
+  // page padded with nulls to the list's real length, so the pager and the count are right from the start.
+  let partial = all.length < total;
+  if (!total) {
     const where = { top: 'imported from the osu! data dump', pre: 'from before their map was ranked' }[tab.slug] ?? `in ${CAT_LABEL[cat]}`;
     root.querySelector('#scores').innerHTML = String(empty(`${p.name} has no plays ${where} yet.`));
     return;
@@ -297,31 +314,65 @@ export default async function player(root, { params, query, isCurrent }) {
     const { title, sub } = mapText(s[S.MAP], file.maps[s[S.MAP]]);
     return `${title} ${sub}`.toLowerCase();
   };
+  // The lowercase labels are built once per list, on the first search, not again on every keystroke.
+  let labels = null;
   const visible = () => {
+    if (partial) return [...all, ...new Array(total - all.length).fill(null)];
     const text = q.value.trim().toLowerCase();
+    if (text) labels ??= new Map(all.map(s => [s, label(s)]));
     return all
-      .filter(s => (!text || label(s).includes(text)) && (!onlyFirsts?.checked || s[S.POS] === 1))
+      .filter(s => (!text || labels.get(s).includes(text)) && (!onlyFirsts?.checked || s[S.POS] === 1))
       .sort(SORTS[sort.value][1]);
   };
+  // The whole file, loaded on the first search, sort, filter or page change of a list that came from the head.
+  let fullPromise = null;
+  const loadAll = () => (fullPromise ??= playerFile(id).then(full => {
+    if (!isCurrent()) return false;
+    lastFull = full;
+    file = full;
+    all = tab.list(full);
+    labels = null;
+    partial = false;
+    return true;
+  }, e => {
+    fullPromise = null;
+    count.textContent = `Couldn’t load all plays (${e.message}). Try again.`;
+    return false;
+  }));
   // Search, sort, "Only #1s" and page live in the URL, so Back from a map comes back to the same list.
   const count = root.querySelector('#count');
   let page = Math.max(0, (Number(query.page) || 1) - 1);
   const save = () => writeQuery({ q: q.value.trim(), sort: sort.value, firsts: Boolean(onlyFirsts?.checked), page: page + 1 }, { sort: 'pp', page: 1 });
   let items = visible();
   const showCount = speak => {
-    count.textContent = resultCount(items.length, all.length, 'play');
+    count.textContent = resultCount(items.length, partial ? total : all.length, 'play');
     if (speak) announce(count.textContent);
   };
-  const redraw = paginate(root.querySelector('#scores'), items, slice => html`<div class="rows">${slice.map(s =>
-    scoreRow({ s, meta: file.maps[s[S.MAP]], pos: ['top', 'pre'].includes(tab.slug) ? null : s[S.POS] }))}</div>`, 50, {
+  // A page of nulls (past the head's first page) shows placeholder rows until the whole file is in.
+  const redraw = paginate(root.querySelector('#scores'), items, slice => (slice[0]
+    ? html`<div class="rows">${slice.map(s => scoreRow({ s, meta: file.maps[s[S.MAP]], pos: ['top', 'pre'].includes(tab.slug) ? null : s[S.POS] }))}</div>`
+    : placeholderRows(slice.length)), 50, {
     page,
-    onPage: n => { page = n; save(); },
+    onPage: n => {
+      page = n;
+      save();
+      if (partial) loadAll().then(ok => { if (ok) { items = visible(); redraw(items, true); } });
+    },
     empty: () => emptyFiltered(q.value.trim() ? `No play matches “${q.value.trim()}”${onlyFirsts?.checked ? ' among the #1s' : ''}.` : 'No #1s in this list.'),
   });
   showCount(false);
-  const refilter = () => { items = visible(); redraw(items); showCount(true); };
+  const refilter = () => {
+    if (partial) {
+      count.textContent = 'Loading all plays…';
+      loadAll().then(ok => { if (ok) refilter(); });
+      return;
+    }
+    items = visible();
+    redraw(items);
+    showCount(true);
+  };
   let timer;
-  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refilter, 200); });
+  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refilter, 120); });
   sort.addEventListener('change', refilter);
   onlyFirsts?.addEventListener('change', refilter);
   root.querySelector('#scores').addEventListener('click', e => {

@@ -38,6 +38,15 @@ export const players = () => load('players.json');
 export const playerFile = id => load(`players/${id}.json`);
 
 /**
+ * A player's small first file (players/{id}-head.json: each list's first page, the list lengths and the profile extras
+ * worked out at export), or null when the data has none (from before head files): load playerFile then.
+ */
+export async function playerHead(id) {
+  const m = await meta();
+  return m.files?.[`players/${id}-head.json`] ? load(`players/${id}-head.json`) : null;
+}
+
+/**
  * Every map with Portuguese plays, as rows [id, setId, artist, title, version, stars, category, players, topPlayerId]
  * in no particular order, decoded from the compact maps-search.json.
  */
