@@ -23,5 +23,5 @@ export const CONFIG = {
    * Send visitors of the old GitHub Pages address (https://123tris.github.io/pt-ctb/) to the same page on
    * `production` (assets/js/moved.js). Turn on once the release site works.
    */
-  leaveGithub: false,
+  leaveGithub: true,
 };
