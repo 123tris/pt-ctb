@@ -14,6 +14,11 @@ export const S = { MAP: 0, PP: 1, ACC: 2, COMBO: 3, MISS: 4, MODS: 5, GRADE: 6, 
 export const M = {
   ARTIST: 0, TITLE: 1, VERSION: 2, SET: 3, STARS: 4, AR: 5, CS: 6, OD: 7, HP: 8,
   BPM: 9, LENGTH: 10, MAX_COMBO: 11, STATUS: 12, MODE: 13, CREATOR: 14,
+  // When the map was ranked, approved, qualified or loved (unix seconds); null otherwise or unknown. Data from before
+  // 2026-10-25 has no such element, so read it as `meta[M.RANKED_AT] ?? null`.
+  RANKED_AT: 15,
+  // When the map was last updated (unix seconds), or null when unknown. Same caveat: read as `meta[M.UPDATED_AT] ?? null`.
+  UPDATED_AT: 16,
 };
 
 /** Score categories, as the bot files them (see CatchScoreRules in the bot). */

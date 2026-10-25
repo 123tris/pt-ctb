@@ -5,9 +5,12 @@ import {
   S, M, CAT, CATS, STATUS, MODE, DAN_MAPS, classify, boardComparator, weightedTotal, matchesModFilter,
   parseModFilter, modString, isSS,
 } from '../../assets/js/core/model.js';
+import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
 
 const DAY = 86400;
 const BUCKETS = 128;
+/** Rows in maps-top.json: the Maps page's first ten pages (most players first) before the full index is needed. */
+const MAPS_TOP = 500;
 const MOD_FILTERS = ['NM', 'HD', 'HR', 'DT', 'FL', 'EZ', 'HT', 'HDHR', 'HDDT', 'HRDT'];
 const PP_MILESTONES = 1000;
 const ACTIVITY_DAYS = 120;
@@ -36,13 +39,32 @@ function toTuple(s) {
   ];
 }
 
-/** A cached beatmap as the compact tuple the site reads (see M in model.js). */
+/** A cached beatmap as the compact tuple the site reads (see M in model.js). New fields go on the end. */
 function toMapTuple(raw) {
   return [
     raw.artist || '', raw.title || '', raw.version || '', raw.beatmapset_id || 0, round(raw.difficultyrating || 0),
     raw.diff_approach ?? 0, raw.diff_size ?? 0, raw.diff_overall ?? 0, raw.diff_drain ?? 0, raw.bpm ?? 0,
     raw.hit_length ?? 0, raw.max_combo ?? 0, Number(raw.approved), Number(raw.playmode), raw.creator || '',
+    rankedAt(raw), updatedAt(raw),
   ];
+}
+
+/** When the map was last updated (unix seconds), or null. Caches hold 0001-01-01 for "unknown". */
+function updatedAt(raw) {
+  const time = raw.last_update ? isoTime(raw.last_update) : NaN;
+  return Number.isFinite(time) && time > 0 ? time : null;
+}
+
+/**
+ * When a ranked, approved, qualified or loved map got there (unix seconds), or null. A graveyard map can still carry
+ * the date of a status it lost, so only these statuses count.
+ */
+function rankedAt(raw) {
+  const status = Number(raw.approved);
+  if (!raw.approved_date || !(status === STATUS.RANKED || status === STATUS.APPROVED || status === STATUS.QUALIFIED || status === STATUS.LOVED))
+    return null;
+  const time = isoTime(raw.approved_date);
+  return Number.isFinite(time) ? time : null;
 }
 
 const hasTitle = raw => raw && raw.title && raw.title !== 'Unknown';
@@ -119,6 +141,8 @@ export const isUnclaimedCandidate = raw =>
 export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
   // A banned map keeps its scores, but every one of them is worth 0pp (as in the bot).
   const banned = bot.banned;
+  // Taiko and mania maps can't be played in catch: a score on one (filed off a wrong cached mode) is never shown.
+  const playable = s => !!s && ![MODE.TAIKO, MODE.MANIA].includes(Number(beatmaps.get(s.beatmap_id)?.playmode));
   const tuple = s => {
     const t = toTuple(s);
     if (banned.has(s.beatmap_id)) t[S.PP] = 0;
@@ -141,21 +165,21 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
     if (raw.country !== homeCountry) continue;
     const p = person(raw.user_id, raw.username);
     p.raw = raw;
-    p.lists.c.push(...(raw.TopConvertedScores || []).filter(Boolean).map(tuple));
-    p.lists.u.push(...(raw.TopUnrankedScores || []).filter(Boolean).map(tuple));
-    p.lists.r.push(...(raw.RankedSpecificScores || []).filter(Boolean).map(tuple));
+    p.lists.c.push(...(raw.TopConvertedScores || []).filter(playable).map(tuple));
+    p.lists.u.push(...(raw.TopUnrankedScores || []).filter(playable).map(tuple));
+    p.lists.r.push(...(raw.RankedSpecificScores || []).filter(playable).map(tuple));
     // Plays from before their map was ranked: shown for the record, counted nowhere (they're 0pp in the bot too).
-    p.pre = (raw.PreRankScores || []).filter(Boolean).map(toTuple).sort((a, b) => b[S.SCORE] - a[S.SCORE]);
+    p.pre = (raw.PreRankScores || []).filter(playable).map(toTuple).sort((a, b) => b[S.SCORE] - a[S.SCORE]);
   }
   for (const dump of bot.ptCatch) {
     if (dump.country !== homeCountry) continue;
     const p = person(dump.user_id, dump.username);
     p.dump = dump;
-    p.dump_top = (dump.top_scores || []).filter(Boolean).map(tuple).sort((a, b) => b[S.PP] - a[S.PP]);
+    p.dump_top = (dump.top_scores || []).filter(playable).map(tuple).sort((a, b) => b[S.PP] - a[S.PP]);
     // Ranked specifics from the dump top the tracked list up; a player the bot never registered (it normally
     // does, after every import) still gets their dump plays filed by category.
     for (const s of p.raw ? dump.top_scores || [] : dump.community_scores || []) {
-      if (!s) continue;
+      if (!playable(s)) continue;
       const cat = catOf(s.beatmap_id, null);
       if (cat === CAT.RANKED || (!p.raw && cat)) p.lists[cat].push(tuple(s));
     }
@@ -194,7 +218,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
     p.global = p.official.global || null;
     p.country = p.official.country || null;
     p.firsts = Object.fromEntries(CATS.map(cat => [cat, p.lists[cat].filter(t => position.get(`${p.id}:${t[S.MAP]}`) === 1).length]));
-    p.dan = (raw.DanPasses || []).map((s, i) => (s ? [i, toTuple(s)] : null)).filter(Boolean);
+    p.dan = (raw.DanPasses || []).map((s, i) => (playable(s) ? [i, toTuple(s)] : null)).filter(Boolean);
     p.danScore = raw.DanScore || 0;
     const all = CATS.flatMap(cat => p.lists[cat]);
     p.last = all.reduce((max, t) => Math.max(max, t[S.TIME]), 0) || null;
@@ -571,7 +595,11 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
       'challenges.json': challenges,
       'quiz.json': quiz,
       'history.json': history,
+      // maps-index.json is what released clients up to the per-file versioning read; drop it once every branch's
+      // data.js reads maps-top.json + maps-search.json (see notes/data-format.md).
       'maps-index.json': mapsIndex,
+      'maps-top.json': { total: mapsIndex.length, rows: mapsIndex.slice(0, MAPS_TOP) },
+      'maps-search.json': encodeMapsSearch(mapsIndex),
       ...Object.fromEntries(Object.entries(playerFiles).map(([id, file]) => [`players/${id}.json`, file])),
       ...Object.fromEntries(Object.entries(mapBuckets).map(([b, file]) => [`maps/${b}.json`, file])),
     },
