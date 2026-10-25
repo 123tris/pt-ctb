@@ -15,7 +15,8 @@
 
 # Data files are fetched as data/x.json?v=<hash of that file's content> (core/data.js, from the manifest in meta.json),
 # so a changed file gets a fresh URL and an unchanged one stays cached across exports. meta.json is always fetched with
-# cache: 'no-cache', so it's revalidated anyway.
+# cache: 'no-cache', so it's revalidated anyway. The release build adds its CORS header inside this block, not in a
+# second /data/* block: with two, ptcatch.com served data as max-age=0 (tools/lib/headers.mjs).
 /data/*
   Cache-Control: public, max-age=604800
 

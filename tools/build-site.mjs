@@ -17,6 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIG } from '../assets/js/config.js';
+import { addHeader, assertOneBlock } from './lib/headers.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
@@ -52,8 +53,9 @@ const edit = (file, change) => {
 if (settings) {
   edit('assets/js/config.js', s => `${s}\n// Set by tools/build-site.mjs for the "${branch}" branch.\nObject.assign(CONFIG, ${JSON.stringify(settings)});\n`);
   if (release) {
-    // Let the development site read the release site's data files.
-    edit('_headers', s => `${s}\n/data/*\n  Access-Control-Allow-Origin: ${CONFIG.development}\n`);
+    // Let the development site read the release site's data files. Inside the existing /data/* block: a second block
+    // for the same path made ptcatch.com drop the first one's Cache-Control (see tools/lib/headers.mjs).
+    edit('_headers', s => addHeader(s, '/data/*', 'Access-Control-Allow-Origin', CONFIG.development));
   } else {
     edit('index.html', s => s.replace('<html lang="en">', `<html lang="en" data-env="${settings.env}">`));
     edit('_headers', s => s.replace("connect-src 'self'", `connect-src 'self' ${CONFIG.production}`));
@@ -98,6 +100,7 @@ const hashes = [...new Set([...inline.scripts, ...inline.handlers].map(sha256))]
 if (inline.handlers.length) hashes.unshift("'unsafe-hashes'");
 const headersFile = path.join(dist, '_headers');
 fs.writeFileSync(headersFile, fs.readFileSync(headersFile, 'utf8').replaceAll('{{inline-script-hashes}}', hashes.join(' ')));
+if (release) assertOneBlock(fs.readFileSync(headersFile, 'utf8'), '/data/*', ['Cache-Control', 'Access-Control-Allow-Origin']);
 
 let files = 0;
 let bytes = 0;
