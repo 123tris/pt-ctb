@@ -122,6 +122,37 @@ export const catChip = cat => html`<span class="cat cat-${cat}">${CAT_SHORT[cat]
 export const posBadge = n => (n ? html`<span class="pos pos-${n <= 3 ? n : 'n'}" title="Position in Portugal"><span class="sr-only">Position in Portugal: </span>#${n}</span>` : '');
 export const ppText = n => html`<span class="pp">${fmt.pp(n)}<small>pp</small></span>`;
 
+// Players inactive on osu! (players.json `inactive`, only on them): osu! shows them at 0 pp, the site keeps their
+// official pp. `ppSource` says where it came from: 'last-known' (the value last seen on osu!; `ppSeen` dates it when the
+// exporter saw it itself) or 'estimated' (worked out from their stored plays, so usually on the low side). A null source
+// means 0 pp and no place on the board. Older data has none of these fields.
+export const isInactiveOnOsu = p => Boolean(p?.inactive);
+const isEstimated = p => isInactiveOnOsu(p) && p.ppSource === 'estimated';
+const ESTIMATE_TIP = 'Estimated from their stored plays, so probably a little low';
+
+/** A quiet "inactive" tag for players inactive on osu!. */
+export const inactiveTag = () => html`<span class="legend-tag" title="Inactive on osu!, which shows them at 0 pp">inactive<span class="sr-only"> on osu!</span></span>`;
+
+/**
+ * Official pp. An estimate reads "≈ 8,224pp (estimated)" (`compact`: just "≈ 8,224pp", with the rest in the tooltip);
+ * a last-known value with a date says when it was seen in its tooltip.
+ */
+export function officialPp(p, { compact = false } = {}) {
+  if (isEstimated(p)) {
+    return html`<span class="pp" title="${ESTIMATE_TIP}"><span aria-hidden="true">≈ </span>${fmt.pp(p.pp)}<small>pp</small></span>${compact
+      ? html`<span class="sr-only"> (estimated)</span>`
+      : html`<span class="est" title="${ESTIMATE_TIP}">(estimated)</span>`}`;
+  }
+  const seen = isInactiveOnOsu(p) && p.ppSeen ? `Last seen on osu! ${fmt.date(p.ppSeen)}` : '';
+  return seen ? html`<span class="pp" title="${seen}">${fmt.pp(p.pp)}<small>pp</small></span>` : ppText(p.pp);
+}
+
+/** Where an inactive player's official pp comes from: "estimated from their plays", "last seen 3 Mar 2026", "last known". */
+export function officialPpNote(p) {
+  if (isEstimated(p)) return 'estimated from their plays';
+  return p.ppSeen ? `last seen on osu! ${fmt.date(p.ppSeen)}` : 'last known';
+}
+
 /** The stats of a play: mods, grade, accuracy, combo, misses. */
 export function scoreStats(s, { combo = true } = {}) {
   return html`${modsBadges(s[S.MODS])}

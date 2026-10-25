@@ -3,7 +3,7 @@ import { players, modRankings, meta } from '../core/data.js';
 import { S } from '../core/model.js';
 import {
   setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, prefs, SLUG_CAT, CAT_LABEL, pageHead,
-  chipGroup, setPressed, writeQuery, announce, resultCount,
+  chipGroup, setPressed, writeQuery, announce, resultCount, isInactiveOnOsu, inactiveTag, officialPp,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -18,7 +18,7 @@ const BOARDS = [
 const INTRO = {
   converts: html`osu!standard maps played in catch mode. Each player’s best plays add up the way osu! does it: every play is worth 95% of the one before. <a class="help-link" href="#/glossary">What’s pp?</a>`,
   loved: 'Loved, pending and graveyarded maps. osu! gives no pp for these, so the bot works them out with the current osu!catch formula.',
-  ranked: 'The official osu!catch leaderboard. The pp and global rank come from each player’s osu! profile.',
+  ranked: 'The official osu!catch leaderboard. The pp and global rank come from each player’s osu! profile. Players who are inactive on osu! (where they show as 0 pp) stay here with their last known pp, or one estimated from their plays.',
   mods: 'Each player is ranked by the weighted pp of their plays that include the chosen mod (the “osupepe” way). An HDDT play counts for HD, DT and HDDT; NM counts plays without EZ, HD, HR, DT, HT or FL.',
 };
 
@@ -46,17 +46,20 @@ function boardTable(list, cat, me, title) {
         ? html`<th class="num col-opt">Global</th><th class="num col-opt">Country</th><th class="num col-opt">Accuracy</th><th class="num col-opt">Level</th>`
         : html`<th class="num col-opt">Scores</th><th class="num col-opt">#1s in PT</th><th class="num col-opt">Last played</th>`}
     </tr></thead>
-    <tbody>${list.map(p => {
-      const legend = !ranked && isInactive(p);
+    <tbody>${list.map((p, i) => {
+      // Converts/Loved: "legend" = no new plays stored in a year. Ranked: inactive on osu!, kept with their official pp.
+      const offOsu = ranked && isInactiveOnOsu(p);
+      const legend = ranked ? offOsu : isInactive(p);
+      const noRank = html`<span class="faint" title="Inactive on osu!, so no global or country rank">—</span>`;
       return html`<tr class="${p.id === me ? 'me' : ''} ${legend ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
-        <td class="rank">${p.rank[cat]}</td>
-        <td class="cell-player">${playerLink(p)}${legend ? html` <span class="legend-tag">legend<span class="sr-only">: no new plays stored in over a year</span></span>` : ''}
+        <td class="rank">${ranked ? i + 1 : p.rank[cat]}</td>
+        <td class="cell-player">${playerLink(p)}${offOsu ? html` ${inactiveTag()}` : legend ? html` <span class="legend-tag">legend<span class="sr-only">: no new plays stored in over a year</span></span>` : ''}
           <span class="cell-sub">${ranked
-            ? `${fmt.rank(p.global)} global · ${fmt.acc(p.acc)}`
+            ? (offOsu ? `Inactive on osu! · ${p.ppSource === 'estimated' ? 'pp estimated from their plays' : p.ppSeen ? `pp last seen ${fmt.date(p.ppSeen)}` : 'last known pp'}` : `${fmt.rank(p.global)} global · ${fmt.acc(p.acc)}`)
             : `${fmt.plural(p.count[cat], 'score')} · ${fmt.plural(p.firsts[cat], '#1', '#1s')}`}</span></td>
-        <td class="num">${ppText(p[key])}</td>
+        <td class="num">${ranked ? officialPp(p) : ppText(p[key])}</td>
         ${ranked
-          ? html`<td class="num col-opt">${fmt.rank(p.global)}</td><td class="num col-opt">${fmt.rank(p.country)}</td><td class="num col-opt">${fmt.acc(p.acc)}</td><td class="num col-opt">${fmt.num(p.level, 0)}</td>`
+          ? html`<td class="num col-opt">${offOsu ? noRank : fmt.rank(p.global)}</td><td class="num col-opt">${offOsu ? noRank : fmt.rank(p.country)}</td><td class="num col-opt">${fmt.acc(p.acc)}</td><td class="num col-opt">${fmt.num(p.level, 0)}</td>`
           : html`<td class="num col-opt">${fmt.num(p.count[cat])}</td><td class="num col-opt">${fmt.num(p.firsts[cat])}</td><td class="num faint col-opt">${p.last ? fmt.ago(p.last) : '—'}</td>`}
       </tr>`;
     })}</tbody>
@@ -97,6 +100,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
     <div class="toolbar">
       <input class="input" type="search" id="filter" placeholder="Search players…" aria-label="Search this leaderboard" value="${query.q || ''}">
       ${slug === 'converts' || slug === 'loved' ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show inactive legends</label></span>` : ''}
+      ${slug === 'ranked' && list.some(p => isInactiveOnOsu(p) && p.pp > 0) ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show players inactive on osu!</label></span>` : ''}
     </div>
     ${slug === 'mods' ? html`
       <div id="sources" style="margin-bottom:8px">${chipGroup('Plays from', 'src', SOURCES, source)}</div>
@@ -153,7 +157,11 @@ export default async function rankings(root, { params, query, isCurrent }) {
 
   if (slug !== 'mods') {
     const cat = SLUG_CAT[slug];
-    const rows = list.filter(p => p.rank[cat]).sort((a, b) => a.rank[cat] - b.rank[cat]);
+    // The official board is everyone with an osu! rank plus players inactive on osu! (kept with their official pp),
+    // all ordered by pp; the other boards come ranked from the exporter.
+    const rows = cat === 'r'
+      ? list.filter(p => p.rank.r || (isInactiveOnOsu(p) && p.pp > 0)).sort((a, b) => b.pp - a.pp || (a.rank.r ?? Infinity) - (b.rank.r ?? Infinity))
+      : list.filter(p => p.rank[cat]).sort((a, b) => a.rank[cat] - b.rank[cat]);
     boardEl.innerHTML = String(rows.length ? boardTable(rows, cat, me, board.title) : empty(`Nobody is on the ${CAT_LABEL[cat]} leaderboard yet.`));
     applyFilter();
     return;

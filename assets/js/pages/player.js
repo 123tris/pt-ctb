@@ -7,7 +7,7 @@ import { playerBadges, era, playerCard, cardPosition, signatureMap } from '../co
 import { THRONE_PLAYER } from '../core/lore.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
-  mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered,
+  mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -109,7 +109,15 @@ export default async function player(root, { params, query, isCurrent }) {
     <div class="stats">
       ${stat('Converts', html`${fmt.pp(p.cv)} pp`, p.rank.c ? `${fmt.rank(p.rank.c)} in Portugal` : 'Unranked', 'stat-c')}
       ${stat('Loved & Unranked', html`${fmt.pp(p.ul)} pp`, p.rank.u ? `${fmt.rank(p.rank.u)} in Portugal` : 'Unranked', 'stat-u')}
-      ${stat('Official pp', html`${fmt.pp(p.pp)} pp`, p.global ? `${fmt.rank(p.global)} global · ${fmt.rank(p.country)} PT` : 'No official rank', 'stat-r')}
+      ${!isInactiveOnOsu(p)
+        ? stat('Official pp', html`${fmt.pp(p.pp)} pp`, p.global ? `${fmt.rank(p.global)} global · ${fmt.rank(p.country)} PT` : 'No official rank', 'stat-r')
+        : p.pp > 0
+          ? stat('Official pp', p.ppSource === 'estimated'
+            ? html`<span aria-hidden="true">≈ </span>${fmt.pp(p.pp)} pp<span class="est" title="Estimated from their stored plays, so probably a little low">(estimated)</span>`
+            : html`${fmt.pp(p.pp)} pp`,
+            html`${inactiveTag()} ${officialPpNote(p)}`, 'stat-r')
+          // Inactive with nothing to go on (no last-known value, no plays to estimate from).
+          : stat('Official pp', '—', html`${inactiveTag()} no official pp known`, 'stat-r')}
       ${stat('Accuracy', fmt.acc(p.acc), `Level ${fmt.num(p.level, 0)}`)}
       ${stat('Play count', fmt.num(p.plays), `${fmt.num(p.grades[0])} SS · ${fmt.num(p.grades[1])} S · ${fmt.num(p.grades[2])} A`)}
       ${stat('Dan points', fmt.num(p.danScore), `${p.dan.length} of ${DAN_STAGES.length} stages`)}

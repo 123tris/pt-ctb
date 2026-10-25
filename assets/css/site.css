@@ -888,3 +888,10 @@ p a.dim-link { text-decoration: underline; }
 .event .where a { display: inline-block; padding-block: 4px; margin-block: -4px; }
 /* "Ranked 14 Mar 2021" on a map page: the date after the status, a little quieter. */
 .kv .status-date { font-weight: 500; color: var(--text-dim); white-space: nowrap; }
+
+/* Players inactive on osu! keep their official pp: an "est." after an estimated value, the "inactive" tag beside names. */
+.est { margin-left: 3px; font-size: .75em; font-weight: 600; color: var(--text-dim); cursor: help; }
+.mini-board .player .legend-tag { flex: none; overflow: visible; }
+.stat-sub .legend-tag { margin-left: 0; margin-right: 4px; }
+/* In a table the "(estimated)" sits on its own small line, so the pp column stays aligned. */
+td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height: 1.1; }
