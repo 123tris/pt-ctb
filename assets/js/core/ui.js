@@ -21,7 +21,13 @@ export function setTitle(title) {
 
 // ---- Players ------------------------------------------------------------------------------------------
 
-export const avatar = (id, cls = '') => html`<img class="avatar ${cls}" src="${avatarUrl(id)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`;
+/** Displayed avatar sizes by class (site.css), as width/height so the layout doesn't move when they load. */
+const AVATAR_SIZE = { 'avatar-lg': 88, 'avatar-md': 44, 'avatar-sm': 22 };
+
+export const avatar = (id, cls = '') => {
+  const size = AVATAR_SIZE[cls] ?? 32;
+  return html`<img class="avatar ${cls}" src="${avatarUrl(id)}" alt="" width="${size}" height="${size}" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">`;
+};
 
 /** A player's name with avatar, linking to their page. `who` is a players.json entry or an id + index. */
 export function playerLink(who, index, cls = '') {
@@ -81,10 +87,15 @@ export function starsBadge(stars) {
   return html`<span class="stars" style="background:${bg};color:${textOn(bg)}">★ ${fmt.num(stars, 2)}</span>`;
 }
 
+/** osu!'s cover sizes: list 150×104 (shown at 60×42), card 400×140, cover 900×250 (18:5). */
+const COVER_SIZE = { list: [60, 42], card: [400, 140], cover: [900, 250], 'cover@2x': [900, 250] };
+
 /** A beatmapset's cover image (`kind`: list, card, cover, cover@2x), or an empty placeholder of the same size. */
 export function setCover(set, kind = 'list', cls = 'map-cover') {
+  // width/height give the box its size (or, where CSS sets the width, its shape) before the image arrives.
+  const [w, h] = COVER_SIZE[kind] ?? COVER_SIZE.list;
   return set
-    ? html`<img class="${cls}" src="${coverUrl(set, kind)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+    ? html`<img class="${cls}" src="${coverUrl(set, kind)}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">`
     : html`<span class="${cls}"></span>`;
 }
 
@@ -272,7 +283,10 @@ export const openSearch = () => document.dispatchEvent(new KeyboardEvent('keydow
 
 export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const scrollBehavior = () => (reducedMotion() ? 'auto' : 'smooth');
-export const loading = () => html`<div class="loading"><div class="center"><div class="spinner" style="margin-inline:auto"></div>${pick(LOADING)}</div></div>`;
+/** Grey rows the height of score rows, held in place of a list that's still loading so the page doesn't jump. */
+export const placeholderRows = (n = 6) => html`<div class="rows rows-placeholder" aria-hidden="true">${Array.from({ length: Math.min(n, 50) }, () => html`<div class="row row-placeholder"></div>`)}</div>`;
+
+export const loading = () => html`<div class="loading"><div class="center"><div class="spinner" style="margin-inline:auto"></div>${pick(LOADING)}</div>${placeholderRows()}</div>`;
 
 /**
  * In-joke badges or map tags ({ name, tip }). Each is a toggle button: tapping it shows its explanation in the line

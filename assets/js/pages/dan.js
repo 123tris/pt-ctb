@@ -16,7 +16,7 @@ function stageCard(stage, data, index, selected) {
     <b>${danName(stage.index)}</b>
     <div class="small muted">${passers.length ? `${fmt.plural(passers.length, 'pass', 'passes')}` : 'No passes yet'}</div>
     ${passers.length ? html`<div class="avatars">
-      ${passers.slice(0, 5).map(([uid]) => html`<img src="https://a.ppy.sh/${uid}" alt="${index.get(uid)?.name ?? ''}" title="${index.get(uid)?.name ?? ''}" loading="lazy">`)}
+      ${passers.slice(0, 5).map(([uid]) => html`<img src="https://a.ppy.sh/${uid}" alt="${index.get(uid)?.name ?? ''}" title="${index.get(uid)?.name ?? ''}" width="22" height="22" loading="lazy" decoding="async">`)}
       ${passers.length > 5 ? html`<span class="more">+${passers.length - 5}</span>` : ''}
     </div>` : ''}
   </button>`;
