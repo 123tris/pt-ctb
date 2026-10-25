@@ -1,27 +1,29 @@
 <#
 .SYNOPSIS
-    Registers a Windows scheduled task that runs publish.ps1 every few hours.
+    Registers a Windows scheduled task that runs publish.ps1 every 15 minutes.
 
 .DESCRIPTION
-    The bot imports everyone's recent scores every 4 hours, so publishing on the same rhythm keeps the site
-    current. The task runs as the current user, only while they are logged on, and is replaced if it exists.
+    The bot checks for new plays every 15 minutes, and publishing uploads only what changed to R2 (no git commit, no
+    Pages build), so the site can follow at the same rhythm. The task runs as the current user, only while they are
+    logged on, and is replaced if it exists. A run still going when the next one is due is left alone (the new one is
+    skipped), so slow exports never pile up.
     Remove it with: Unregister-ScheduledTask -TaskName 'PT-CTB site publish'
 
 .EXAMPLE
-    .\install-publish-task.ps1                # every 4 hours
-    .\install-publish-task.ps1 -EveryHours 2
+    .\install-publish-task.ps1                   # every 15 minutes
+    .\install-publish-task.ps1 -EveryMinutes 60
 #>
-param([int]$EveryHours = 4)
+param([int]$EveryMinutes = 15)
 
 $ErrorActionPreference = 'Stop'
 $script = Join-Path $PSScriptRoot 'publish.ps1'
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
     -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$script`"" -WorkingDirectory $PSScriptRoot
-$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(5) `
-    -RepetitionInterval (New-TimeSpan -Hours $EveryHours)
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(2) `
+    -RepetitionInterval (New-TimeSpan -Minutes $EveryMinutes)
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries `
-    -ExecutionTimeLimit (New-TimeSpan -Hours 1)
+    -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
 
 Register-ScheduledTask -TaskName 'PT-CTB site publish' -Action $action -Trigger $trigger -Settings $settings `
-    -Description 'Exports the PT-CTB bot data to the site and pushes it to main (the release site).' -Force | Out-Null
-Write-Host "Scheduled 'PT-CTB site publish' every $EveryHours hours."
+    -Description 'Exports the PT-CTB bot data and uploads what changed to Cloudflare R2 (https://data.ptcatch.com).' -Force | Out-Null
+Write-Host "Scheduled 'PT-CTB site publish' every $EveryMinutes minutes."

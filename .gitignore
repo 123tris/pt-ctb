@@ -7,3 +7,6 @@ node_modules/
 .dev.vars*
 # Cloudflare Pages build output (npm run build).
 dist/
+# The site data and the exporter's memory live on Cloudflare R2 (publish.ps1, tools/r2-sync.mjs), not in git.
+data/
+state/

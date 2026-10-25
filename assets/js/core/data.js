@@ -1,10 +1,12 @@
-// Loads the exported JSON (data/*.json). meta.json is always revalidated; everything else is fetched with a hash of its
-// own content as a cache-buster (meta.files, written by tools/export.mjs), so a changed file is picked up at once and an
-// unchanged one keeps its URL and stays cached across exports. Data from before the manifest falls back to the export
-// time. CONFIG.data says where the files are: data/ here, or the release site's on development builds.
+// Loads the exported JSON. meta.json is always revalidated; every other file is fetched by a name that carries the hash
+// of its own content (meta.files, written by tools/export.mjs; core/data-name.js), so a changed file is picked up at
+// once and an unchanged one keeps its address and stays cached across exports. A file meta.json doesn't list doesn't
+// exist (404 → NotFound). CONFIG.data says where the files are: https://data.ptcatch.com (R2, kept current by
+// publish.ps1), or data/ with npm run serve -- --local-data, which maps the hashed names back to the plain files.
 
 import { CONFIG } from '../config.js';
 import { decodeMapsSearch } from './maps-search.js';
+import { hashedName } from './data-name.js';
 
 const cache = new Map();
 let metaPromise = null;
@@ -22,7 +24,7 @@ export function meta() {
 export function load(path) {
   if (!cache.has(path)) {
     const promise = meta()
-      .then(m => fetch(`${CONFIG.data}${path}?v=${m.files?.[path] ?? m.generatedAt}`))
+      .then(m => fetch(m.files?.[path] ? `${CONFIG.data}${hashedName(path, m.files[path])}` : `${CONFIG.data}${path}?v=${m.generatedAt}`))
       .then(r => {
         if (r.status === 404) throw new NotFound(path);
         if (!r.ok) throw new Error(`Couldn’t load ${path} (${r.status}).`);

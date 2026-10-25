@@ -17,8 +17,11 @@ export const CONFIG = {
   signIn: false,
   /** Per branch: 'dev' on development builds, which shows a DEV marker in the top bar. Empty on the release site. */
   env: '',
-  /** Per branch: where the data files are. Development builds read the release site's, so they're always current. */
-  data: 'data/',
+  /**
+   * Where the data files are: the R2 bucket publish.ps1 uploads to, for every copy of the site (both builds, GitHub
+   * Pages, npm run serve). `npm run serve -- --local-data` uses the local data/ instead.
+   */
+  data: 'https://data.ptcatch.com/',
   /**
    * Send visitors of the old GitHub Pages address (https://123tris.github.io/pt-ctb/) to the same page on
    * `production` (assets/js/moved.js). Turn on once the release site works.

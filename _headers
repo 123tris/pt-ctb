@@ -6,19 +6,15 @@
 # worked out by tools/build-site.mjs on every build, so editing those snippets can't silently get them blocked.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' {{inline-script-hashes}}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://a.ppy.sh https://assets.ppy.sh; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' {{inline-script-hashes}}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://a.ppy.sh https://assets.ppy.sh; connect-src 'self' https://data.ptcatch.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 
-# Data files are fetched as data/x.json?v=<hash of that file's content> (core/data.js, from the manifest in meta.json),
-# so a changed file gets a fresh URL and an unchanged one stays cached across exports. meta.json is always fetched with
-# cache: 'no-cache', so it's revalidated anyway. The release build adds its CORS header inside this block, not in a
-# second /data/* block: with two, ptcatch.com served data as max-age=0 (tools/lib/headers.mjs).
-/data/*
-  Cache-Control: public, max-age=604800
+# The data isn't served from here: it comes from https://data.ptcatch.com (R2), whose caching is set per file by
+# tools/r2-sync.mjs (meta.json no-cache, the rest a week, fetched as x.json?v=<content hash>).
 
 # Images rarely change.
 /assets/img/*
