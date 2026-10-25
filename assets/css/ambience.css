@@ -1,5 +1,5 @@
 /* The site's atmosphere and motion, a layer over site.css.
-   - The page sits on faint azulejo tiles, lit rosa from the top left and tile blue from the right, with film grain.
+   - The page sits on faint azulejo tiles, with film grain.
      The tiles live in the margins beside the page and fade out behind the reading column so text stays clear.
    - The logo's name is set in Unbounded.
    - Motion: sections fade up as they arrive, cards lift a little under the pointer, the Dan ladder's frontier pulses
@@ -15,13 +15,6 @@
 
 /* ---- Background ----------------------------------------------------------------------------------------------- */
 
-body {
-  background:
-    radial-gradient(1100px 620px at 8% -8%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 62%),
-    radial-gradient(900px 700px at 108% 26%, color-mix(in srgb, var(--cat-c) 5%, transparent), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
-}
 /* The tiles: shown in the margins beside the page (full strength at the window's edges, gone 140px before the text)
    only: nothing sits behind the text in the middle or along the top. */
 body::before {
