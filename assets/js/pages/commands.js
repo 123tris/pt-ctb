@@ -48,7 +48,7 @@ const GROUPS = [
   ]],
   ['Moderation', 'Only our lord and saviour has access to these commands.', [
     ['/ban · /showbanned', 'Removes a map from the leaderboards / shows removed maps.'],
-    ['/loadrecentscores', 'Imports everyone’s recent plays now (the bot also does this by itself every four hours).'],
+    ['/loadrecentscores', 'Imports everyone’s recent plays now (the bot also does this by itself every 30 minutes).'],
     ['/clear', 'Deletes recent messages in the channel.'],
   ]],
 ];
