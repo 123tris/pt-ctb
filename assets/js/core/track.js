@@ -44,7 +44,7 @@ function flush() {
   }
 }
 
-/** Records one event: kind is view | use | click | out | egg | pref | filter; name and detail are short labels. */
+/** Records one event: kind is view | seen | use | click | out | egg | pref; name and detail are short labels. */
 export function track(kind, name, detail = '', ref = '') {
   if (!enabled) return;
   queue.push(ref ? [kind, clean(name), clean(detail), ref] : [kind, clean(name), clean(detail)]);
@@ -80,6 +80,28 @@ export function trackView(key) {
   }
   firstView = false;
   track('view', key, via, ref);
+  watchSections(key);
+}
+
+let sectionWatcher = null;
+
+/**
+ * Notes each section heading (h2) of the page the first time it scrolls into view, so long pages (records, profiles,
+ * challenges) show how far people actually read, not just that they opened the page.
+ */
+function watchSections(key) {
+  sectionWatcher?.disconnect();
+  if (!enabled || !('IntersectionObserver' in window)) return;
+  const seen = new Set();
+  sectionWatcher = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting || seen.has(entry.target)) continue;
+      seen.add(entry.target);
+      sectionWatcher.unobserve(entry.target);
+      track('seen', key, entry.target.textContent.replace(/\d+/g, '#'));
+    }
+  });
+  document.querySelectorAll('#content h2').forEach(h => sectionWatcher.observe(h));
 }
 
 /** Labels a pressed button by its visible text (digits become #, so pages and counts group together). */

@@ -151,3 +151,15 @@ test('the dashboard counts visits, pages, ways in, buttons and unopened pages', 
   const dev = await (await stats(get('/stats?site=dev', basic('pw')), env, DAY)).text();
   assert.equal(dev.match(/<b>([^<]+)<\/b><span>visits/)[1], '1');
 });
+
+test('the dashboard shows how far people read each page, top section first', async () => {
+  const db = fakeD1();
+  const env = { USAGE: db, STATS_PASSWORD: 'pw' };
+  await recordHit(post(batch(['view', 'records'], ['seen', 'records', 'Legendary plays'], ['seen', 'records', 'Dethrone Tris'], ['seen', 'records', 'The collectors'])), env, DAY);
+  await recordHit(post(batch(['view', 'records'], ['seen', 'records', 'Legendary plays']), { ip: '8.8.8.8' }), env, DAY);
+  await recordHit(post(batch(['view', 'records'], ['seen', 'records', 'Legendary plays'], ['seen', 'records', 'Dethrone Tris']), { ip: '7.7.7.7' }), env, DAY);
+  await recordHit(post(batch(['view', 'records'], ['seen', 'records', 'Legendary plays']), { ip: '6.6.6.6' }), env, DAY);
+  const page = await (await stats(get('/stats', basic('pw')), env, DAY)).text();
+  const rowsFor = [...page.matchAll(/<tr><td>records<\/td><td>([^<]+)<\/td><td class="num">(\d+)<\/td><td>.*?(\d+%)<\/td><\/tr>/g)].map(m => m.slice(1));
+  assert.deepEqual(rowsFor, [['Legendary plays', '4', '100%'], ['Dethrone Tris', '2', '50%'], ['The collectors', '1', '25%']]);
+});

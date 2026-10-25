@@ -5,7 +5,7 @@
 // yesterday's salt is deleted, so after midnight (UTC) nobody, us included, can link a hash back to anyone.
 
 export const KEEP_DAYS = 400;
-const KINDS = new Set(['view', 'use', 'click', 'out', 'egg', 'pref', 'filter']);
+const KINDS = new Set(['view', 'seen', 'use', 'click', 'out', 'egg', 'pref', 'filter']);
 const MAX_EVENTS = 50;
 /** Labels keep letters, digits and plain punctuation only (no markup, emoji or control characters), 60 at most. */
 const label = s => (typeof s === 'string' ? s.replace(/[^\p{L}\p{N} #'’&.,:/!?()+\-–—…→←]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 60) : '');
