@@ -7,6 +7,7 @@ import {
 } from '../../assets/js/core/model.js';
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
 import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js';
+import { lisbonWeek, scoreId, weeklyBlock, sotwEvents } from './weekly.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -36,6 +37,8 @@ function toTuple(s) {
   return [
     s.beatmap_id, round(s.pp ?? 0), round(max ? (hits * 100) / max : 0), s.maxcombo, s.countmiss,
     s.enabled_mods, s.rank, s.score, isoTime(s.date), hits,
+    // S.POS (filled in player files only), then S.ID when the bot knows which kind of score id the play has.
+    ...(scoreId(s) ? [null, scoreId(s)] : []),
   ];
 }
 
@@ -181,17 +184,6 @@ function bestPerMap(tuples) {
   return [...byMap.values()].sort((a, b) => b[S.PP] - a[S.PP] || a[S.MAP] - b[S.MAP]);
 }
 
-/** ISO-8601 week id ("2026-W43") and its Monday 00:00 UTC start, for a unix time. */
-function isoWeek(time) {
-  const date = new Date(time * 1000);
-  const day = (date.getUTCDay() + 6) % 7; // Monday = 0
-  const monday = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() - day) / 1000;
-  const thursday = new Date((monday + 3 * DAY) * 1000);
-  const yearStart = Date.UTC(thursday.getUTCFullYear(), 0, 1) / 1000;
-  const week = 1 + Math.floor((monday + 3 * DAY - yearStart) / (7 * DAY));
-  return { id: `${thursday.getUTCFullYear()}-W${String(week).padStart(2, '0')}`, start: monday, end: monday + 7 * DAY };
-}
-
 /** A small stable string hash (FNV-1a), so the weekly map pick doesn't depend on Math.random. */
 function hash(text) {
   let h = 0x811c9dc5;
@@ -222,9 +214,17 @@ export const isUnclaimedCandidate = raw =>
   hasTitle(raw) && Number(raw.playmode) === MODE.CATCH &&
   (Number(raw.approved) === STATUS.RANKED || Number(raw.approved) === STATUS.APPROVED);
 
+/**
+ * A cached map osu!catch can play (a catch map or a convert), as the catch dump vouches: it gave the map a catch star
+ * rating. The cached mode can't say so on its own, as old cache entries file taiko and mania difficulties as catch.
+ */
+export const isSetDifficulty = raw => raw?.catch_difficulty === true;
+
 export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOfficial = {} }) {
   // A banned map keeps its scores, but every one of them is worth 0pp (as in the bot).
   const banned = bot.banned;
+  // The weekly highlights (Score of the week, top pp play, most plays), as the bot closed them.
+  const weekly = weeklyBlock(bot.weekly, now);
   // Taiko and mania maps can't be played in catch: a score on one (filed off a wrong cached mode) is never shown.
   const playable = s => !!s && ![MODE.TAIKO, MODE.MANIA].includes(Number(beatmaps.get(s.beatmap_id)?.playmode));
   const tuple = s => {
@@ -344,6 +344,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       firsts: p.firsts,
       danScore: p.danScore, dan: p.dan.map(([i]) => i),
       last: p.last,
+      ...(weekly.sotw.get(p.id) ? { sotw: weekly.sotw.get(p.id) } : {}),
     };
   });
 
@@ -368,7 +369,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const playerFiles = {};
   for (const p of people.values()) {
-    const withPos = t => [...t, position.get(`${p.id}:${t[S.MAP]}`) || null];
+    const withPos = t => Object.assign([...t], { [S.POS]: position.get(`${p.id}:${t[S.MAP]}`) || null });
     const lists = Object.fromEntries(CATS.map(cat => [cat, p.lists[cat].map(withPos)]));
     const ids = [...CATS.flatMap(cat => p.lists[cat].map(t => t[S.MAP])), ...p.dan.map(([, t]) => t[S.MAP]),
       ...p.dump_top.map(t => t[S.MAP]), ...p.pre.map(t => t[S.MAP])];
@@ -475,7 +476,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // ---- Activity --------------------------------------------------------------------------------------------------
 
   const since = now - ACTIVITY_DAYS * DAY;
-  const derived = [];
+  const derived = [...sotwEvents(bot.weekly?.weeks, since, now)];
   // A #1 set after the current runner-up's score must have taken the spot from them: their score already stood
   // and was the best of everyone else's (nobody's best ever goes down), so no history is needed to see snipes.
   for (const [id, board] of boards) {
@@ -606,7 +607,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   // ---- Challenges -------------------------------------------------------------------------------------------------
 
-  const week = isoWeek(now);
+  const week = lisbonWeek(now); // Monday 00:00 Lisbon: the same week as the bot's weekly highlights
   const weeks = { ...(previous.weeks || {}) };
   if (!weeks[week.id] || !boards.has(weeks[week.id])) {
     const pool = [...boards]
@@ -652,9 +653,55 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       board: weekBoard.entries, weekly: weekBoard.entries.filter(e => e[S.TIME + 1] >= week.start),
     } : null,
     beatable, lonely, unclaimed, bounties,
+    // Score of the week, top pp play and most plays: this week so far, the open vote and past weeks (null until the
+    // bot has written any).
+    weekly: weekly.block,
     maps: mapsFor([weekMap, ...beatable.map(r => r[0]), ...lonely.map(r => r[0]), ...unclaimed.map(r => r[0]),
-      ...bounties.map(r => r[0])].filter(Boolean)),
+      ...bounties.map(r => r[0]), ...weekly.mapIds].filter(Boolean)),
   };
+
+  // ---- Mapsets ------------------------------------------------------------------------------------------------------
+  // sets/{setId % 128}.json: the difficulties of each mapset a page here shows, { setId: [[mapId, version, stars,
+  // players]] } easiest first (as osu! orders them), for the map page's switcher. A set lists the maps with a page plus
+  // the rest of the set that osu!catch can play (isSetDifficulty), which get a page of their own: their details over an
+  // empty board. Sets with a single difficulty are left out.
+  const setRows = new Map(); // setId -> Map(mapId -> row)
+  const addRow = (set, row) => (setRows.get(set) ?? setRows.set(set, new Map()).get(set)).set(row[0], row);
+  for (const bucket of Object.values(mapBuckets)) {
+    for (const [id, e] of Object.entries(bucket)) if (e.m?.[M.SET]) addRow(e.m[M.SET], [Number(id), e.m[M.VERSION], e.m[M.STARS], e.s.length]);
+  }
+  // Dan stages and unclaimed maps have a page too (from dan.json and challenges.json).
+  for (const id of [...DAN_MAPS, ...unclaimed.map(r => r[0])]) {
+    const set = meta(id)?.beatmapset_id;
+    if (set && !setRows.has(set)) setRows.set(set, new Map());
+  }
+  // The dump's rows carry no title: a difficulty without one borrows its set's (and the set's ranked date).
+  const titled = new Map();
+  const unlisted = [];
+  for (const raw of beatmaps.values()) {
+    if (!setRows.has(raw.beatmapset_id)) continue;
+    if (hasTitle(raw) && !titled.has(raw.beatmapset_id)) titled.set(raw.beatmapset_id, raw);
+    if (isSetDifficulty(raw) && !setRows.get(raw.beatmapset_id).has(raw.beatmap_id)) unlisted.push(raw);
+  }
+  const newEntries = new Map(); // mapId -> bucket entry, for the difficulties with no page yet
+  for (const raw of unlisted) {
+    const cat = classify(Number(raw.approved), Number(raw.playmode));
+    if (!cat) continue;
+    const donor = titled.get(raw.beatmapset_id);
+    const sameStatus = donor && Number(donor.approved) === Number(raw.approved);
+    const m = toMapTuple(hasTitle(raw) || !donor ? raw : {
+      ...raw, artist: donor.artist, title: donor.title, creator: donor.creator,
+      approved_date: raw.approved_date ?? (sameStatus ? donor.approved_date : null),
+    });
+    newEntries.set(raw.beatmap_id, { m, c: cat, s: [] });
+    addRow(raw.beatmapset_id, [raw.beatmap_id, m[M.VERSION], m[M.STARS], 0]);
+  }
+  const setBuckets = {};
+  for (const [set, rows] of [...setRows].sort((a, b) => a[0] - b[0])) {
+    if (rows.size < 2) continue;
+    (setBuckets[set % BUCKETS] ??= {})[set] = [...rows.values()].sort((a, b) => a[2] - b[2] || a[0] - b[0]);
+    for (const id of rows.keys()) if (newEntries.has(id)) (mapBuckets[id % BUCKETS] ??= {})[id] = newEntries.get(id);
+  }
 
   // ---- Quiz pool ---------------------------------------------------------------------------------------------------
 
@@ -771,6 +818,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       ...Object.fromEntries(Object.entries(playerFiles).map(([id, file]) => [`players/${id}.json`, file])),
       ...Object.fromEntries(Object.entries(headFiles).map(([id, file]) => [`players/${id}-head.json`, file])),
       ...Object.fromEntries(Object.entries(mapBuckets).map(([b, file]) => [`maps/${b}.json`, file])),
+      ...Object.fromEntries(Object.entries(setBuckets).map(([b, file]) => [`sets/${b}.json`, file])),
     },
     state,
   };
