@@ -1,5 +1,5 @@
 import { html } from '../core/html.js';
-import { setTitle } from '../core/ui.js';
+import { setTitle, epigraph } from '../core/ui.js';
 import { TEAM_TIMELINE, TOP10_THREADS } from '../core/lore.js';
 
 export default async function team(root) {
@@ -7,7 +7,7 @@ export default async function team(root) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>Team Portugal <span class="faint" lang="pt-PT">· A Seleção</span></h1>
-      <p class="page-tag">From “we do it for fun” to a first series win</p>
+      ${epigraph('team')}
       <p>Portugal at the Catch World Cup and its 4-digit edition, as the Discord remembers it. The tournament channels are where this community is proudest and loudest.</p>
     </header>
 

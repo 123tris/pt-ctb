@@ -5,6 +5,7 @@ import { danName } from '../core/events.js';
 import { lineChart, chartHover } from '../core/charts.js';
 import { playerBadges, era, signatureMap } from '../core/badges.js';
 import { THRONE_PLAYER } from '../core/lore.js';
+import { jersey } from '../core/ladder.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
@@ -210,6 +211,7 @@ export default async function player(root, { params, query, isCurrent }) {
         </div>
         <p class="small faint" id="me-hint" ${prefs.get('me', null) === null ? '' : raw('hidden')}>Mark your own profile to highlight your rows on every leaderboard (saved in this browser).</p>
       </div>
+      ${jersey(p)}
     </header>
 
     <div class="stats">

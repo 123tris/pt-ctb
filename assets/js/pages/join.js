@@ -1,5 +1,5 @@
 import { html } from '../core/html.js';
-import { setTitle } from '../core/ui.js';
+import { setTitle, epigraph } from '../core/ui.js';
 import { CONFIG } from '../config.js';
 
 // Everything a newcomer needs in one place: join the Discord, verify, play. (It used to be split between the home
@@ -9,7 +9,7 @@ export default async function join(root) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>How to join</h1>
-      <p class="page-tag">PT flag on osu!? Come on in, we don’t bite (much)</p>
+      ${epigraph('join')}
       <p>The server is for Portuguese osu!catch players. Three steps and you’re on the leaderboards.</p>
       ${CONFIG.discordInvite ? html`<div class="btn-row" style="margin-top:14px">
         <a class="btn btn-discord" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>

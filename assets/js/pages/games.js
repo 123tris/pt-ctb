@@ -1,7 +1,7 @@
 import { html } from '../core/html.js';
 import { quiz, players, mapsIndex } from '../core/data.js';
-import { setTitle, avatar, coverUrl, prefs, starsBadge, catChip } from '../core/ui.js';
-import { BOSS_SETS, TUGA_SET, pick as stablePick } from '../core/lore.js';
+import { setTitle, avatar, coverUrl, prefs, starsBadge, catChip, epigraph } from '../core/ui.js';
+import { BOSS_SETS, TUGA_SET, RIVALRIES, pick as stablePick } from '../core/lore.js';
 import { wysi } from '../core/fun.js';
 import * as fmt from '../core/fmt.js';
 
@@ -38,24 +38,24 @@ function hub(root) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>Games</h1>
-      <p class="page-tag">For when your wrist needs a break</p>
+      ${epigraph('games')}
       <p>Quick games made from the community’s data. Your records are saved in this browser.</p>
     </header>
-    <div class="grid grid-2">
+    <div class="grid grid-3 game-cards">
       <a class="card card-link" href="#/games/guess">
-        <span class="eyebrow">Game 1</span>
+        <span class="game-art"><img class="game-art-blur" src="${coverUrl(BOSS_SETS[Math.floor(Date.now() / 864e5) % BOSS_SETS.length], 'card')}" alt="" width="400" height="140" loading="lazy" decoding="async"></span>
         <h2>Guess the map</h2>
         <p class="muted">Name the map from its blurred cover. <b>Daily:</b> one map a day, three tries, like the Discord’s Wordle but with fruit. <b>Practice:</b> ten rounds with a boss round at the end.</p>
         <p class="small faint" style="margin:0">${daily?.streak ? `Daily streak: ${daily.streak} ${daily.streak === 1 ? 'day' : 'days'}` : 'No daily streak yet.'}${best !== null ? ` · Practice record: ${best} of 30` : ''}</p>
       </a>
       <a class="card card-link" href="#/games/quiz">
-        <span class="eyebrow">Game 2</span>
+        <span class="game-art"><img src="${coverUrl(TUGA_SET, 'card')}" alt="" width="400" height="140" loading="lazy" decoding="async"></span>
         <h2>Convert or specific?</h2>
         <p class="muted">The eternal argument, as a quiz. Or try “Overdose or Rain?” and name the difficulty from the cover and the stars.</p>
         <p class="small faint" style="margin:0">${quizBest !== null ? `Your record: ${quizBest} of 10` : 'You haven’t played yet.'}</p>
       </a>
       <a class="card card-link" href="#/games/higher-lower">
-        <span class="eyebrow">Game 3</span>
+        <span class="game-art game-art-duel">${avatar(RIVALRIES[0][0], 'avatar-md')}<span class="duel-vs">vs</span>${avatar(RIVALRIES[0][1], 'avatar-md')}<small>${RIVALRIES[0][2]}</small></span>
         <h2>Higher or lower?</h2>
         <p class="muted">Who has more pp, more #1s or more plays? Guess whether the next player is higher or lower and keep the streak alive.</p>
         <p class="small faint" style="margin:0">${streak !== null ? `Your best streak: ${streak}` : 'You haven’t played yet.'}</p>

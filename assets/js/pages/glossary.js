@@ -35,7 +35,7 @@ const SECTIONS = [
 export default async function glossary(root) {
   setTitle('Glossary');
   root.innerHTML = String(html`
-    ${pageHead({ title: 'Glossary', tag: 'New here? Start with the words', intro: 'What the numbers and badges on this site mean, and the words the community uses for them.' })}
+    ${pageHead({ title: 'Glossary', quote: 'glossary', intro: 'What the numbers and badges on this site mean, and the words the community uses for them.' })}
     ${SECTIONS.map(([title, terms]) => html`<section class="section">
       <h2>${title}</h2>
       <dl class="glossary">${terms.map(([term, text]) => html`<div><dt>${term}</dt><dd>${text}</dd></div>`)}</dl>

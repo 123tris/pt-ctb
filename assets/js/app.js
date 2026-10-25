@@ -92,7 +92,7 @@ async function route({ newPage = false } = {}) {
 
   const found = match(path);
   if (!found) trackView('not-found');
-  if (!found) return showError('Page not found', `${pick(NOT_FOUND)} Try the search, or go back to the home page.`, { newPage });
+  if (!found) return showError('Page not found', `${pick(NOT_FOUND)} Try the search, or go back to the home page.`, { newPage, glyph: 'ש' });
 
   const spinner = setTimeout(() => { if (ticket === current) root.innerHTML = String(loading()); }, 150);
   root.setAttribute('aria-busy', 'true');
@@ -124,9 +124,10 @@ function focusHeading() {
   heading.focus({ preventScroll: true });
 }
 
-function showError(title, text, { newPage = false, players = false } = {}) {
+/** An error page; `glyph` puts a Dan glyph above it (Shin, the stage nobody has reached, for a page that isn't there). */
+function showError(title, text, { newPage = false, players = false, glyph = '' } = {}) {
   setTitle(title);
-  root.innerHTML = String(html`<div class="empty"><h1>${title}</h1><p>${text}</p>
+  root.innerHTML = String(html`<div class="empty">${glyph ? html`<div class="lost-glyph" aria-hidden="true">${glyph}</div>` : ''}<h1>${title}</h1><p>${text}</p>
     <div class="btn-row" style="justify-content:center">
       <button class="btn btn-primary" type="button" data-open-search>Search players</button>
       ${players ? html`<a class="btn" href="#/players">Browse all players</a>` : ''}

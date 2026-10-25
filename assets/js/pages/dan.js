@@ -10,7 +10,7 @@ export const DAN_INTRO = html`The Dan course is the community’s ladder of chal
 
 function stageCard(stage, data, index, selected) {
   const passers = data.passers;
-  return html`<button class="dan-stage ${stage.index > 10 ? 'hebrew' : ''} ${selected ? 'selected' : ''}" data-stage="${stage.index}" type="button" aria-pressed="${selected}">
+  return html`<button class="dan-stage ${stage.index > 10 ? 'hebrew' : ''} ${passers.length ? '' : 'unpassed'} ${selected ? 'selected' : ''}" data-stage="${stage.index}" type="button" aria-pressed="${selected}">
     <span class="points">${stage.points} pts</span>
     <div class="dan-glyph">${stage.glyph}</div>
     <b>${danName(stage.index)}</b>

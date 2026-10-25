@@ -1,8 +1,8 @@
 // Shared bits of markup: players, maps, mods, grades, score rows, tabs, paging.
 
 import { html, raw } from './html.js';
-import { S, M, modString } from './model.js';
-import { LOADING, LEGENDS, pick } from './lore.js';
+import { S, M, modString, DAN_STAGES } from './model.js';
+import { LOADING, LEGENDS, EPIGRAPHS, pick } from './lore.js';
 import * as fmt from './fmt.js';
 
 export const CAT_LABEL = { c: 'Converts', u: 'Loved & Unranked', r: 'Ranked' };
@@ -221,13 +221,20 @@ export function scoreRow({ s, meta, player, index, pos, showMap = true, cat }) {
 
 // ---- Layout helpers ----------------------------------------------------------------------------------------
 
+/** A line from the Discord (lore.js EPIGRAPHS[key]) with where it came from, set under a page's heading. */
+export function epigraph(key) {
+  const line = EPIGRAPHS[key];
+  if (!line) return '';
+  return html`<figure class="epigraph"><blockquote>“${line[0]}”</blockquote><figcaption>${line[1]}</figcaption></figure>`;
+}
+
 /**
- * A page heading: a plain H1 that says what the page is, then (optionally) a line in the community's own voice and
- * an intro. In-jokes stay, but next to a heading a newcomer can understand.
+ * A page heading: a plain H1 that says what the page is, then (optionally) a line from the Discord (`quote`, a key of
+ * EPIGRAPHS) and an intro. In-jokes stay, but next to a heading a newcomer can understand.
  */
-export const pageHead = ({ title, tag, intro, extra }) => html`<header class="page-head">
+export const pageHead = ({ title, quote, intro, extra }) => html`<header class="page-head">
   <h1>${title}</h1>
-  ${tag ? html`<p class="page-tag">${tag}</p>` : ''}
+  ${quote ? epigraph(quote) : ''}
   ${intro ? html`<p>${intro}</p>` : ''}
   ${extra ?? ''}
 </header>`;
@@ -296,7 +303,10 @@ export const scrollBehavior = () => (reducedMotion() ? 'auto' : 'smooth');
 /** Grey rows the height of score rows, held in place of a list that's still loading so the page doesn't jump. */
 export const placeholderRows = (n = 6) => html`<div class="rows rows-placeholder" aria-hidden="true">${Array.from({ length: Math.min(n, 50) }, () => html`<div class="row row-placeholder"></div>`)}</div>`;
 
-export const loading = () => html`<div class="loading"><div class="center"><div class="spinner" style="margin-inline:auto"></div>${pick(LOADING)}</div>${placeholderRows()}</div>`;
+/** The loader: the Dan glyphs, 0 to Shin, climbing one window (site.css .climb). */
+export const climber = () => html`<span class="climb" aria-hidden="true"><span class="climb-strip">${DAN_STAGES.map(s => html`<span>${s.glyph}</span>`)}</span></span>`;
+
+export const loading = () => html`<div class="loading"><div class="center">${climber()}<div>${pick(LOADING)}</div></div>${placeholderRows()}</div>`;
 
 /**
  * In-joke badges or map tags ({ name, tip }). Each is a toggle button: tapping it shows its explanation in the line

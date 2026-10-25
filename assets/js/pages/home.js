@@ -1,14 +1,25 @@
 import { html } from '../core/html.js';
 import { meta, players, activity, challenges, records } from '../core/data.js';
-import { M } from '../core/model.js';
-import { eventItem } from '../core/events.js';
-import { LAST_REWORK, THRONE_PLAYER } from '../core/lore.js';
+import { M, DAN_STAGES } from '../core/model.js';
+import { eventItem, danName } from '../core/events.js';
+import { LAST_REWORK, THRONE_PLAYER, HISTORY } from '../core/lore.js';
+import { ladderBand, passCounts, highestDan, topStage } from '../core/ladder.js';
 import { season } from '../core/fun.js';
 import {
   setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { CONFIG } from '../config.js';
+
+/** Under the ladder: how far up Portugal has got, and what's left. */
+function ladderCaption(counts) {
+  const top = topStage(counts);
+  if (top < 0) return html`Nobody has passed a stage yet. Zeroth Dan is right there.`;
+  const next = DAN_STAGES[top + 1]?.key;
+  const left = !next ? '' : next === 'Shin' ? '; Shin is still waiting' : `; ${next} to Shin are still waiting`;
+  return html`<b>The Dan course, since 2018.</b> Portugal has climbed to the ${danName(top)}${left}.
+    <span lang="pt-PT" title="Still plenty of soup to eat: lots of growing to do">Ainda há muita sopa para comer.</span>`;
+}
 
 function miniBoard(list, key, cat) {
   const rows = list.filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 5);
@@ -43,11 +54,11 @@ export default async function home(root, { isCurrent }) {
   const week = ch.week;
   const weekMeta = week ? ch.maps[week.map] : null;
   const weekText = week ? mapText(week.map, weekMeta) : null;
+  const counts = passCounts(list);
 
   root.innerHTML = String(html`
     <section class="hero">
       <div>
-        <span class="flag-rule" aria-hidden="true"></span>
         <h1>Portugal’s <em>osu!catch</em> community</h1>
         <p class="hero-tag">Catching fruit and choking since 2018.</p>
         <p>Leaderboards, profiles, the Dan course, weekly challenges and games: everything the PT-CTB server’s bot tracks, in one place.</p>
@@ -66,6 +77,10 @@ export default async function home(root, { isCurrent }) {
         <div><dt>Fruits caught</dt><dd>${fmt.num(m.totals.fruits)}</dd></div>
         <div class="hero-rework" title="Last osu!catch pp change: ${fmt.date(LAST_REWORK)}"><dt>Days without a pp rework</dt><dd>${fmt.num(reworkDays)}</dd></div>
       </dl>
+      <div class="hero-ladder">
+        ${ladderBand(counts, { mine: highestDan(mine) })}
+        <p class="ladder-caption">${ladderCaption(counts)} <a href="#/challenges/dan">Open the Dan course</a></p>
+      </div>
     </section>
 
     ${season() === 'xmas' ? html`<p class="notice" style="margin-top:16px">Feliz Natal, you lot. Play less, eat more. 🎅</p>` : ''}
@@ -85,12 +100,6 @@ export default async function home(root, { isCurrent }) {
       </div>
     </section>
 
-    <a class="dan-strip card-link" href="#/challenges/dan">
-      <span class="dan-strip-glyphs" aria-hidden="true">0 · א · ש</span>
-      <span><b>The Dan course</b> <span class="muted">19 challenge maps from Zeroth Dan to Shin. Pass stages, earn points and Discord roles.</span></span>
-      <span class="dan-strip-go">Open the Dan course →</span>
-    </a>
-
     <section class="section grid grid-2">
       <div>
         <div class="section-head"><h2>Map of the week</h2><a href="#/challenges/week">Challenges →</a></div>
@@ -107,6 +116,11 @@ export default async function home(root, { isCurrent }) {
         <div class="section-head"><h2>Recent activity</h2><a href="#/activity">See all →</a></div>
         <div class="feed">${act.events.slice(0, 5).map(e => eventItem(e, index, act.maps))}</div>
       </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>Since 2018</h2><a href="#/team">Team Portugal →</a></div>
+      <ol class="since">${HISTORY.map(([year, text]) => html`<li><span class="since-year">${year}</span><p>${text}</p></li>`)}</ol>
     </section>
 
     <section class="section grid grid-2">

@@ -1,7 +1,7 @@
 import { html, raw } from '../core/html.js';
 import { players, playerFile, mapEntry } from '../core/data.js';
 import { S, M, MOD, catchPp, adjustedAr, weightedTotal } from '../core/model.js';
-import { setTitle, playerPicker, pickedPlayer, prefs, mapLink, ppText } from '../core/ui.js';
+import { setTitle, playerPicker, pickedPlayer, prefs, mapLink, ppText, epigraph } from '../core/ui.js';
 import { CALC_PRESETS } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
 
@@ -31,7 +31,7 @@ export default async function calculator(root, { query, isCurrent }) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>Calculator</h1>
-      <p class="page-tag">How much pp is it worth?</p>
+      ${epigraph('calculator')}
       <p>The current osu!catch pp formula (the same one the bot uses) and a "what if I set this play?" simulator. Do the maths before the next rework.</p>
     </header>
 

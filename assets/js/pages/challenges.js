@@ -77,7 +77,7 @@ export default async function challengesPage(root, { params, query, isCurrent })
   const { maps } = data;
 
   root.innerHTML = String(html`
-    ${pageHead({ title: 'Challenges', tag: 'There’s always something to conquer' })}
+    ${pageHead({ title: 'Challenges', quote: tab.slug })}
     ${subnav(tab)}
     <p class="muted subnav-intro">${tab.intro}</p>
     <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me) : tab.slug === 'targets' ? targetsPanel(data, maps, index) : ''}</div>

@@ -48,7 +48,7 @@ export const LOADING = [
 export const NOT_FOUND = [
   'It’s probably been in qualified since 2018.',
   'Reverse choke: everything was going fine and we died right at the end.',
-  'Is water soup? We don’t know. This page doesn’t exist either.',
+  'Like Shin, the last Dan: nobody has made it here.',
 ];
 
 export const FOOTER = [
@@ -56,6 +56,36 @@ export const FOOTER = [
   'trisKappa: everything on this site is a joke, except your misses.',
   'No Alphonses were harmed in the making of this site.',
   'Bad scores are most appreciated :)',
+];
+
+/**
+ * A line from the Discord under each page's heading, with where it came from: [quote, source]. Real chat lines,
+ * verbatim or near it (notes/discord-ideas.md), never a slogan written for the site.
+ */
+export const EPIGRAPHS = {
+  rankings: ['N digits when?', 'the server’s oldest running question, since 2019'],
+  maps: ['Farming converts for pp is like eating salads because you’re hungry.', 'the converts-vs-specifics war'],
+  week: ['B’s and C’s are where it’s at.', 'Tris, on the 2026 supporter challenge'],
+  dan: ['If you’re above Skrub, you hack.', 'the Dan course, 2018'],
+  targets: ['That’s not a real snipe.', 'on NF snipes, 2024'],
+  activity: ['The 1-miss gods have blessed you.', '#scores, 2020'],
+  records: ['Only for genius.', 'the server’s sarcastic stamp, since 2025'],
+  games: ['I’d think this was converted if I didn’t show it was CTB.', '#general, 2018'],
+  team: ['We do it for fun.', 'CWC 2018, after the group stage'],
+  compare: ['Distory your enemies.', 'a 2025 copypasta, typo and all'],
+  calculator: ['Time to quit this game instead.', 'Tris, after the 2021 rework'],
+  commands: ['Only our lord and saviour has access to this command.', 'Alphonse, to anyone who isn’t Tris'],
+  join: ['Bad scores are most appreciated :)', 'the #scores channel topic, since 2018'],
+  glossary: ['Is water soup?', 'a 2021 thread that never reached a verdict'],
+};
+
+/** The community's story in five years, for the home page (Team Portugal has the tournaments in full). */
+export const HISTORY = [
+  [2018, 'The server opens on 29 May. The Dan bot follows on 22 June.'],
+  [2021, 'Portugal gets its own leaderboards: converts in January, loved in February.'],
+  [2022, 'A round of 16 at the Catch World Cup, and the Dan course comes back to life.'],
+  [2025, '40th in the CWC qualifiers. Bulgaria was 41st. WE BEAT 41.'],
+  [2026, 'The first series win in Portugal’s CWC history. Alphonse wakes up again two weeks later.'],
 ];
 
 /** Short lines under activity events, by kind. A function gets the event and returns a line or null. */
@@ -73,7 +103,7 @@ export const QUIPS = {
 
 /** Dan role lore, shown under each role on the Dan page. `empty` replaces the text while nobody has the role. */
 export const DAN_ROLE_LORE = {
-  'Dan Skrub': { text: 'If you’re above Skrub, you hack.' },
+  'Dan Skrub': { text: 'The bottom rung, as in “back to Skrub”.' },
   'Dan Intermed': { text: 'Back in 2018, this one came with the right to add a custom emoji to the server.' },
   'Dan Expert': { text: 'Where the Dan course stops being polite.' },
   'Dan Beast': { text: 'For the beasts.', empty: 'Beast: still vacant.' },

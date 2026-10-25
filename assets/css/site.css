@@ -377,15 +377,8 @@ a.row.card-link:last-child { border-bottom: 0; }
 
 /* ---- Home --------------------------------------------------------------------------------------- */
 
-.hero {
-  display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 40px; align-items: end;
-  padding: clamp(24px, 5vw, 48px); background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
-}
-/* The flag's green and red in its 2:3 proportion, as a short rule above the title. */
-.flag-rule { display: flex; gap: 3px; width: 72px; height: 4px; margin-bottom: 22px; }
-.flag-rule::before, .flag-rule::after { content: ''; border-radius: 1px; }
-.flag-rule::before { flex: 2; background: #2fa865; }
-.flag-rule::after { flex: 3; background: #e5484d; }
+/* The hero sits on the page itself, no box: the title and numbers, then the Dan ladder across the full width. */
+.hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 40px; align-items: end; padding-top: 8px; }
 .hero h1 { font-size: clamp(2.25rem, 6vw, var(--fs-4xl)); max-width: 14ch; margin-bottom: .35em; line-height: 1; }
 .hero h1 em { font-style: normal; color: var(--accent); }
 .hero p { color: var(--text-dim); font-size: var(--fs-lg); max-width: 50ch; margin-bottom: 22px; }
@@ -397,6 +390,52 @@ a.row.card-link:last-child { border-bottom: 0; }
 .hero-stats dd { margin: 2px 0 0; font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
 @media (max-width: 820px) { .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
 @media (max-width: 480px) { .hero-stats dd { font-size: var(--fs-xl); } }
+
+/* The Dan ladder (core/ladder.js): the course's 19 glyphs as the site's mark. A stage lights up once someone in Portugal
+   has passed it (numerals in the text colour, Hebrew letters in gold); the highest one reached is the accent, with a
+   rule under it. Unlit stages stay as faint outlines of what's left to climb. */
+.hero-ladder { grid-column: 1 / -1; padding-top: 20px; border-top: 1px solid var(--border); }
+.ladder { display: block; color: inherit; }
+.ladder:hover { text-decoration: none; }
+.ladder-rungs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(19, minmax(0, 1fr)); }
+.rung { position: relative; display: grid; justify-items: center; gap: 8px; padding: 6px 0 10px; }
+.rung:nth-child(12) { border-left: 1px solid var(--border); }
+.rung-glyph { font: 700 clamp(1.25rem, 2.6vw, 2.25rem)/1 var(--display); color: transparent; -webkit-text-stroke: 1px var(--border-strong); transition: transform .15s; }
+.rung.lit .rung-glyph { color: var(--text); -webkit-text-stroke: 0; }
+.rung-he.lit .rung-glyph { color: var(--gold); }
+/* Hebrew letters come from a system font whose overlapping contours show through an outline, so unlit ones are a
+   solid, faint gold instead. */
+.rung-he:not(.lit) .rung-glyph { color: color-mix(in srgb, var(--gold) 30%, var(--bg)); -webkit-text-stroke: 0; }
+.rung.top .rung-glyph { color: var(--accent); }
+.rung.top::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: 0; height: 2px; border-radius: 1px; background: var(--accent); }
+.rung-n { font-size: var(--fs-xs); color: var(--text-faint); }
+.rung.mine .rung-n { color: var(--accent); font-weight: 700; }
+.ladder:hover .rung-glyph { transform: translateY(-2px); }
+.hero .ladder-caption { max-width: none; margin: 10px 0 0; font-size: var(--fs-sm); }
+.ladder-caption b { color: var(--text); font-weight: 600; }
+.ladder-caption [lang='pt-PT'] { font-family: var(--display); font-weight: 600; color: var(--gold); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .ladder:hover .rung-glyph { transform: none; } }
+/* Phones: the numerals on one row, the Hebrew letters under them. */
+@media (max-width: 600px) {
+  .ladder-rungs { grid-template-columns: repeat(11, minmax(0, 1fr)); row-gap: 6px; }
+  .rung { gap: 4px; padding-bottom: 8px; }
+  .rung:nth-child(12) { border-left: 0; }
+}
+
+/* "Since 2018": the community's story on one line, a dot per year, the latest filled. */
+.since { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--border-strong); }
+.since li { position: relative; padding: 18px 20px 0 0; }
+.since li::before { content: ''; position: absolute; top: -4px; left: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--bg); border: 1px solid var(--accent); }
+.since li:last-child::before { background: var(--accent); }
+.since-year { display: block; margin-bottom: 6px; font: 700 var(--fs-2xl)/1 var(--display); }
+.since p { margin: 0; color: var(--text-dim); font-size: var(--fs-sm); }
+@media (max-width: 760px) {
+  .since { grid-template-columns: minmax(0, 1fr); border-top: 0; border-left: 1px solid var(--border-strong); }
+  .since li { padding: 0 0 18px 20px; }
+  .since li:last-child { padding-bottom: 0; }
+  .since li::before { top: 6px; left: -4px; }
+  .since-year { font-size: var(--fs-xl); margin-bottom: 2px; }
+}
 
 /* Numbered steps: 01, 02… in the display face. */
 .steps { counter-reset: step; display: grid; gap: 16px; }
@@ -468,7 +507,20 @@ a.row.card-link:last-child { border-bottom: 0; }
 .board-views .faint { font-size: var(--fs-xs); }
 .week-cover { display: block; width: 100%; aspect-ratio: 18 / 5; object-fit: cover; background: var(--surface-3); border-bottom: 1px solid var(--border); }
 
-.profile-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-bottom: 28px; }
+.profile-head { position: relative; display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-bottom: 28px; }
+/* The player's highest Dan as a big outlined number in the corner, like the one on a shirt (core/ladder.js jersey). */
+.jersey { position: absolute; top: -6px; right: 0; display: grid; justify-items: end; color: var(--text-faint); }
+.jersey:hover { text-decoration: none; }
+.jersey-glyph { font: 700 clamp(5rem, 10vw, 8.5rem)/.85 var(--display); color: transparent; -webkit-text-stroke: 1.5px var(--border-strong); transition: -webkit-text-stroke-color .15s; }
+.jersey-he .jersey-glyph { color: color-mix(in srgb, var(--gold) 30%, var(--bg)); -webkit-text-stroke: 0; }
+.jersey:hover .jersey-glyph { -webkit-text-stroke-color: var(--accent); }
+.jersey-label { margin-top: 6px; font-size: var(--fs-xs); font-weight: 600; }
+.jersey:hover .jersey-label { color: var(--accent); }
+.profile-head:has(.jersey) .profile-info { padding-right: 170px; }
+@media (max-width: 600px) {
+  .jersey-glyph { font-size: 4.75rem; }
+  .profile-head:has(.jersey) .profile-info { padding-right: 0; }
+}
 .profile-head h1 { margin: 0 0 10px; }
 /* Name, badges, tags, buttons and hint stack with one gap between them. The block keeps beside the avatar (rows wrap
    inside it) until there's less than 280px there, as on phones, where it drops below. */
@@ -505,10 +557,20 @@ a.row.card-link:last-child { border-bottom: 0; }
 a.dan-stage:hover { text-decoration: none; }
 .dan-stage:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .dan-stage.selected { border-color: var(--accent); background: var(--accent-bg); }
-.dan-stage.locked { color: var(--text-dim); border-style: dashed; }
-.dan-stage.locked .dan-glyph { color: var(--text-dim); }
 .dan-glyph { font: 700 2.25rem/1 var(--display); margin-bottom: 10px; color: var(--text); }
 .dan-stage.hebrew .dan-glyph { color: var(--gold); }
+/* A stage not passed yet (by this player, or by anyone) keeps only the outline of its glyph, as on the home ladder. */
+.dan-stage.locked { color: var(--text-dim); }
+.dan-stage.locked .dan-glyph, .dan-stage.unpassed .dan-glyph { color: transparent; -webkit-text-stroke: 1px var(--border-strong); }
+.dan-stage.hebrew.locked .dan-glyph, .dan-stage.hebrew.unpassed .dan-glyph { color: color-mix(in srgb, var(--gold) 35%, var(--surface)); -webkit-text-stroke: 0; }
+/* Phones: four stages a row, glyph and passes only, so the 19 stages take one screen instead of five. */
+@media (max-width: 600px) {
+  .dan-ladder { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .dan-stage { padding: 10px 8px; }
+  .dan-stage .points, .dan-stage > b, .dan-stage .avatars { display: none; }
+  .dan-stage .dan-glyph { font-size: 1.75rem; margin-bottom: 6px; }
+  .dan-stage .small { font-size: var(--fs-xs); line-height: 1.3; }
+}
 .dan-stage .points { position: absolute; top: 12px; right: 12px; font-size: var(--fs-xs); color: var(--text-faint); font-weight: 600; }
 .dan-pass { color: var(--accent); }
 .avatars { display: flex; margin-top: 10px; }
@@ -674,8 +736,13 @@ a.dan-stage:hover { text-decoration: none; }
 .row-placeholder { height: 65px; }
 .row-placeholder::before { content: ''; display: block; width: 60%; height: 12px; margin-top: 10px; border-radius: var(--r-xs); background: var(--surface-3); opacity: .6; }
 @media (max-width: 700px) { .row-placeholder { height: 123px; } }
-.spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface-3); border-top-color: var(--accent); animation: spin .7s linear infinite; margin-bottom: 12px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* The loader (ui.js climber): one window onto the Dan glyphs, stepping from 0 up to Shin and round again. */
+.climb { display: block; width: 3ch; height: 1.15em; margin: 0 auto 10px; overflow: hidden; font: 700 1.875rem/1.15 var(--display); color: var(--text); text-align: center; }
+.climb-strip { display: grid; animation: climb 3.8s steps(19) infinite; }
+.climb-strip > span { height: 1.15em; }
+.climb-strip > span:nth-child(n + 12) { color: var(--gold); }
+@keyframes climb { to { transform: translateY(-100%); } }
+@media (prefers-reduced-motion: reduce) { .climb-strip { animation: none; } }
 .pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; color: var(--text-dim); font-size: var(--fs-sm); }
 .kbd { font-family: var(--mono); font-size: .85em; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 0 5px; color: var(--text); white-space: nowrap; }
 .cmd-list { display: grid; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
@@ -761,9 +828,10 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 @keyframes fall { to { transform: translateY(110vh) rotate(25deg); } }
 @media (prefers-reduced-motion: reduce) { .flash { animation-duration: .9s; } }
 
-/* Bacalhau mode (type "bacalhau"): the loader catches cod instead of fruit. */
-.bacalhau .spinner { border: 0; width: auto; height: auto; animation: none; }
-.bacalhau .spinner::before { content: '🐟'; display: inline-block; font-size: 26px; animation: bob .8s ease-in-out infinite alternate; }
+/* Bacalhau mode (type "bacalhau"): the loader shows a cod instead of climbing the Dan. */
+.bacalhau .climb { width: auto; height: auto; overflow: visible; }
+.bacalhau .climb-strip { display: none; }
+.bacalhau .climb::before { content: '🐟'; display: inline-block; font-size: 26px; animation: bob .8s ease-in-out infinite alternate; }
 @keyframes bob { to { transform: translateY(-8px) rotate(-12deg); } }
 
 /* The logo's seasonal hat: Santa in December, a bacalhau on Portugal Day. */
@@ -930,8 +998,6 @@ p a.dim-link { text-decoration: underline; }
 .nav-more-btn.active { color: var(--text); border-bottom-color: var(--accent); }
 @media (max-width: 940px) { .nav-more-btn.active { border-left-color: var(--accent); } }
 
-/* Headings: a plain H1, then the community's own line under it (pageHead() in ui.js). */
-.page-tag { font: 600 var(--fs-lg)/1.3 var(--display); color: var(--accent) !important; letter-spacing: .01em; margin: 2px 0 0 !important; }
 
 /* U7: chip groups say what they filter. */
 .chips-label { align-self: center; margin-right: 4px; color: var(--text-dim); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
@@ -1019,13 +1085,25 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 /* Pages in the header search's results (e.g. "Dan course"), above the players. */
 .search-results .search-page-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
 
-/* The Dan course's own strip on the home page (it lives under Challenges, so it gets a front-page way in). */
-.dan-strip {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; margin-top: 16px;
-  padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--r);
-}
-.dan-strip-glyphs { font: 700 1.5rem/1 var(--display); color: var(--gold); white-space: nowrap; }
-.dan-strip-go { color: var(--gold); font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; }
-@media (max-width: 560px) {
-  .dan-strip { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-}
+/* Games hub: each game shows what it's made of. A blurred boss cover for Guess the map, the "Eu estou aqui" cover for
+   the quiz, and a classic rivalry for Higher or lower. */
+.game-cards .card { display: flex; flex-direction: column; overflow: hidden; }
+.game-cards .card > p:last-child { margin-top: auto; }
+.game-art { position: relative; display: block; margin: -18px -18px 16px; aspect-ratio: 20 / 7; overflow: hidden; background: var(--surface-3); border-bottom: 1px solid var(--border); }
+.game-art > img:not(.avatar) { display: block; width: 100%; height: 100%; object-fit: cover; }
+.game-art .game-art-blur { filter: blur(7px); transform: scale(1.12); transition: filter .3s; }
+.card-link:hover .game-art-blur { filter: blur(4px); }
+.game-art-duel { display: flex; flex-wrap: wrap; align-content: center; align-items: center; justify-content: center; gap: 8px 14px; background: var(--surface-2); }
+.game-art-duel small { flex-basis: 100%; text-align: center; color: var(--text-faint); font-size: var(--fs-xs); }
+@media (prefers-reduced-motion: reduce) { .game-art .game-art-blur { transition: none; } }
+
+/* Under page headings: a line from the Discord and where it came from (ui.js epigraph). The opening quote hangs in the
+   margin so the words line up with the heading. */
+.epigraph { margin: 8px 0 0; max-width: 62ch; }
+.epigraph blockquote { margin: 0; text-indent: -.42em; font-size: var(--fs-lg); font-weight: 500; line-height: 1.4; color: var(--text); }
+.epigraph figcaption { margin-top: 2px; font-size: var(--fs-sm); color: var(--text-faint); }
+.epigraph figcaption::before { content: '— '; }
+.page-head .epigraph + p { margin-top: 14px; }
+
+/* The page-not-found glyph: Shin, the last Dan, which nobody has reached either. */
+.lost-glyph { margin-bottom: 14px; font: 700 clamp(5rem, 16vw, 8rem)/1 var(--display); color: color-mix(in srgb, var(--gold) 35%, var(--surface)); }

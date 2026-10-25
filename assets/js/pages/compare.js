@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { players, playerFile } from '../core/data.js';
 import { S, M, CATS, CAT, boardComparator } from '../core/model.js';
 import {
-  setTitle, avatar, playerPicker, pickedPlayer, prefs, mapLink, modsBadges, ppText, gradeBadge, paginate, empty, CAT_LABEL, tabs,
+  setTitle, avatar, playerPicker, pickedPlayer, prefs, mapLink, modsBadges, ppText, gradeBadge, paginate, empty, CAT_LABEL, tabs, epigraph,
 } from '../core/ui.js';
 import { RIVALRIES } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
@@ -74,7 +74,7 @@ export default async function compare(root, { params, query, isCurrent }) {
     const rivals = a ? list.filter(p => p.id !== a.id && p.cv > 0).sort((x, y) => Math.abs(x.cv - a.cv) - Math.abs(y.cv - a.cv)).slice(0, 6) : [];
     const presets = RIVALRIES.filter(([x, y]) => byId.has(x) && byId.has(y));
     root.innerHTML = String(html`
-      <header class="page-head"><h1>Compare two players</h1><p class="page-tag">Distory your enemies.</p>
+      <header class="page-head"><h1>Compare two players</h1>${epigraph('compare')}
         <p>Pick two players to compare their stats and see who wins on the maps they’ve both played.</p></header>
       ${pickers}
       ${!a && presets.length ? html`<section class="section"><h2>Classic rivalries</h2>
