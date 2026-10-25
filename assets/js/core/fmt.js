@@ -25,6 +25,9 @@ export const date = t => dateFormat.format(new Date(t * 1000));
 export const dateTime = t => dateTimeFormat.format(new Date(t * 1000));
 export const day = t => dayFormat.format(new Date(t * 1000));
 export const monthName = m => monthFormat.format(new Date(2026, m, 1)).replace('.', '');
+/** "Mar 2019", in UTC (monthly points are stamped 00:00 UTC on the 1st, which is still the month before in the Americas). */
+const monthYearFormat = new Intl.DateTimeFormat(LOCALE, { month: 'short', year: 'numeric', timeZone: 'UTC' });
+export const monthYear = t => monthYearFormat.format(new Date(t * 1000));
 
 const UNITS = [['year', 31536000], ['month', 2592000], ['week', 604800], ['day', 86400], ['hour', 3600], ['minute', 60]];
 

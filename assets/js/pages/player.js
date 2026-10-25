@@ -2,8 +2,8 @@ import { html, raw } from '../core/html.js';
 import { playerFile, playerIndex, history, records } from '../core/data.js';
 import { S, CATS, DAN_STAGES, DAN_MAPS, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
-import { lineChart } from '../core/charts.js';
-import { playerBadges, era, playerCard, cardPosition, signatureMap } from '../core/badges.js';
+import { lineChart, chartHover } from '../core/charts.js';
+import { playerBadges, era, signatureMap } from '../core/badges.js';
 import { THRONE_PLAYER } from '../core/lore.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
@@ -66,19 +66,26 @@ function clipFrom(points, from) {
 
 /**
  * `recorded` = [[time, convertPp, lovedPp, officialPp]], one per day something changed since the site started
- * tracking; `rebuilt` = the same, monthly, rebuilt from score dates for the time before. Rebuilt lines are dashed and
- * hold their last value up to the first recorded day; they may not join the solid lines exactly.
+ * tracking; `rebuilt` = the same, monthly, rebuilt from score dates for the time before. Any value can be null (no
+ * official pp for an inactive player): those points are skipped, never drawn as 0. Each rebuilt line is dashed and
+ * holds its last value until its solid line starts (or to the last recorded day if it never does); the two may not
+ * join exactly.
  */
-function historyChart(recorded, rebuilt, from) {
-  const start = recorded[0]?.[0];
-  const lines = HISTORY_LINES.map(([label, color, k]) => {
+function historyLines(recorded, rebuilt, from) {
+  const lastDay = recorded[recorded.length - 1]?.[0];
+  return HISTORY_LINES.map(([label, color, k]) => {
     const pick = list => list.filter(p => p[k] != null).map(p => [p[0], p[k]]);
+    const solid = pick(recorded);
     const dashed = pick(rebuilt);
-    if (dashed.length && start) dashed.push([start, dashed[dashed.length - 1][1]]);
+    const until = solid[0]?.[0] ?? lastDay;
+    if (dashed.length && until > dashed[dashed.length - 1][0]) dashed.push([until, dashed[dashed.length - 1][1]]);
     const clipped = clipFrom(dashed, from);
-    // A dashed line needs some length: from the first recorded day on, all that's left of it is that one point.
-    return { label, color, dashed: clipped.length > 1 && clipped[clipped.length - 1][0] > clipped[0][0] ? clipped : [], solid: clipFrom(pick(recorded), from) };
+    // A dashed line needs some length: from where its solid line starts, all that's left of it is that one point.
+    return { label, color, dashed: clipped.length > 1 && clipped[clipped.length - 1][0] > clipped[0][0] ? clipped : [], solid: clipFrom(solid, from) };
   });
+}
+
+function historyChart(lines) {
   const shown = lines.flatMap(l => [...l.dashed, ...l.solid]);
   if (shown.length < 2) return html`<p class="muted small">Not enough points in this range.</p>`;
   const span = shown.map(p => p[0]);
@@ -94,14 +101,40 @@ function historyChart(recorded, rebuilt, from) {
       ${anyDashed ? html`<span class="legend-dashed" title="${REBUILT_TIP}"><i aria-hidden="true"></i>dashed = reconstructed from score dates (approximate)<span class="sr-only">. ${REBUILT_TIP}</span></span>` : ''}</div>`;
 }
 
+/** The value a line has at `t`: its last point at or before `t`. */
+const valueAt = (points, t) => {
+  let value = null;
+  for (const p of points) { if (p[0] > t) break; value = p[1]; }
+  return value;
+};
+
+/**
+ * What the hover readout steps through: every time any line has a point, with each line's value then (from the solid
+ * line once it has started, otherwise the dashed one, marked approximate). Rows where everything is approximate are
+ * monthly reconstructions, so they're dated by month.
+ */
+function historyRows(lines) {
+  const times = [...new Set(lines.flatMap(l => [...l.dashed, ...l.solid].map(p => p[0])))].sort((a, b) => a - b);
+  return times.map(t => {
+    const items = lines.map(l => {
+      const exact = l.solid.length && t >= l.solid[0][0];
+      return { name: l.label, color: l.color, value: valueAt(exact ? l.solid : l.dashed, t), approx: !exact };
+    }).filter(item => item.value != null);
+    return { t, title: items.every(item => item.approx) ? fmt.monthYear(t) : fmt.date(t), items };
+  }).filter(row => row.items.length);
+}
+
+/** Collapsed by default (the choice is remembered); the chart is only drawn once it's opened. */
 function historySection(recorded, rebuilt) {
   const ranges = historyRanges(recorded, rebuilt);
   if (!ranges.length) return '';
-  return html`<section class="section card" id="history">
-    <div class="history-head"><h2 class="card-h">pp over time</h2>
-      ${ranges.length > 1 ? chipGroup('Range', 'range', ranges, 'all') : ''}</div>
-    <div id="history-chart">${historyChart(recorded, rebuilt, -Infinity)}</div>
-  </section>`;
+  return html`<details class="section card history" id="history" ${prefs.get('ppchart', false) ? raw('open') : ''}>
+    <summary><h2 class="card-h">pp over time</h2><span class="history-toggle" aria-hidden="true"></span></summary>
+    <div class="history-body">
+      ${ranges.length > 1 ? chipGroup('Range', 'range', ranges, 'all') : ''}
+      <div class="chart-wrap" id="history-chart"></div>
+    </div>
+  </details>`;
 }
 
 export default async function player(root, { params, query, isCurrent }) {
@@ -112,8 +145,6 @@ export default async function player(root, { params, query, isCurrent }) {
   setTitle(p.name);
   const badges = playerBadges(p, file, recs);
   const playerEra = era(p, file);
-  const card = playerCard(p, [...index.values()]);
-  const position = cardPosition(file);
   const signature = signatureMap(file);
 
   const counts = {
@@ -173,9 +204,7 @@ export default async function player(root, { params, query, isCurrent }) {
           : stat('Official pp', '—', html`${inactiveTag()} no official pp known`, 'stat-r')}
       ${stat('Accuracy', fmt.acc(p.acc), `Level ${fmt.num(p.level, 0)}`)}
       ${stat('Play count', fmt.num(p.plays), html`<span class="grade-counts">${['X', 'S', 'A'].map((g, i) => html`<span>${gradeBadge(g)}${fmt.num(p.grades[i])}</span>`)}</span>`)}
-      ${stat('Dan points', fmt.num(p.danScore), `${p.dan.length} of ${DAN_STAGES.length} stages`)}
-      ${card && position ? stat('Player card', `${card.ovr} OVR`, `${position.position} (${position.mod})`, 'stat-card') : ''}
-    </div>
+      ${stat('Dan points', fmt.num(p.danScore), `${p.dan.length} of ${DAN_STAGES.length} stages`)}    </div>
 
     ${id === THRONE_PLAYER ? html`<p class="notice" style="margin-top:16px">Every #1 on this profile is up for grabs. <a href="#/records?at=throne">Dethrone Tris →</a></p>` : ''}
 
@@ -203,14 +232,29 @@ export default async function player(root, { params, query, isCurrent }) {
     </section>
   `);
 
-  // The pp chart's range chips redraw only the chart.
+  // The pp chart: drawn when its section is first opened, redrawn (chart only) when the range changes.
   const ranges = historyRanges(points, rebuilt);
-  root.querySelector('#history .chips')?.addEventListener('click', e => {
+  const historyEl = root.querySelector('#history');
+  let range = ranges[0], drawn = false;
+  const drawHistory = () => {
+    drawn = true;
+    const lines = historyLines(points, rebuilt, range[2]);
+    const wrap = root.querySelector('#history-chart');
+    wrap.innerHTML = String(historyChart(lines));
+    chartHover(wrap, historyRows(lines), { onKey: announce });
+  };
+  historyEl?.addEventListener('toggle', () => {
+    prefs.set('ppchart', historyEl.open);
+    if (historyEl.open && !drawn) drawHistory();
+  });
+  if (historyEl?.open) drawHistory();
+  historyEl?.querySelector('.chips')?.addEventListener('click', e => {
     const chip = e.target.closest('[data-range]');
-    const range = chip && ranges.find(r => r[0] === chip.dataset.range);
-    if (!range) return;
-    setPressed(root.querySelector('#history'), 'range', range[0]);
-    root.querySelector('#history-chart').innerHTML = String(historyChart(points, rebuilt, range[2]));
+    const picked = chip && ranges.find(r => r[0] === chip.dataset.range);
+    if (!picked) return;
+    range = picked;
+    setPressed(historyEl, 'range', range[0]);
+    drawHistory();
   });
 
   // "This is me" is a toggle: the label stays the same, aria-pressed and a check mark show the state, and "Not you?"

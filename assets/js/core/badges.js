@@ -1,7 +1,7 @@
 // Fun profile extras worked out from a player's own file: badges named after the Discord's in-jokes, the player's
-// current "era", a FIFA-style card and their signature map. Pure functions: no DOM.
+// current "era" and their signature map. Pure functions: no DOM.
 
-import { S, M, MOD, MODE, CATS, DAN_ROLES, adjustedAr, modString } from './model.js';
+import { S, M, MOD, MODE, CATS, DAN_ROLES, adjustedAr } from './model.js';
 import { THRONE_PLAYER } from './lore.js';
 
 const DAY = 86400;
@@ -92,29 +92,6 @@ export function era(p, file, now = Date.now() / 1000) {
   if (share(x => x.cat === 'u') >= 0.5) return 'hunting loved maps';
   if (share(x => x.cat === 'r') >= 0.5) return 'playing specifics';
   return 'a bit of everything';
-}
-
-const POSITIONS = { HD: 'Playmaker', HR: 'Defender', DT: 'Striker', NM: 'Goalkeeper', EZ: 'Libero', FL: 'Sweeper' };
-
-/** A FIFA-style card: OVR from the player's best Portuguese rank, position from their favourite mod. */
-export function playerCard(p, list) {
-  const ranks = CATS.map(cat => [p.rank[cat], list.filter(q => q.rank[cat]).length]).filter(([r, n]) => r && n > 1);
-  if (!ranks.length) return null;
-  const best = Math.max(...ranks.map(([r, n]) => 1 - (r - 1) / (n - 1)));
-  return { ovr: Math.round(45 + 54 * best) };
-}
-
-export function cardPosition(file) {
-  const top = allPlays(file).sort((a, b) => b.s[S.PP] - a.s[S.PP]).slice(0, 50);
-  if (!top.length) return null;
-  const counts = {};
-  for (const { s } of top) {
-    const mods = modString(s[S.MODS]);
-    const key = ['DT', 'HD', 'HR', 'EZ', 'FL'].find(m => mods.includes(m) || (m === 'DT' && mods.includes('NC'))) ?? 'NM';
-    counts[key] = (counts[key] || 0) + 1;
-  }
-  const [mod] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-  return { mod, position: POSITIONS[mod] };
 }
 
 /**
