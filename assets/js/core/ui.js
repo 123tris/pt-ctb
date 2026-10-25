@@ -291,16 +291,26 @@ export const loading = () => html`<div class="loading"><div class="center"><div 
 /**
  * In-joke badges or map tags ({ name, tip }). Each is a toggle button: tapping it shows its explanation in the line
  * under the row (a "toggletip"), so it works on touch and is read out, unlike a title tooltip.
+ * `show` keeps the row short: only the first `show` chips are visible, and a "+N more" button reveals the rest.
  */
-export const funChips = (list, cls = '') => (list.length
+export const funChips = (list, cls = '', { show = Infinity } = {}) => (list.length
   ? html`<div class="fun-chips-wrap ${cls}">
-      <div class="fun-chips">${list.map(b => html`<button class="fun-chip" type="button" aria-pressed="false" data-tip="${b.tip}">${b.name}</button>`)}</div>
+      <div class="fun-chips">${list.map((b, i) => html`<button class="fun-chip" type="button" aria-pressed="false" data-tip="${b.tip}" ${i >= show ? 'hidden' : ''}>${b.name}</button>`)}${list.length > show
+        ? html`<button class="fun-chip fun-more" type="button" data-track="more badges">+${list.length - show} more</button>` : ''}</div>
       <p class="fun-tip" role="status" hidden></p>
     </div>`
   : '');
 
 // One listener for every badge row on the site.
 document.addEventListener('click', e => {
+  const more = e.target.closest('.fun-more');
+  if (more) {
+    const row = more.parentElement;
+    row.querySelectorAll('.fun-chip[hidden]').forEach(b => { b.hidden = false; });
+    more.remove();
+    row.querySelector('.fun-chip')?.focus();
+    return;
+  }
   const chip = e.target.closest('.fun-chip');
   const wraps = document.querySelectorAll('.fun-chips-wrap');
   wraps.forEach(wrap => {

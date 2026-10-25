@@ -675,6 +675,11 @@ a.dan-stage:hover { text-decoration: none; }
 }
 .fun-chip:hover, .fun-chip:focus-visible, .fun-chip[aria-pressed='true'] { border-style: solid; }
 .fun-chip[aria-pressed='true'] { background: var(--accent-bg); }
+.fun-chip[hidden] { display: none; }
+.fun-more { color: var(--text-dim); border-color: var(--border); }
+
+/* "On this page" links at the top of long pages (Records). */
+.jump-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 20px; }
 .fun-tip { margin: 8px 0 0; padding: 8px 12px; max-width: 60ch; background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--text-dim); }
 .fun-tip b { color: var(--text); margin-right: 4px; }
 .map-tags { margin-top: 12px; }

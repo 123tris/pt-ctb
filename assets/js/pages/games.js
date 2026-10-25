@@ -45,32 +45,31 @@ function hub(root) {
       <a class="card card-link" href="#/games/guess">
         <span class="eyebrow">Game 1</span>
         <h2>Guess the map</h2>
-        <p class="muted">A blurred cover of a map the community has played appears. The sooner you get it, the more points you score. Ten rounds, with a boss round at the end.</p>
-        <p class="small faint" style="margin:0">${best !== null ? `Your record: ${best} of 30` : 'You haven’t played yet.'}</p>
-      </a>
-      <a class="card card-link" href="#/games/higher-lower">
-        <span class="eyebrow">Game 2</span>
-        <h2>Higher or lower?</h2>
-        <p class="muted">Who has more pp, more #1s or more plays? Guess whether the next player is higher or lower and keep the streak alive.</p>
-        <p class="small faint" style="margin:0">${streak !== null ? `Your best streak: ${streak}` : 'You haven’t played yet.'}</p>
-      </a>
-      <a class="card card-link" href="#/games/daily">
-        <span class="eyebrow">Game 3</span>
-        <h2>Map of the day</h2>
-        <p class="muted">One blurred cover a day, three tries. Like the Discord’s Wordle, but with fruit.</p>
-        <p class="small faint" style="margin:0">${daily?.streak ? `Your streak: ${daily.streak} ${daily.streak === 1 ? 'day' : 'days'}` : 'No streak yet.'}</p>
+        <p class="muted">Name the map from its blurred cover. <b>Daily:</b> one map a day, three tries, like the Discord’s Wordle but with fruit. <b>Practice:</b> ten rounds with a boss round at the end.</p>
+        <p class="small faint" style="margin:0">${daily?.streak ? `Daily streak: ${daily.streak} ${daily.streak === 1 ? 'day' : 'days'}` : 'No daily streak yet.'}${best !== null ? ` · Practice record: ${best} of 30` : ''}</p>
       </a>
       <a class="card card-link" href="#/games/quiz">
-        <span class="eyebrow">Game 4</span>
+        <span class="eyebrow">Game 2</span>
         <h2>Convert or specific?</h2>
         <p class="muted">The eternal argument, as a quiz. Or try “Overdose or Rain?” and name the difficulty from the cover and the stars.</p>
         <p class="small faint" style="margin:0">${quizBest !== null ? `Your record: ${quizBest} of 10` : 'You haven’t played yet.'}</p>
+      </a>
+      <a class="card card-link" href="#/games/higher-lower">
+        <span class="eyebrow">Game 3</span>
+        <h2>Higher or lower?</h2>
+        <p class="muted">Who has more pp, more #1s or more plays? Guess whether the next player is higher or lower and keep the streak alive.</p>
+        <p class="small faint" style="margin:0">${streak !== null ? `Your best streak: ${streak}` : 'You haven’t played yet.'}</p>
       </a>
     </div>
   `);
 }
 
-// ---- Map of the day ------------------------------------------------------------------------------------------
+// ---- Guess the map: Daily (one map a day) or Practice (ten rounds) ------------------------------------------------
+
+const guessModes = mode => html`<div class="chips" style="justify-content:center;margin-bottom:12px">
+  <a class="chip ${mode === 'daily' ? 'active' : ''}" href="#/games/guess" ${mode === 'daily' ? html`aria-current="page"` : ''}>Daily</a>
+  <a class="chip ${mode === 'practice' ? 'active' : ''}" href="#/games/guess?mode=practice" ${mode === 'practice' ? html`aria-current="page"` : ''}>Practice</a>
+</div>`;
 
 // The day turns at midnight in Lisbon, so everyone gets the same map on the same day.
 const lisbonDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' });
@@ -79,7 +78,7 @@ const todayKey = (offsetDays = 0) => lisbonDay.format(Date.now() + offsetDays * 
 async function dailyGame(root, isCurrent) {
   const { sets } = await quiz();
   if (!isCurrent()) return;
-  setTitle('Map of the day');
+  setTitle('Guess the map · Daily');
   const today = todayKey();
   const pool = sets.slice(0, 300);
   const answer = stablePick(pool, `daily:${today}`);
@@ -101,9 +100,10 @@ async function dailyGame(root, isCurrent) {
     root.innerHTML = String(html`
       <div class="game">
         <header class="page-head center">
-          <span class="eyebrow"><a href="#/games">Games</a> · Map of the day · ${fmt.date(Date.parse(`${today}T12:00:00Z`) / 1000)}</span>
+          <span class="eyebrow"><a href="#/games">Games</a> · Guess the map · ${fmt.date(Date.parse(`${today}T12:00:00Z`) / 1000)}</span>
           <h1>Which map is today’s?</h1>
         </header>
+        ${guessModes('daily')}
         <div class="scoreboard"><span>Tries left <b>${done ? '—' : 3 - tries}</b></span><span>Streak <b>${done ? streak : saved.last === yesterday || saved.last === today ? saved.streak : 0}</b></span></div>
         <div class="game-cover"><img id="cover" alt="Map cover (blurred)" src="${coverUrl(answer[0], 'cover')}" style="filter:${done ? 'none' : `blur(${BLUR[Math.min(tries, 2)]}px) saturate(1.2)`}"></div>
         <div class="game-options" id="options">${options.map((s, i) => html`<button class="option ${done && s === answer ? 'right' : ''}" type="button" data-i="${i}" ${done ? html`disabled` : ''}>${s[2]}<small>${s[1]}</small></button>`)}</div>
@@ -111,7 +111,7 @@ async function dailyGame(root, isCurrent) {
           <p class="center muted small">${answer[1]} - ${answer[2]}, mapped by ${answer[3]}. A new map tomorrow.</p>
           <div class="btn-row" style="justify-content:center"><button class="btn" id="share" type="button">Copy result</button></div>` : ''}
       </div>`);
-    if (done) copyButton(root, `Map of the day · PT-CTB ${today}: ${tried ? `${'🍎'.repeat(tried - 1)}🎯 (${tried}/3)` : '❌'} · streak ${streak}`);
+    if (done) copyButton(root, `Guess the map (daily) · PT-CTB ${today}: ${tried ? `${'🍎'.repeat(tried - 1)}🎯 (${tried}/3)` : '❌'} · streak ${streak}`);
   };
 
   if (already !== null) { draw(true, already, saved.streak); return; }
@@ -208,7 +208,7 @@ const BLUR = [26, 14, 6]; // px per hint level; points = 3 - level
 async function guessGame(root, isCurrent) {
   const { sets } = await quiz();
   if (!isCurrent()) return;
-  setTitle('Guess the map');
+  setTitle('Guess the map · Practice');
   if (sets.length < 4) {
     root.innerHTML = String(html`<div class="empty">There aren’t enough maps for this game yet.</div>`);
     return;
@@ -232,6 +232,7 @@ async function guessGame(root, isCurrent) {
         <span class="eyebrow"><a href="#/games">Games</a> · Guess the map</span>
         <h1>Which map is this?</h1>
       </header>
+      ${guessModes('practice')}
       <div class="scoreboard"><span>Round <b><span id="round">1</span><small>/${ROUNDS}</small></b></span><span>Points <b id="score">0</b></span><span>Worth <b id="worth">3</b></span></div>
       <p class="center special-round" id="special"></p>
       <div class="game-cover"><img id="cover" alt="Map cover (blurred)"></div>
@@ -283,11 +284,11 @@ async function guessGame(root, isCurrent) {
         <h1 style="font-size:var(--fs-xl)">${score} of ${ROUNDS * 3} points</h1>
         <p class="muted">${score >= 25 ? 'You know your maps by heart!' : score >= 15 ? 'Not bad, you’ve been playing.' : 'Plenty of maps left to discover.'} Your record is ${best}.</p>
         <div class="btn-row" style="justify-content:center">
-          <a class="btn btn-primary" href="#/games/guess?r=${Date.now()}">Play again</a>
+          <a class="btn btn-primary" href="#/games/guess?mode=practice&r=${Date.now()}">Play again</a>
           <button class="btn" id="share" type="button">Copy result</button>
         </div>
       </div>`);
-    copyButton(root, `Guess the map · PT-CTB: ${score}/${ROUNDS * 3} 🍎 ${location.href.split('#')[0]}#/games/guess`);
+    copyButton(root, `Guess the map · PT-CTB: ${score}/${ROUNDS * 3} 🍎 ${location.href.split('#')[0]}#/games/guess?mode=practice`);
   };
 
   // A set without a cover can't be guessed: quietly swap it for the next one in the deck.
@@ -407,7 +408,8 @@ async function higherLower(root, isCurrent) {
 }
 
 export default async function games(root, { params, query, isCurrent }) {
-  if (params.game === 'guess') return guessGame(root, isCurrent);
+  // #/games/guess is the daily map and ?mode=practice the ten rounds; old #/games/daily links still work.
+  if (params.game === 'guess') return query.mode === 'practice' ? guessGame(root, isCurrent) : dailyGame(root, isCurrent);
   if (params.game === 'higher-lower') return higherLower(root, isCurrent);
   if (params.game === 'daily') return dailyGame(root, isCurrent);
   if (params.game === 'quiz') return quizGame(root, query, isCurrent);

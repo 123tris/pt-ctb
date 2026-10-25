@@ -27,13 +27,13 @@ const ROUTES = [
   ['records', () => import('./pages/records.js')],
   ['recap/:id/:year?', () => import('./pages/wrapped.js')],
   ['commands', () => import('./pages/commands.js')],
-  ['verify', () => import('./pages/verify.js')],
+  ['join', () => import('./pages/join.js')],
   ['team', () => import('./pages/team.js')],
   ['glossary', () => import('./pages/glossary.js')],
 ];
 
 /** Old addresses that moved: the Dan course is now a tab of Challenges (#/dan?stage=3 → #/challenges/dan?stage=3). */
-const MOVED = { dan: 'challenges/dan' };
+const MOVED = { dan: 'challenges/dan', verify: 'join' };
 
 function match(path) {
   const parts = path.split('/').filter(Boolean);
