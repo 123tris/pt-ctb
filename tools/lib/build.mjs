@@ -21,6 +21,11 @@ const HEAD_ROWS = 50;
  */
 const TOP_PLAYS = 50;
 const MOD_FILTERS = ['NM', 'HD', 'HR', 'DT', 'FL', 'EZ', 'HT', 'HDHR', 'HDDT', 'HRDT'];
+/**
+ * Where the Records page's hard maps start (nomod catch stars). 34 players have a #1 at 6★ and up and 24 have five or
+ * more, while the players with the most #1s overall hold them mostly on maps under 3★.
+ */
+const HARD_STARS = 6;
 const PP_MILESTONES = 1000;
 const ACTIVITY_DAYS = 120;
 const MAX_EVENTS = 400;
@@ -606,6 +611,13 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     .sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, n);
   const meta = id => beatmaps.get(id);
   const fairMods = t => !(t[S.MODS] & (2 | 256)); // no EZ/HT: a record shouldn't come from making the map easier
+  // A play on a hard map: HARD_STARS and up in catch stars (a convert the caches have no catch rating for doesn't
+  // count), not on a banned map, and without EZ/HT. DT and HR plays count at the map's nomod stars, as shown.
+  const onHardMap = t => {
+    const raw = meta(t[S.MAP]);
+    return fairMods(t) && !banned.has(t[S.MAP]) && raw?.difficultyrating >= HARD_STARS &&
+      (Number(raw.playmode) === MODE.CATCH || raw.catch_difficulty === true);
+  };
 
   const ranksByHour = new Array(24).fill(0);
   for (const { t } of allScores) ranksByHour[Number(lisbonHour.format(new Date(t[S.TIME] * 1000)))]++;
@@ -621,6 +633,13 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     longest: asRow(best(allScores.filter(x => fairMods(x.t) && meta(x.t[S.MAP])), x => meta(x.t[S.MAP]).hit_length)),
     oldestFirst: oldestFirst ? [oldestFirst.entries[0][0], oldestFirst.cat, ...oldestFirst.entries[0].slice(1)] : null,
     mostFirsts: Object.fromEntries(CATS.map(cat => [cat, leaders(p => p.firsts[cat])])),
+    // The most #1s with only hard maps counted, so easy maps can't pad it, and the hardest full combo of all.
+    hard: {
+      stars: HARD_STARS,
+      firsts: leaders(p => new Set(CATS.flatMap(cat => p.lists[cat]
+        .filter(t => position.get(`${p.id}:${t[S.MAP]}`) === 1 && onHardMap(t)).map(t => t[S.MAP]))).size),
+      fc: asRow(best(allScores.filter(x => x.t[S.MISS] === 0 && onHardMap(x.t)), x => meta(x.t[S.MAP]).difficultyrating)),
+    },
     mostSS: leaders(p => CATS.reduce((n, cat) => n + p.lists[cat].filter(t => isSS(t[S.GRADE])).length, 0)),
     mostFC: leaders(p => CATS.reduce((n, cat) => n + p.lists[cat].filter(t => t[S.MISS] === 0).length, 0)),
     // "The Soul wall", "the Edward wall": the players whose #1s have stood longest in numbers (2+ years). The top 3
@@ -660,7 +679,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const recordMapIds = [
     ...Object.values(records.topPlay), records.topCombo, ...Object.values(records.hardest), records.longest, records.oldestFirst,
-    records.highestChoke, ...records.wysi,
+    records.highestChoke, ...records.wysi, records.hard.fc,
   ].filter(Boolean).map(r => r[S.MAP + 2]);
   records.maps = mapsFor([...recordMapIds, ...(records.throne?.oldest || []).map(r => r[S.MAP + 2])]);
 

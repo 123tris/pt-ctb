@@ -53,16 +53,31 @@ function playRecord(title, row, maps, index, highlight) {
   </div>`;
 }
 
-/** A top-5 list: [[userId, value]]. */
-function leaders(title, rows, index, unit) {
+/** A top-5 list: [[userId, value]], with an optional line under the title and a footer. */
+function leaders(title, rows, index, unit, { note, foot } = {}) {
   return html`<div class="card">
     <h3>${title}</h3>
+    ${note ? html`<p class="small muted">${note}</p>` : ''}
     <div class="mini-board">${rows.map(([uid, value], i) => html`<a class="line" href="#/player/${uid}">
       <span class="n">${i + 1}</span>
       <span class="player">${avatar(uid, 'avatar-sm')}<span>${index.get(uid)?.name ?? uid}</span></span>
       <span class="pp">${fmt.num(value)}${unit ? html`<small>${unit}</small>` : ''}</span>
     </a>`)}</div>
+    ${foot || ''}
   </div>`;
+}
+
+/** Most #1s with only hard maps counted (records.hard), next to the overall count, and the hardest full combo. */
+function hardFirsts(h, maps, index) {
+  const [uid, cat, ...s] = h.fc || [];
+  const foot = h.fc ? html`<div class="card-foot">
+    <div class="muted" style="margin-bottom:8px">Hardest full combo</div>
+    ${mapLink(s[S.MAP], maps[s[S.MAP]])}
+    <div class="score-line" style="margin-top:8px">${playerLink(uid, index, 'avatar-sm')} ${catChip(cat)} ${scoreStats(s)}</div>
+  </div>` : '';
+  return leaders(`Most #1s on ${h.stars}★+ maps`, h.firsts, index, '', {
+    note: `The same count, but only on maps of ${h.stars}★ and up (nomod stars, no EZ or HT).`, foot,
+  });
 }
 
 export default async function recordsPage(root, { query, isCurrent }) {
@@ -138,6 +153,7 @@ export default async function recordsPage(root, { query, isCurrent }) {
       <p class="muted">Each category’s own #1 count is on the leaderboards.</p>
       <div class="grid grid-2">
         ${leaders('Most #1s', mostFirsts, index)}
+        ${r.hard?.firsts.length ? hardFirsts(r.hard, maps, index) : ''}
         ${r.wall?.length ? leaders('The biggest walls (#1s standing 2+ years)', r.wall, index) : ''}
         ${leaders('Most SSs', r.mostSS, index)}
         ${leaders('Most full combos', r.mostFC, index)}
