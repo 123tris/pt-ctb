@@ -212,7 +212,7 @@ export const pageHead = ({ title, tag, intro, extra }) => html`<header class="pa
 </header>`;
 
 export const stat = (label, value, sub = '', cls = '') =>
-  html`<div class="stat ${cls}"><div class="stat-label">${label}</div><div class="stat-value">${value}</div>${sub ? html`<div class="stat-sub">${sub}</div>` : ''}</div>`;
+  html`<div class="stat ${cls}"><div class="stat-label">${label}</div><div class="stat-value"><span class="stat-fit">${value}</span></div>${sub ? html`<div class="stat-sub">${sub}</div>` : ''}</div>`;
 
 /** A strip of links between sibling pages (real URLs, so not an ARIA tablist). `label` names the landmark. */
 export const tabs = (items, label = 'Sections') => html`<nav class="tabs" aria-label="${label}">${items.map(t =>

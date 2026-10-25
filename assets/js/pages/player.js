@@ -8,7 +8,7 @@ import { THRONE_PLAYER } from '../core/lore.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
-  isLegend, legendTag,
+  isLegend, legendTag, gradeBadge,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -114,13 +114,14 @@ export default async function player(root, { params, query, isCurrent }) {
         ? stat('Official pp', html`${fmt.pp(p.pp)} pp`, p.global ? `${fmt.rank(p.global)} global · ${fmt.rank(p.country)} PT` : 'No official rank', 'stat-r')
         : p.pp > 0
           ? stat('Official pp', p.ppSource === 'estimated'
-            ? html`<span aria-hidden="true">≈ </span>${fmt.pp(p.pp)} pp<span class="est" title="Estimated from their stored plays, so probably a little low">(estimated)</span>`
+            // "(estimated)" is only for screen readers here: the subtitle already says it, and the value stays one line.
+            ? html`<span title="Estimated from their stored plays, so probably a little low"><span aria-hidden="true">≈ </span>${fmt.pp(p.pp)} pp</span><span class="sr-only"> (estimated)</span>`
             : html`${fmt.pp(p.pp)} pp`,
             html`${inactiveTag()} ${officialPpNote(p)}`, 'stat-r')
           // Inactive with nothing to go on (no last-known value, no plays to estimate from).
           : stat('Official pp', '—', html`${inactiveTag()} no official pp known`, 'stat-r')}
       ${stat('Accuracy', fmt.acc(p.acc), `Level ${fmt.num(p.level, 0)}`)}
-      ${stat('Play count', fmt.num(p.plays), `${fmt.num(p.grades[0])} SS · ${fmt.num(p.grades[1])} S · ${fmt.num(p.grades[2])} A`)}
+      ${stat('Play count', fmt.num(p.plays), html`<span class="grade-counts">${['X', 'S', 'A'].map((g, i) => html`<span>${gradeBadge(g)}${fmt.num(p.grades[i])}</span>`)}</span>`)}
       ${stat('Dan points', fmt.num(p.danScore), `${p.dan.length} of ${DAN_STAGES.length} stages`)}
       ${card && position ? stat('Player card', `${card.ovr} OVR`, `${position.position} (${position.mod})`, 'stat-card') : ''}
     </div>
