@@ -42,7 +42,7 @@ export async function report(db, site, days, now = Date.now()) {
   const base = 'FROM events WHERE env = ?1 AND day >= ?2';
   const visit = "COUNT(DISTINCT day || visitor)";
   const q = sql => db.prepare(sql).bind(site, from);
-  const [daily, pages, used, via, clicks, out, fun, devices, countries, refs, me, total] = await db.batch([
+  const [daily, pages, used, via, clicks, out, fun, devices, countries, refs, me, total, seen] = await db.batch([
     q(`SELECT day, ${visit} AS visits, SUM(kind = 'view') AS views ${base} GROUP BY day ORDER BY day`),
     q(`SELECT name, COUNT(*) AS views, ${visit} AS visits ${base} AND kind = 'view' GROUP BY name ORDER BY views DESC`),
     q(`SELECT name, COUNT(*) AS n ${base} AND kind = 'use' GROUP BY name`),
@@ -55,11 +55,13 @@ export async function report(db, site, days, now = Date.now()) {
     q(`SELECT ref AS name, COUNT(*) AS n ${base} AND ref != '' GROUP BY ref ORDER BY n DESC LIMIT 15`),
     q(`SELECT ${visit} AS visits ${base} AND me = 1`),
     q(`SELECT ${visit} AS visits, SUM(kind = 'view') AS views ${base}`),
+    // Earliest time first seen = roughly the order down the page, so sections list top to bottom.
+    q(`SELECT name, detail, ${visit} AS visits, MIN(rowid) AS first ${base} AND kind = 'seen' GROUP BY name, detail ORDER BY name, first LIMIT 200`),
   ]);
   return {
     site, days, from, to: dayOf(now),
     daily: daily.results, pages: pages.results, used: used.results, via: via.results, clicks: clicks.results,
-    out: out.results, fun: fun.results, devices: devices.results, countries: countries.results, refs: refs.results,
+    out: out.results, fun: fun.results, devices: devices.results, countries: countries.results, refs: refs.results, seen: seen.results,
     me: me.results[0]?.visits ?? 0, visits: total.results[0]?.visits ?? 0, views: total.results[0]?.views ?? 0,
   };
 }
@@ -172,6 +174,14 @@ td { border-bottom:1px solid var(--line); padding:6px 8px; } .num { text-align:r
 ${pagesTable}
 ${unused.length ? `<p class="warn">Not opened at all in this period: <b>${unused.map(esc).join(', ')}</b>.</p>` : ''}
 
+<h2>How far people read</h2>
+<p class="muted">For each page, the share of its visits that scrolled each section heading into view, top of the page first. A section few people reach is a candidate to move up, shorten or cut.</p>
+${table(['Page', 'Section', { label: 'Visits that saw it', num: true }, 'Share of the page’s visits'],
+  r.seen.map(s => {
+    const total = r.pages.filter(p => p.name === s.name).reduce((a, p) => a + p.visits, 0);
+    return [td(esc(s.name)), td(esc(s.detail)), td(num(s.visits), 'num'), td(`${meter(s.visits, total)} ${pct(s.visits, total)}`)];
+  }), 'No sections seen yet.')}
+
 <div class="cols">
 <div><h2>How people move around</h2>
 <p class="muted">What the visitor clicked to open each page.</p>
@@ -196,7 +206,7 @@ ${table(['Site', { label: 'Visits started there', num: true }], r.refs.map(x => 
 </div>
 
 <div class="note">
-<p><b>What's recorded.</b> Page views, button presses, links out, easter eggs and the "This is me" switch, with the screen size class and country.
+<p><b>What's recorded.</b> Page views, which section headings scrolled into view, button presses, links out, easter eggs and the "This is me" switch, with the screen size class and country.
 No cookies, no IP addresses, no user agents and no ids: a visitor hash that changes every day (its salt is deleted at midnight UTC).
 Browsers with Do Not Track or Global Privacy Control are never counted. Events are deleted after ${KEEP_DAYS} days.</p>
 <p><b>Your own visits:</b> <span id="me-state">counted on this browser</span>. <button type="button" id="me-toggle">Don't count this browser</button></p>
