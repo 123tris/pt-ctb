@@ -19,7 +19,13 @@
 /data/*
   Cache-Control: public, max-age=604800
 
-# Images rarely change. JS and CSS keep Pages' default (revalidate every time): their names carry no version, and a
-# stale module mixed with fresh ones would break the page.
+# Images rarely change.
 /assets/img/*
   Cache-Control: public, max-age=604800
+
+# JS and CSS names carry no version, so browsers must revalidate them on every load: a stale module next to fresh ones
+# breaks the page ("does not provide an export named …"). Pages' default turned out to be max-age=14400, not this.
+/assets/js/*
+  Cache-Control: no-cache
+/assets/css/*
+  Cache-Control: no-cache
