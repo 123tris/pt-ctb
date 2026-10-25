@@ -86,16 +86,21 @@ already hold different branches, skip `git switch`.
 
 | | |
 |---|---|
-| Bucket `ptcatch-data` | Western Europe, Standard storage. Public only through the custom domain **data.ptcatch.com** (r2.dev off). CORS policy: GET/HEAD from ptcatch.com, www, dev, the two `pages.dev` addresses and localhost:8080/8788. |
+| Bucket `ptcatch-data` | Western Europe, Standard storage. Public only through the custom domain **data.ptcatch.com** (r2.dev off). CORS policy: GET/HEAD from any origin (`*`). |
 | Bucket `ptcatch-state` | Private. The exporter's memory (`state.json`, the 15 MB map-title cache `beatmaps.json`) and publish's own ledger `r2.json`. |
 | Cache Rule (zone ptcatch.com) | "Cache site data (data.ptcatch.com)": URI Full wildcard `https://data.ptcatch.com/*` → Eligible for cache, Edge TTL "use cache-control header if present, bypass cache if not", Browser TTL "Respect origin TTL". Without it Cloudflare doesn't cache `.json`, and every visitor's request would be an R2 read. |
+| Response Header Transform Rule (zone ptcatch.com) | "Data: CORS for any origin, no Vary": URI Full wildcard `https://data.ptcatch.com/*` → Set static `Access-Control-Allow-Origin: *`, Remove `Vary`. |
 | API token `ptcatch-publish` | Account API token, Object Read & Write, these two buckets only. Its keys are user environment variables `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, set with `tools/set-r2-keys.ps1` (hidden input, never in the repo). |
 
 **How a file is stored.** Every data file goes up under a name with the hash of its content, e.g.
 `players/1.<hash>.json` (`assets/js/core/data-name.js`). A name never gets different content, so files are cached for a
 year (`public, max-age=31536000, immutable`) and a new export can never be mixed up with an old one. `meta.json` is
 the one fixed name: browsers always revalidate it, and Cloudflare's edge keeps it for 60 s (`max-age=0, s-maxage=60`).
-Cloudflare's cache key includes the visitor's `Origin` header, so each site gets its own CORS answer from the cache.
+**CORS is the same for everyone.** Every answer from data.ptcatch.com says `Access-Control-Allow-Origin: *`, with no
+`Vary`. Browsers keep one cached copy per address whichever site asked for it: a per-site answer (R2's own CORS, which
+also leaves the header out when there's no `Origin`) would let a copy cached for ptcatch.com fail CORS on
+dev.ptcatch.com. The immutable files would stay that way for a year. The data is public and fetched without
+credentials, so `*` is safe, and the transform rule applies it to cached answers and 304s too.
 
 **A publish run** (`publish.ps1`, every 15 minutes from the scheduled task):
 1. `node tools/r2-sync.mjs restore` fills in a missing `data/` or `state/` from R2 (a fresh checkout); otherwise it
