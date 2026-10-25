@@ -225,6 +225,41 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 .chip:hover { color: var(--text); border-color: var(--border-strong); text-decoration: none; }
 .chip.active { background: var(--accent-bg); border-color: var(--accent-line); color: var(--accent); }
 
+/* A min–max slider (the Maps star filter): two range inputs over one track. Only their thumbs are drawn, and they
+   ignore the pointer; the whole strip takes presses and drags instead (pages/maps.js), so it is easy to hit. */
+.star-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; margin-bottom: 16px; }
+.star-filter .chips-label { margin-right: 0; }
+.range {
+  --thumb: 18px; --h: 36px; position: relative; flex: 0 1 320px; min-width: 200px; height: var(--h);
+  touch-action: pan-y; cursor: pointer;
+}
+.range-track {
+  position: absolute; left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2); top: 50%; height: 4px; margin-top: -2px;
+  border-radius: 2px; background: var(--surface-3);
+}
+.range-fill { position: absolute; inset: 0; border-radius: inherit; clip-path: inset(0 calc(100% - var(--hi, 100%)) 0 var(--lo, 0%)); }
+.range input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; background: none;
+  -webkit-appearance: none; appearance: none; pointer-events: none;
+}
+.range input:focus { z-index: 1; }
+.range input:focus-visible { outline: none; }
+.range input::-webkit-slider-runnable-track { height: 100%; background: none; }
+.range input::-moz-range-track { background: none; }
+.range input::-webkit-slider-thumb {
+  -webkit-appearance: none; width: var(--thumb); height: var(--thumb); margin-top: calc((var(--h) - var(--thumb)) / 2);
+  border: 0; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 3px var(--bg);
+}
+.range input::-moz-range-thumb { width: var(--thumb); height: var(--thumb); border: 0; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 3px var(--bg); }
+.range input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
+.range input:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
+.range-out { min-width: 6.5em; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
+.range-out.on { color: var(--text); }
+.range-reset { padding: 4px 0; border: 0; background: none; color: var(--accent); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+.range-reset:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* Phones: the label, readout and reset on one line, the track the full width under them (and a taller strip to hit). */
+@media (max-width: 480px) { .range { --h: 44px; order: 1; flex: 1 1 100%; } }
+
 .tabs { display: flex; flex-wrap: wrap; column-gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
 .tabs a { padding: 10px 12px 11px; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
 .tabs a:first-child { padding-left: 0; }
