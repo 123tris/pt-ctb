@@ -224,7 +224,7 @@ export const tabs = (items, label = 'Sections') => html`<nav class="tabs" aria-l
  */
 export const chipGroup = (label, attr, items, current) => html`<div class="chips" role="group" aria-label="${label}">
   <span class="chips-label" aria-hidden="true">${label}</span>
-  ${items.map(([value, text]) => html`<button class="chip ${value === current ? 'active' : ''}" type="button" data-${raw(attr)}="${value}" aria-pressed="${value === current}">${text}</button>`)}
+  ${items.map(([value, text]) => html`<button class="chip ${value === current ? 'active' : ''}" type="button" data-${raw(attr)}="${value}" aria-pressed="${String(value === current)}">${text}</button>`)}
 </div>`;
 
 /** Marks the chip (or other toggle) whose data-`attr` equals `value` as pressed, the rest as not. */

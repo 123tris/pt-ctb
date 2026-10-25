@@ -8,7 +8,7 @@ import { THRONE_PLAYER } from '../core/lore.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
-  isLegend, legendTag, gradeBadge,
+  isLegend, legendTag, gradeBadge, chipGroup, setPressed,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -42,20 +42,65 @@ function danGrid(file) {
   })}</div>`;
 }
 
-/** `points` = [[time, convertPp, lovedPp, officialPp]], one per day something changed. */
-function historyChart(points) {
-  if (points.length < 2) return '';
-  const first = points[0], last = points[points.length - 1];
-  const summary = `pp over time, ${fmt.date(first[0])} to ${fmt.date(last[0])}: Converts ${fmt.num(first[1])} to ${fmt.num(last[1])}, `
-    + `Loved ${fmt.num(first[2])} to ${fmt.num(last[2])}, official ${fmt.num(first[3])} to ${fmt.num(last[3])}.`;
-  return html`<section class="section card">
-    <h2 class="card-h">pp over time</h2>
-    ${lineChart([
-      { label: 'Converts', color: 'var(--cat-c)', points: points.map(p => [p[0], p[1]]) },
-      { label: 'Loved', color: 'var(--cat-u)', points: points.map(p => [p[0], p[2]]) },
-      { label: 'Official', color: 'var(--cat-r)', points: points.map(p => [p[0], p[3]]) },
-    ], { format: v => fmt.num(v), label: summary })}
-    <div class="legend"><span><i style="background:var(--cat-c)"></i>Converts</span><span><i style="background:var(--cat-u)"></i>Loved</span><span><i style="background:var(--cat-r)"></i>Official</span></div>
+const HISTORY_LINES = [['Converts', 'var(--cat-c)', 1], ['Loved', 'var(--cat-u)', 2], ['Official', 'var(--cat-r)', 3]];
+const REBUILT_TIP = 'Rebuilt month by month from the dates of this player’s stored scores. Only their best play on each map is '
+  + 'kept, and past totals use today’s pp values, so the real numbers back then were different.';
+
+/** The ranges the chart offers: everything, the last 12 months, or only the days the site recorded itself. */
+function historyRanges(recorded, rebuilt) {
+  const all = [...rebuilt, ...recorded];
+  if (all.length < 2) return [];
+  const end = all[all.length - 1][0];
+  const ranges = [['all', 'All', -Infinity]];
+  if (end - all[0][0] > 400 * 86400) ranges.push(['year', 'Last 12 months', end - 365 * 86400]);
+  if (rebuilt.length && recorded.length >= 2) ranges.push(['tracked', 'Since tracking', recorded[0][0]]);
+  return ranges;
+}
+
+/** Only the points from `from` on, starting with the value the line had at `from` (so it begins at the left edge). */
+function clipFrom(points, from) {
+  const before = points.filter(p => p[0] < from).at(-1);
+  const rest = points.filter(p => p[0] >= from);
+  return before ? [[from, before[1]], ...rest] : rest;
+}
+
+/**
+ * `recorded` = [[time, convertPp, lovedPp, officialPp]], one per day something changed since the site started
+ * tracking; `rebuilt` = the same, monthly, rebuilt from score dates for the time before. Rebuilt lines are dashed and
+ * hold their last value up to the first recorded day; they may not join the solid lines exactly.
+ */
+function historyChart(recorded, rebuilt, from) {
+  const start = recorded[0]?.[0];
+  const lines = HISTORY_LINES.map(([label, color, k]) => {
+    const pick = list => list.filter(p => p[k] != null).map(p => [p[0], p[k]]);
+    const dashed = pick(rebuilt);
+    if (dashed.length && start) dashed.push([start, dashed[dashed.length - 1][1]]);
+    const clipped = clipFrom(dashed, from);
+    // A dashed line needs some length: from the first recorded day on, all that's left of it is that one point.
+    return { label, color, dashed: clipped.length > 1 && clipped[clipped.length - 1][0] > clipped[0][0] ? clipped : [], solid: clipFrom(pick(recorded), from) };
+  });
+  const shown = lines.flatMap(l => [...l.dashed, ...l.solid]);
+  if (shown.length < 2) return html`<p class="muted small">Not enough points in this range.</p>`;
+  const span = shown.map(p => p[0]);
+  const summary = `pp over time, ${fmt.date(Math.min(...span))} to ${fmt.date(Math.max(...span))}: ${lines
+    .map(l => [...l.dashed, ...l.solid]).map((pts, i) => pts.length && `${HISTORY_LINES[i][0]} ${fmt.num(pts[0][1])} to ${fmt.num(pts[pts.length - 1][1])}`)
+    .filter(Boolean).join(', ')}.`;
+  const anyDashed = lines.some(l => l.dashed.length);
+  return html`${lineChart(lines.flatMap(l => [
+    { label: `${l.label} (reconstructed)`, color: l.color, points: l.dashed, dashed: true, step: true },
+    { label: l.label, color: l.color, points: l.solid },
+  ]), { format: v => fmt.num(v), label: anyDashed ? `${summary} Dashed parts are reconstructed from score dates and approximate.` : summary })}
+    <div class="legend">${lines.filter(l => l.dashed.length || l.solid.length).map(l => html`<span><i style="background:${l.color}"></i>${l.label}</span>`)}
+      ${anyDashed ? html`<span class="legend-dashed" title="${REBUILT_TIP}"><i aria-hidden="true"></i>dashed = reconstructed from score dates (approximate)<span class="sr-only">. ${REBUILT_TIP}</span></span>` : ''}</div>`;
+}
+
+function historySection(recorded, rebuilt) {
+  const ranges = historyRanges(recorded, rebuilt);
+  if (!ranges.length) return '';
+  return html`<section class="section card" id="history">
+    <div class="history-head"><h2 class="card-h">pp over time</h2>
+      ${ranges.length > 1 ? chipGroup('Range', 'range', ranges, 'all') : ''}</div>
+    <div id="history-chart">${historyChart(recorded, rebuilt, -Infinity)}</div>
   </section>`;
 }
 
@@ -83,6 +128,12 @@ export default async function player(root, { params, query, isCurrent }) {
   const years = [...new Set(CATS.flatMap(c => file.scores[c].map(s => new Date(s[S.TIME] * 1000).getFullYear())))].sort((a, b) => b - a);
   const dayTime = d => Date.parse(`${d}T12:00:00Z`) / 1000;
   const points = (hist.series[id] || []).map(([d, cv, ul, pp]) => [dayTime(hist.days[d]), cv, ul, pp]);
+  // Monthly points rebuilt from score dates (history.json `reconstructed`, as of 00:00 UTC), only for the time before
+  // the site's own records begin. Older data has no `reconstructed`.
+  const rebuiltDays = hist.reconstructed?.days ?? [];
+  const rebuilt = (hist.reconstructed?.series?.[id] ?? [])
+    .map(([d, cv, ul, pp]) => [Date.parse(`${rebuiltDays[d]}T00:00:00Z`) / 1000, cv, ul, pp])
+    .filter(p => Number.isFinite(p[0]) && (!points.length || p[0] < points[0][0]));
 
   root.innerHTML = String(html`
     <header class="profile-head">
@@ -134,7 +185,7 @@ export default async function player(root, { params, query, isCurrent }) {
       <div class="score-line" style="margin-top:10px">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
     </section>` : ''}
 
-    ${historyChart(points)}
+    ${historySection(points, rebuilt)}
 
     <section class="section">
       <h2 class="sr-only">Plays</h2>
@@ -151,6 +202,16 @@ export default async function player(root, { params, query, isCurrent }) {
         <div id="scores"></div>`}
     </section>
   `);
+
+  // The pp chart's range chips redraw only the chart.
+  const ranges = historyRanges(points, rebuilt);
+  root.querySelector('#history .chips')?.addEventListener('click', e => {
+    const chip = e.target.closest('[data-range]');
+    const range = chip && ranges.find(r => r[0] === chip.dataset.range);
+    if (!range) return;
+    setPressed(root.querySelector('#history'), 'range', range[0]);
+    root.querySelector('#history-chart').innerHTML = String(historyChart(points, rebuilt, range[2]));
+  });
 
   // "This is me" is a toggle: the label stays the same, aria-pressed and a check mark show the state, and "Not you?"
   // undoes it without having to guess that the same button does.

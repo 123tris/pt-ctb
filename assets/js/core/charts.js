@@ -12,10 +12,29 @@ function niceStep(range, ticks) {
   return [1, 2, 5, 10].map(m => m * power).find(step => step >= rough) || power;
 }
 
+const YEAR = 365.25 * 86400;
+
 /**
- * Lines over time. `series` = [{ label, color, points: [[x, y]] }] with x as unix seconds.
+ * Where the x-axis gets labels: each new year for long ranges (at most ~7 labels), otherwise start, middle and end
+ * (just start and end for a few days, where the middle would repeat a date).
+ */
+function timeTicks(x0, x1) {
+  if (x1 - x0 < 7 * 86400) return [[x0, fmt.date(x0)], [x1, fmt.date(x1)]];
+  if (x1 - x0 < 2 * YEAR) return [x0, (x0 + x1) / 2, x1].map(t => [t, fmt.date(t)]);
+  const first = new Date(x0 * 1000).getUTCFullYear() + 1, last = new Date(x1 * 1000).getUTCFullYear();
+  const every = Math.ceil((last - first + 1) / 7);
+  const ticks = [];
+  for (let year = first; year <= last; year += every) ticks.push([Date.UTC(year, 0, 1) / 1000, String(year)]);
+  return ticks;
+}
+
+/**
+ * Lines over time. `series` = [{ label, color, points: [[x, y]], dashed?, step? }] with x as unix seconds. Points with a
+ * null y are skipped. `dashed` lines get no end dot; `step` lines hold each value until the next point (for data that
+ * only has a point when something changed).
  */
 export function lineChart(series, { height = 240, format = v => fmt.num(v), label } = {}) {
+  series = series.map(s => ({ ...s, points: s.points.filter(p => p[1] != null) }));
   const all = series.flatMap(s => s.points);
   if (all.length < 2) return raw('');
   const pad = { l: 56, r: 16, t: 14, b: 28 };
@@ -38,12 +57,15 @@ export function lineChart(series, { height = 240, format = v => fmt.num(v), labe
     svg += `<line class="grid-line" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/>`;
     svg += `<text x="${pad.l - 8}" y="${y(v) + 4}" text-anchor="end">${escape(format(v))}</text>`;
   }
-  for (const t of [x0, (x0 + x1) / 2, x1])
-    svg += `<text x="${x(t)}" y="${height - 8}" text-anchor="middle">${escape(fmt.date(t))}</text>`;
+  for (const [t, text] of timeTicks(x0, x1))
+    svg += `<text x="${x(t)}" y="${height - 8}" text-anchor="middle">${escape(text)}</text>`;
   for (const s of series) {
     if (!s.points.length) continue;
-    const d = s.points.map((p, i) => `${i ? 'L' : 'M'}${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`).join('');
-    svg += `<path class="line" d="${d}" stroke="${s.color}"/>`;
+    const d = s.points.map((p, i) => (i === 0 ? `M${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`
+      : s.step ? `H${x(p[0]).toFixed(1)}V${y(p[1]).toFixed(1)}`
+        : `L${x(p[0]).toFixed(1)},${y(p[1]).toFixed(1)}`)).join('');
+    svg += `<path class="line${s.dashed ? ' line-dashed' : ''}" d="${d}" stroke="${s.color}"/>`;
+    if (s.dashed) continue;
     const last = s.points[s.points.length - 1];
     svg += `<circle cx="${x(last[0])}" cy="${y(last[1])}" r="4" fill="${s.color}"><title>${escape(s.label)}: ${escape(format(last[1]))}</title></circle>`;
   }
