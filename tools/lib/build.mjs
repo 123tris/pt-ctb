@@ -665,13 +665,20 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   const history = { days: [...(previous.history?.days || [])], series: { ...(previous.history?.series || {}) }, reconstructed: null };
   if (history.days[history.days.length - 1] !== today) history.days.push(today);
   const dayIndex = history.days.length - 1;
+  // Official pp is only recorded when osu! reports it live. An inactive player's is an estimate (or an old copy), so
+  // their recorded official value is null and the reconstructed series carries the line. Once, the official points
+  // recorded before this rule for players who were or are inactive (estimates, and osu!'s 0pp before them) are
+  // cleared too; after that (state.officialLiveOnly), a returning player keeps the real points from before.
+  const wasInactive = new Set(previous.inactive || []);
+  const legacy = !previous.officialLiveOnly;
   for (const p of people.values()) {
-    // Earlier points from while osu! reported an inactive player as 0pp take the pp shown for them now.
-    const series = (history.series[p.id] || []).map(point => (p.inactive && point[3] === 0 ? [...point.slice(0, 3), p.pp] : point));
-    const point = [dayIndex, p.cv, p.ul, p.pp];
+    const official = p.inactive ? null : p.pp;
+    const scrub = legacy && (p.inactive || wasInactive.has(p.id));
+    const series = (history.series[p.id] || []).map(point => (scrub && point[3] !== null ? [...point.slice(0, 3), null] : point));
+    const point = [dayIndex, p.cv, p.ul, official];
     const last = series[series.length - 1];
     if (last && last[0] === dayIndex) series[series.length - 1] = point;
-    else if (!last || last[1] !== p.cv || last[2] !== p.ul || last[3] !== p.pp) series.push(point);
+    else if (!last || last[1] !== p.cv || last[2] !== p.ul || last[3] !== official) series.push(point);
     history.series[p.id] = series;
   }
   // Before the first recorded day: rebuilt from score dates, recomputed every export (never carried over), and shown
@@ -696,6 +703,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       ...Object.fromEntries([...people.values()].filter(p => !p.inactive && p.pp > 0).map(p => [p.id, [p.pp, now]])),
     },
     inactive: [...people.values()].filter(p => p.inactive).map(p => p.id).sort((a, b) => a - b),
+    officialLiveOnly: true,
     known: [...people.keys()].sort((a, b) => a - b),
     events: keptStateEvents,
     weeks,
