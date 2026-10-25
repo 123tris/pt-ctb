@@ -13,8 +13,9 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
 
-# Data files are fetched as data/x.json?v=<export time> (core/data.js), so each export gets fresh URLs and old ones
-# can be kept. meta.json, which holds that time, is always fetched with cache: 'no-cache', so it's revalidated anyway.
+# Data files are fetched as data/x.json?v=<hash of that file's content> (core/data.js, from the manifest in meta.json),
+# so a changed file gets a fresh URL and an unchanged one stays cached across exports. meta.json is always fetched with
+# cache: 'no-cache', so it's revalidated anyway.
 /data/*
   Cache-Control: public, max-age=604800
 

@@ -1,5 +1,5 @@
 import { html } from '../core/html.js';
-import { mapsIndex, playerIndex } from '../core/data.js';
+import { mapsIndex, mapsTop, playerIndex } from '../core/data.js';
 import { setTitle, paginate, setCover, starsBadge, catChip } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -37,14 +37,17 @@ const row = (r, index) => {
 };
 
 export default async function maps(root, { query, isCurrent }) {
-  const [list, index] = await Promise.all([mapsIndex(), playerIndex()]);
+  // The first pages come from the small maps-top.json; the full index (several hundred KB) is only fetched once the
+  // visitor searches, sorts, filters or pages on.
+  const [top, index] = await Promise.all([mapsTop(), playerIndex()]);
   if (!isCurrent()) return;
   setTitle('Maps');
+  let list = top.rows;
 
   root.innerHTML = String(html`
     <header class="page-head">
       <span class="eyebrow">Maps</span>
-      <h1>${fmt.num(list.length)} maps with Portuguese plays</h1>
+      <h1>${fmt.num(top.total)} maps with Portuguese plays</h1>
       <p>Search by artist, title, difficulty or map id. Every map has its own Portuguese leaderboard.</p>
     </header>
     <div class="toolbar">
@@ -72,19 +75,32 @@ export default async function maps(root, { query, isCurrent }) {
     return filtered.sort(SORTS[sort.value][1]);
   };
   const redraw = paginate(root.querySelector('#list'), visible(), slice => html`<div class="rows">${slice.map(r => row(r, index))}</div>`);
+
+  // Every change waits for the full index; the first interaction starts fetching it. When it lands on the untouched
+  // default view (most players, no filter), the pages just grow and the visitor stays on the page they're on.
+  let all = null;
+  const loadAll = () => (all ??= mapsIndex().then(rows => {
+    list = rows;
+    const untouched = !q.value.trim() && !cat && !diff && sort.value === 'players';
+    if (isCurrent() && untouched) redraw(visible(), true);
+  }));
+  const update = () => loadAll().then(() => isCurrent() && redraw(visible()));
+  for (const type of ['pointerdown', 'focusin', 'keydown']) root.addEventListener(type, loadAll, { once: true });
+  if (query.q) update();
+
   let timer;
-  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => redraw(visible()), 150); });
-  sort.addEventListener('change', () => redraw(visible()));
+  q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(update, 150); });
+  sort.addEventListener('change', update);
   root.querySelector('#cats').addEventListener('click', e => {
     if (e.target.dataset.cat === undefined) return;
     cat = e.target.dataset.cat;
     root.querySelectorAll('[data-cat]').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
-    redraw(visible());
+    update();
   });
   root.querySelector('#diffs').addEventListener('click', e => {
     if (e.target.dataset.diff === undefined) return;
     diff = DIFFS.find(([k]) => k === e.target.dataset.diff)[2];
     root.querySelectorAll('[data-diff]').forEach(b => b.classList.toggle('active', b.dataset.diff === e.target.dataset.diff));
-    redraw(visible());
+    update();
   });
 }

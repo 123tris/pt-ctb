@@ -175,7 +175,12 @@ export function paginate(container, items, render, size = 50) {
     container.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
   draw();
-  return newItems => { items = newItems ?? items; page = 0; draw(); };
+  // keepPage: the same list in the same order, only longer (e.g. the full set arriving after a first slice).
+  return (newItems, keepPage = false) => {
+    items = newItems ?? items;
+    page = keepPage ? Math.min(page, pages() - 1) : 0;
+    draw();
+  };
 }
 
 /** A name box with every player as a suggestion; read it back with pickedPlayer(). */

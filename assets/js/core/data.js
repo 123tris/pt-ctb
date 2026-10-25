@@ -1,8 +1,10 @@
-// Loads the exported JSON (data/*.json). meta.json is always revalidated; everything else is fetched with the
-// export's timestamp as a cache-buster, so a new export is picked up at once and old files stay cacheable.
-// CONFIG.data says where they are: data/ here, or the release site's on development builds.
+// Loads the exported JSON (data/*.json). meta.json is always revalidated; everything else is fetched with a hash of its
+// own content as a cache-buster (meta.files, written by tools/export.mjs), so a changed file is picked up at once and an
+// unchanged one keeps its URL and stays cached across exports. Data from before the manifest falls back to the export
+// time. CONFIG.data says where the files are: data/ here, or the release site's on development builds.
 
 import { CONFIG } from '../config.js';
+import { decodeMapsSearch } from './maps-search.js';
 
 const cache = new Map();
 let metaPromise = null;
@@ -20,7 +22,7 @@ export function meta() {
 export function load(path) {
   if (!cache.has(path)) {
     const promise = meta()
-      .then(m => fetch(`${CONFIG.data}${path}?v=${m.generatedAt}`))
+      .then(m => fetch(`${CONFIG.data}${path}?v=${m.files?.[path] ?? m.generatedAt}`))
       .then(r => {
         if (r.status === 404) throw new NotFound(path);
         if (!r.ok) throw new Error(`Couldn’t load ${path} (${r.status}).`);
@@ -34,7 +36,25 @@ export function load(path) {
 
 export const players = () => load('players.json');
 export const playerFile = id => load(`players/${id}.json`);
-export const mapsIndex = () => load('maps-index.json');
+
+/**
+ * Every map with Portuguese plays, as rows [id, setId, artist, title, version, stars, category, players, topPlayerId]
+ * in no particular order. Read from the compact maps-search.json, or maps-index.json in data from before it.
+ */
+let mapsPromise = null;
+export function mapsIndex() {
+  mapsPromise ??= meta().then(m => (m.files?.['maps-search.json'] ? load('maps-search.json').then(decodeMapsSearch) : load('maps-index.json')));
+  mapsPromise.catch(() => { mapsPromise = null; });
+  return mapsPromise;
+}
+
+/** { total, rows }: the most-played maps (most players first), for the Maps page's first pages; mapsIndex() has them all. */
+export async function mapsTop() {
+  const m = await meta();
+  if (m.files?.['maps-top.json']) return load('maps-top.json');
+  const rows = await mapsIndex();
+  return { total: rows.length, rows };
+}
 export const modRankings = () => load('modrankings.json');
 export const dan = () => load('dan.json');
 export const activity = () => load('activity.json');
