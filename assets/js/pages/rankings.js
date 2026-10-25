@@ -3,7 +3,8 @@ import { players, modRankings, meta } from '../core/data.js';
 import { S } from '../core/model.js';
 import {
   setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, prefs, SLUG_CAT, CAT_LABEL, pageHead,
-  chipGroup, setPressed, writeQuery, announce, resultCount, isInactiveOnOsu, inactiveTag, officialPp,
+  chipGroup, setPressed, writeQuery, announce, resultCount, isInactiveOnOsu, isInactive, isLegend, inactiveTag, legendTag,
+  statusTag, officialPp,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -31,10 +32,6 @@ const FOOTNOTE = {
   loved: 'The higher the star rating, the better the #1. NF snipes aren’t real snipes.',
 };
 
-/** Players with no stored play in a year stay on the board, greyed out: legends don't disappear. */
-const INACTIVE_AFTER = 365 * 86400;
-const isInactive = p => !p.last || p.last < Date.now() / 1000 - INACTIVE_AFTER;
-
 /** On phones only rank, player and pp stay; the other numbers move under the name. */
 function boardTable(list, cat, me, title) {
   const key = KEY[cat];
@@ -47,13 +44,15 @@ function boardTable(list, cat, me, title) {
         : html`<th class="num col-opt">Scores</th><th class="num col-opt">#1s in PT</th><th class="num col-opt">Last played</th>`}
     </tr></thead>
     <tbody>${list.map((p, i) => {
-      // Converts/Loved: "legend" = no new plays stored in a year. Ranked: inactive on osu!, kept with their official pp.
+      // Inactive players stay on the board, greyed out (Ranked: those inactive on osu!, kept with their official pp).
+      // Legends (lore.js) are tagged as such; everyone else inactive gets the quiet "inactive" tag.
       const offOsu = ranked && isInactiveOnOsu(p);
-      const legend = ranked ? offOsu : isInactive(p);
+      const greyed = ranked ? offOsu : isInactive(p);
+      const tag = ranked ? (isLegend(p) ? legendTag() : offOsu ? inactiveTag() : '') : statusTag(p);
       const noRank = html`<span class="faint" title="Inactive on osu!, so no global or country rank">—</span>`;
-      return html`<tr class="${p.id === me ? 'me' : ''} ${legend ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
+      return html`<tr class="${p.id === me ? 'me' : ''} ${greyed ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
         <td class="rank">${ranked ? i + 1 : p.rank[cat]}</td>
-        <td class="cell-player">${playerLink(p)}${offOsu ? html` ${inactiveTag()}` : legend ? html` <span class="legend-tag">legend<span class="sr-only">: no new plays stored in over a year</span></span>` : ''}
+        <td class="cell-player">${playerLink(p)}${tag ? html` ${tag}` : ''}
           <span class="cell-sub">${ranked
             ? (offOsu ? `Inactive on osu! · ${p.ppSource === 'estimated' ? 'pp estimated from their plays' : p.ppSeen ? `pp last seen ${fmt.date(p.ppSeen)}` : 'last known pp'}` : `${fmt.rank(p.global)} global · ${fmt.acc(p.acc)}`)
             : `${fmt.plural(p.count[cat], 'score')} · ${fmt.plural(p.firsts[cat], '#1', '#1s')}`}</span></td>
@@ -99,7 +98,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
     <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">Players and plays imported from the osu! data dump of ${m.dump.replaceAll('_', '-')}.</span>` : ''}</p>
     <div class="toolbar">
       <input class="input" type="search" id="filter" placeholder="Search players…" aria-label="Search this leaderboard" value="${query.q || ''}">
-      ${slug === 'converts' || slug === 'loved' ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show inactive legends</label></span>` : ''}
+      ${slug === 'converts' || slug === 'loved' ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show inactive players</label></span>` : ''}
       ${slug === 'ranked' && list.some(p => isInactiveOnOsu(p) && p.pp > 0) ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show players inactive on osu!</label></span>` : ''}
     </div>
     ${slug === 'mods' ? html`

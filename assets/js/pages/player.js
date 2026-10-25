@@ -8,6 +8,7 @@ import { THRONE_PLAYER } from '../core/lore.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT, funChips,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
+  isLegend, legendTag,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
@@ -87,7 +88,7 @@ export default async function player(root, { params, query, isCurrent }) {
     <header class="profile-head">
       <a class="avatar-link" href="${osuUser(id)}" target="_blank" rel="noopener" aria-label="${p.name} on osu!" title="${p.name} on osu!">${avatar(id, 'avatar-lg')}</a>
       <div style="min-width:0">
-        <h1>${p.name}</h1>
+        <h1>${p.name}${isLegend(p) ? legendTag() : ''}</h1>
         <div class="links" style="margin-bottom:10px">
           ${role ? html`<span class="badge badge-gold">${role}</span>` : ''}
           ${firsts ? html`<span class="badge badge-accent">${fmt.plural(firsts, '#1', '#1s')} in Portugal</span>` : ''}

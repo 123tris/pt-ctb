@@ -18,7 +18,8 @@ const SECTIONS = [
     ['Specifics', 'Maps made for osu!catch itself. “Converts or specifics?” is the community’s oldest argument.'],
     ['Loved & Unranked', 'Loved, pending and graveyarded maps. osu! gives no pp for them, so the bot works pp out with the current osu!catch formula.'],
     ['Ranked (official)', 'osu!’s own osu!catch leaderboard, with the pp and global rank from each player’s osu! profile.'],
-    ['Legend', 'A player with no new plays stored in over a year. They stay on the leaderboards, greyed out: legends don’t disappear.'],
+    ['Inactive', 'A player who’s inactive on osu! or has no new plays stored in over a year. They stay on the leaderboards, greyed out, and the “Show inactive players” box hides them.'],
+    ['Legend', 'A former Portuguese top-5 player who’s no longer active. Their name carries a “legend” tag: legends don’t disappear.'],
   ]],
   ['Mods', [
     ['Easier', html`${modsBadges(MOD.EZ)} Easy (bigger fruit, slower), ${modsBadges(MOD.NF)} No Fail, ${modsBadges(MOD.HT)} Half Time (75% speed). They lower a play’s pp.`],

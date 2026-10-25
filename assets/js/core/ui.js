@@ -2,7 +2,7 @@
 
 import { html, raw } from './html.js';
 import { S, M, modString } from './model.js';
-import { LOADING, pick } from './lore.js';
+import { LOADING, LEGENDS, pick } from './lore.js';
 import * as fmt from './fmt.js';
 
 export const CAT_LABEL = { c: 'Converts', u: 'Loved & Unranked', r: 'Ranked' };
@@ -132,6 +132,22 @@ const ESTIMATE_TIP = 'Estimated from their stored plays, so probably a little lo
 
 /** A quiet "inactive" tag for players inactive on osu!. */
 export const inactiveTag = () => html`<span class="legend-tag" title="Inactive on osu!, which shows them at 0 pp">inactive<span class="sr-only"> on osu!</span></span>`;
+
+/** Inactive: inactive on osu!, or no play stored in over a year. They stay on the leaderboards, greyed out. */
+const INACTIVE_AFTER = 365 * 86400;
+export const isInactive = p => isInactiveOnOsu(p) || !p.last || p.last < Date.now() / 1000 - INACTIVE_AFTER;
+
+/** A legend is a former Portuguese top-5 player (lore.js LEGENDS) who is now inactive. */
+export const isLegend = p => LEGENDS.has(p?.id) && isInactive(p);
+export const legendTag = () => html`<span class="legend-tag" title="Former Portuguese top 5, now inactive">legend<span class="sr-only">: former Portuguese top 5, now inactive</span></span>`;
+
+/** The tag after an inactive player's name: "legend" for legends, otherwise a quiet "inactive" saying why. */
+export function statusTag(p) {
+  if (isLegend(p)) return legendTag();
+  if (isInactiveOnOsu(p)) return inactiveTag();
+  if (isInactive(p)) return html`<span class="legend-tag" title="No new plays stored in over a year">inactive<span class="sr-only">: no new plays stored in over a year</span></span>`;
+  return '';
+}
 
 /**
  * Official pp. An estimate reads "≈ 8,224pp (estimated)" (`compact`: just "≈ 8,224pp", with the rest in the tooltip);

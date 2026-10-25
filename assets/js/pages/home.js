@@ -5,7 +5,7 @@ import { eventItem } from '../core/events.js';
 import { LAST_REWORK, THRONE_PLAYER } from '../core/lore.js';
 import { season } from '../core/fun.js';
 import {
-  setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, officialPp,
+  setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { CONFIG } from '../config.js';
@@ -17,11 +17,12 @@ function miniBoard(list, key, cat) {
     <h3><span class="cat cat-${cat}">${CAT_LABEL[cat]}</span></h3>
     <div class="mini-board">
       ${rows.map((p, i) => {
-        // The official top 5 includes players inactive on osu! (osu! shows them at 0 pp), tagged as such.
+        // The official top 5 includes players inactive on osu! (osu! shows them at 0 pp), tagged as such; legends
+        // (lore.js) get their own tag on any board.
         const offOsu = cat === 'r' && isInactiveOnOsu(p);
         return html`<a class="line ${p.id === me ? 'me' : ''}" href="#/player/${p.id}">
           <span class="n">${i + 1}</span>
-          <span class="player">${avatar(p.id, 'avatar-sm')}<span>${p.name}</span>${offOsu ? inactiveTag() : ''}</span>
+          <span class="player">${avatar(p.id, 'avatar-sm')}<span>${p.name}</span>${isLegend(p) ? legendTag() : offOsu ? inactiveTag() : ''}</span>
           ${offOsu ? officialPp(p, { compact: true }) : html`<span class="pp">${fmt.pp(p[key])}<small>pp</small></span>`}
         </a>`;
       })}
