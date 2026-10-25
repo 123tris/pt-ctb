@@ -9,7 +9,8 @@ builds it from this repo on every push. The old GitHub Pages address forwards th
 ## How it works
 
 ```
-PT-CTB-Bot-Data (private)  ──tools/export.mjs──►  data/*.json (public)  ──Cloudflare Pages──►  https://ptcatch.com
+PT-CTB-Bot-Data (private)  ──tools/export.mjs──►  data/*.json  ──publish.ps1 (R2)──►  https://data.ptcatch.com
+                                                      site code  ──Cloudflare Pages──►  https://ptcatch.com (reads the data)
 ```
 
 - `tools/export.mjs` reads the bot's private data folder (`../PT-CTB-Bot-Data` by default) and writes the public JSON
@@ -20,7 +21,9 @@ PT-CTB-Bot-Data (private)  ──tools/export.mjs──►  data/*.json (public)
   each map is fetched once.
 - `state/state.json` remembers the previous export, which is how the activity feed spots overtakes and pp milestones,
   and which map was picked for each week's challenge. `data/history.json` keeps one pp point per player per day.
-- Files are only rewritten when their content changes, so an export with nothing new leaves git clean.
+- Files are only rewritten when their content changes, and `publish.ps1` uploads only new files to R2 (under
+  content-hashed names, `meta.json` last), so an export with nothing new sends nothing. `data/` and `state/` aren't in
+  git; R2 keeps them (state in a private bucket), and `publish.ps1` restores them into a fresh checkout.
 
 `assets/js/core/model.js` defines the data shapes (score and beatmap tuples, categories, mods, the catch pp formula)
 and is imported by both the exporter and the pages, so the two can't drift apart.
@@ -50,11 +53,12 @@ restore them.
 
 ```powershell
 npm run export            # node --max-old-space-size=4096 tools/export.mjs
-npm run serve             # http://localhost:8080/
+npm run serve             # http://localhost:8080/ (live data; add -- --local-data for data/)
 npm run build             # dist/: what Cloudflare Pages publishes (tools/build-site.mjs)
-npm test                  # sign-in tests
-.\publish.ps1             # on main only: export (with --fetch-titles), commit data/ + state/, push
-.\install-publish-task.ps1   # optional: run publish.ps1 every 4 hours
+npm test                  # all tests
+.\publish.ps1             # on main only: export (with --fetch-titles), upload what changed to R2
+.\install-publish-task.ps1   # run publish.ps1 every 15 minutes
+node tools/r2-sync.mjs status   # R2 usage against the free-tier caps
 ```
 
 Needs Node 18+. Settings that aren't data (the Discord invite link, the site's addresses) live in
@@ -63,15 +67,15 @@ Needs Node 18+. Settings that aren't data (the Discord invite link, the site's a
 ## Branches, hosting and "Sign in with osu!"
 
 `main` is the release site, <https://ptcatch.com>, and `dev` is the development site, <https://dev.ptcatch.com>.
-Cloudflare Pages builds both on every push. Work happens on `dev` and is released by merging `dev` into `main`. Data
-only goes to `main` (publish.ps1 refuses other branches); the dev site reads the release site's data, so it's always
-current.
+Cloudflare Pages builds both on every push. Work happens on `dev` and is released by merging `dev` into `main`. Both
+read the same data from <https://data.ptcatch.com> (Cloudflare R2), which publish.ps1 updates from `main` only, with
+hard caps that keep it inside R2's free tier.
 
-Cloudflare Pages publishes only what `tools/build-site.mjs` copies to `dist/` (the pages, `assets/`, `data/` and
-`_headers`), so `tools/`, `state/` and the scripts stay private. The same script applies each branch's settings:
+Cloudflare Pages publishes only what `tools/build-site.mjs` copies to `dist/` (the pages, `assets/` and `_headers`),
+so `tools/` and the scripts stay private. The same script applies each branch's settings:
 address, DEV marker and noindex on dev, sign-in from the `SIGN_IN` build variable. `_headers` sets the security and
 cache headers.
 `functions/auth/` (code in `signin/oauth.js`) runs osu!'s OAuth on the site's own address, because the exchange
 needs a client secret a static page can't hold. Visitors get back only their osu! id and name, which fill the same
-"This is me" preference. The setup steps (Pages project, domains, branches, osu! apps, secrets) are in
+"This is me" preference. The setup steps (Pages project, domains, branches, R2 data, osu! apps, secrets) are in
 [SETUP-HOSTING.md](SETUP-HOSTING.md).

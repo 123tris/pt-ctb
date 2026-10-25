@@ -6,7 +6,7 @@
   "scripts": {
     "export": "node --max-old-space-size=4096 tools/export.mjs",
     "serve": "node tools/serve.mjs",
-    "test": "node --test signin/*.test.mjs usage/*.test.mjs tools/lib/*.test.mjs",
+    "test": "node --test signin/*.test.mjs usage/*.test.mjs tools/*.test.mjs tools/lib/*.test.mjs",
     "build": "node tools/build-site.mjs"
   }
 }

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 // Copies the public part of the repo into dist/ for Cloudflare Pages (build command: node tools/build-site.mjs,
-// output directory: dist). Only what's listed in PUBLIC is published, so tools/, state/, scripts and docs never are;
+// output directory: dist). Only what's listed in PUBLIC is published, so tools/, scripts and docs never are;
 // functions/ (the sign-in endpoints) stays at the repo root, where Pages looks for it. No dependencies.
 // PUBLIC lists whole folders, so new pages, modules, images or fonts under assets/ are picked up by themselves; only
-// a new top-level folder the site loads at runtime has to be added here.
+// a new top-level folder the site loads at runtime has to be added here. The data isn't part of the site: both sites
+// read it from R2 at CONFIG.data (https://data.ptcatch.com), which publish.ps1 updates without a build.
 //
 // Each branch gets its own settings, layered over assets/js/config.js in dist/ only (the repo copy stays as GitHub Pages
 // and `npm run serve` use it). Cloudflare sets CF_PAGES_BRANCH; set it by hand to try a branch locally:
-//   main → the release site (CONFIG.production), with the data files and CORS for the development site to read them;
-//   dev  → the development site (CONFIG.development): DEV marker, noindex, and no data files of its own, since it
-//          reads the release site's, which are always current (publish.ps1 only ever commits data to main).
+//   main → the release site (CONFIG.production);
+//   dev  → the development site (CONFIG.development): DEV marker and noindex. Same data as the release site.
 // SIGN_IN=1 (a Pages build variable, set per environment) turns "Sign in with osu!" on for that build.
 
 import crypto from 'node:crypto';
@@ -17,12 +17,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIG } from '../assets/js/config.js';
-import { addHeader, assertOneBlock } from './lib/headers.mjs';
 import { staticImports } from './lib/modules.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
-const PUBLIC = ['index.html', '404.html', '_headers', 'assets', 'data'];
+const PUBLIC = ['index.html', '404.html', '_headers', 'assets'];
 // Cloudflare Pages limits (free plan): 20,000 files per deployment, 25 MiB per file.
 const MAX_FILES = 20000;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -33,15 +32,12 @@ const release = branch === 'main';
 // has a domain of its own (CONFIG.development), the rest live on their *.pages.dev preview address.
 const settings = !branch ? null : release
   ? { home: CONFIG.production }
-  : { home: branch === 'dev' ? CONFIG.development : '', env: 'dev', data: `${CONFIG.production}/data/` };
+  : { home: branch === 'dev' ? CONFIG.development : '', env: 'dev' };
 if (settings) settings.signIn = process.env.SIGN_IN === '1';
 
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist);
-for (const entry of PUBLIC) {
-  if (entry === 'data' && settings?.data) continue; // development builds read the release site's data
-  fs.cpSync(path.join(root, entry), path.join(dist, entry), { recursive: true });
-}
+for (const entry of PUBLIC) fs.cpSync(path.join(root, entry), path.join(dist, entry), { recursive: true });
 
 const edit = (file, change) => {
   const target = path.join(dist, file);
@@ -53,13 +49,8 @@ const edit = (file, change) => {
 
 if (settings) {
   edit('assets/js/config.js', s => `${s}\n// Set by tools/build-site.mjs for the "${branch}" branch.\nObject.assign(CONFIG, ${JSON.stringify(settings)});\n`);
-  if (release) {
-    // Let the development site read the release site's data files. Inside the existing /data/* block: a second block
-    // for the same path made ptcatch.com drop the first one's Cache-Control (see tools/lib/headers.mjs).
-    edit('_headers', s => addHeader(s, '/data/*', 'Access-Control-Allow-Origin', CONFIG.development));
-  } else {
+  if (!release) {
     edit('index.html', s => s.replace('<html lang="en">', `<html lang="en" data-env="${settings.env}">`));
-    edit('_headers', s => s.replace("connect-src 'self'", `connect-src 'self' ${CONFIG.production}`));
     edit('_headers', s => `${s}\n# A development build: keep it out of search engines.\n/*\n  X-Robots-Tag: noindex\n`);
   }
 }
@@ -89,8 +80,7 @@ const preload = [...new Set(entries.flatMap(staticImports))].filter(f => !entrie
   .map(f => `<link rel="modulepreload" href="${path.relative(dist, f).split(path.sep).join('/')}">`);
 // meta.json is the first data every page waits for: start it with the modules. data.js fetches it with cache: 'no-cache',
 // which still revalidates; the preload only saves the wait for the module graph.
-const dataBase = settings?.data ?? CONFIG.data;
-preload.push(`<link rel="preload" href="${dataBase}meta.json" as="fetch" crossorigin>`);
+preload.push(`<link rel="preload" href="${CONFIG.data}meta.json" as="fetch" crossorigin>`);
 edit('index.html', s => s.replace(/^([ \t]*)(<script type="module" src="assets\/js\/moved\.js")/m,
   (_, indent, tag) => `${preload.map(l => `${indent}${l}${s.includes('\r\n') ? '\r\n' : '\n'}`).join('')}${indent}${tag}`));
 const IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"?]+\.js)\2/g;
@@ -113,7 +103,6 @@ const hashes = [...new Set([...inline.scripts, ...inline.handlers].map(sha256))]
 if (inline.handlers.length) hashes.unshift("'unsafe-hashes'");
 const headersFile = path.join(dist, '_headers');
 fs.writeFileSync(headersFile, fs.readFileSync(headersFile, 'utf8').replaceAll('{{inline-script-hashes}}', hashes.join(' ')));
-if (release) assertOneBlock(fs.readFileSync(headersFile, 'utf8'), '/data/*', ['Cache-Control', 'Access-Control-Allow-Origin']);
 
 let files = 0;
 let bytes = 0;
