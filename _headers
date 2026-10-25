@@ -23,8 +23,9 @@
 /assets/img/*
   Cache-Control: public, max-age=604800
 
-# JS and CSS names carry no version, so browsers must revalidate them on every load: a stale module next to fresh ones
-# breaks the page ("does not provide an export named …"). Pages' default turned out to be max-age=14400, not this.
+# A stale module next to fresh ones breaks the page ("does not provide an export named …"). On ptcatch.com the zone's
+# Browser Cache TTL still turns this into max-age=14400 (checked 2026-10-25), so the real fix is in
+# tools/build-site.mjs: every JS/CSS address carries ?v=<code hash>. This rule only helps on *.pages.dev.
 /assets/js/*
   Cache-Control: no-cache
 /assets/css/*
