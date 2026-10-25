@@ -18,6 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONFIG } from '../assets/js/config.js';
 import { addHeader, assertOneBlock } from './lib/headers.mjs';
+import { staticImports } from './lib/modules.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
@@ -80,6 +81,18 @@ codeFiles.sort();
 const code = crypto.createHash('sha256');
 for (const file of codeFiles) code.update(path.relative(dist, file)).update(fs.readFileSync(file));
 const version = code.digest('hex').slice(0, 10);
+
+// Preload app.js's whole static import graph (and moved.js's) from index.html, so the modules come in parallel instead
+// of one import level at a time. Added before the versioning below, which gives these the same ?v= as the imports.
+const entries = ['assets/js/app.js', 'assets/js/moved.js'].map(f => path.join(dist, f));
+const preload = [...new Set(entries.flatMap(staticImports))].filter(f => !entries.includes(f))
+  .map(f => `<link rel="modulepreload" href="${path.relative(dist, f).split(path.sep).join('/')}">`);
+// meta.json is the first data every page waits for: start it with the modules. data.js fetches it with cache: 'no-cache',
+// which still revalidates; the preload only saves the wait for the module graph.
+const dataBase = settings?.data ?? CONFIG.data;
+preload.push(`<link rel="preload" href="${dataBase}meta.json" as="fetch" crossorigin>`);
+edit('index.html', s => s.replace(/^([ \t]*)(<script type="module" src="assets\/js\/moved\.js")/m,
+  (_, indent, tag) => `${preload.map(l => `${indent}${l}${s.includes('\r\n') ? '\r\n' : '\n'}`).join('')}${indent}${tag}`));
 const IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"?]+\.js)\2/g;
 for (const file of codeFiles.filter(f => f.endsWith('.js'))) {
   const source = fs.readFileSync(file, 'utf8');
