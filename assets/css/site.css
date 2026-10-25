@@ -428,7 +428,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 .rung-he.lit .rung-glyph { color: var(--gold); }
 /* Hebrew letters come from a system font whose overlapping contours show through an outline, so unlit ones are a
    solid, faint gold instead. */
-.rung-he:not(.lit) .rung-glyph { color: var(--border-strong); -webkit-text-stroke: 0; }
+.rung-he:not(.lit) .rung-glyph { color: color-mix(in srgb, var(--gold) 30%, var(--bg)); -webkit-text-stroke: 0; }
 .rung.top .rung-glyph { color: var(--text); }
 .rung.top::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: 0; height: 2px; border-radius: 1px; background: var(--accent); }
 .rung-n { font-size: var(--fs-xs); color: var(--text-faint); }
