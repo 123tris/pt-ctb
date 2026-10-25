@@ -23,7 +23,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { loadBotData, loadBeatmaps, loadPastOfficial } from './lib/source.mjs';
+import { loadBotData, loadBeatmaps, loadPastOfficial, loadCommands } from './lib/source.mjs';
 import { build, neededMapIds, isUnclaimedCandidate } from './lib/build.mjs';
 import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, fetchDates, hasCatchDifficulty } from './lib/osu-api.mjs';
 import { STATUS } from '../assets/js/core/model.js';
@@ -164,6 +164,10 @@ const pastOfficial = unknownInactive.length ? loadPastOfficial(dataRoot, unknown
 if (unknownInactive.length)
   console.log(`  ${unknownInactive.length} inactive players with no plays to estimate from; ${Object.keys(pastOfficial).length} found in the data folder's history`);
 const { files, state } = build({ bot, beatmaps, homeCountry: country, now, state: previous, pastOfficial });
+// The bot's public commands, passed through as the bot wrote them (an older bot writes none: then there's no file).
+const commands = loadCommands(dataRoot);
+if (commands) files['commands.json'] = commands;
+else if (fs.existsSync(path.join(dataRoot, 'commands.json'))) console.warn('  commands.json in the data folder is not the expected shape; skipped');
 
 // meta.json lists a hash of every other file's content, which the site puts on that file's URL (core/data.js): a file
 // keeps its URL, and stays in visitors' caches, until its content changes.

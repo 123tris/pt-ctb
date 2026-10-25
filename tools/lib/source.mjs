@@ -86,3 +86,19 @@ export function loadPastOfficial(root, ids) {
   }
   return found;
 }
+
+/**
+ * The bot's list of its public commands (commands.json, written by the bot), for the site's commands page:
+ * { generatedAt, groups: [{ name, commands: [{ slash, prefix: [], description, options: [{ name, description, choices? }], access }] }] }.
+ * Null when the bot hasn't written one (older bots) or it isn't that shape, so the export goes on without it.
+ */
+export function loadCommands(root) {
+  const file = path.join(root, 'commands.json');
+  if (!fs.existsSync(file)) return null;
+  try {
+    const commands = readJson(file);
+    return Array.isArray(commands?.groups) && commands.groups.every(g => Array.isArray(g?.commands)) ? commands : null;
+  } catch {
+    return null;
+  }
+}
