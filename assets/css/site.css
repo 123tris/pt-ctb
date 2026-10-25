@@ -961,8 +961,10 @@ p a.dim-link { text-decoration: underline; }
 @media (max-width: 600px) { .rows .map-sub { white-space: normal; } }
 /* WCAG 2.5.8: the map link under each activity event stands on its own line, so it gets a 24px-tall target. */
 .event .where a { display: inline-block; padding-block: 4px; margin-block: -4px; }
-/* "Ranked 14 Mar 2021" on a map page: the date after the status, a little quieter. */
-.kv .status-date { font-weight: 500; color: var(--text-dim); white-space: nowrap; }
+/* "Ranked 14 Mar 2021" on a map page: the date on its own quieter line under the status, so it never runs into the
+   next column of the strip. */
+.kv .status-date { display: block; font-size: .8125rem; font-weight: 500; color: var(--text-dim); }
+.kv .status-date .sep-dot { display: none; }
 
 /* Players inactive on osu! keep their official pp: an "est." after an estimated value, the "inactive" tag beside names. */
 .est { margin-left: 3px; font-size: .75em; font-weight: 600; color: var(--text-dim); cursor: help; }
