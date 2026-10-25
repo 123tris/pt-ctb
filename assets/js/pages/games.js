@@ -1,6 +1,6 @@
 import { html } from '../core/html.js';
 import { quiz, players, mapsIndex } from '../core/data.js';
-import { setTitle, avatar, coverUrl, prefs, starsBadge, catChip, epigraph } from '../core/ui.js';
+import { setTitle, avatar, coverUrl, prefs, starsBadge, catChip } from '../core/ui.js';
 import { BOSS_SETS, TUGA_SET, RIVALRIES, pick as stablePick } from '../core/lore.js';
 import { wysi } from '../core/fun.js';
 import * as fmt from '../core/fmt.js';
@@ -38,7 +38,6 @@ function hub(root) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>Games</h1>
-      ${epigraph('games')}
       <p>Quick games made from the community’s data. Your records are saved in this browser.</p>
     </header>
     <div class="grid grid-3 game-cards">

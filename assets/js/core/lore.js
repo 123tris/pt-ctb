@@ -58,27 +58,6 @@ export const FOOTER = [
   'Bad scores are most appreciated :)',
 ];
 
-/**
- * A line from the Discord under each page's heading, with where it came from: [quote, source]. Real chat lines,
- * verbatim or near it (notes/discord-ideas.md), never a slogan written for the site.
- */
-export const EPIGRAPHS = {
-  rankings: ['N digits when?', 'the server’s oldest running question, since 2019'],
-  maps: ['Farming converts for pp is like eating salads because you’re hungry.', 'the converts-vs-specifics war'],
-  week: ['B’s and C’s are where it’s at.', 'Tris, on the 2026 supporter challenge'],
-  dan: ['If you’re above Skrub, you hack.', 'the Dan course, 2018'],
-  targets: ['That’s not a real snipe.', 'on NF snipes, 2024'],
-  activity: ['The 1-miss gods have blessed you.', '#scores, 2020'],
-  records: ['Only for genius.', 'the server’s sarcastic stamp, since 2025'],
-  games: ['I’d think this was converted if I didn’t show it was CTB.', '#general, 2018'],
-  team: ['We do it for fun.', 'CWC 2018, after the group stage'],
-  compare: ['Distory your enemies.', 'a 2025 copypasta, typo and all'],
-  calculator: ['Time to quit this game instead.', 'Tris, after the 2021 rework'],
-  commands: ['Only our lord and saviour has access to this command.', 'Alphonse, to anyone who isn’t Tris'],
-  join: ['Bad scores are most appreciated :)', 'the #scores channel topic, since 2018'],
-  glossary: ['Is water soup?', 'a 2021 thread that never reached a verdict'],
-};
-
 /** The community's story in five years, for the home page (Team Portugal has the tournaments in full). */
 export const HISTORY = [
   [2018, 'The server opens on 29 May. The Dan bot follows on 22 June.'],

@@ -1108,14 +1108,6 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .game-art-duel small { flex-basis: 100%; text-align: center; color: var(--text-faint); font-size: var(--fs-xs); }
 @media (prefers-reduced-motion: reduce) { .game-art .game-art-blur { transition: none; } }
 
-/* Under page headings: a line from the Discord and where it came from (ui.js epigraph). The opening quote hangs in the
-   margin so the words line up with the heading. */
-.epigraph { margin: 8px 0 0; max-width: 62ch; }
-.epigraph blockquote { margin: 0; text-indent: -.42em; font-size: var(--fs-lg); font-weight: 500; line-height: 1.4; color: var(--text); }
-.epigraph figcaption { margin-top: 2px; font-size: var(--fs-sm); color: var(--text-faint); }
-.epigraph figcaption::before { content: '— '; }
-.page-head .epigraph + p { margin-top: 14px; }
-
 /* The page-not-found glyph: Shin, the last Dan, which nobody has reached either. */
 .lost-glyph { margin-bottom: 14px; font: 700 clamp(5rem, 16vw, 8rem)/1 var(--display); color: color-mix(in srgb, var(--gold) 35%, var(--surface)); }
 

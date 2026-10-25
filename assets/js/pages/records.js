@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { records, playerIndex } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import { barChart } from '../core/charts.js';
-import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar, posBadge, epigraph } from '../core/ui.js';
+import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar, posBadge } from '../core/ui.js';
 import { FIRST_10K } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
 
@@ -81,7 +81,6 @@ export default async function recordsPage(root, { query, isCurrent }) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>Records</h1>
-      ${epigraph('records')}
       <p>The biggest marks across every score the bot keeps: each player’s best play on each map.</p>
     </header>
 

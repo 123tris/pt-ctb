@@ -2,7 +2,7 @@
 
 import { html, raw } from './html.js';
 import { S, M, modString, DAN_STAGES } from './model.js';
-import { LOADING, LEGENDS, EPIGRAPHS, pick } from './lore.js';
+import { LOADING, LEGENDS, pick } from './lore.js';
 import * as fmt from './fmt.js';
 
 export const CAT_LABEL = { c: 'Converts', u: 'Loved & Unranked', r: 'Ranked' };
@@ -221,20 +221,11 @@ export function scoreRow({ s, meta, player, index, pos, showMap = true, cat }) {
 
 // ---- Layout helpers ----------------------------------------------------------------------------------------
 
-/** A line from the Discord (lore.js EPIGRAPHS[key]) with where it came from, set under a page's heading. */
-export function epigraph(key) {
-  const line = EPIGRAPHS[key];
-  if (!line) return '';
-  return html`<figure class="epigraph"><blockquote>“${line[0]}”</blockquote><figcaption>${line[1]}</figcaption></figure>`;
-}
-
 /**
- * A page heading: a plain H1 that says what the page is, then (optionally) a line from the Discord (`quote`, a key of
- * EPIGRAPHS) and an intro. In-jokes stay, but next to a heading a newcomer can understand.
+ * A page heading: a plain H1 that says what the page is, then (optionally) an intro.
  */
-export const pageHead = ({ title, quote, intro, extra }) => html`<header class="page-head">
+export const pageHead = ({ title, intro, extra }) => html`<header class="page-head">
   <h1>${title}</h1>
-  ${quote ? epigraph(quote) : ''}
   ${intro ? html`<p>${intro}</p>` : ''}
   ${extra ?? ''}
 </header>`;

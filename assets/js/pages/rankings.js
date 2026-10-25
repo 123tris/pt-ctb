@@ -140,7 +140,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
   let mod = modChoices.includes(query.mod) ? query.mod : defaultMod;
 
   root.innerHTML = String(html`
-    ${pageHead({ title: 'Leaderboards', quote: 'rankings' })}
+    ${pageHead({ title: 'Leaderboards' })}
     ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), 'Leaderboard type')}
     <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">Players and plays imported from the osu! data dump of ${m.dump.replaceAll('_', '-')}.</span>` : ''}</p>
     <div class="toolbar">

@@ -58,7 +58,7 @@ export default async function maps(root, { query, isCurrent }) {
   setTitle('Maps');
 
   root.innerHTML = String(html`
-    ${pageHead({ title: 'Maps', quote: 'maps', intro: `${fmt.num(top.total)} maps with Portuguese plays. Search by artist, title, difficulty or map id; every map has its own Portuguese leaderboard.` })}
+    ${pageHead({ title: 'Maps', intro: `${fmt.num(top.total)} maps with Portuguese plays. Search by artist, title, difficulty or map id; every map has its own Portuguese leaderboard.` })}
     <div class="toolbar">
       <input class="input" type="search" id="q" placeholder="Artist, title, difficulty or id…" value="${query.q || ''}" aria-label="Search maps">
       <select class="select" id="sort" aria-label="Sort">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>

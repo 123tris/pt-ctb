@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { activity, playerIndex } from '../core/data.js';
 import { S } from '../core/model.js';
 import { eventItem, EVENT_KINDS } from '../core/events.js';
-import { setTitle, tabs, scoreRow, empty, chipGroup, setPressed, writeQuery, announce, resultCount, epigraph } from '../core/ui.js';
+import { setTitle, tabs, scoreRow, empty, chipGroup, setPressed, writeQuery, announce, resultCount } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
 /** Events grouped under "Today", "Yesterday" or the date. */
@@ -30,7 +30,6 @@ export default async function activityPage(root, { query, isCurrent }) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>Activity</h1>
-      ${epigraph('activity')}
       <p>Snipes, new top plays, Dan passes and leaderboard climbs from the last four months. The bot picks up new plays every 30 minutes; they show up here with the site’s next data update (see the footer).</p>
     </header>
     ${tabs([

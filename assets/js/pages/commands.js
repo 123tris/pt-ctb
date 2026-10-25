@@ -1,6 +1,6 @@
 import { html } from '../core/html.js';
 import { meta, load } from '../core/data.js';
-import { setTitle, epigraph } from '../core/ui.js';
+import { setTitle } from '../core/ui.js';
 
 // The command list comes from the bot itself: on start it writes commands.json to its data folder, and the exporter
 // publishes it as data/commands.json, so this page can't drift from what /help shows in Discord. Until that file
@@ -85,7 +85,6 @@ export default async function commands(root, { isCurrent }) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>Bot commands</h1>
-      ${epigraph('commands')}
       <p>Type <span class="kbd">/</span> in Discord to see every command. Most also work with a <span class="kbd">!</span> prefix (for example <span class="kbd">!rs</span>).</p>
     </header>
     <div class="grid grid-2">
