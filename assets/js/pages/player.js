@@ -29,6 +29,17 @@ const TAB_LIST = [
   { slug: 'pre', label: 'Pre-rank', list: f => f.pre || [] },
 ];
 
+/**
+ * A pp tile that leads with the rank: the rank big ("#5 PT") and the pp under it, before `sub` if there is one. With
+ * no rank (unranked, or no official rank) the pp stays the big figure and `noRank` says why.
+ */
+function rankStat(label, rank, where, pp, { sub = '', noRank, cls }) {
+  const ppText = `${fmt.pp(pp)} pp`;
+  return rank
+    ? stat(label, html`${fmt.rank(rank)} <span class="stat-unit">${where}</span>`, sub ? html`<span class="keep">${ppText}</span> · <span class="keep">${sub}</span>` : ppText, cls)
+    : stat(label, ppText, noRank, cls);
+}
+
 function danGrid(file) {
   const passes = new Map(file.dan.map(([i, s]) => [i, s]));
   return html`<div class="dan-ladder">${DAN_STAGES.map(stage => {
@@ -182,9 +193,9 @@ export default async function player(root, { params, query, isCurrent }) {
   root.innerHTML = String(html`
     <header class="profile-head">
       <a class="avatar-link" href="${osuUser(id)}" target="_blank" rel="noopener" aria-label="${p.name} on osu!" title="${p.name} on osu!">${avatar(id, 'avatar-lg')}</a>
-      <div style="min-width:0">
-        <h1>${p.name}${isLegend(p) ? legendTag() : ''}</h1>
-        <div class="links" style="margin-bottom:10px">
+      <div class="profile-info">
+        <h1><a class="profile-name" href="${osuUser(id)}" target="_blank" rel="noopener" title="${p.name} on osu!">${p.name}</a>${isLegend(p) ? legendTag() : ''}</h1>
+        <div class="links">
           ${role ? html`<span class="badge badge-gold">${role}</span>` : ''}
           ${firsts ? html`<span class="badge badge-accent">${fmt.plural(firsts, '#1', '#1s')} in Portugal</span>` : ''}
           ${p.last ? html`<span class="badge">Last played ${fmt.ago(p.last)}</span>` : ''}
@@ -192,21 +203,23 @@ export default async function player(root, { params, query, isCurrent }) {
         </div>
         ${funChips(badges, '', { show: 3 })}
         <div class="links">
-          <a class="btn btn-small" href="${osuUser(id)}" target="_blank" rel="noopener">osu! profile ↗</a>
           <a class="btn btn-small" href="#/compare/${id}">Compare</a>
           ${years.length ? html`<a class="btn btn-small" href="#/recap/${id}/${years[0]}">${years[0]} recap</a>` : ''}
           <button class="btn btn-small" id="me" type="button" aria-pressed="false">This is me</button>
           <a class="not-you" id="not-you" href="#/player/${id}" hidden>Not you?</a>
         </div>
-        <p class="small faint" id="me-hint" style="margin:8px 0 0">Mark your own profile to highlight your rows on every leaderboard (saved in this browser).</p>
+        <p class="small faint" id="me-hint">Mark your own profile to highlight your rows on every leaderboard (saved in this browser).</p>
       </div>
     </header>
 
     <div class="stats">
-      ${stat('Converts', html`${fmt.pp(p.cv)} pp`, p.rank.c ? `${fmt.rank(p.rank.c)} in Portugal` : 'Unranked', 'stat-c')}
-      ${stat('Loved & Unranked', html`${fmt.pp(p.ul)} pp`, p.rank.u ? `${fmt.rank(p.rank.u)} in Portugal` : 'Unranked', 'stat-u')}
+      ${rankStat('Converts', p.rank.c, 'PT', p.cv, { noRank: 'Unranked', cls: 'stat-c' })}
+      ${rankStat('Loved & Unranked', p.rank.u, 'PT', p.ul, { noRank: 'Unranked', cls: 'stat-u' })}
       ${!isInactiveOnOsu(p)
-        ? stat('Official pp', html`${fmt.pp(p.pp)} pp`, p.global ? `${fmt.rank(p.global)} global · ${fmt.rank(p.country)} PT` : 'No official rank', 'stat-r')
+        // osu!'s own country rank leads, like the two tiles before it; the global rank goes under the pp.
+        ? p.country
+          ? rankStat('Official pp', p.country, 'PT', p.pp, { sub: p.global ? `${fmt.rank(p.global)} global` : '', cls: 'stat-r' })
+          : rankStat('Official pp', p.global, 'global', p.pp, { noRank: 'No official rank', cls: 'stat-r' })
         : p.pp > 0
           ? stat('Official pp', p.ppSource === 'estimated'
             // "(estimated)" is only for screen readers here: the subtitle already says it, and the value stays one line.

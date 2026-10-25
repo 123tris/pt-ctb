@@ -362,6 +362,10 @@ a.row.card-link:last-child { border-bottom: 0; }
 .stat-value:has(> .stat-fit) { container-type: inline-size; }
 .stat-fit { font-size: clamp(var(--fs-xl), 16cqi, var(--fs-2xl)); }
 .stat-sub { color: var(--text-dim); font-size: var(--fs-sm); align-self: start; }
+/* The parts of a subtitle ("7,175 pp · #1,563 global") wrap between each other, never inside one. */
+.stat-sub .keep { white-space: nowrap; }
+/* Where a rank on a tile counts ("#5 PT"): small and faint beside the big figure. */
+.stat-unit { font-size: .5em; font-weight: 600; letter-spacing: .04em; color: var(--text-faint); }
 /* Grade counts as compact chips ("SS 281  S 2,379  A 354"); they wrap between chips, never inside one. */
 .grade-counts { display: flex; flex-wrap: wrap; gap: 2px 8px; }
 .grade-counts > span { white-space: nowrap; }
@@ -441,7 +445,14 @@ a.row.card-link:last-child { border-bottom: 0; }
 
 .profile-head { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; margin-bottom: 28px; }
 .profile-head h1 { margin: 0 0 10px; }
+/* Name, badges, tags, buttons and hint stack with one gap between them. The block keeps beside the avatar (rows wrap
+   inside it) until there's less than 280px there, as on phones, where it drops below. */
+.profile-info { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.profile-info > h1, .profile-info > p, .profile-info .fun-chips { margin: 0; }
 .profile-head h1 .legend-tag { margin-left: 10px; vertical-align: middle; font-family: var(--font); line-height: 1.5; }
+/* The name links to the osu! profile, like the avatar, and looks like the plain heading until hovered. */
+.profile-name { color: inherit; border-radius: var(--r-xs); transition: color .12s; }
+.profile-name:hover { color: var(--accent); text-decoration: none; }
 .profile-head .links { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .badge {
   display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: var(--r-sm);
