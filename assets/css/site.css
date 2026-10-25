@@ -634,9 +634,9 @@ a.dan-stage:hover { text-decoration: none; }
 .loading { display: grid; place-items: center; align-content: start; gap: 28px; min-height: 40vh; padding-top: 12vh; color: var(--text-faint); font-size: var(--fs-sm); }
 .loading .rows-placeholder { width: 100%; }
 /* Placeholder score rows (ui.js placeholderRows): the height of a real one, so the list arriving doesn't move the page. */
-.row-placeholder { height: 63px; }
+.row-placeholder { height: 65px; }
 .row-placeholder::before { content: ''; display: block; width: 60%; height: 12px; margin-top: 10px; border-radius: var(--r-xs); background: var(--surface-3); opacity: .6; }
-@media (max-width: 700px) { .row-placeholder { height: 92px; } }
+@media (max-width: 700px) { .row-placeholder { height: 123px; } }
 .spinner { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface-3); border-top-color: var(--accent); animation: spin .7s linear infinite; margin-bottom: 12px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; color: var(--text-dim); font-size: var(--fs-sm); }
