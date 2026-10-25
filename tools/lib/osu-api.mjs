@@ -81,7 +81,8 @@ function toRaw(b) {
     version: b.version, difficultyrating: native ? b.difficulty_rating : null, diff_approach: b.ar, diff_size: b.cs,
     diff_overall: b.accuracy, diff_drain: b.drain, bpm: b.bpm, hit_length: b.hit_length,
     max_combo: native ? b.max_combo ?? null : null,
-    approved: b.ranked, playmode: MODES[b.mode] ?? 0, playcount: b.playcount, favourite_count: set.favourite_count,
+    approved: b.ranked, approved_date: set.ranked_date ?? null, last_update: b.last_updated ?? null, playmode: MODES[b.mode] ?? 0, playcount: b.playcount,
+    favourite_count: set.favourite_count,
   };
 }
 

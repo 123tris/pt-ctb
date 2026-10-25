@@ -39,13 +39,32 @@ function toTuple(s) {
   ];
 }
 
-/** A cached beatmap as the compact tuple the site reads (see M in model.js). */
+/** A cached beatmap as the compact tuple the site reads (see M in model.js). New fields go on the end. */
 function toMapTuple(raw) {
   return [
     raw.artist || '', raw.title || '', raw.version || '', raw.beatmapset_id || 0, round(raw.difficultyrating || 0),
     raw.diff_approach ?? 0, raw.diff_size ?? 0, raw.diff_overall ?? 0, raw.diff_drain ?? 0, raw.bpm ?? 0,
     raw.hit_length ?? 0, raw.max_combo ?? 0, Number(raw.approved), Number(raw.playmode), raw.creator || '',
+    rankedAt(raw), updatedAt(raw),
   ];
+}
+
+/** When the map was last updated (unix seconds), or null. Caches hold 0001-01-01 for "unknown". */
+function updatedAt(raw) {
+  const time = raw.last_update ? isoTime(raw.last_update) : NaN;
+  return Number.isFinite(time) && time > 0 ? time : null;
+}
+
+/**
+ * When a ranked, approved, qualified or loved map got there (unix seconds), or null. A graveyard map can still carry
+ * the date of a status it lost, so only these statuses count.
+ */
+function rankedAt(raw) {
+  const status = Number(raw.approved);
+  if (!raw.approved_date || !(status === STATUS.RANKED || status === STATUS.APPROVED || status === STATUS.QUALIFIED || status === STATUS.LOVED))
+    return null;
+  const time = isoTime(raw.approved_date);
+  return Number.isFinite(time) ? time : null;
 }
 
 const hasTitle = raw => raw && raw.title && raw.title !== 'Unknown';

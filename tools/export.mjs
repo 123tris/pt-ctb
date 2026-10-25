@@ -84,13 +84,17 @@ if (fetching && !credentials) console.warn('  --fetch-titles: no osu! credential
 const untitledIds = [...needed].filter(id => !beatmaps.get(id)?.title || beatmaps.get(id).title === 'Unknown');
 if (credentials) console.log(`  fetched ${await fetchMissing(untitledIds, cache, cacheFile, credentials)} beatmaps`);
 // Our cache supplies the title; star rating and combo stay the bot's, which are the catch ones (ours never has a
-// convert's, as osu!'s beatmap lookup only reports the standard values for them).
+// convert's, as osu!'s beatmap lookup only reports the standard values for them). The ranked/loved and last-updated
+// dates are the bot's too where it has them; ours only has them for maps fetched since they were added.
 const difficultyOf = raw => ({ difficultyrating: raw.difficultyrating, max_combo: raw.max_combo, catch_difficulty: hasCatchDifficulty(raw) });
 for (const id of untitledIds) {
   const titled = cache.maps[id];
   if (!titled) continue;
   const own = beatmaps.get(id);
-  beatmaps.set(id, own && (hasCatchDifficulty(own) || !hasCatchDifficulty(titled)) ? { ...titled, ...difficultyOf(own) } : titled);
+  const merged = own && (hasCatchDifficulty(own) || !hasCatchDifficulty(titled)) ? { ...titled, ...difficultyOf(own) } : { ...titled };
+  merged.approved_date = own?.approved_date ?? titled.approved_date ?? null;
+  merged.last_update = own?.last_update ?? titled.last_update ?? null;
+  beatmaps.set(id, merged);
 }
 
 // Converts neither cache has a catch star rating for: the fruits attributes, a hundred per export at most (one
