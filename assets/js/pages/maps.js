@@ -6,7 +6,7 @@ import {
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
-// maps-index.json rows: [id, setId, artist, title, version, stars, category, players, topPlayerId]
+// Map rows (core/data.js mapsIndex/mapsTop): [id, setId, artist, title, version, stars, category, players, topPlayerId]
 const SORTS = {
   players: ['Most players', (a, b) => b[7] - a[7] || a[0] - b[0]],
   stars: ['Most stars', (a, b) => b[5] - a[5]],

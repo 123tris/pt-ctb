@@ -1,4 +1,4 @@
-// The map search index (data/maps-search.json) and its decoder. It holds the same rows as maps-index.json,
+// The map search index (data/maps-search.json) and its decoder. It holds one row per map with Portuguese plays,
 //   [id, setId, artist, title, version, stars, category, players, topPlayerId]
 // stored by column, which compresses far better: artist and title once per set, ids and set numbers as differences
 // from the previous row, stars as hundredths and the #1 player as a number into a short list of player ids.
@@ -36,7 +36,7 @@ export function encodeMapsSearch(rows) {
   return file;
 }
 
-/** The column form → rows, as maps-index.json has them (in set order; callers sort). */
+/** The column form → rows (in set order; callers sort). */
 export function decodeMapsSearch(file) {
   const rows = new Array(file.id.length);
   let id = 0, set = 0;

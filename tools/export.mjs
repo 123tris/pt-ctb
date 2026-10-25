@@ -27,8 +27,11 @@ import { loadBotData, loadBeatmaps, loadPastOfficial } from './lib/source.mjs';
 import { build, neededMapIds, isUnclaimedCandidate } from './lib/build.mjs';
 import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, fetchDates, hasCatchDifficulty } from './lib/osu-api.mjs';
 import { STATUS } from '../assets/js/core/model.js';
+import { decodeMapsSearch } from '../assets/js/core/maps-search.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+/** Files earlier exports wrote and this one doesn't: maps-index.json, replaced by maps-search.json and maps-top.json. */
+const RETIRED = ['maps-index.json'];
 const MAX_CATCH_FETCHES = 100; // per export: under two minutes at one request a second, well inside osu!'s limit
 
 function arg(name, fallback) {
@@ -176,7 +179,13 @@ for (const [name, content] of Object.entries(files)) {
   if (writeIfChanged(path.join(outDir, name), text)) changed++;
 }
 const keep = new Set(Object.keys(files));
-const removed = prune('players', keep) + prune('maps', keep);
+let removed = prune('players', keep) + prune('maps', keep);
+// Files earlier exports wrote that nothing reads any more.
+for (const name of RETIRED) {
+  if (!fs.existsSync(path.join(outDir, name))) continue;
+  fs.rmSync(path.join(outDir, name));
+  removed++;
+}
 const metaText = JSON.stringify({ ...files['meta.json'], files: versions });
 // Also when only the manifest differs (the first export that writes one), so the site never reads stale hashes.
 const metaFile = path.join(outDir, 'meta.json');
@@ -186,7 +195,7 @@ if (changed || removed || !fs.existsSync(metaFile) || JSON.stringify(readJsonOr(
 }
 writeIfChanged(stateOut, JSON.stringify(state));
 
-const untitled = files['maps-index.json'].filter(row => !row[3]).length;
+const untitled = decodeMapsSearch(files['maps-search.json']).filter(row => !row[3]).length;
 console.log(`  ${Object.keys(files).length} files (${(bytes / 1e6).toFixed(1)} MB), ${changed} changed, ${removed} removed` +
   ` in ${((Date.now() - started) / 1000).toFixed(1)}s`);
 if (untitled) console.log(`  ${untitled} maps have no title in the bot's beatmap cache (shown by id)`);

@@ -1,5 +1,5 @@
 // node --test tools/lib/maps-search.test.mjs
-// The compact maps index must decode to exactly the rows maps-index.json holds.
+// The compact maps index must decode to exactly the rows it was made from.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,9 +23,9 @@ test('round-trips rows, including untitled maps, shared sets and unknown stars',
   assert.deepEqual(byId(decodeMapsSearch(file)), byId(rows));
 });
 
-test('round-trips the exported maps-index.json, when there is one', t => {
-  const exported = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'data', 'maps-index.json');
+test('round-trips the exported maps-search.json, when there is one', t => {
+  const exported = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'data', 'maps-search.json');
   if (!fs.existsSync(exported)) return t.skip('no export in data/');
-  const rows = JSON.parse(fs.readFileSync(exported, 'utf8'));
+  const rows = decodeMapsSearch(JSON.parse(fs.readFileSync(exported, 'utf8')));
   assert.deepEqual(byId(decodeMapsSearch(JSON.parse(JSON.stringify(encodeMapsSearch(rows))))), byId(rows));
 });

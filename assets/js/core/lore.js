@@ -3,8 +3,8 @@
 
 import { M } from './model.js';
 
-/** Tris: the player the records page dares everyone to snipe (he keeps asking for it). Matches build.mjs. */
-export const THRONE_PLAYER = 3821475;
+/** Tris: the player the records page dares everyone to snipe. Defined in model.js, which the exporter shares. */
+export { THRONE_PLAYER } from './model.js';
 
 /** The last time osu!catch pp changed for real (the formula model.js implements). */
 export const LAST_REWORK = Date.UTC(2025, 9, 29) / 1000;

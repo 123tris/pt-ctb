@@ -39,22 +39,17 @@ export const playerFile = id => load(`players/${id}.json`);
 
 /**
  * Every map with Portuguese plays, as rows [id, setId, artist, title, version, stars, category, players, topPlayerId]
- * in no particular order. Read from the compact maps-search.json, or maps-index.json in data from before it.
+ * in no particular order, decoded from the compact maps-search.json.
  */
 let mapsPromise = null;
 export function mapsIndex() {
-  mapsPromise ??= meta().then(m => (m.files?.['maps-search.json'] ? load('maps-search.json').then(decodeMapsSearch) : load('maps-index.json')));
+  mapsPromise ??= load('maps-search.json').then(decodeMapsSearch);
   mapsPromise.catch(() => { mapsPromise = null; });
   return mapsPromise;
 }
 
 /** { total, rows }: the most-played maps (most players first), for the Maps page's first pages; mapsIndex() has them all. */
-export async function mapsTop() {
-  const m = await meta();
-  if (m.files?.['maps-top.json']) return load('maps-top.json');
-  const rows = await mapsIndex();
-  return { total: rows.length, rows };
-}
+export const mapsTop = () => load('maps-top.json');
 export const modRankings = () => load('modrankings.json');
 export const dan = () => load('dan.json');
 export const activity = () => load('activity.json');

@@ -21,6 +21,9 @@ export const M = {
   UPDATED_AT: 16,
 };
 
+/** Tris: the player whose #1s the records page dares everyone to take (he keeps asking to be sniped). */
+export const THRONE_PLAYER = 3821475;
+
 /** Score categories, as the bot files them (see CatchScoreRules in the bot). */
 export const CAT = { CONVERT: 'c', LOVED: 'u', RANKED: 'r' };
 export const CATS = [CAT.CONVERT, CAT.LOVED, CAT.RANKED];

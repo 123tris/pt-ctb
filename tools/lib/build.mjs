@@ -2,7 +2,7 @@
 // the current time, and returns { files, state } - nothing here touches the disk.
 
 import {
-  S, M, CAT, CATS, STATUS, MODE, DAN_MAPS, classify, boardComparator, weightedTotal, matchesModFilter,
+  S, M, CAT, CATS, STATUS, MODE, DAN_MAPS, THRONE_PLAYER, classify, boardComparator, weightedTotal, matchesModFilter,
   parseModFilter, modString, isSS,
 } from '../../assets/js/core/model.js';
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
@@ -15,14 +15,6 @@ const MOD_FILTERS = ['NM', 'HD', 'HR', 'DT', 'FL', 'EZ', 'HT', 'HDHR', 'HDDT', '
 const PP_MILESTONES = 1000;
 const ACTIVITY_DAYS = 120;
 const MAX_EVENTS = 400;
-/** The player whose #1s the records page dares everyone to take (Tris, who keeps asking to be sniped). */
-const THRONE_PLAYER = 3821475;
-/** The supporter-challenge maps Fie tracks on the Discord: C = 1, B = 2, A = 3, S/SS = 4 points, first to 50 wins. */
-const HOUSE_POOL = [
-  2397952, 3677233, 3666577, 3060693, 2866964, 3450339, 3461274, 1637120, 3521814, 3638586, 1966809, 3587544,
-  2450533, 3000775, 3169318, 2566257, 2899706, 3572726, 3500160, 1975026, 1133219, 2169000, 3035752,
-];
-const HOUSE_POINTS = { C: 1, B: 2, A: 3, S: 4, SH: 4, X: 4, XH: 4 };
 
 const round = (n, places = 2) => Math.round(n * 10 ** places) / 10 ** places;
 // Older profiles hold accuracy as a 0-1 fraction, newer ones as a percentage.
@@ -553,21 +545,14 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     .slice(0, 20)
     .map(([id, b]) => [id, b.cat, b.entries.length, Math.min(...b.entries.map(e => e[S.MISS + 1]))]);
 
-  // The house challenge: each player's grade on every pool map, scored the way the Discord's challenges are.
-  const houseRows = [...people.values()].map(p => {
-    const grades = HOUSE_POOL.map(id => boards.get(id)?.entries.find(e => e[0] === p.id)?.[S.GRADE + 1] ?? null);
-    return [p.id, grades.reduce((n, g) => n + (HOUSE_POINTS[g] || 0), 0), grades];
-  }).filter(r => r[1] > 0).sort((a, b) => b[1] - a[1] || a[0] - b[0]);
-
   const challenges = {
     week: weekBoard ? {
       id: week.id, start: week.start, end: week.end, map: weekMap, cat: weekBoard.cat,
       board: weekBoard.entries, weekly: weekBoard.entries.filter(e => e[S.TIME + 1] >= week.start),
     } : null,
     beatable, lonely, unclaimed, bounties,
-    house: { pool: HOUSE_POOL, points: HOUSE_POINTS, target: 50, rows: houseRows },
     maps: mapsFor([weekMap, ...beatable.map(r => r[0]), ...lonely.map(r => r[0]), ...unclaimed.map(r => r[0]),
-      ...bounties.map(r => r[0]), ...HOUSE_POOL].filter(Boolean)),
+      ...bounties.map(r => r[0])].filter(Boolean)),
   };
 
   // ---- Quiz pool ---------------------------------------------------------------------------------------------------
@@ -635,9 +620,6 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'challenges.json': challenges,
       'quiz.json': quiz,
       'history.json': history,
-      // maps-index.json is what released clients up to the per-file versioning read; drop it once every branch's
-      // data.js reads maps-top.json + maps-search.json (see notes/data-format.md).
-      'maps-index.json': mapsIndex,
       'maps-top.json': { total: mapsIndex.length, rows: mapsIndex.slice(0, MAPS_TOP) },
       'maps-search.json': encodeMapsSearch(mapsIndex),
       ...Object.fromEntries(Object.entries(playerFiles).map(([id, file]) => [`players/${id}.json`, file])),
