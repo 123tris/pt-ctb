@@ -57,7 +57,7 @@ function areaOf(el) {
   if (!(el instanceof Element)) return '';
   if (el.closest('.search')) return 'search';
   if (el.closest('.you')) return 'you-menu';
-  if (el.closest('.nav-more-menu')) return 'more-menu';
+  if (el.closest('.nav-menu')) return 'nav-menu';
   if (el.closest('.nav, .brand')) return 'nav';
   if (el.closest('.footer')) return 'footer';
   if (el.closest('#content')) return 'page';

@@ -88,22 +88,32 @@ button, input, select { font: inherit; color: inherit; }
 .brand img { display: block; }
 .brand-dot { color: var(--text-faint); margin: 0 1px; }
 .nav { display: flex; align-items: stretch; gap: 0; margin-left: auto; }
-.nav a, .nav-more-btn {
+/* Categories (index.html): the name links to the most-used page; its menu of the rest drops down under the bar on
+   hover (after a short pause, so sweeping across the bar doesn't flash every menu) or when a keyboard focus is inside. */
+.nav-cat { position: relative; display: flex; }
+.nav-top {
   display: flex; align-items: center; color: var(--text-dim); padding: 0 11px; font-weight: 500; font-size: var(--fs-md);
-  background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
 }
-.nav a:hover, .nav-more-btn:hover { color: var(--text); text-decoration: none; }
-.nav a.active { color: var(--text); border-bottom-color: var(--accent); }
-.nav-more { position: relative; display: flex; }
-.nav-more-btn::after { content: ''; display: inline-block; margin-left: 6px; border: 4px solid transparent; border-top-color: currentColor; transform: translateY(2px); }
-.nav-more-menu {
-  display: none; position: absolute; right: 0; top: 100%; min-width: 210px; padding: 4px 0;
-  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r);
+.nav-top:hover, .nav-cat:hover .nav-top { color: var(--text); text-decoration: none; }
+.nav-top.active { color: var(--text); border-bottom-color: var(--accent); }
+.nav-menu {
+  position: absolute; top: 100%; left: 0; z-index: 60; display: grid; min-width: 190px; padding: 6px 0;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 0 0 var(--r) var(--r);
+  visibility: hidden; opacity: 0; transform: translateY(-4px);
+  transition: opacity .12s .1s, transform .12s .1s, visibility 0s .22s;
 }
-.nav-more-menu a { padding: 9px 14px; border-bottom: 0; margin: 0; }
-.nav-more-menu a:hover { background: var(--surface-2); }
-.nav-more-menu a.active { color: var(--accent); }
-.nav-more.open .nav-more-menu { display: grid; }
+/* The last two open leftwards, so they never run past the window. */
+.nav-cat:nth-last-child(-n + 2) .nav-menu { left: auto; right: 0; }
+.nav-cat:hover .nav-menu, .nav-cat:has(:focus-visible) .nav-menu {
+  visibility: visible; opacity: 1; transform: none; transition: opacity .12s .08s, transform .12s .08s, visibility 0s .08s;
+}
+.nav-cat.shut .nav-menu { visibility: hidden; opacity: 0; transition: none; }
+.nav-menu a { padding: 8px 16px; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
+.nav-menu a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
+.nav-menu a.current { color: var(--accent); }
+.nav-menu a:focus-visible { outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) { .nav-menu, .nav-cat:hover .nav-menu { transform: none; } }
 .nav-toggle { display: none; margin-left: auto; align-self: center; width: 40px; height: 40px; background: none; border: 0; cursor: pointer; padding: 12px 10px; }
 .nav-toggle span { display: block; height: 2px; background: var(--text); margin: 0 0 5px; transition: transform .2s, opacity .2s; }
 
@@ -113,14 +123,18 @@ button, input, select { font: inherit; color: inherit; }
     display: none; position: absolute; top: 56px; left: 0; right: 0; flex-direction: column; align-items: stretch;
     padding: 6px 0 12px; background: var(--bg); border-bottom: 1px solid var(--border);
   }
-  .nav.open { display: flex; }
-  .nav a, .nav-more-btn { padding: 11px 16px; border-bottom: 0; border-left: 2px solid transparent; margin: 0; }
-  .nav a.active { border-left-color: var(--accent); }
-  .nav-more { display: block; }
-  .nav-more-btn { display: none; }
-  .nav-more-menu { display: grid; position: static; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 6px 0 0; margin-top: 6px; background: none; }
-  .nav-more-menu a { padding: 11px 16px; border-left: 2px solid transparent; }
-  .nav-more-menu a:hover { background: none; }
+  .nav.open { display: flex; max-height: calc(100vh - 56px); overflow-y: auto; }
+  /* Phones: every category open, its name as the heading and its pages in two columns under it. */
+  .nav-cat { display: block; padding: 4px 0 8px; border-bottom: 1px solid var(--border); }
+  .nav-cat:last-child { border-bottom: 0; }
+  .nav-top { padding: 10px 16px 4px; border-bottom: 0; border-left: 2px solid transparent; margin: 0; color: var(--text); font-weight: 600; }
+  .nav-top.active { border-left-color: var(--accent); }
+  .nav-menu, .nav-cat:hover .nav-menu, .nav-cat.shut .nav-menu {
+    position: static; visibility: visible; opacity: 1; transform: none; transition: none;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; padding: 0 0 0 8px; background: none; border: 0;
+  }
+  .nav-menu a { padding: 8px 10px; white-space: normal; }
+  .nav-menu a:hover { background: none; }
   .nav-toggle[aria-expanded='true'] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
   .nav-toggle[aria-expanded='true'] span:nth-child(2) { opacity: 0; }
   .nav-toggle[aria-expanded='true'] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
@@ -886,7 +900,7 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 
 @media (max-width: 1100px) {
   .search-field input { width: 170px; }
-  .nav a, .nav-more-btn { padding-inline: 9px; }
+  .nav-top { padding-inline: 9px; }
 }
 @media (max-width: 940px) {
   .search { position: static; order: 3; }
@@ -994,9 +1008,6 @@ html[data-env] .brand::after {
 p a:not(.btn), li a:not(.btn), dd a:not(.btn), .muted a:not(.btn), .notice a:not(.btn) { text-decoration: underline; text-underline-offset: 3px; }
 p a.dim-link { text-decoration: underline; }
 
-/* A2/D2: "More" shows where you are when one of its pages is open. */
-.nav-more-btn.active { color: var(--text); border-bottom-color: var(--accent); }
-@media (max-width: 940px) { .nav-more-btn.active { border-left-color: var(--accent); } }
 
 
 /* U7: chip groups say what they filter. */
@@ -1107,3 +1118,74 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 
 /* The page-not-found glyph: Shin, the last Dan, which nobody has reached either. */
 .lost-glyph { margin-bottom: 14px; font: 700 clamp(5rem, 16vw, 8rem)/1 var(--display); color: color-mix(in srgb, var(--gold) 35%, var(--surface)); }
+
+/* =================================================================================================================
+   Fewer boxes. A box (fill, border, radius) marks one thing you can pick up as a whole: a map, a game, a Dan stage, a
+   tab card, a list of rows or a table. Everything else is an open section under a hairline, so the page reads as
+   sections of one document instead of a grid of equal grey tiles.
+   ================================================================================================================= */
+
+.card:not(.card-link) { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 14px 0 0; }
+.game .card:not(.card-link) { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); }
+.card:not(.card-link) > .table-wrap { margin-top: 4px; }
+
+/* Stat tiles: one strip of figures split by hairlines. The strip reaches 17px left and clips its first pixel, so the
+   first figure of every row lines up with the page and no line stands at the row's left edge. */
+.stats { column-gap: 0; row-gap: 18px; margin-left: -17px; clip-path: inset(0 0 0 1px); }
+.stat { background: none; border: 0; border-left: 1px solid var(--border); border-radius: 0; padding: 2px 18px 2px 16px; }
+
+/* Notes and call-outs: text with no stripe or panel. */
+.notice { background: none; border: 0; border-radius: 0; padding: 0; }
+.lore-card { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 12px 0 0; }
+.empty { background: none; border: 0; border-block: 1px solid var(--border); border-radius: 0; }
+
+/* The home page's "Tris still holds…" line: a ruled row, not a gold-striped panel. */
+.throne-strip { background: none; border: 0; border-block: 1px solid var(--border); border-radius: 0; padding: 12px 0; }
+.throne-strip.card-link:hover { background: none; border-color: var(--border); }
+.throne-strip.card-link:hover b { color: var(--gold); }
+
+/* =================================================================================================================
+   Tone trial (TEMPORARY, development builds only; core/tone.js). Each tone overrides the palette on <html>. Once one is
+   picked, move its values into :root and delete this block.
+   ================================================================================================================= */
+
+/* Rosa + lilac: the accent stays; Loved & Unranked moves to lilac, so it no longer looks like a link. */
+html[data-tone='lilac'] { --cat-u: #c9a0ff; }
+
+/* Laranja: an orange accent (fruit, and far from osu!'s loved pink) on warm greys without the pink tint. */
+html[data-tone='laranja'] {
+  --bg: #1d1a18; --bg-2: #191614; --surface: #262220; --surface-2: #302b28; --surface-3: #3c3632;
+  --border: #36302c; --border-strong: #4a423d; --input-border: #82756c;
+  --text: #f4eee9; --text-dim: #c2b8b0; --text-faint: #a1968d;
+  --accent: #ff9152; --accent-hover: #ffaa7a; --accent-ink: #2b1203; --accent-bg: #3f2719; --accent-line: #7c4524;
+}
+
+/* Azulejo: the blue of Portuguese tiles as the accent, on cooler greys; converts move from blue to teal. */
+html[data-tone='azulejo'] {
+  --bg: #171a1f; --bg-2: #14161a; --surface: #1f232a; --surface-2: #282d35; --surface-3: #333943;
+  --border: #2b3038; --border-strong: #3e4550; --input-border: #6d7786;
+  --text: #edf1f6; --text-dim: #b3bcc8; --text-faint: #8f9aa8;
+  --accent: #5c9dff; --accent-hover: #80b3ff; --accent-ink: #06142b; --accent-bg: #1c2a42; --accent-line: #2f4f80;
+  --cat-c: #4fd1c5;
+}
+
+.tone-picker {
+  position: fixed; left: 16px; bottom: 16px; z-index: 70; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  max-width: calc(100vw - 32px); padding: 6px; background: var(--surface-2); border: 1px solid var(--border-strong);
+  border-radius: var(--r); font-size: var(--fs-xs); box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+}
+.tone-picker > span { padding: 0 6px; color: var(--text-faint); font-weight: 600; }
+.tone-picker button {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 9px; border: 1px solid transparent;
+  border-radius: var(--r-sm); background: none; color: var(--text-dim); font-weight: 600; cursor: pointer;
+}
+.tone-picker button:hover { color: var(--text); }
+.tone-picker button[aria-pressed='true'] { border-color: var(--border-strong); background: var(--surface-3); color: var(--text); }
+.tone-picker i { width: 10px; height: 10px; border-radius: 50%; }
+/* Phones: swatches only, so the switcher doesn't cover the page. */
+@media (max-width: 600px) {
+  .tone-picker { left: auto; right: 12px; bottom: 12px; padding: 4px; }
+  .tone-picker > span, .tone-picker button span { display: none; }
+  .tone-picker button { width: 30px; justify-content: center; padding: 0; }
+  .tone-picker i { width: 14px; height: 14px; }
+}

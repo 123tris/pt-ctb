@@ -8,6 +8,7 @@ import { NOT_FOUND, pick } from './core/lore.js';
 import { startFun } from './core/fun.js';
 import { initSearch } from './core/search.js';
 import { initYou } from './core/you.js';
+import { initTone } from './core/tone.js';
 import { startTracking, trackView } from './core/track.js';
 import * as fmt from './core/fmt.js';
 import { CONFIG } from './config.js';
@@ -137,38 +138,35 @@ function showError(title, text, { newPage = false, players = false, glyph = '' }
   if (newPage) focusHeading();
 }
 
-/** Marks the current section in the main nav (class and aria-current), and "More" when one of its pages is open. */
+/**
+ * Marks the current category in the main nav (class and aria-current on its name) and, in its menu, the page that's
+ * open: the link matching the whole address, or else the one matching its path (#/activity for #/activity?kind=x).
+ */
 function markNav(section) {
-  document.querySelectorAll('.nav a').forEach(a => {
-    // Strictly true/false: classList.toggle(name, undefined) flips the class instead of removing it, and links
-    // without a section (More's "Dan course" shortcut) would otherwise light up every other route.
+  document.querySelectorAll('.nav-top').forEach(a => {
+    // Strictly true/false: classList.toggle(name, undefined) flips the class instead of removing it.
     const on = Boolean(section && a.dataset.section?.split(' ').includes(section));
     a.classList.toggle('active', on);
     if (on) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  document.querySelector('.nav-more-btn')?.classList.toggle('active', Boolean(document.querySelector('.nav-more-menu a.active')));
+  const here = location.hash || '#/';
+  const path = here.split('?')[0];
+  document.querySelectorAll('.nav-menu').forEach(menu => {
+    const links = [...menu.querySelectorAll('a')];
+    const current = links.find(a => a.getAttribute('href') === here) ?? links.find(a => a.getAttribute('href') === path);
+    links.forEach(a => a.classList.toggle('current', a === current));
+  });
 }
 
 // ---- Navigation menus ------------------------------------------------------------------------------------
 
 const nav = document.getElementById('nav');
 const toggle = document.querySelector('.nav-toggle');
-const more = document.querySelector('.nav-more');
-
-const moreButton = more.querySelector('button');
-
-// "More" is a disclosure: aria-expanded always matches what's on screen, and Escape, an outside click or tabbing
-// away closes it.
-function setMore(open) {
-  more.classList.toggle('open', open);
-  moreButton.setAttribute('aria-expanded', String(open));
-}
 
 function closeMenus() {
   nav.classList.remove('open');
   toggle.setAttribute('aria-expanded', 'false');
-  setMore(false);
 }
 
 toggle.addEventListener('click', () => {
@@ -176,15 +174,18 @@ toggle.addEventListener('click', () => {
   nav.classList.toggle('open', open);
   toggle.setAttribute('aria-expanded', String(open));
 });
-moreButton.addEventListener('click', e => {
-  e.stopPropagation();
-  setMore(!more.classList.contains('open'));
+
+// A category's menu opens on hover or keyboard focus (site.css). After a pick from it, or Escape, it stays shut until
+// the pointer or focus leaves the category, so it doesn't hang over the page that just opened.
+document.querySelectorAll('.nav-cat').forEach(cat => {
+  cat.addEventListener('click', e => { if (e.target.closest('.nav-menu a')) cat.classList.add('shut'); });
+  cat.addEventListener('mouseleave', () => cat.classList.remove('shut'));
+  cat.addEventListener('focusout', e => { if (!cat.contains(e.relatedTarget)) cat.classList.remove('shut'); });
 });
-document.addEventListener('click', e => { if (!more.contains(e.target)) setMore(false); });
-more.addEventListener('focusout', e => { if (!more.contains(e.relatedTarget)) setMore(false); });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  if (more.classList.contains('open')) { setMore(false); moreButton.focus(); }
+  const cat = document.activeElement?.closest('.nav-cat');
+  if (cat && !nav.classList.contains('open')) { cat.classList.add('shut'); cat.querySelector('.nav-top').focus(); }
   else if (nav.classList.contains('open') && nav.contains(document.activeElement)) { closeMenus(); toggle.focus(); }
 });
 
@@ -207,6 +208,7 @@ new MutationObserver(() => enhanceTables(root)).observe(root, { childList: true,
 startFun();
 initSearch();
 initYou();
+initTone();
 startTracking();
 
 if (CONFIG.discordInvite) {
