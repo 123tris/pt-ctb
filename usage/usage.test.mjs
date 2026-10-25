@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { onRequestPost as hit } from '../functions/api/hit.js';
 import { onRequestGet as statsRoute } from '../functions/stats.js';
-import { recordHit, parseBatch, KEEP_DAYS } from './store.js';
+import { recordHit, parseBatch, KEEP_DAYS, DAILY_EVENT_CAP, DAILY_READ_BUDGET, ensureSchema } from './store.js';
 import { stats } from './dashboard.js';
 
 /** Just enough of D1 (prepare/bind/first/all/run/batch) over node:sqlite. */
@@ -162,4 +162,43 @@ test('the dashboard shows how far people read each page, top section first', asy
   const page = await (await stats(get('/stats', basic('pw')), env, DAY)).text();
   const rowsFor = [...page.matchAll(/<tr><td>records<\/td><td>([^<]+)<\/td><td class="num">(\d+)<\/td><td>.*?(\d+%)<\/td><\/tr>/g)].map(m => m.slice(1));
   assert.deepEqual(rowsFor, [['Legendary plays', '4', '100%'], ['Dethrone Tris', '2', '50%'], ['The collectors', '1', '25%']]);
+});
+
+test('past the daily event cap nothing more is stored until the next UTC day (free-plan guard)', async () => {
+  const db = fakeD1();
+  const env = { USAGE: db, STATS_PASSWORD: 'pw' };
+  await ensureSchema(db);
+  db.sqlite.prepare('INSERT INTO quota (day, events) VALUES (?, ?)').run('2026-10-25', DAILY_EVENT_CAP - 1);
+  const reason = async (t, ...e) => (await recordHit(post(batch(...e)), env, t)).headers.get('x-usage');
+  assert.equal(await reason(DAY, ['view', 'home'], ['view', 'maps'], ['view', 'records']), 'ok:1'); // only what fits
+  assert.equal(await reason(DAY, ['view', 'home']), 'daily-cap');
+  assert.deepEqual(rows(db).map(r => r.name), ['home']);
+  assert.match(await (await stats(get('/stats', basic('pw')), env, DAY)).text(), /Counting is paused until midnight UTC/);
+  assert.equal(await reason(DAY + 86400000, ['view', 'home']), 'ok:1');
+  assert.equal(db.sqlite.prepare('SELECT events FROM quota WHERE day = ?').get('2026-10-26').events, 1);
+});
+
+test('the dashboard refuses a range that would read past the daily read budget, and counts what it reads', async () => {
+  const db = fakeD1();
+  const env = { USAGE: db, STATS_PASSWORD: 'pw' };
+  await recordHit(post(batch(['view', 'home'], ['view', 'maps'])), env, DAY);
+  assert.equal((await stats(get('/stats?days=7', basic('pw')), env, DAY)).status, 200);
+  const reads = () => db.sqlite.prepare('SELECT reads FROM quota WHERE day = ?').get('2026-10-25').reads;
+  assert.ok(reads() > 0, 'the report adds its reads to today');
+  // A busy day 100 days ago: the 365-day view would read too much, the 7-day view doesn't reach it.
+  db.sqlite.prepare('INSERT INTO quota (day, events) VALUES (?, ?)').run('2026-07-17', Math.ceil(DAILY_READ_BUDGET / 8));
+  const refused = await stats(get('/stats?days=365', basic('pw')), env, DAY);
+  assert.equal(refused.status, 429);
+  assert.match(await refused.text(), /Pick a shorter range/);
+  assert.equal((await stats(get('/stats?days=7', basic('pw')), env, DAY)).status, 200);
+  // Once today's reads use up the budget, nothing more is run until tomorrow.
+  db.sqlite.prepare('UPDATE quota SET reads = ? WHERE day = ?').run(DAILY_READ_BUDGET, '2026-10-25');
+  assert.equal((await stats(get('/stats?days=7', basic('pw')), env, DAY)).status, 429);
+});
+
+test(`quota rows older than ${KEEP_DAYS} days are deleted with the events`, async () => {
+  const db = fakeD1();
+  await recordHit(post(batch(['view', 'home'])), { USAGE: db }, DAY - (KEEP_DAYS + 1) * 86400000);
+  await recordHit(post(batch(['view', 'maps'])), { USAGE: db }, DAY);
+  assert.deepEqual(db.sqlite.prepare('SELECT day FROM quota').all().map(r => r.day), ['2026-10-25']);
 });

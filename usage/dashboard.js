@@ -3,9 +3,12 @@
 // No JavaScript is needed to read it; one tiny inline script (allowed by nonce) runs the "don't count me" switch,
 // which sets the same ptctb:notrack flag assets/js/core/track.js checks.
 
-import { ensureSchema, dayOf, KEEP_DAYS } from './store.js';
+import { ensureSchema, dayOf, KEEP_DAYS, DAILY_EVENT_CAP, DAILY_READ_BUDGET, usedToday, eventsSince, noteReads } from './store.js';
 
 const RANGES = [7, 30, 90, 365];
+// One report reads every event of its range about this many times (13 queries; the ones without a kind filter scan the
+// whole range), so a range's cost is guessed from the quota table before it runs. See DAILY_READ_BUDGET in store.js.
+const READS_PER_EVENT = 8;
 const SITES = { prod: 'ptcatch.com', dev: 'dev.ptcatch.com', preview: 'previews' };
 // The site's top-level pages (assets/js/app.js ROUTES), so a page nobody opened still shows up, with 0.
 const SECTIONS = ['home', 'rankings', 'players', 'player', 'maps', 'map', 'activity', 'challenges', 'games', 'calculator',
@@ -58,7 +61,10 @@ export async function report(db, site, days, now = Date.now()) {
     // Earliest time first seen = roughly the order down the page, so sections list top to bottom.
     q(`SELECT name, detail, ${visit} AS visits, MIN(rowid) AS first ${base} AND kind = 'seen' GROUP BY name, detail ORDER BY name, first LIMIT 200`),
   ]);
+  // D1 reports each query's rows read in meta; the sum goes into today's quota row (usage/store.js, noteReads).
+  const metered = [daily, pages, used, via, clicks, out, fun, devices, countries, refs, me, total, seen].map(x => x.meta?.rows_read);
   return {
+    rowsRead: metered.every(n => Number.isFinite(n)) ? metered.reduce((a, b) => a + b, 0) : null,
     site, days, from, to: dayOf(now),
     daily: daily.results, pages: pages.results, used: used.results, via: via.results, clicks: clicks.results,
     out: out.results, fun: fun.results, devices: devices.results, countries: countries.results, refs: refs.results, seen: seen.results,
@@ -147,12 +153,14 @@ a { color:var(--accent); } .muted, .tick { color:var(--muted); fill:var(--muted)
 th { text-align:left; color:var(--muted); font-weight:500; font-size:12px; border-bottom:1px solid var(--line); padding:6px 8px; }
 td { border-bottom:1px solid var(--line); padding:6px 8px; } .num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
 .meter { display:inline-block; width:90px; height:6px; background:var(--line); border-radius:3px; vertical-align:middle; margin-right:6px; }
+.cap { border:1px solid var(--accent); border-radius:6px; padding:8px 12px; }
 .meter span { display:block; height:100%; background:${BAR}; border-radius:3px; }
 .note { margin-top:40px; color:var(--muted); font-size:13px; } button { font:inherit; padding:4px 10px; border-radius:4px; border:1px solid var(--line); background:var(--surface); color:var(--text); cursor:pointer; }
 .warn { border-left:3px solid var(--accent); padding-left:10px; }
 </style></head><body><main>
 <h1>Who uses what on ${esc(SITES[r.site] ?? r.site)}</h1>
 <p class="muted">${esc(r.from)} to ${esc(r.to)} (UTC). A <b>visit</b> is one visitor on one day: visitors can't be followed across days, by design.</p>
+${r.capped ? `<p class="cap"><b>Counting is paused until midnight UTC:</b> today reached the cap of ${num(DAILY_EVENT_CAP)} events that keeps the database inside Cloudflare's free plan (usage/store.js).</p>` : ''}
 <div class="bar">
   <span class="chips">${RANGES.map(d => `<a href="${link(d, r.site)}"${d === r.days ? ' aria-current="true"' : ''}>${d} days</a>`).join(' ')}</span>
   <span class="chips">${Object.entries(SITES).map(([k, v]) => `<a href="${link(r.days, k)}"${k === r.site ? ' aria-current="true"' : ''}>${esc(v)}</a>`).join(' ')}</span>
@@ -232,8 +240,23 @@ export async function stats(request, env, now = Date.now()) {
   const url = new URL(request.url);
   const days = RANGES.includes(Number(url.searchParams.get('days'))) ? Number(url.searchParams.get('days')) : 30;
   const site = Object.hasOwn(SITES, url.searchParams.get('site') ?? '') ? url.searchParams.get('site') : 'prod';
+  // Free-plan guard: a long range over a busy year could read millions of rows (D1 Free: 5,000,000 a day, then every
+  // query fails until midnight UTC), so a report that would take today's reads past DAILY_READ_BUDGET isn't run.
+  const db = env.USAGE;
+  await ensureSchema(db);
+  const today = dayOf(now);
+  const used = await usedToday(db, today);
+  const estimate = READS_PER_EVENT * await eventsSince(db, dayOf(now - (days - 1) * 86400000));
+  if (used.reads + estimate > DAILY_READ_BUDGET) {
+    return plain(429, `Not run: the last ${days} days would read about ${estimate.toLocaleString('en-GB')} rows, and ${used.reads.toLocaleString('en-GB')} `
+      + `of today's budget of ${DAILY_READ_BUDGET.toLocaleString('en-GB')} are used (Cloudflare D1's free plan allows 5,000,000 a day). `
+      + 'Pick a shorter range, or come back after midnight UTC.', { 'retry-after': '3600' });
+  }
+  const r = await report(db, site, days, now);
+  await noteReads(db, today, r.rowsRead ?? estimate);
+  r.capped = used.events >= DAILY_EVENT_CAP;
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
-  const body = renderDashboard(await report(env.USAGE, site, days, now), { nonce });
+  const body = renderDashboard(r, { nonce });
   return new Response(body, {
     headers: {
       'content-type': 'text/html; charset=utf-8',

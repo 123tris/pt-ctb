@@ -6,7 +6,18 @@
 
 export const KEEP_DAYS = 400;
 const KINDS = new Set(['view', 'seen', 'use', 'click', 'out', 'egg', 'pref', 'filter']);
-const MAX_EVENTS = 50;
+// assets/js/core/track.js sends at most 20 events per batch; a few more are allowed, but not a flood per request.
+const MAX_EVENTS = 25;
+
+// Free-plan guard. D1 on Workers Free allows 100,000 rows written and 5,000,000 rows read per day (all databases of
+// the account, reset at 00:00 UTC; queries fail once either is used up) and 500 MB per database. An event costs 2 rows
+// written (the row and its index entry), each request adds one to today's quota row, the retention delete costs the
+// event's 2 rows again 400 days later, and a stored event is ~150 bytes. So past DAILY_EVENT_CAP events a day (all
+// sites together) nothing more is recorded until midnight UTC: at most ~36,000 rows written a day even if someone
+// floods /api/hit, and at most ~360 MB after 400 days. The dashboard keeps its reads under DAILY_READ_BUDGET the same way
+// (usage/dashboard.js). See notes/free-tier-audit.md.
+export const DAILY_EVENT_CAP = 6000;
+export const DAILY_READ_BUDGET = 2_000_000;
 /** Labels keep letters, digits and plain punctuation only (no markup, emoji or control characters), 60 at most. */
 const label = s => (typeof s === 'string' ? s.replace(/[^\p{L}\p{N} #'’&.,:/!?()+\-–—…→←]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 60) : '');
 
@@ -17,6 +28,8 @@ const SCHEMA = [
     device TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '', ref TEXT NOT NULL DEFAULT '', me INTEGER NOT NULL DEFAULT 0)`,
   'CREATE INDEX IF NOT EXISTS events_by_day ON events (env, day, kind)',
   'CREATE TABLE IF NOT EXISTS salts (day TEXT PRIMARY KEY, salt TEXT NOT NULL)',
+  // Per UTC day: events recorded and rows the dashboard read, for the free-plan caps above.
+  'CREATE TABLE IF NOT EXISTS quota (day TEXT PRIMARY KEY, events INTEGER NOT NULL DEFAULT 0, reads INTEGER NOT NULL DEFAULT 0)',
 ];
 
 const ready = new WeakMap();
@@ -47,6 +60,7 @@ async function saltFor(db, day) {
     db.prepare('INSERT OR IGNORE INTO salts (day, salt) VALUES (?, ?)').bind(day, salt),
     db.prepare('DELETE FROM salts WHERE day < ?').bind(day),
     db.prepare('DELETE FROM events WHERE day < ?').bind(cutoff),
+    db.prepare('DELETE FROM quota WHERE day < ?').bind(cutoff),
   ]);
   // Two first events at once: both insert-or-ignore, and both then use whichever salt won.
   return (await db.prepare('SELECT salt FROM salts WHERE day = ?').bind(day).first()).salt;
@@ -77,6 +91,24 @@ export function parseBatch(body) {
   return rows.length ? rows : null;
 }
 
+/** Today's quota row: events recorded and rows the dashboard read so far (0 and 0 before the first). */
+export async function usedToday(db, day) {
+  const row = await db.prepare('SELECT events, reads FROM quota WHERE day = ?').bind(day).first();
+  return { events: row?.events ?? 0, reads: row?.reads ?? 0 };
+}
+
+/** Events recorded from `from` (a day) on, all sites together: what a dashboard range has to read through. */
+export async function eventsSince(db, from) {
+  const row = await db.prepare('SELECT COALESCE(SUM(events), 0) AS n FROM quota WHERE day >= ?').bind(from).first();
+  return row?.n ?? 0;
+}
+
+/** Adds `reads` rows read to today's quota row. */
+export function noteReads(db, day, reads) {
+  return db.prepare('INSERT INTO quota (day, reads) VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET reads = reads + excluded.reads')
+    .bind(day, Math.max(0, Math.round(reads))).run();
+}
+
 const BOTS = /bot|crawl|spider|slurp|headless|lighthouse|preview|python|curl|wget|node-fetch/i;
 
 /**
@@ -100,6 +132,10 @@ export async function recordHit(request, env, now = Date.now()) {
 
   await ensureSchema(db);
   const day = dayOf(now);
+  // The free-plan cap (DAILY_EVENT_CAP): checked before the salt, so a flood past it costs one row read per request.
+  const { events: recorded } = await usedToday(db, day);
+  if (recorded >= DAILY_EVENT_CAP) return done('daily-cap');
+  if (rows.length > DAILY_EVENT_CAP - recorded) rows = rows.slice(0, DAILY_EVENT_CAP - recorded);
   const ip = request.headers.get('cf-connecting-ip') ?? '';
   const visitor = await visitorHash(db, day, ip, agent);
   const site = envOf(url.hostname);
@@ -107,6 +143,9 @@ export async function recordHit(request, env, now = Date.now()) {
   const ts = Math.floor(now / 1000);
   const insert = db.prepare(`INSERT INTO events (ts, day, env, visitor, kind, name, detail, device, country, ref, me)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  await db.batch(rows.map(r => insert.bind(ts, day, site, visitor, r.kind, r.name, r.detail, r.device, country, r.ref, r.me)));
+  await db.batch([
+    ...rows.map(r => insert.bind(ts, day, site, visitor, r.kind, r.name, r.detail, r.device, country, r.ref, r.me)),
+    db.prepare('INSERT INTO quota (day, events) VALUES (?, ?) ON CONFLICT(day) DO UPDATE SET events = events + excluded.events').bind(day, rows.length),
+  ]);
   return done(`ok:${rows.length}`);
 }
