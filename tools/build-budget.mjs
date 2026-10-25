@@ -6,7 +6,7 @@
 //   node tools/build-budget.mjs pre-push origin  # (the hook) reads the pushed refs on stdin; exit 1 refuses the push
 //
 // One push that has to go out anyway (a hotfix on main past the cap, say): set PTCTB_BUILD_BUDGET=off for it.
-// Turn the hook on for every worktree of this repo:  git config core.hooksPath tools/git-hooks
+// Turn the hook on for every worktree of this repo:  git config core.hooksPath C:/Repos/pt-ctb-dev/tools/git-hooks
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
