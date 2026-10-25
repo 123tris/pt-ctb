@@ -130,7 +130,7 @@ export function modsBadges(mask) {
 const GRADE_TEXT = { X: 'SS', XH: 'SS', S: 'S', SH: 'S' };
 export const gradeBadge = g => html`<span class="grade grade-${g}">${GRADE_TEXT[g] ?? g}</span>`;
 export const catChip = cat => html`<span class="cat cat-${cat}">${CAT_SHORT[cat]}</span>`;
-export const posBadge = n => (n ? html`<span class="pos pos-${n <= 3 ? n : 'n'}" title="Position in Portugal"><span class="sr-only">Position in Portugal: </span>#${n}</span>` : '');
+export const posBadge = (n, label = 'Position in Portugal') => (n ? html`<span class="pos pos-${n <= 3 ? n : 'n'}" title="${label}"><span class="sr-only">${label}: </span>#${n}</span>` : '');
 export const ppText = n => html`<span class="pp">${fmt.pp(n)}<small>pp</small></span>`;
 
 // Players inactive on osu! (players.json `inactive`, only on them): osu! shows them at 0 pp, the site keeps their

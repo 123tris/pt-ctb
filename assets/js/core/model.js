@@ -22,9 +22,9 @@ export const M = {
 };
 
 /**
- * The map fields a player's files (players/{id}.json and players/{id}-head.json) carry: the ones the profile, compare,
- * recap and the badges read. The others are null there and the dates are left off, which keeps the biggest files
- * about a third smaller. A page that needs another field from a player's file adds it here.
+ * The map fields a player's files (players/{id}.json and players/{id}-head.json) and topplays.json carry: the ones the
+ * profile, compare, recap, the badges and the top plays read. The others are null there and the dates are left off,
+ * which keeps the biggest files about a third smaller. A page that needs another field from those files adds it here.
  */
 export const PLAYER_MAP_FIELDS = [M.ARTIST, M.TITLE, M.VERSION, M.SET, M.STARS, M.AR, M.MAX_COMBO, M.MODE, M.CREATOR];
 
@@ -76,6 +76,27 @@ export const FILTERABLE = MOD.EZ | MOD.HD | MOD.HR | MOD.DT | MOD.HT | MOD.FL;
 export function matchesModFilter(mask, filter) {
   const relevant = mask & FILTERABLE;
   return filter === 0 ? relevant === 0 : (relevant & filter) === filter;
+}
+
+/**
+ * The top plays' "Plays from" choices, by the score categories each covers. Ranked is what osu! gives pp for: ranked
+ * catch maps and converts (as on the mod rankings).
+ */
+export const PLAY_SOURCES = { r: [CAT.RANKED, CAT.CONVERT], c: [CAT.CONVERT], u: [CAT.LOVED] };
+
+/**
+ * One view of the top plays: of `rows` ([userId, category, ...score], best first), the first `cap` from `source` (a
+ * PLAY_SOURCES key) whose mods match `filter` (a parseModFilter mask; null for any mods). The exporter keeps the union
+ * of every view, so the site gets each one back exactly by filtering that list the same way.
+ */
+export function topPlaysView(rows, source, filter, cap) {
+  const cats = PLAY_SOURCES[source];
+  const out = [];
+  for (const row of rows) {
+    if (out.length >= cap) break;
+    if (cats.includes(row[1]) && (filter === null || matchesModFilter(row[S.MODS + 2], filter))) out.push(row);
+  }
+  return out;
 }
 
 /** Parses "HD", "HDDT", "NM" into a filter mask, or null for anything unknown. */

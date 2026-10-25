@@ -3,7 +3,7 @@
 
 import {
   S, M, CAT, CATS, STATUS, MODE, DAN_MAPS, THRONE_PLAYER, PLAYER_MAP_FIELDS, classify, boardComparator, weightedTotal,
-  matchesModFilter, parseModFilter, isSS,
+  matchesModFilter, parseModFilter, isSS, PLAY_SOURCES, topPlaysView,
 } from '../../assets/js/core/model.js';
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
 import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js';
@@ -14,6 +14,11 @@ const BUCKETS = 128;
 const MAPS_TOP = 500;
 /** Rows per list in a player's head file: the profile's first page in its default order (most pp first). */
 const HEAD_ROWS = 50;
+/**
+ * Plays per view of the top plays (each source and mod filter). 50 keeps topplays.json about the size of
+ * modrankings.json; 100, an osu! profile's count, would make it almost twice that.
+ */
+const TOP_PLAYS = 50;
 const MOD_FILTERS = ['NM', 'HD', 'HR', 'DT', 'FL', 'EZ', 'HT', 'HDHR', 'HDDT', 'HRDT'];
 const PP_MILESTONES = 1000;
 const ACTIVITY_DAYS = 120;
@@ -413,7 +418,11 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   // ---- Mod rankings ---------------------------------------------------------------------------------------------
 
-  const pools = { r: p => p.dump_top, c: p => p.lists.c, u: p => p.lists.u };
+  // Ranked is the dump's plays, with osu!'s own pp. Players inactive on osu! aren't in the dump, so they fall back to
+  // the ranked plays and converts the bot keeps (what their estimated pp comes from) and stay on these boards too.
+  const pools = {
+    r: p => (p.dump_top.length ? p.dump_top : bestPerMap([...p.lists.r, ...p.lists.c])), c: p => p.lists.c, u: p => p.lists.u,
+  };
   const modRankings = { filters: MOD_FILTERS, sources: {} };
   const modMaps = [];
   for (const [source, pool] of Object.entries(pools)) {
@@ -431,6 +440,23 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     }
   }
   modRankings.maps = mapsFor(modMaps);
+
+  // ---- Top plays ------------------------------------------------------------------------------------------------
+  // The country's best single plays, most pp first: every player's best play per map, as the map pages have it (filed
+  // under the map's category). The site offers a top TOP_PLAYS per source and mod filter (any mods included); the file
+  // holds the union of them all, which the site filters back into each view (topPlaysView in model.js). Banned maps'
+  // plays are worth 0pp and left out.
+  const allPlays = [...boards]
+    .flatMap(([, b]) => b.entries.filter(e => e[S.PP + 1] > 0).map(([uid, ...t]) => [uid, b.cat, ...t]))
+    .sort((a, b) => b[S.PP + 2] - a[S.PP + 2] || a[S.TIME + 2] - b[S.TIME + 2] || a[0] - b[0]);
+  const shownPlays = new Set();
+  for (const source of Object.keys(PLAY_SOURCES)) {
+    for (const filter of [null, ...MOD_FILTERS.map(parseModFilter)]) {
+      for (const row of topPlaysView(allPlays, source, filter, TOP_PLAYS)) shownPlays.add(row);
+    }
+  }
+  const topPlays = { cap: TOP_PLAYS, filters: MOD_FILTERS, plays: allPlays.filter(row => shownPlays.has(row)) };
+  topPlays.maps = playerMapsFor(topPlays.plays.map(row => row[S.MAP + 2]));
 
   // ---- Dan course ---------------------------------------------------------------------------------------------------
 
@@ -733,6 +759,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'meta.json': metaFile,
       'players.json': players,
       'modrankings.json': modRankings,
+      'topplays.json': topPlays,
       'dan.json': dan,
       'activity.json': activity,
       'records.json': records,

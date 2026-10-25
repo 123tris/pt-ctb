@@ -299,8 +299,8 @@ tbody tr:hover { background: var(--surface-2); }
 td.num, th.num { text-align: right; }
 td.rank { width: 1%; color: var(--text-faint); font-weight: 700; }
 td.wide { white-space: normal; min-width: 260px; max-width: 460px; }
-tr.me { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); }
-tr.me:hover { background: var(--accent-bg); }
+tr.me, .row.me { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); }
+tr.me:hover, .row.me:hover { background: var(--accent-bg); }
 .table-compact td, .table-compact th { padding: 7px 12px; }
 .card .table-wrap { border-radius: var(--r-sm); }
 @media (max-width: 600px) { th, td { padding: 8px 10px; } }
@@ -705,8 +705,8 @@ a.dan-stage:hover { text-decoration: none; }
 .event .quip { margin-top: 4px; font-size: var(--fs-sm); color: var(--text-faint); font-style: italic; }
 .event-emoji { margin-left: auto; font-size: var(--fs-sm); }
 
-tr.inactive td, tr.inactive .player, tr.inactive .pp { color: var(--text-dim); }
-tr.inactive .avatar { filter: grayscale(.7); }
+tr.inactive td, tr.inactive .player, tr.inactive .pp, .row.inactive .player, .row.inactive .pp { color: var(--text-dim); }
+tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 .legend-tag { margin-left: 6px; font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); padding: 0 4px; }
 
 .bounty-tag { color: var(--gold); font-weight: 600; }

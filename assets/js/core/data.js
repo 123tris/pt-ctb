@@ -60,6 +60,8 @@ export function mapsIndex() {
 /** { total, rows }: the most-played maps (most players first), for the Maps page's first pages; mapsIndex() has them all. */
 export const mapsTop = () => load('maps-top.json');
 export const modRankings = () => load('modrankings.json');
+/** { cap, filters, plays: [[userId, category, ...score]] (most pp first), maps }, or null for data from before it. */
+export const topPlays = () => load('topplays.json').catch(e => (e instanceof NotFound ? null : Promise.reject(e)));
 export const dan = () => load('dan.json');
 export const activity = () => load('activity.json');
 export const records = () => load('records.json');

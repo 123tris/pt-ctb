@@ -30,7 +30,7 @@ and is imported by both the exporter and the pages, so the two can't drift apart
 | Route | What |
 |---|---|
 | `#/` | Home: top 5s, map of the week, latest activity, how to join |
-| `#/rankings/{converts,loved,ranked,mods}` | Leaderboards, plus osupepe-style mod rankings |
+| `#/rankings/{converts,loved,ranked,mods,plays}` | Leaderboards, osupepe-style mod rankings, and the country's top plays (by source and mod) |
 | `#/players`, `#/player/{id}/{tab}` | Player list (the header search's "all results", not in the nav) and profiles (scores, Dan, pp history) |
 | `#/maps`, `#/map/{id}` | Map search and per-map Portuguese leaderboards |
 | `#/activity`, `#/activity?view=plays` | Snipes, top plays, Dan passes, overtakes; recent plays |

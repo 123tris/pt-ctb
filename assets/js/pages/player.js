@@ -208,7 +208,7 @@ export default async function player(root, { params, query, isCurrent }) {
           <button class="btn btn-small" id="me" type="button" aria-pressed="false">This is me</button>
           <a class="not-you" id="not-you" href="#/player/${id}" hidden>Not you?</a>
         </div>
-        <p class="small faint" id="me-hint">Mark your own profile to highlight your rows on every leaderboard (saved in this browser).</p>
+        <p class="small faint" id="me-hint" ${prefs.get('me', null) === null ? '' : raw('hidden')}>Mark your own profile to highlight your rows on every leaderboard (saved in this browser).</p>
       </div>
     </header>
 
@@ -284,17 +284,16 @@ export default async function player(root, { params, query, isCurrent }) {
   });
 
   // "This is me" is a toggle: the label stays the same, aria-pressed and a check mark show the state, and "Not you?"
-  // undoes it without having to guess that the same button does.
+  // undoes it without having to guess that the same button does. The hint under it is for visitors who haven't
+  // marked anyone yet: once a profile (any) is theirs it's gone, on every profile, and it's back if they clear it.
   const meButton = root.querySelector('#me');
   const notYou = root.querySelector('#not-you');
   const hint = root.querySelector('#me-hint');
   const drawMe = () => {
-    const mine = prefs.get('me', null) === id;
-    meButton.setAttribute('aria-pressed', String(mine));
-    notYou.hidden = !mine;
-    hint.textContent = mine
-      ? 'Your rows are highlighted on every leaderboard, and your avatar sits in the top bar.'
-      : 'Mark your own profile to highlight your rows on every leaderboard (saved in this browser).';
+    const me = prefs.get('me', null);
+    meButton.setAttribute('aria-pressed', String(me === id));
+    notYou.hidden = me !== id;
+    hint.hidden = me !== null;
   };
   meButton.addEventListener('click', () => {
     prefs.set('me', prefs.get('me', null) === id ? null : id);

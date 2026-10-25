@@ -1,29 +1,33 @@
 import { html } from '../core/html.js';
-import { players, modRankings, meta } from '../core/data.js';
-import { S } from '../core/model.js';
+import { players, modRankings, topPlays, meta } from '../core/data.js';
+import { S, parseModFilter, topPlaysView } from '../core/model.js';
 import {
   setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, prefs, SLUG_CAT, CAT_LABEL, pageHead,
   chipGroup, setPressed, writeQuery, announce, resultCount, isInactiveOnOsu, isInactive, isLegend, inactiveTag, legendTag,
-  statusTag, officialPp,
+  statusTag, officialPp, scoreStats, posBadge, catChip,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
-// `label` is the short tab text (all four fit on a phone); `title` names the page.
+// `label` is the short tab text; `title` names the page.
 const BOARDS = [
   { slug: 'converts', label: 'Converts', title: 'Converts' },
   { slug: 'loved', label: 'Loved', title: 'Loved & Unranked' },
   { slug: 'ranked', label: 'Ranked', title: 'Ranked (official)' },
   { slug: 'mods', label: 'Mods', title: 'By mods' },
+  { slug: 'plays', label: 'Top plays', title: 'Top plays' },
 ];
 
 const INTRO = {
   converts: html`osu!standard maps played in catch mode. Each player’s best plays add up the way osu! does it: every play is worth 95% of the one before. <a class="help-link" href="#/glossary">What’s pp?</a>`,
   loved: 'Loved, pending and graveyarded maps. osu! gives no pp for these, so the bot works them out with the current osu!catch formula.',
   ranked: 'The official osu!catch leaderboard. The pp and global rank come from each player’s osu! profile. Players who are inactive on osu! (where they show as 0 pp) stay here with their last known pp, or one estimated from their plays.',
-  mods: 'Each player is ranked by the weighted pp of their plays that include the chosen mod (the “osupepe” way). An HDDT play counts for HD, DT and HDDT; NM counts plays without EZ, HD, HR, DT, HT or FL.',
+  mods: 'Each player is ranked by the weighted pp of their plays that include the chosen mod (the “osupepe” way). An HDDT play counts for HD, DT and HDDT; NM counts plays without EZ, HD, HR, DT, HT or FL. Players inactive on osu! are ranked by the plays the bot keeps.',
+  plays: 'Portugal’s best single plays, most pp first, like the top plays on an osu! profile. Ranked is what osu! gives pp for: ranked catch maps and converts. A mod keeps the plays that include it (an HDDT play counts for HD, DT and HDDT); NM is plays without EZ, HD, HR, DT, HT or FL.',
 };
 
 const SOURCES = [['r', 'Ranked'], ['c', 'Converts'], ['u', 'Loved & Unranked']];
+/** The top plays' mod choice for no filter at all. */
+const ANY = 'Any';
 const KEY = { c: 'cv', u: 'ul', r: 'pp' };
 
 // Footnotes in the community's words, per board.
@@ -31,6 +35,19 @@ const FOOTNOTE = {
   converts: 'Converts or specifics? Pick a side (and brace for the argument).',
   loved: 'The higher the star rating, the better the #1. NF snipes aren’t real snipes.',
 };
+
+/**
+ * How a board marks an inactive player: greyed out, and tagged "legend" (lore.js) or a quiet "inactive". On the
+ * official (Ranked) boards only being inactive on osu! counts.
+ */
+function inactiveMark(p, official) {
+  if (!p) return { greyed: false, tag: '' };
+  const offOsu = official && isInactiveOnOsu(p);
+  return {
+    greyed: official ? offOsu : isInactive(p),
+    tag: official ? (isLegend(p) ? legendTag() : offOsu ? inactiveTag() : '') : statusTag(p),
+  };
+}
 
 /** On phones only rank, player and pp stay; the other numbers move under the name. */
 function boardTable(list, cat, me, title) {
@@ -45,10 +62,8 @@ function boardTable(list, cat, me, title) {
     </tr></thead>
     <tbody>${list.map((p, i) => {
       // Inactive players stay on the board, greyed out (Ranked: those inactive on osu!, kept with their official pp).
-      // Legends (lore.js) are tagged as such; everyone else inactive gets the quiet "inactive" tag.
       const offOsu = ranked && isInactiveOnOsu(p);
-      const greyed = ranked ? offOsu : isInactive(p);
-      const tag = ranked ? (isLegend(p) ? legendTag() : offOsu ? inactiveTag() : '') : statusTag(p);
+      const { greyed, tag } = inactiveMark(p, ranked);
       const noRank = html`<span class="faint" title="Inactive on osu!, so no global or country rank">—</span>`;
       return html`<tr class="${p.id === me ? 'me' : ''} ${greyed ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
         <td class="rank">${ranked ? i + 1 : p.rank[cat]}</td>
@@ -65,32 +80,64 @@ function boardTable(list, cat, me, title) {
   </table></div>`;
 }
 
-function modsTable(rows, maps, index, me, mod) {
+function modsTable(rows, maps, index, me, mod, official) {
   if (!rows.length) return empty('Nobody has plays with this mod combination.');
   return html`<div class="table-wrap" data-label="${mod} leaderboard"><table>
     <thead><tr><th>#</th><th>Player</th><th class="num">Weighted pp</th><th class="num col-opt">Plays</th><th class="col-opt">Best play</th><th class="num col-opt">pp</th></tr></thead>
-    <tbody>${rows.map(([id, pp, count, top], i) => html`<tr class="${id === me ? 'me' : ''}" data-name="${(index.get(id)?.name || '').toLowerCase()}">
+    <tbody>${rows.map(([id, pp, count, top], i) => {
+      const { greyed, tag } = inactiveMark(index.get(id), official);
+      return html`<tr class="${id === me ? 'me' : ''} ${greyed ? 'inactive' : ''}" data-name="${(index.get(id)?.name || '').toLowerCase()}">
       <td class="rank">${i + 1}</td>
-      <td class="cell-player">${playerLink(id, index)}<span class="cell-sub">${fmt.plural(count, 'play')} · best ${fmt.pp(top[S.PP])} pp</span></td>
+      <td class="cell-player">${playerLink(id, index)}${tag ? html` ${tag}` : ''}<span class="cell-sub">${fmt.plural(count, 'play')} · best ${fmt.pp(top[S.PP])} pp</span></td>
       <td class="num">${ppText(pp)}</td>
       <td class="num col-opt">${fmt.num(count)}</td>
       <td class="wide col-opt">${mapLink(top[S.MAP], maps[top[S.MAP]])}</td>
       <td class="num col-opt">${modsBadges(top[S.MODS])} ${ppText(top[S.PP])}</td>
-    </tr>`)}</tbody>
+    </tr>`;
+    })}</tbody>
   </table></div>`;
+}
+
+/** The top plays: [userId, category, ...score] rows, best first. Ranked mixes ranked maps and converts, so it says which. */
+function playsList(rows, maps, index, me, source) {
+  if (!rows.length) return empty('Nobody has plays with this mod combination.');
+  return html`<div class="rows">${rows.map(([uid, cat, ...s], i) => {
+    const p = index.get(uid);
+    const { greyed, tag } = inactiveMark(p, source === 'r');
+    return html`<div class="row ${uid === me ? 'me' : ''} ${greyed ? 'inactive' : ''}" data-name="${(p?.name || '').toLowerCase()}">
+      <div class="row-main">
+        ${mapLink(s[S.MAP], maps[s[S.MAP]])}
+        <div>${playerLink(uid, index, 'avatar-sm')}${tag ? html` ${tag}` : ''}</div>
+      </div>
+      <div class="row-meta">
+        ${source === 'r' ? catChip(cat) : ''}
+        ${scoreStats(s)}
+        <span class="sep"></span>
+        ${posBadge(i + 1, 'Place in these top plays')}
+        ${ppText(s[S.PP])}
+        <span class="faint" title="${fmt.dateTime(s[S.TIME])}">${fmt.date(s[S.TIME])}</span>
+      </div>
+    </div>`;
+  })}</div>`;
 }
 
 export default async function rankings(root, { params, query, isCurrent }) {
   const board = BOARDS.find(b => b.slug === params.board) ?? BOARDS[0];
   const slug = board.slug;
-  const [list, m, mods] = await Promise.all([players(), meta(), slug === 'mods' ? modRankings() : null]);
+  const [list, m, mods, plays] = await Promise.all([
+    players(), meta(), slug === 'mods' ? modRankings() : null, slug === 'plays' ? topPlays() : null,
+  ]);
   if (!isCurrent()) return;
-  setTitle(`${board.title} leaderboard`);
+  setTitle(slug === 'plays' ? board.title : `${board.title} leaderboard`);
   const index = new Map(list.map(p => [p.id, p]));
   const me = prefs.get('me', null);
 
   let source = SOURCES.some(([k]) => k === query.src) ? query.src : 'r';
-  let mod = mods?.filters.includes(query.mod) ? query.mod : 'HD';
+  // Mods ranks players by one mod (HD unless asked); the top plays can also take any mods, and start there.
+  const filtered = Boolean(mods || plays);
+  const modChoices = mods ? mods.filters : plays ? [ANY, ...plays.filters] : [];
+  const defaultMod = slug === 'plays' ? ANY : 'HD';
+  let mod = modChoices.includes(query.mod) ? query.mod : defaultMod;
 
   root.innerHTML = String(html`
     ${pageHead({ title: 'Leaderboards', tag: 'Who rules Portuguese catch' })}
@@ -98,12 +145,12 @@ export default async function rankings(root, { params, query, isCurrent }) {
     <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">Players and plays imported from the osu! data dump of ${m.dump.replaceAll('_', '-')}.</span>` : ''}</p>
     <div class="toolbar">
       <input class="input" type="search" id="filter" placeholder="Search players…" aria-label="Search this leaderboard" value="${query.q || ''}">
-      ${slug === 'converts' || slug === 'loved' ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show inactive players</label></span>` : ''}
+      ${slug === 'converts' || slug === 'loved' || filtered ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show inactive players</label></span>` : ''}
       ${slug === 'ranked' && list.some(p => isInactiveOnOsu(p) && p.pp > 0) ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show players inactive on osu!</label></span>` : ''}
     </div>
-    ${slug === 'mods' ? html`
+    ${filtered ? html`
       <div id="sources" style="margin-bottom:8px">${chipGroup('Plays from', 'src', SOURCES, source)}</div>
-      <div id="modchips" style="margin-bottom:16px">${chipGroup('Mod', 'mod', mods.filters.map(f => [f, f]), mod)}</div>` : ''}
+      <div id="modchips" style="margin-bottom:16px">${chipGroup('Mod', 'mod', modChoices.map(f => [f, f]), mod)}</div>` : ''}
     <p class="result-count" id="count"></p>
     <div id="board"></div>
     <div id="board-empty"></div>
@@ -119,23 +166,23 @@ export default async function rankings(root, { params, query, isCurrent }) {
 
   const saveQuery = () => writeQuery({
     q: filter.value.trim(), legends: legends && !legends.checked ? '0' : '',
-    ...(slug === 'mods' ? { src: source, mod } : {}),
-  }, { src: 'r', mod: 'HD' });
+    ...(filtered ? { src: source, mod } : {}),
+  }, { src: 'r', mod: defaultMod });
 
   const applyFilter = ({ speak = false } = {}) => {
     const q = filter.value.trim().toLowerCase();
-    const rows = [...boardEl.querySelectorAll('tbody tr')];
+    const rows = [...boardEl.querySelectorAll('[data-name]')];
     let shown = 0;
     rows.forEach(tr => {
       const hide = Boolean(q && !tr.dataset.name.includes(q)) || (legends && !legends.checked && tr.classList.contains('inactive'));
       tr.classList.toggle('hidden', hide);
       if (!hide) shown++;
     });
-    const text = rows.length ? resultCount(shown, rows.length, 'player') : '';
+    const text = rows.length ? resultCount(shown, rows.length, slug === 'plays' ? 'play' : 'player') : '';
     count.textContent = text;
     // A filter that matches nobody says so (with the way back) instead of leaving a table of headers.
-    boardEl.querySelector('.table-wrap')?.classList.toggle('hidden', rows.length > 0 && !shown);
-    emptyEl.innerHTML = rows.length && !shown ? String(emptyFiltered(q ? `No player on this leaderboard matches “${filter.value.trim()}”.` : 'Nobody here is active right now.')) : '';
+    boardEl.querySelector('.table-wrap, .rows')?.classList.toggle('hidden', rows.length > 0 && !shown);
+    emptyEl.innerHTML = rows.length && !shown ? String(emptyFiltered(q ? `No player ${slug === 'plays' ? 'in these top plays' : 'on this leaderboard'} matches “${filter.value.trim()}”.` : 'Nobody here is active right now.')) : '';
     if (speak) announce(text);
   };
   let timer;
@@ -154,7 +201,12 @@ export default async function rankings(root, { params, query, isCurrent }) {
     filter.focus();
   });
 
-  if (slug !== 'mods') {
+  if (slug === 'plays' && !plays) {
+    // Data exported before the top plays existed (the development site reads the release site's data).
+    boardEl.innerHTML = String(empty('The top plays arrive with the next data update.'));
+    return;
+  }
+  if (!filtered) {
     const cat = SLUG_CAT[slug];
     // The official board is everyone with an osu! rank plus players inactive on osu! (kept with their official pp),
     // all ordered by pp; the other boards come ranked from the exporter.
@@ -169,7 +221,9 @@ export default async function rankings(root, { params, query, isCurrent }) {
   const draw = ({ speak = false } = {}) => {
     setPressed(root, 'src', source);
     setPressed(root, 'mod', mod);
-    boardEl.innerHTML = String(modsTable(mods.sources[source][mod], mods.maps, index, me, mod));
+    boardEl.innerHTML = String(mods
+      ? modsTable(mods.sources[source][mod], mods.maps, index, me, mod, source === 'r')
+      : playsList(topPlaysView(plays.plays, source, mod === ANY ? null : parseModFilter(mod), plays.cap), plays.maps, index, me, source));
     applyFilter({ speak });
     saveQuery();
   };
