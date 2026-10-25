@@ -1,6 +1,6 @@
 import { html } from '../core/html.js';
 import { mapEntry, playerIndex, challenges, dan } from '../core/data.js';
-import { S, M, CAT, STATUS, MODE, DAN_MAPS } from '../core/model.js';
+import { S, M, CAT, STATUS, DAN_MAPS } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { mapTags } from '../core/badges.js';
 import { mapLore } from '../core/lore.js';
@@ -14,7 +14,6 @@ const STATUS_LABEL = {
   [STATUS.GRAVEYARD]: 'Graveyard', [STATUS.WIP]: 'WIP', [STATUS.PENDING]: 'Pending', [STATUS.RANKED]: 'Ranked',
   [STATUS.APPROVED]: 'Approved', [STATUS.QUALIFIED]: 'Qualified', [STATUS.LOVED]: 'Loved',
 };
-const MODE_LABEL = { [MODE.OSU]: 'osu!standard (convert)', [MODE.TAIKO]: 'taiko', [MODE.CATCH]: 'osu!catch', [MODE.MANIA]: 'mania' };
 
 // The date next to the status: when a ranked, approved, qualified or loved map got that status ("Ranked 14 Mar 2021"),
 // or when a graveyard, pending or WIP map was last updated ("Last updated 2 Jun 2023"). Both are unix seconds at the
@@ -81,7 +80,6 @@ export default async function mapPage(root, { params, isCurrent }) {
 
     ${meta ? html`<dl class="kv kv-strip">
       <div><dt>Status</dt><dd>${STATUS_LABEL[meta[M.STATUS]] ?? '—'}${dated ? html`<span class="status-date">${dated[0] === STATUS_LABEL[meta[M.STATUS]] ? ' ' : html`<span class="sep-dot"> · </span>${dated[0]} `}<time datetime="${new Date(dated[1] * 1000).toISOString()}">${fmt.date(dated[1])}</time></span>` : ''}</dd></div>
-      <div><dt>Mode</dt><dd>${MODE_LABEL[meta[M.MODE]] ?? '—'}</dd></div>
       <div><dt>Length</dt><dd>${fmt.duration(meta[M.LENGTH])}</dd></div>
       <div><dt>BPM</dt><dd>${fmt.num(meta[M.BPM])}</dd></div>
       <div><dt>Max combo</dt><dd>${meta[M.MAX_COMBO] ? `${fmt.num(meta[M.MAX_COMBO])}x` : '—'}</dd></div>
