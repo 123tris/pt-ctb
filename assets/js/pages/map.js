@@ -5,7 +5,7 @@ import { danName } from '../core/events.js';
 import { mapTags } from '../core/badges.js';
 import { mapLore } from '../core/lore.js';
 import {
-  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip,
+  setTitle, playerLink, scoreStats, ppText, posBadge, coverUrl, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip, scoreWhen,
   funChips,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
@@ -119,7 +119,7 @@ export default async function mapPage(root, { params, isCurrent }) {
           <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
           <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td>
           <td class="num">${ppText(s[S.PP])}</td>
-          <td class="num faint col-opt" title="${fmt.dateTime(s[S.TIME])}">${fmt.date(s[S.TIME])}</td>
+          <td class="num faint col-opt" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.date(s[S.TIME]))}</td>
         </tr>`)}</tbody>
       </table></div>` : html`<div class="empty">No Portuguese player has a score on this map yet. Why not be the first?</div>`}
     </section>
@@ -135,7 +135,7 @@ export default async function mapPage(root, { params, isCurrent }) {
           <td class="cell-player">${playerLink(uid, index)}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span></span></td>
           <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
           <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td>
-          <td class="num faint" title="${fmt.dateTime(s[S.TIME])}">${fmt.date(s[S.TIME])}</td>
+          <td class="num faint" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.date(s[S.TIME]))}</td>
         </tr>`)}</tbody>
       </table></div>
     </section>` : ''}

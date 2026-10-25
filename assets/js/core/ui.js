@@ -15,6 +15,13 @@ export const osuMap = id => `https://osu.ppy.sh/beatmaps/${id}?mode=fruits`;
 // Opens the difficulty in the osu! game: the link osu!'s own osu!direct button uses. Stable jumps to it, or offers it
 // in osu!direct (supporters only) when it isn't downloaded; lazer opens it too. A custom scheme, so never a new tab.
 export const osuGame = id => `osu://b/${id}`;
+/** A play's page on osu!, or null when its score id isn't known (see S.ID in model.js). */
+export const scoreUrl = s => (s[S.ID] > 0 ? `https://osu.ppy.sh/scores/${s[S.ID]}` : s[S.ID] < 0 ? `https://osu.ppy.sh/scores/fruits/${-s[S.ID]}` : null);
+/** When a play was set (`text`), linked to its page on osu! when that's known. */
+export const scoreWhen = (s, text) => {
+  const url = scoreUrl(s);
+  return url ? html`<a class="dim-link" href="${url}" target="_blank" rel="noopener" title="${fmt.dateTime(s[S.TIME])}: this play on osu!">${text}</a>` : text;
+};
 export const avatarUrl = id => `https://a.ppy.sh/${id}`;
 export const coverUrl = (set, kind = 'list') => (set ? `https://assets.ppy.sh/beatmaps/${set}/covers/${kind}.jpg` : '');
 
@@ -207,7 +214,7 @@ export function scoreRow({ s, meta, player, index, pos, showMap = true, cat }) {
       <span class="sep"></span>
       ${posBadge(pos)}
       ${ppText(s[S.PP])}
-      <span class="faint" title="${fmt.dateTime(s[S.TIME])}">${fmt.ago(s[S.TIME])}</span>
+      <span class="faint" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.ago(s[S.TIME]))}</span>
     </div>
   </div>`;
 }
