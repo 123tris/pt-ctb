@@ -8,9 +8,9 @@
 :root {
   --tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%2373c5e8' stroke-opacity='.08' stroke-width='1.2'%3E%3Cpath d='M0 0h72v72H0z'/%3E%3Ccircle cx='0' cy='0' r='20'/%3E%3Ccircle cx='72' cy='0' r='20'/%3E%3Ccircle cx='0' cy='72' r='20'/%3E%3Ccircle cx='72' cy='72' r='20'/%3E%3Cpath d='M36 16l20 20-20 20-20-20z'/%3E%3Ccircle cx='36' cy='36' r='7'/%3E%3Cpath d='M36 2v10M36 60v10M2 36h10M60 36h10'/%3E%3C/g%3E%3C/svg%3E");
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  /* Half the width the tiles keep clear in the middle of the page: a little wider than the column, so they stay out
-     in the margins. */
-  --tile-clear: 640px;
+  /* Half the width the tiles keep clear in the middle of the page (they fade in over the next 140px): about the
+     column's own half-width, so they stay out in the margins. */
+  --tile-clear: 580px;
 }
 
 /* ---- Background ----------------------------------------------------------------------------------------------- */
