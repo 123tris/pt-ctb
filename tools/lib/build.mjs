@@ -101,7 +101,7 @@ export function neededMapIds(bot, homeCountry) {
   const add = list => { for (const s of list || []) ids.add(s.beatmap_id); };
   for (const p of bot.players) {
     if (p.country !== homeCountry) continue;
-    add(p.TopConvertedScores); add(p.TopUnrankedScores); add(p.RankedSpecificScores);
+    add(p.TopConvertedScores); add(p.TopUnrankedScores); add(p.RankedSpecificScores); add(p.PreRankScores);
     for (const s of p.DanPasses || []) if (s) ids.add(s.beatmap_id);
   }
   for (const p of bot.ptCatch) {
@@ -133,7 +133,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
 
   const people = new Map();
   const person = (id, name) => {
-    if (!people.has(id)) people.set(id, { id, name, raw: null, dump: null, lists: { c: [], u: [], r: [] }, dump_top: [] });
+    if (!people.has(id)) people.set(id, { id, name, raw: null, dump: null, lists: { c: [], u: [], r: [] }, dump_top: [], pre: [] });
     return people.get(id);
   };
 
@@ -144,6 +144,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
     p.lists.c.push(...(raw.TopConvertedScores || []).filter(Boolean).map(tuple));
     p.lists.u.push(...(raw.TopUnrankedScores || []).filter(Boolean).map(tuple));
     p.lists.r.push(...(raw.RankedSpecificScores || []).filter(Boolean).map(tuple));
+    // Plays from before their map was ranked: shown for the record, counted nowhere (they're 0pp in the bot too).
+    p.pre = (raw.PreRankScores || []).filter(Boolean).map(toTuple).sort((a, b) => b[S.SCORE] - a[S.SCORE]);
   }
   for (const dump of bot.ptCatch) {
     if (dump.country !== homeCountry) continue;
@@ -234,30 +236,50 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
     const withPos = t => [...t, position.get(`${p.id}:${t[S.MAP]}`) || null];
     const lists = Object.fromEntries(CATS.map(cat => [cat, p.lists[cat].map(withPos)]));
     const ids = [...CATS.flatMap(cat => p.lists[cat].map(t => t[S.MAP])), ...p.dan.map(([, t]) => t[S.MAP]),
-      ...p.dump_top.map(t => t[S.MAP])];
+      ...p.dump_top.map(t => t[S.MAP]), ...p.pre.map(t => t[S.MAP])];
     playerFiles[p.id] = {
       id: p.id, name: p.name,
       scores: lists,
       top: p.dump_top, // the dump's best ranked plays (official pp, converts included) for the "Ranked" view
       dan: p.dan,
+      // Plays from before their map was ranked (no pp, no positions); left out when there are none.
+      ...(p.pre.length ? { pre: p.pre } : {}),
       maps: mapsFor(ids),
     };
   }
 
   // ---- Map buckets + search index -------------------------------------------------------------------------------
 
+  // The "played before ranked" list per map: [uid, ...tuple], best score first. Not a board - nothing is ranked on it.
+  const preBoards = new Map();
+  for (const p of people.values()) {
+    for (const t of p.pre) {
+      if (!preBoards.has(t[S.MAP])) preBoards.set(t[S.MAP], []);
+      preBoards.get(t[S.MAP]).push([p.id, ...t]);
+    }
+  }
+  for (const entries of preBoards.values()) entries.sort((a, b) => b[S.SCORE + 1] - a[S.SCORE + 1] || a[0] - b[0]);
+
   const mapBuckets = {};
   const mapsIndex = [];
   for (const [id, board] of [...boards].sort((a, b) => a[0] - b[0])) {
     const meta = mapTuple(id);
     const bucket = (mapBuckets[id % BUCKETS] ??= {});
-    bucket[id] = { m: meta, c: board.cat, s: board.entries, ...(banned.has(id) ? { banned: true } : {}) };
+    bucket[id] = {
+      m: meta, c: board.cat, s: board.entries,
+      ...(banned.has(id) ? { banned: true } : {}), ...(preBoards.has(id) ? { pre: preBoards.get(id) } : {}),
+    };
     mapsIndex.push([
       id, meta ? meta[M.SET] : 0, meta ? meta[M.ARTIST] : '', meta ? meta[M.TITLE] : '', meta ? meta[M.VERSION] : '',
       meta ? meta[M.STARS] : 0, board.cat, board.entries.length, board.entries[0][0],
     ]);
   }
   mapsIndex.sort((a, b) => b[7] - a[7] || a[0] - b[0]);
+  // Maps with only pre-rank plays still get a page (an empty board plus the list), but no place in the map index.
+  for (const [id, entries] of preBoards) {
+    if (boards.has(id)) continue;
+    (mapBuckets[id % BUCKETS] ??= {})[id] = { m: mapTuple(id), c: catOf(id, CAT.RANKED), s: [], pre: entries };
+  }
 
   // ---- Mod rankings ---------------------------------------------------------------------------------------------
 

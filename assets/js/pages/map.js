@@ -96,5 +96,21 @@ export default async function mapPage(root, { params, isCurrent }) {
         </tr>`)}</tbody>
       </table></div>` : html`<div class="empty">No Portuguese player has a score on this map yet. Why not be the first?</div>`}
     </section>
+
+    ${entry?.pre?.length ? html`<section class="section">
+      <div class="section-head">
+        <h2>Played before ranked</h2>
+        <span class="muted small">Set on an earlier version of the map, before it was ranked. Kept for the record; they count toward nothing.</span>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Player</th><th class="num">Score</th><th>Play</th><th class="num">Date</th></tr></thead>
+        <tbody>${entry.pre.map(([uid, ...s]) => html`<tr class="${uid === me ? 'me' : ''}">
+          <td>${playerLink(uid, index)}</td>
+          <td class="num">${fmt.num(s[S.SCORE])}</td>
+          <td><span class="score-line">${scoreStats(s)}</span></td>
+          <td class="num faint" title="${fmt.dateTime(s[S.TIME])}">${fmt.date(s[S.TIME])}</td>
+        </tr>`)}</tbody>
+      </table></div>
+    </section>` : ''}
   `);
 }

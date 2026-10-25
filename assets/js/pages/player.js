@@ -25,6 +25,7 @@ const TAB_LIST = [
   { slug: 'ranked', label: 'Ranked', list: f => f.scores.r },
   { slug: 'top', label: 'Official top pp', list: f => f.top },
   { slug: 'dan', label: 'Dan', list: f => f.dan },
+  { slug: 'pre', label: 'Before ranked', list: f => f.pre || [] },
 ];
 
 function danGrid(file) {
@@ -66,8 +67,13 @@ export default async function player(root, { params, isCurrent }) {
   const position = cardPosition(file);
   const signature = signatureMap(file);
 
-  const counts = { converts: file.scores.c.length, loved: file.scores.u.length, ranked: file.scores.r.length, top: file.top.length, dan: file.dan.length };
-  const tab = TAB_LIST.find(t => t.slug === params.tab) ?? TAB_LIST.find(t => t.slug !== 'dan' && counts[t.slug]) ?? TAB_LIST[0];
+  const counts = {
+    converts: file.scores.c.length, loved: file.scores.u.length, ranked: file.scores.r.length, top: file.top.length, dan: file.dan.length,
+    pre: file.pre?.length ?? 0,
+  };
+  const tab = TAB_LIST.find(t => t.slug === params.tab) ?? TAB_LIST.find(t => !['dan', 'pre'].includes(t.slug) && counts[t.slug]) ?? TAB_LIST[0];
+  // The pre-rank archive is a quiet extra: its tab only shows for players who have one.
+  const shownTabs = TAB_LIST.filter(t => t.slug !== 'pre' || counts.pre || t === tab);
   const role = danRole(p.danScore);
   const firsts = p.firsts.c + p.firsts.u + p.firsts.r;
   const years = [...new Set(CATS.flatMap(c => file.scores[c].map(s => new Date(s[S.TIME] * 1000).getFullYear())))].sort((a, b) => b - a);
@@ -116,13 +122,14 @@ export default async function player(root, { params, isCurrent }) {
     ${historyChart(points)}
 
     <section class="section">
-      ${tabs(TAB_LIST.map(t => ({ href: `#/player/${id}/${t.slug}`, label: t.label, count: counts[t.slug], active: t === tab })))}
+      ${tabs(shownTabs.map(t => ({ href: `#/player/${id}/${t.slug}`, label: t.label, count: counts[t.slug], active: t === tab })))}
       ${tab.slug === 'dan' ? danGrid(file) : html`
         ${tab.slug === 'top' ? html`<p class="muted small">The best ranked plays (converts included) with their official pp, taken from osu!’s monthly data dump.</p>` : ''}
+        ${tab.slug === 'pre' ? html`<p class="muted small">Plays set before their map was ranked. They’re kept for the record but count toward nothing: no pp, no leaderboard spot.</p>` : ''}
         <div class="toolbar">
           <input class="input" type="search" id="q" placeholder="Search maps…" aria-label="Search maps">
           <select class="select" id="sort" aria-label="Sort">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}">${label}</option>`)}</select>
-          ${tab.slug !== 'top' ? html`<span class="checks"><label><input type="checkbox" id="firsts"> Only #1s</label></span>` : ''}
+          ${!['top', 'pre'].includes(tab.slug) ? html`<span class="checks"><label><input type="checkbox" id="firsts"> Only #1s</label></span>` : ''}
         </div>
         <div id="scores"></div>`}
     </section>
@@ -145,7 +152,8 @@ export default async function player(root, { params, isCurrent }) {
   const cat = SLUG_CAT[tab.slug] ?? null;
   const all = tab.list(file);
   if (!all.length) {
-    root.querySelector('#scores').innerHTML = String(empty(`${p.name} has no plays ${tab.slug === 'top' ? 'imported from the osu! data dump' : `in ${CAT_LABEL[cat]}`} yet.`));
+    const where = { top: 'imported from the osu! data dump', pre: 'from before their map was ranked' }[tab.slug] ?? `in ${CAT_LABEL[cat]}`;
+    root.querySelector('#scores').innerHTML = String(empty(`${p.name} has no plays ${where} yet.`));
     return;
   }
   const q = root.querySelector('#q');
@@ -162,7 +170,7 @@ export default async function player(root, { params, isCurrent }) {
       .sort(SORTS[sort.value][1]);
   };
   const redraw = paginate(root.querySelector('#scores'), visible(), slice => html`<div class="rows">${slice.map(s =>
-    scoreRow({ s, meta: file.maps[s[S.MAP]], pos: tab.slug === 'top' ? null : s[S.POS] }))}</div>`);
+    scoreRow({ s, meta: file.maps[s[S.MAP]], pos: ['top', 'pre'].includes(tab.slug) ? null : s[S.POS] }))}</div>`);
   q.addEventListener('input', () => redraw(visible()));
   sort.addEventListener('change', () => redraw(visible()));
   onlyFirsts?.addEventListener('change', () => redraw(visible()));
