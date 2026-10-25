@@ -792,6 +792,13 @@ tr.inactive .avatar { filter: grayscale(.7); }
 .you-menu a:hover, .you-forget:hover { background: var(--surface-2); text-decoration: none; }
 .you-forget { color: var(--text-dim); }
 .you-note { margin: 4px 14px 6px; color: var(--text-faint); font-size: var(--fs-xs); }
+/* The avatar and name at the top link to your profile, with the profile page avatar's quiet hover and focus ring. */
+.you-menu a.you-head { display: flex; width: auto; padding: 8px 14px 12px; font-size: var(--fs-md); border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.you-menu a.you-head:hover { background: none; }
+.you-head .avatar { transition: box-shadow .12s, filter .12s; }
+.you-head:hover .avatar { box-shadow: 0 0 0 2px var(--border-strong); filter: brightness(1.08); }
+.you-head:hover b { text-decoration: underline; text-underline-offset: 2px; }
+.you-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 
 @media (max-width: 940px) {
   .you { order: 4; margin-left: -20px; }
