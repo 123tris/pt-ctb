@@ -8,6 +8,7 @@ import { NOT_FOUND, pick } from './core/lore.js';
 import { startFun } from './core/fun.js';
 import { initSearch } from './core/search.js';
 import { initYou } from './core/you.js';
+import { startTracking, trackView } from './core/track.js';
 import * as fmt from './core/fmt.js';
 import { CONFIG } from './config.js';
 
@@ -48,9 +49,23 @@ function match(path) {
         else if (parts[i] !== undefined) params[key.slice(1).replace('?', '')] = decodeURIComponent(parts[i]);
       } else if (parts[i] !== key) ok = false;
     }
-    if (ok) return { load, params };
+    if (ok) return { load, params, pattern };
   }
   return null;
+}
+
+// Route parts that are ids, left out of the usage key so "which pages get used" doesn't split by player or map.
+const ID_PARAMS = new Set(['id', 'a', 'b', 'year']);
+
+/** The page's name for the usage counts: the route without ids, plus a sub-view kept in the query (?view, ?mode). */
+function pageKey(found, path, query) {
+  const parts = path.split('/').filter(Boolean);
+  const keys = found.pattern.split('/').filter(Boolean);
+  const name = keys.map((k, i) => (!k.startsWith(':') ? k : ID_PARAMS.has(k.slice(1).replace('?', '')) ? '' : parts[i] ?? ''))
+    .filter(Boolean).join('/') || 'home';
+  if (found.pattern.startsWith('compare')) return `${name}${found.params.b ? '/pair' : found.params.a ? '/one' : ''}`;
+  const extra = query.view || query.mode;
+  return extra ? `${name}/${extra}` : name;
 }
 
 const root = document.getElementById('content');
@@ -76,6 +91,7 @@ async function route({ newPage = false } = {}) {
   closeMenus();
 
   const found = match(path);
+  if (!found) trackView('not-found');
   if (!found) return showError('Page not found', `${pick(NOT_FOUND)} Try the search, or go back to the home page.`, { newPage });
 
   const spinner = setTimeout(() => { if (ticket === current) root.innerHTML = String(loading()); }, 150);
@@ -85,6 +101,8 @@ async function route({ newPage = false } = {}) {
     if (ticket !== current) return;
     await page(root, { params: found.params, query, isCurrent: () => ticket === current });
     if (ticket === current && newPage) focusHeading();
+    // One view per page opened (a filter or sort that only changes the query isn't a new view).
+    if (ticket === current && (newPage || ticket === 1)) trackView(pageKey(found, path, query));
   } catch (e) {
     if (ticket !== current) return;
     console.error(e);
@@ -188,6 +206,7 @@ new MutationObserver(() => enhanceTables(root)).observe(root, { childList: true,
 startFun();
 initSearch();
 initYou();
+startTracking();
 
 if (CONFIG.discordInvite) {
   document.getElementById('footer-links')?.insertAdjacentHTML('afterbegin',

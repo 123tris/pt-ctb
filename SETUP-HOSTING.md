@@ -177,6 +177,29 @@ and push. **Keep GitHub Pages switched on** for this repo, because it now serves
 **Check:** `https://123tris.github.io/pt-ctb/#/dan` ends up at `https://ptcatch.com/#/dan`. If you had picked "This is
 me" on the old site, it's still picked on the new one.
 
+## 4. Usage counts and your dashboard (/stats)
+
+The site counts page views and button presses anonymously (`assets/js/core/track.js` → `functions/api/hit.js`), and
+`https://ptcatch.com/stats` shows them to you only. Until the steps below are done, the site sends the counts but they
+are dropped (the endpoint answers "no-database"), and `/stats` says what's missing.
+
+1. **Storage & Databases → D1 SQL Database → Create.** Name it `ptctb-usage`, with location hint Western Europe. There's
+   no table to create: the site makes it on the first visit.
+2. **Workers & Pages → pt-ctb → Settings → Bindings → Add → D1 database.** Variable name `USAGE`, database
+   `ptctb-usage`. Do this for **Production**, then switch to **Preview** and do it again (dev.ptcatch.com is a preview
+   build). Both use the same database; the dashboard keeps the sites apart.
+3. **Settings → Variables and Secrets → Add → Secret.** Name `STATS_PASSWORD`, value a long password of your own (a
+   password manager's generated one is ideal). Add it to Production (and to Preview if you want `dev.ptcatch.com/stats`
+   too).
+4. **Deployments → Retry deployment** on the latest `main` (and `dev`) build, so the bindings take effect.
+
+**Check:** open `https://ptcatch.com/stats`. The browser asks for a user name and password: any user name, and the
+`STATS_PASSWORD`. Then press **Don't count this browser** at the bottom, so your own visits stay out of the numbers. Do
+that once on each browser and site (ptcatch.com and dev.ptcatch.com separately).
+
+Free-plan limits: D1 allows 100,000 written rows and 5 million read rows a day. One visit writes about 5–15 rows, and a
+30-day dashboard view reads every event in the range about 12 times, so there's plenty of room at this site's size.
+
 ## Day to day
 
 **Local previews:**
