@@ -87,6 +87,16 @@ function officialStats(raw, dump) {
   return fromDump || bot || { grades: [] };
 }
 
+/**
+ * An inactive player's official pp worked out the way osu! does: the best plays that carry official pp, weighted
+ * 0.95^i, plus the bonus for the number of ranked plays (capped at 1000). Only an estimate: the bot may not have
+ * every ranked play, and converts it scored itself carry its own pp.
+ */
+function estimatedOfficialPp(tuples) {
+  const pps = bestPerMap(tuples).map(t => t[S.PP]).filter(pp => pp > 0);
+  return weightedTotal(pps) + 416.6667 * (1 - 0.995 ** Math.min(pps.length, 1000));
+}
+
 /** The best play per map (pp first, then score), sorted best-pp-first. */
 function bestPerMap(tuples) {
   const byMap = new Map();
@@ -138,7 +148,7 @@ export const isUnclaimedCandidate = raw =>
   hasTitle(raw) && Number(raw.playmode) === MODE.CATCH &&
   (Number(raw.approved) === STATUS.RANKED || Number(raw.approved) === STATUS.APPROVED);
 
-export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
+export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOfficial = {} }) {
   // A banned map keeps its scores, but every one of them is worth 0pp (as in the bot).
   const banned = bot.banned;
   // Taiko and mania maps can't be played in catch: a score on one (filed off a wrong cached mode) is never shown.
@@ -217,6 +227,22 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
     p.pp = round(p.official.pp || 0);
     p.global = p.official.global || null;
     p.country = p.official.country || null;
+    // osu! shows a player who stopped playing as 0pp with no rank. The site keeps their official pp, from the best
+    // source there is:
+    //  1. the value this exporter last saw live (state.official; only exists for players who went inactive since);
+    //  2. an estimate from their plays: it matches osu!'s pp for the active players to within about 1%;
+    //  3. for a player with no plays to go on, an old copy from the data folder's history. Those can be years old and
+    //     from before pp reworks (for players with plays they were 27-92% off the estimate, a few 3-4x under it).
+    p.inactive = Boolean(raw.profile_updated) && !(p.pp > 0 && p.global);
+    if (p.inactive) {
+      const live = previous.official?.[p.id];
+      const estimate = round(estimatedOfficialPp([...p.lists.r, ...p.lists.c, ...(p.dump_top || [])]));
+      if (live) [p.pp, p.ppSeen, p.ppSource] = [round(live[0]), live[1], 'last-known'];
+      else if (estimate > 0) [p.pp, p.ppSource] = [estimate, 'estimated'];
+      else if (pastOfficial[p.id]) [p.pp, p.ppSource] = [round(pastOfficial[p.id].pp), 'last-known'];
+      else [p.pp, p.ppSource] = [0, null];
+      p.global = p.country = null;
+    }
     p.firsts = Object.fromEntries(CATS.map(cat => [cat, p.lists[cat].filter(t => position.get(`${p.id}:${t[S.MAP]}`) === 1).length]));
     p.dan = (raw.DanPasses || []).map((s, i) => (playable(s) ? [i, toTuple(s)] : null)).filter(Boolean);
     p.danScore = raw.DanScore || 0;
@@ -234,6 +260,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
       cv: p.cv, ul: p.ul, pp: p.pp,
       rank: { c: rankOf.c.get(p.id) || null, u: rankOf.u.get(p.id) || null, r: rankOf.r.get(p.id) || null },
       global: p.global, country: p.country,
+      // Inactive on osu! (0pp, no rank there): pp is ppSource 'last-known' (as of ppSeen, when we know when) or
+      // 'estimated'; null when there's nothing to go on (pp 0, off the ranked board).
+      ...(p.inactive ? { inactive: true, ppSource: p.ppSource, ...(p.ppSeen ? { ppSeen: p.ppSeen } : {}) } : {}),
       acc: round(percent(p.official.acc ?? 0)), level: round(p.official.level ?? 0),
       plays: p.official.plays ?? 0,
       grades: [0, 1, 2].map(i => p.official.grades[i] ?? 0),
@@ -366,11 +395,15 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
   // comparing with the previous export. The first export has nothing to compare with, so it only records.
   const stateEvents = [...(previous.events || [])];
   if (previous.boards) {
+    // An inactive player's official pp is frozen (or estimated), and the real one replaces it when they're back: a
+    // move on the ranked board either way isn't an overtake.
+    const wasInactive = new Set(previous.inactive || []);
     for (const cat of [CAT.CONVERT, CAT.LOVED, CAT.RANKED]) {
       const before = new Map((previous.boards[cat] || []).map((id, i) => [id, i]));
       order[cat].forEach((p, i) => {
         const was = before.get(p.id);
         if (was === undefined || was <= i) return;
+        if (cat === CAT.RANKED && (p.inactive || wasInactive.has(p.id))) return;
         const passed = order[cat].slice(i + 1).filter(q => before.has(q.id) && before.get(q.id) < was).map(q => q.id);
         if (passed.length) stateEvents.push({ t: now, k: 'pass', u: p.id, c: cat, v: passed, r: i + 1, pp: p[{ c: 'cv', u: 'ul', r: 'pp' }[cat]] });
       });
@@ -559,7 +592,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
   if (history.days[history.days.length - 1] !== today) history.days.push(today);
   const dayIndex = history.days.length - 1;
   for (const p of people.values()) {
-    const series = [...(history.series[p.id] || [])];
+    // Earlier points from while osu! reported an inactive player as 0pp take the pp shown for them now.
+    const series = (history.series[p.id] || []).map(point => (p.inactive && point[3] === 0 ? [...point.slice(0, 3), p.pp] : point));
     const point = [dayIndex, p.cv, p.ul, p.pp];
     const last = series[series.length - 1];
     if (last && last[0] === dayIndex) series[series.length - 1] = point;
@@ -579,6 +613,12 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous }) {
   const state = {
     boards: Object.fromEntries(CATS.map(cat => [cat, order[cat].map(p => p.id)])),
     totals: Object.fromEntries([...people.values()].map(p => [p.id, [p.cv, p.ul, p.pp]])),
+    // Each player's official pp as last seen live on osu! ([pp, unix time]), what an inactive player's pp falls back to.
+    official: {
+      ...(previous.official || {}),
+      ...Object.fromEntries([...people.values()].filter(p => !p.inactive && p.pp > 0).map(p => [p.id, [p.pp, now]])),
+    },
+    inactive: [...people.values()].filter(p => p.inactive).map(p => p.id).sort((a, b) => a - b),
     known: [...people.keys()].sort((a, b) => a - b),
     events: keptStateEvents,
     weeks,

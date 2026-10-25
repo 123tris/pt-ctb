@@ -19,12 +19,18 @@ const MODES = { osu: 0, taiko: 1, fruits: 2, mania: 3 };
 export const hasCatchDifficulty = raw => Number(raw?.playmode) === MODES.fruits || raw?.catch_difficulty === true;
 
 /**
- * The cache file: { maps: { id: rawLikeBeatmap }, gone: [ids osu! no longer has], catch: { id: { stars, combo } } }.
+ * The cache file: { maps: { id: rawLikeBeatmap }, gone: [ids osu! no longer has], catch: { id: { stars, combo } },
+ * dates: { sets: { setId: ranked_date | null }, maps: { id: last_updated | null } } }.
+ * `dates` holds what fetchDates found for maps the bot's cache has no ranked/loved date for; a set's ranked date is
+ * the same for each of its difficulties.
  * `migrated` counts converts whose standard star rating was dropped on load (the cache predates that rule).
  */
 export function loadCache(file) {
   const cache = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { maps: {}, gone: [] };
   cache.catch ??= {};
+  cache.dates ??= {};
+  cache.dates.sets ??= {};
+  cache.dates.maps ??= {};
   cache.migrated = 0;
   for (const raw of Object.values(cache.maps)) {
     if (!hasCatchDifficulty(raw) && (raw.difficultyrating != null || raw.max_combo != null)) {
@@ -39,7 +45,10 @@ export function loadCache(file) {
 export function saveCache(file, cache) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const byId = entries => Object.fromEntries(Object.entries(entries).sort((a, b) => a[0] - b[0]));
-  const sorted = { maps: byId(cache.maps), gone: [...new Set(cache.gone)].sort((a, b) => a - b), catch: byId(cache.catch ?? {}) };
+  const sorted = {
+    maps: byId(cache.maps), gone: [...new Set(cache.gone)].sort((a, b) => a - b), catch: byId(cache.catch ?? {}),
+    dates: { sets: byId(cache.dates?.sets ?? {}), maps: byId(cache.dates?.maps ?? {}) },
+  };
   fs.writeFileSync(`${file}.tmp`, JSON.stringify(sorted));
   fs.renameSync(`${file}.tmp`, file);
 }
@@ -181,4 +190,58 @@ export async function fetchCatchDifficulty(ids, cache, cacheFile, credentials, l
   }
   saveCache(cacheFile, cache);
   return fetched;
+}
+
+/**
+ * Looks up the ranked/loved date (a set's ranked_date) and last-updated time of the given maps, 50 per
+ * GET /api/v2/beatmaps request with `pauseMs` between requests, into cache.dates. Callers pass one map per set when
+ * only the ranked date is wanted. Stops at the first 429 (the bot shares this osu! app's rate limit) and reports it.
+ * Returns { requests, found, missing, rateLimited }.
+ */
+export async function fetchDates(ids, cache, cacheFile, credentials, { pauseMs = 2500, log = console.log } = {}) {
+  const todo = [...ids].sort((a, b) => a - b);
+  const result = { requests: 0, found: 0, missing: 0, rateLimited: false };
+  if (!todo.length) return result;
+  log(`  fetching the ranked/updated dates of ${todo.length} maps from the osu! API (${Math.ceil(todo.length / BATCH)} requests, ${pauseMs / 1000}s apart)…`);
+
+  let bearer = await token(credentials);
+  for (let i = 0; i < todo.length; i += BATCH) {
+    const batch = todo.slice(i, i + BATCH);
+    const url = `${API}/api/v2/beatmaps?${batch.map(id => `ids[]=${id}`).join('&')}`;
+    let response = await fetch(url, { headers: { Authorization: `Bearer ${bearer}`, Accept: 'application/json' } });
+    result.requests++;
+    if (response.status === 401) {
+      bearer = await token(credentials);
+      response = await fetch(url, { headers: { Authorization: `Bearer ${bearer}`, Accept: 'application/json' } });
+      result.requests++;
+    }
+    if (response.status === 429) {
+      result.rateLimited = true;
+      log(`  rate limited after ${result.requests} requests; stopping (${todo.length - i} maps left for another run)`);
+      break;
+    }
+    if (!response.ok) throw new Error(`osu! beatmaps request failed: ${response.status}`);
+
+    const { beatmaps } = await response.json();
+    const found = new Set();
+    for (const b of beatmaps) {
+      cache.dates.sets[b.beatmapset_id] = b.beatmapset?.ranked_date ?? null;
+      cache.dates.maps[b.id] = b.last_updated ?? null;
+      found.add(b.id);
+    }
+    result.found += found.size;
+    for (const id of batch) {
+      if (found.has(id)) continue;
+      cache.gone.push(id);
+      result.missing++;
+    }
+
+    if (result.requests % 20 === 0) {
+      saveCache(cacheFile, cache);
+      log(`  …${Math.min(i + BATCH, todo.length)}/${todo.length}`);
+    }
+    if (i + BATCH < todo.length) await sleep(pauseMs);
+  }
+  saveCache(cacheFile, cache);
+  return result;
 }
