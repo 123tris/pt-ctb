@@ -1,0 +1,2 @@
+# The git hooks run under sh, which a CRLF checkout would break.
+tools/git-hooks/* text eol=lf
