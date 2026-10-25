@@ -34,7 +34,7 @@ and is imported by both the exporter and the pages, so the two can't drift apart
 | `#/players`, `#/player/{id}/{tab}` | Player list (the header search's "all results", not in the nav) and profiles (scores, Dan, pp history) |
 | `#/maps`, `#/map/{id}` | Map search and per-map Portuguese leaderboards |
 | `#/activity`, `#/activity?view=plays` | Snipes, top plays, Dan passes, overtakes; recent plays |
-| `#/challenges/{week,dan,targets}` | This week (map of the week, supporter challenge); the Dan course (`?stage={n}`; old `#/dan` links redirect here); snipe targets (vulnerable #1s, bounties, one-player maps, unclaimed) |
+| `#/challenges/{week,dan,targets}` | This week (map of the week); the Dan course (`?stage={n}`; old `#/dan` links redirect here); snipe targets (vulnerable #1s, bounties, one-player maps, unclaimed) |
 | `#/glossary` | pp, converts, grades, mods and the community's words, for newcomers |
 | `#/games/{guess,higher-lower}` | Guess the map from its cover; higher or lower |
 | `#/calculator` | Catch pp calculator and "what if" pp gain |

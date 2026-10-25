@@ -638,10 +638,6 @@ tr.inactive td, tr.inactive .player, tr.inactive .pp { color: var(--text-dim); }
 tr.inactive .avatar { filter: grayscale(.7); }
 .legend-tag { margin-left: 6px; font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); padding: 0 4px; }
 
-.progress { display: block; width: 100%; min-width: 80px; height: 6px; background: var(--surface-3); border-radius: var(--r-xs); overflow: hidden; }
-.progress span { display: block; height: 100%; background: var(--gold); }
-.pool { margin-top: 14px; }
-.pool summary { cursor: pointer; color: var(--text-dim); font-weight: 600; font-size: var(--fs-sm); margin-bottom: 10px; }
 .bounty-tag { color: var(--gold); font-weight: 600; }
 
 .throne-head { display: flex; gap: 18px; align-items: center; border-left: 2px solid var(--gold); }
@@ -895,3 +891,35 @@ p a.dim-link { text-decoration: underline; }
 .stat-sub .legend-tag { margin-left: 0; margin-right: 4px; }
 /* In a table the "(estimated)" sits on its own small line, so the pp column stays aligned. */
 td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height: 1.1; }
+
+/* Challenges' three sub-pages (This week · Dan course · Snipe targets) as big cards under the heading. */
+.subnav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0 16px; }
+.subnav a {
+  display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r);
+  background: var(--surface); color: var(--text); transition: border-color .12s, background-color .12s;
+}
+.subnav a:hover { border-color: var(--text-faint); background: var(--surface-2); text-decoration: none; }
+.subnav a.active { border-color: var(--accent); background: var(--accent-bg); box-shadow: inset 0 -3px 0 var(--accent); }
+.subnav b { font: 700 var(--fs-lg)/1.2 var(--display); }
+.subnav a.active b { color: var(--accent); }
+.subnav span { color: var(--text-dim); font-size: var(--fs-sm); }
+.subnav-intro { margin: 0 0 20px; max-width: 75ch; }
+@media (max-width: 600px) {
+  .subnav { gap: 6px; }
+  .subnav a { padding: 10px; }
+  .subnav b { font-size: var(--fs-md); }
+  .subnav span { display: none; }
+}
+/* Pages in the header search's results (e.g. "Dan course"), above the players. */
+.search-results .search-page-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
+
+/* The Dan course's own strip on the home page (it lives under Challenges, so it gets a front-page way in). */
+.dan-strip {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; align-items: center; margin-top: 16px;
+  padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: var(--r);
+}
+.dan-strip-glyphs { font: 700 1.5rem/1 var(--display); color: var(--gold); white-space: nowrap; }
+.dan-strip-go { color: var(--gold); font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; }
+@media (max-width: 560px) {
+  .dan-strip { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+}

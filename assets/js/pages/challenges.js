@@ -1,19 +1,25 @@
-import { html } from '../core/html.js';
+import { html, raw } from '../core/html.js';
 import { challenges, playerIndex, dan } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
   setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, coverUrl, mapText, starsBadge, empty, osuMap, prefs,
-  tabs, pageHead,
+  pageHead,
 } from '../core/ui.js';
 import { renderDan, DAN_INTRO } from './dan.js';
 import * as fmt from '../core/fmt.js';
 
-// Three sub-pages with their own URLs (#/challenges/week, /dan, /targets). "Dan" keeps the community's own word.
+// Three sub-pages with their own URLs (#/challenges/week, /dan, /targets). "Dan" keeps the community's own word, and
+// the three are shown as big cards under the heading so the Dan course can't be missed.
 const TABS = [
-  { slug: 'week', label: 'This week', intro: 'A new map every week, picked automatically on Mondays, and the Discord’s supporter challenge.' },
-  { slug: 'dan', label: 'Dan course', intro: DAN_INTRO },
-  { slug: 'targets', label: 'Snipe targets', intro: '#1s that are begging to be sniped, boss maps nobody has FC’d, and maps nobody in Portugal has played yet.' },
+  { slug: 'week', label: 'This week', blurb: 'The map of the week', intro: 'A new map every week, picked automatically on Mondays: this week’s plays and the all-time top.' },
+  { slug: 'dan', label: 'Dan course', blurb: '19 stages, Zeroth Dan to Shin', intro: DAN_INTRO },
+  { slug: 'targets', label: 'Snipe targets', blurb: '#1s up for grabs', intro: '#1s that are begging to be sniped, boss maps nobody has FC’d, and maps nobody in Portugal has played yet.' },
 ];
+
+/** The sub-page switcher: three labelled cards, a real nav with aria-current (the pages have their own URLs). */
+const subnav = current => html`<nav class="subnav" aria-label="Challenges">${TABS.map(t => html`<a href="#/challenges/${t.slug}" class="${t === current ? 'active' : ''}" ${t === current ? raw('aria-current="page"') : ''}>
+  <b>${t.label}</b><span>${t.blurb}</span>
+</a>`)}</nav>`;
 
 function countdown(end) {
   const left = Math.max(0, end - Date.now() / 1000);
@@ -62,36 +68,6 @@ function weekSection(week, maps, index, me) {
     ${boardTable(week.board.slice(0, 10), index, me, 'All-time top 10 on the map of the week')}`;
 }
 
-/** The supporter challenge, scored the Discord's way: a grade on each pool map is worth points, first to 50 wins. */
-function houseSection(house, maps, index, me) {
-  const played = row => row[2].filter(Boolean).length;
-  return html`<section class="section">
-    <div class="section-head"><h2>The supporter challenge</h2><span class="muted small">The map pool Fie tracks for the Discord’s supporter challenges.</span></div>
-    <div class="grid grid-2">
-      <div class="card">
-        <h3>House rules</h3>
-        <p>A <b>C</b> on a pool map is worth 1 point, a <b>B</b> 2, an <b>A</b> 3 and an <b>S</b> (or SS) 4. First to ${house.target} wins.</p>
-        <p class="muted">B’s and C’s are where it’s at. HD weeks pay more: an S with HD is worth 10, an A with HD 5.</p>
-        <p class="small faint" style="margin:0">Prize: a month of supporter (paid by Tris, as tradition demands). The standings here use each player’s best stored play on every pool map.</p>
-      </div>
-      <div>
-        ${house.rows.length ? html`<div class="table-wrap" data-label="Supporter challenge standings"><table class="table-compact">
-          <thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th>To ${house.target}</th><th class="num">Maps</th></tr></thead>
-          <tbody>${house.rows.slice(0, 12).map(([uid, points, grades], i) => html`<tr class="${uid === me ? 'me' : ''}">
-            <td class="rank">${i + 1}</td><td>${playerLink(uid, index, 'avatar-sm')}</td><td class="num"><b>${points}</b></td>
-            <td><span class="progress" title="${points} of ${house.target}"><span style="width:${Math.min(100, (points / house.target) * 100)}%"></span></span></td>
-            <td class="num faint">${played([uid, points, grades])}/${house.pool.length}</td>
-          </tr>`)}</tbody>
-        </table></div>` : empty('Nobody has scored on the pool yet.')}
-      </div>
-    </div>
-    <details class="pool">
-      <summary>The ${house.pool.length} pool maps</summary>
-      <div class="rows">${house.pool.map(id => html`<div class="row">${mapLink(id, maps[id])}</div>`)}</div>
-    </details>
-  </section>`;
-}
-
 export default async function challengesPage(root, { params, query, isCurrent }) {
   const tab = TABS.find(t => t.slug === params.tab) ?? TABS[0];
   const [data, index, danData] = await Promise.all([challenges(), playerIndex(), tab.slug === 'dan' ? dan() : null]);
@@ -101,8 +77,9 @@ export default async function challengesPage(root, { params, query, isCurrent })
   const { maps } = data;
 
   root.innerHTML = String(html`
-    ${pageHead({ title: 'Challenges', tag: 'There’s always something to conquer', intro: tab.intro })}
-    ${tabs(TABS.map(t => ({ href: `#/challenges/${t.slug}`, label: t.label, active: t === tab })), 'Challenges')}
+    ${pageHead({ title: 'Challenges', tag: 'There’s always something to conquer' })}
+    ${subnav(tab)}
+    <p class="muted subnav-intro">${tab.intro}</p>
     <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me) : tab.slug === 'targets' ? targetsPanel(data, maps, index) : ''}</div>
   `);
 
@@ -121,8 +98,7 @@ function weekPanel(data, maps, index, me) {
     <section>
       <div class="section-head"><h2>Map of the week</h2><span class="muted small">Picked automatically every Monday.</span></div>
       ${weekSection(data.week, maps, index, me)}
-    </section>
-    ${data.house ? houseSection(data.house, maps, index, me) : ''}`;
+    </section>`;
 }
 
 function targetsPanel(data, maps, index) {

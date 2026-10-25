@@ -84,6 +84,12 @@ export default async function home(root, { isCurrent }) {
       </div>
     </section>
 
+    <a class="dan-strip card-link" href="#/challenges/dan">
+      <span class="dan-strip-glyphs" aria-hidden="true">0 · א · ש</span>
+      <span><b>The Dan course</b> <span class="muted">19 challenge maps from Zeroth Dan to Shin. Pass stages, earn points and Discord roles.</span></span>
+      <span class="dan-strip-go">Open the Dan course →</span>
+    </a>
+
     <section class="section grid grid-2">
       <div>
         <div class="section-head"><h2>Map of the week</h2><a href="#/challenges/week">Challenges →</a></div>

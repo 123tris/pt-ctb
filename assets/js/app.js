@@ -121,7 +121,9 @@ function showError(title, text, { newPage = false, players = false } = {}) {
 /** Marks the current section in the main nav (class and aria-current), and "More" when one of its pages is open. */
 function markNav(section) {
   document.querySelectorAll('.nav a').forEach(a => {
-    const on = Boolean(section) && a.dataset.section?.split(' ').includes(section);
+    // Strictly true/false: classList.toggle(name, undefined) flips the class instead of removing it, and links
+    // without a section (More's "Dan course" shortcut) would otherwise light up every other route.
+    const on = Boolean(section && a.dataset.section?.split(' ').includes(section));
     a.classList.toggle('active', on);
     if (on) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');

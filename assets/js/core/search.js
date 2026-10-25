@@ -1,5 +1,6 @@
-// The player search in the top bar: a combobox over players.json. Wide screens show the field inline; narrow ones
-// show a search button that opens the field as a full-width row under the bar. "/" anywhere focuses it.
+// The player search in the top bar: a combobox over players.json, plus a few pages (the Dan course, the glossary…).
+// Wide screens show the field inline; narrow ones show a search button that opens the field as a full-width row under
+// the bar. "/" anywhere focuses it.
 
 import { html } from './html.js';
 import { players } from './data.js';
@@ -22,6 +23,24 @@ function rank(list, text) {
   }
   scored.sort((a, b) => a[0] - b[0] || b[1] - a[1] || a[2].name.localeCompare(b[2].name, 'en'));
   return scored.slice(0, LIMIT).map(s => s[2]);
+}
+
+// Pages the search offers above the players, so "dan" finds the Dan course even though it lives under Challenges.
+// A page matches when its name contains the text or one of its words starts with it.
+const PAGES = [
+  { name: 'Dan course', href: '#/challenges/dan', detail: 'Challenges · 19 stages', words: 'dan dans course stage stages zeroth aleph shin updatedan claimdanrole' },
+  { name: 'Map of the week', href: '#/challenges/week', detail: 'Challenges', words: 'week weekly challenge challenges' },
+  { name: 'Snipe targets', href: '#/challenges/targets', detail: 'Challenges', words: 'snipe snipes sniping targets vulnerable bounty bounties unclaimed' },
+  { name: 'Glossary', href: '#/glossary', detail: 'pp, FC, mods explained', words: 'glossary help words meaning new' },
+  { name: 'Records', href: '#/records', detail: 'Biggest combos, most #1s', words: 'records record' },
+  { name: 'Calculator', href: '#/calculator', detail: 'How much pp is a play worth', words: 'calculator calc pp' },
+  { name: 'Verification', href: '#/verify', detail: 'How /verify works', words: 'verify verification verified role' },
+];
+
+function pageMatches(text) {
+  const q = text.toLowerCase();
+  if (q.length < 2) return [];
+  return PAGES.filter(p => p.name.toLowerCase().includes(q) || p.words.split(' ').some(w => w.startsWith(q))).slice(0, 2);
 }
 
 /** The player's name with the matched part in a <mark>. */
@@ -91,16 +110,24 @@ export function initSearch() {
     if (!text) { results = []; showPop(false); return; }
     const l = await load();
     if (text !== input.value.trim()) return; // typed on while loading
-    results = rank(l, text);
-    listEl.innerHTML = String(html`${results.map((p, i) => html`<li role="option" id="search-opt-${i}" data-i="${i}" aria-selected="false">
-          ${avatar(p.id, 'avatar-sm')}<span class="search-name">${highlight(p.name, text)}</span><span class="search-detail">${detail(p)}</span>
-        </li>`)}`);
+    const pages = pageMatches(text);
+    const people = rank(l, text).slice(0, LIMIT - pages.length);
+    results = [...pages.map(page => ({ page })), ...people];
+    listEl.innerHTML = String(html`${results.map((r, i) => (r.page
+      ? html`<li role="option" class="search-page" id="search-opt-${i}" data-i="${i}" aria-selected="false">
+          <span class="search-page-mark" aria-hidden="true">→</span><span class="search-name">${highlight(r.page.name, text)}</span><span class="search-detail">${r.page.detail}</span>
+        </li>`
+      : html`<li role="option" id="search-opt-${i}" data-i="${i}" aria-selected="false">
+          ${avatar(r.id, 'avatar-sm')}<span class="search-name">${highlight(r.name, text)}</span><span class="search-detail">${detail(r)}</span>
+        </li>`))}`);
     listEl.hidden = !results.length;
     // Outside the listbox, in a live region, so screen readers hear "No players found" or how many matched.
     const status = box.querySelector('.search-status');
-    status.textContent = results.length ? '' : 'No players found';
     status.classList.toggle('sr-only', Boolean(results.length));
-    if (results.length) status.textContent = `${fmt.plural(results.length, 'player')} found${results.length === 8 ? ' (showing the best 8)' : ''}`;
+    status.textContent = results.length
+      ? [pages.length && `${pages.map(p => p.name).join(' and ')} page${pages.length > 1 ? 's' : ''}`,
+        people.length && `${fmt.plural(people.length, 'player')}${people.length === LIMIT ? ' (the best 8)' : ''}`].filter(Boolean).join(' and ') + ' found'
+      : 'No players found';
     all.href = `#/players?q=${encodeURIComponent(text)}`;
     showPop(true);
     setActive(results.length ? 0 : -1);
@@ -125,8 +152,8 @@ export function initSearch() {
     input.blur();
   };
 
-  const go = p => {
-    location.hash = `#/player/${p.id}`;
+  const go = r => {
+    location.hash = r.page ? r.page.href : `#/player/${r.id}`;
     reset();
   };
 
