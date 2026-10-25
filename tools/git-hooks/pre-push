@@ -1,0 +1,11 @@
+#!/bin/sh
+# Refuses a push that would take Cloudflare Pages past its free-plan build budget (tools/build-budget.mjs).
+# Turned on with: git config core.hooksPath tools/git-hooks
+# If node can't run the check, the push goes ahead with a warning rather than blocking work.
+root="$(git rev-parse --show-toplevel)"
+if [ -f "$root/tools/build-budget.mjs" ] && command -v node >/dev/null 2>&1; then
+  node "$root/tools/build-budget.mjs" pre-push "$1"
+  exit $?
+fi
+echo "build budget: tools/build-budget.mjs or node not found here; pushing without the Pages build check." >&2
+exit 0
