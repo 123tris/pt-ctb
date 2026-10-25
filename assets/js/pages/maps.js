@@ -1,7 +1,7 @@
 import { html, raw } from '../core/html.js';
 import { mapsIndex, mapsTop, playerIndex } from '../core/data.js';
 import {
-  setTitle, paginate, setCover, starsBadge, starColor, catChip, pageHead, chipGroup, setPressed, writeQuery, announce,
+  setTitle, paginate, setCover, starsBadge, catChip, pageHead, chipGroup, setPressed, writeQuery, announce,
   resultCount, emptyFiltered,
 } from '../core/ui.js';
 import { STAR_MAX, STAR_STEP, ANY_STARS, parseStars, formatStars, starsLabel, inStars, isAnyStars } from '../core/star-range.js';
@@ -16,8 +16,6 @@ const SORTS = {
 };
 const CATS = [['', 'All'], ['c', 'Converts'], ['u', 'Loved & Unranked'], ['r', 'Ranked']];
 const PAGE = 50;
-// The selected stretch of the star slider wears osu!'s star colours, so the range reads like the badges it filters.
-const STAR_GRADIENT = `linear-gradient(90deg, ${Array.from({ length: 2 * STAR_MAX + 1 }, (_, i) => `${starColor(i / 2)} ${i * 50 / STAR_MAX}%`).join(', ')})`;
 const snapStar = v => Math.round(Math.min(STAR_MAX, Math.max(0, v)) / STAR_STEP) / (1 / STAR_STEP);
 
 /**
@@ -27,7 +25,7 @@ const snapStar = v => Math.round(Math.min(STAR_MAX, Math.max(0, v)) / STAR_STEP)
 const starSlider = ([lo, hi]) => html`<div class="star-filter" role="group" aria-labelledby="stars-label">
   <span class="chips-label" id="stars-label">Stars</span>
   <div class="range" id="stars-range">
-    <div class="range-track"><div class="range-fill" style="background:${STAR_GRADIENT}"></div></div>
+    <div class="range-track"><div class="range-fill"></div></div>
     <input type="range" id="stars-min" min="0" max="${STAR_MAX}" step="${STAR_STEP}" value="${lo}" aria-label="Minimum stars">
     <input type="range" id="stars-max" min="0" max="${STAR_MAX}" step="${STAR_STEP}" value="${hi}" aria-label="Maximum stars">
   </div>
