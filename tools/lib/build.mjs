@@ -93,8 +93,82 @@ function officialStats(raw, dump) {
  * every ranked play, and converts it scored itself carry its own pp.
  */
 function estimatedOfficialPp(tuples) {
-  const pps = bestPerMap(tuples).map(t => t[S.PP]).filter(pp => pp > 0);
-  return weightedTotal(pps) + 416.6667 * (1 - 0.995 ** Math.min(pps.length, 1000));
+  return officialTotal(bestPerMap(tuples).map(t => t[S.PP]));
+}
+
+/** osu!'s total pp for a set of per-map best pp values: weighted 0.95^i, plus the bonus for up to 1000 ranked plays. */
+function officialTotal(pps) {
+  const counted = pps.filter(pp => pp > 0).sort((a, b) => b - a);
+  return weightedTotal(counted) + 416.6667 * (1 - 0.995 ** Math.min(counted.length, 1000));
+}
+
+/**
+ * pp history from before the exporter started recording, rebuilt from score dates: for the 1st of every month (and
+ * the first recorded day, where the real history takes over), each board's total over the plays set before then.
+ * Official pp counts the plays that carry it (ranked plays and converts) plus the bonus, as osu! does.
+ *
+ * An approximation, in two ways: the bot keeps each player's best play per map, so before an improvement the map
+ * counts nothing (the older play is gone) rather than the old play's pp; and every play carries today's pp, so the
+ * totals are what those plays are worth now, not what osu! showed at the time (pp reworks included).
+ * Returns { days: ['YYYY-MM-DD'], series: { id: [[dayIndex, convertPp, lovedPp, officialPp]] } }, a point only
+ * where something changed, starting at each player's first play. officialPp is null throughout for a player whose
+ * plays don't add up to their current official pp (within 10%): the bot doesn't have enough of their ranked plays
+ * for the line to mean anything.
+ */
+function reconstructHistory(people, firstRecordedDay) {
+  const end = firstRecordedDay ? Date.parse(`${firstRecordedDay}T00:00:00Z`) / 1000 : NaN;
+  if (!Number.isFinite(end)) return { days: [], series: {} };
+
+  const timeline = p => {
+    const dated = list => list.filter(t => t[S.TIME] > 0 && t[S.TIME] < end).sort((a, b) => a[S.TIME] - b[S.TIME]);
+    return { c: dated(p.lists.c), u: dated(p.lists.u), r: dated([...p.lists.r, ...p.lists.c, ...(p.dump_top || [])]) };
+  };
+  const timelines = new Map([...people.values()].map(p => [p.id, timeline(p)]));
+  const earliest = Math.min(...[...timelines.values()].flatMap(t => [t.c[0], t.u[0], t.r[0]]).filter(Boolean).map(t => t[S.TIME]));
+  if (!Number.isFinite(earliest)) return { days: [], series: {} };
+
+  // The 1st of each month after the earliest play, then the first recorded day.
+  const days = [];
+  const date = new Date(earliest * 1000);
+  for (let m = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1)); m.getTime() / 1000 < end; m.setUTCMonth(m.getUTCMonth() + 1))
+    days.push(m.toISOString().slice(0, 10));
+  days.push(firstRecordedDay);
+  const bounds = days.map(d => Date.parse(`${d}T00:00:00Z`) / 1000);
+
+  const series = {};
+  for (const [id, line] of timelines) {
+    const best = { c: new Map(), u: new Map(), r: new Map() };
+    const next = { c: 0, u: 0, r: 0 };
+    const totals = { c: 0, u: 0, r: 0 };
+    const points = [];
+    bounds.forEach((bound, i) => {
+      for (const cat of ['c', 'u', 'r']) {
+        let changed = false;
+        for (; next[cat] < line[cat].length && line[cat][next[cat]][S.TIME] < bound; next[cat]++) {
+          const t = line[cat][next[cat]];
+          if (t[S.PP] > (best[cat].get(t[S.MAP]) ?? 0)) {
+            best[cat].set(t[S.MAP], t[S.PP]);
+            changed = true;
+          }
+        }
+        if (changed) {
+          const pps = [...best[cat].values()];
+          totals[cat] = round(cat === 'r' ? officialTotal(pps) : weightedTotal(pps.sort((a, b) => b - a)));
+        }
+      }
+      const point = [i, totals.c, totals.u, totals.r];
+      const last = points[points.length - 1];
+      if (last ? last[1] !== point[1] || last[2] !== point[2] || last[3] !== point[3] : point.slice(1).some(v => v > 0))
+        points.push(point);
+    });
+    // Keep the last day too, so the line reaches where the real history starts.
+    const lastPoint = points[points.length - 1];
+    if (lastPoint && lastPoint[0] !== bounds.length - 1) points.push([bounds.length - 1, ...lastPoint.slice(1)]);
+    const official = people.get(id).pp;
+    if (lastPoint && !(official > 0 && Math.abs(lastPoint[3] / official - 1) <= 0.1)) for (const point of points) point[3] = null;
+    if (points.length) series[id] = points;
+  }
+  return { days, series };
 }
 
 /** The best play per map (pp first, then score), sorted best-pp-first. */
@@ -588,7 +662,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // ---- pp history (one point per day, only when something changed) ------------------------------------------------
 
   const today = new Date(now * 1000).toISOString().slice(0, 10);
-  const history = { days: [...(previous.history?.days || [])], series: { ...(previous.history?.series || {}) } };
+  const history = { days: [...(previous.history?.days || [])], series: { ...(previous.history?.series || {}) }, reconstructed: null };
   if (history.days[history.days.length - 1] !== today) history.days.push(today);
   const dayIndex = history.days.length - 1;
   for (const p of people.values()) {
@@ -600,6 +674,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     else if (!last || last[1] !== p.cv || last[2] !== p.ul || last[3] !== p.pp) series.push(point);
     history.series[p.id] = series;
   }
+  // Before the first recorded day: rebuilt from score dates, recomputed every export (never carried over), and shown
+  // as an approximation. The recorded series above always wins from its first day on.
+  history.reconstructed = reconstructHistory(people, history.days[0]);
 
   // ---- Meta + state -----------------------------------------------------------------------------------------------
 
