@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import { execFileSync } from 'node:child_process';
 
 const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^﻿/, ''));
 const readJsonOr = (file, fallback) => (fs.existsSync(file) ? readJson(file) : fallback);
@@ -51,4 +52,37 @@ export function loadBeatmaps(root, keep) {
     if (keep(raw)) maps.set(raw.beatmap_id, raw);
   }
   return maps;
+}
+
+/**
+ * The last official pp (and global/country rank) each player had before osu! started reporting them as inactive (0pp,
+ * no rank), from older versions of their Users/<id>.json in the data folder's git history: the newest one with
+ * pp > 0, and that commit's time as when it was last seen. Read-only (git log/show); players with no such version,
+ * or a data folder that isn't a git checkout, are left out. Returns { [id]: { pp, global, country, seen } }.
+ */
+export function loadPastOfficial(root, ids) {
+  const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'ignore'] });
+  const found = {};
+  for (const id of ids) {
+    let commits;
+    try {
+      commits = git('log', '--format=%H %ct', '--', `Users/${id}.json`).trim().split(/\r?\n/).filter(Boolean);
+    } catch {
+      return found; // not a git checkout (or no git): nothing to go on
+    }
+    for (const line of commits) {
+      const [hash, time] = line.split(' ');
+      let raw;
+      try {
+        raw = JSON.parse(git('show', `${hash}:Users/${id}.json`).replace(/^﻿/, ''));
+      } catch {
+        continue;
+      }
+      if (raw.pp_raw > 0) {
+        found[id] = { pp: raw.pp_raw, global: raw.pp_rank ?? null, country: raw.pp_country_rank ?? null, seen: Number(time) };
+        break;
+      }
+    }
+  }
+  return found;
 }

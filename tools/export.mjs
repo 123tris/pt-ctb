@@ -2,7 +2,7 @@
 // Builds the site's public data (data/*.json) from the PT-CTB bot's private data folder.
 //
 //   node --max-old-space-size=4096 tools/export.mjs [--data <bot data folder>] [--country PT] [--fetch-titles]
-//                                                   [--out <folder>]
+//                                                   [--fetch-dates] [--out <folder>]
 //
 // --out writes the files somewhere other than data/ (a trial export), with the exporter state kept in that folder
 // too, so neither data/ nor state/state.json changes.
@@ -10,6 +10,10 @@
 // --fetch-titles looks up maps the bot's cache has no title for on the osu! API (with the bot's osu! app, from
 // OSU_CLIENT_ID/OSU_CLIENT_SECRET or the bot's user-secrets) and caches them in state/beatmaps.json, along with the
 // catch star rating of converts the bot's cache has none for.
+//
+// --fetch-dates looks up, the same way, when ranked/loved maps the bot's cache has no date for got there (one map per
+// set, 50 per request, 2.5s apart, stopping at the first rate limit) and keeps it in state/beatmaps.json. A one-off
+// fill: maps fetched since then carry their dates already.
 //
 // Only public osu! data leaves the bot's folder: usernames, scores and profile stats for home-country players.
 // Discord ids, the verification log and per-user settings are never read. Files are only rewritten when their
@@ -19,9 +23,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { loadBotData, loadBeatmaps } from './lib/source.mjs';
+import { loadBotData, loadBeatmaps, loadPastOfficial } from './lib/source.mjs';
 import { build, neededMapIds, isUnclaimedCandidate } from './lib/build.mjs';
-import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, hasCatchDifficulty } from './lib/osu-api.mjs';
+import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, fetchDates, hasCatchDifficulty } from './lib/osu-api.mjs';
+import { STATUS } from '../assets/js/core/model.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MAX_CATCH_FETCHES = 100; // per export: under two minutes at one request a second, well inside osu!'s limit
@@ -78,11 +83,12 @@ if (cache.migrated) {
   saveCache(cacheFile, cache);
 }
 const fetching = process.argv.includes('--fetch-titles');
-const credentials = fetching ? findCredentials() : null;
-if (fetching && !credentials) console.warn('  --fetch-titles: no osu! credentials (set OSU_CLIENT_ID/OSU_CLIENT_SECRET)');
+const fetchingDates = process.argv.includes('--fetch-dates');
+const credentials = fetching || fetchingDates ? findCredentials() : null;
+if ((fetching || fetchingDates) && !credentials) console.warn('  no osu! credentials for the API (set OSU_CLIENT_ID/OSU_CLIENT_SECRET)');
 
 const untitledIds = [...needed].filter(id => !beatmaps.get(id)?.title || beatmaps.get(id).title === 'Unknown');
-if (credentials) console.log(`  fetched ${await fetchMissing(untitledIds, cache, cacheFile, credentials)} beatmaps`);
+if (fetching && credentials) console.log(`  fetched ${await fetchMissing(untitledIds, cache, cacheFile, credentials)} beatmaps`);
 // Our cache supplies the title; star rating and combo stay the bot's, which are the catch ones (ours never has a
 // convert's, as osu!'s beatmap lookup only reports the standard values for them). The ranked/loved and last-updated
 // dates are the bot's too where it has them; ours only has them for maps fetched since they were added.
@@ -97,10 +103,37 @@ for (const id of untitledIds) {
   beatmaps.set(id, merged);
 }
 
+// Ranked/loved dates (a set's) and last-updated times the bot's cache doesn't have: ours, from --fetch-dates.
+const RANKED_LIKE = new Set([STATUS.RANKED, STATUS.APPROVED, STATUS.QUALIFIED, STATUS.LOVED]);
+const isUndated = raw => RANKED_LIKE.has(Number(raw.approved)) && !raw.approved_date;
+if (fetchingDates && credentials) {
+  const gone = new Set(cache.gone);
+  const perSet = new Map();
+  for (const id of needed) {
+    const raw = beatmaps.get(id);
+    if (!raw || gone.has(id)) continue;
+    if (isUndated(raw) && !(raw.beatmapset_id in cache.dates.sets) && !perSet.has(raw.beatmapset_id)) perSet.set(raw.beatmapset_id, id);
+    else if (!raw.last_update && !(id in cache.dates.maps)) perSet.set(`map ${id}`, id);
+  }
+  try {
+    const run = await fetchDates(perSet.values(), cache, cacheFile, credentials);
+    console.log(`  dates: ${run.requests} requests, ${run.found} maps found, ${run.missing} gone from osu!${run.rateLimited ? ', stopped at a rate limit' : ''}`);
+  } catch (e) {
+    console.warn(`  couldn't fetch dates (${e.message}); what was fetched is kept`);
+  }
+}
+for (const id of needed) {
+  const raw = beatmaps.get(id);
+  if (!raw) continue;
+  const setDate = isUndated(raw) ? cache.dates.sets[raw.beatmapset_id] : null;
+  const updated = raw.last_update ? null : cache.dates.maps[id];
+  if (setDate || updated) beatmaps.set(id, { ...raw, ...(setDate ? { approved_date: setDate } : {}), ...(updated ? { last_update: updated } : {}) });
+}
+
 // Converts neither cache has a catch star rating for: the fruits attributes, a hundred per export at most (one
 // request each), kept in our cache. Until then they show the bot's value.
 const noCatch = [...needed].filter(id => beatmaps.has(id) && !hasCatchDifficulty(beatmaps.get(id)));
-if (credentials) {
+if (fetching && credentials) {
   const batch = noCatch.filter(id => !(id in cache.catch)).slice(0, MAX_CATCH_FETCHES);
   try {
     console.log(`  fetched the catch star rating of ${await fetchCatchDifficulty(batch, cache, cacheFile, credentials)} converts`);
@@ -118,7 +151,16 @@ if (withoutCatch) console.log(`  ${withoutCatch} converts have no catch star rat
 
 const previous = { ...readJsonOr(fs.existsSync(stateOut) ? stateOut : stateFile, {}), history: readJsonOr(path.join(outDir, 'history.json'), null) };
 const now = Math.floor(Date.now() / 1000);
-const { files, state } = build({ bot, beatmaps, homeCountry: country, now, state: previous });
+// Players osu! reports as inactive (0pp, no rank) whose official pp we never saw live and who have no plays to
+// estimate it from: the last value in the data folder's git history is all there is (see build.mjs).
+const hasOfficialPlays = r => [...(r.TopConvertedScores || []), ...(r.RankedSpecificScores || [])].some(s => s?.pp > 0);
+const unknownInactive = bot.players
+  .filter(r => r.country === country && r.profile_updated && !(r.pp_raw > 0 && r.pp_rank) && !previous.official?.[r.user_id] && !hasOfficialPlays(r))
+  .map(r => r.user_id);
+const pastOfficial = unknownInactive.length ? loadPastOfficial(dataRoot, unknownInactive) : {};
+if (unknownInactive.length)
+  console.log(`  ${unknownInactive.length} inactive players with no plays to estimate from; ${Object.keys(pastOfficial).length} found in the data folder's history`);
+const { files, state } = build({ bot, beatmaps, homeCountry: country, now, state: previous, pastOfficial });
 
 // meta.json lists a hash of every other file's content, which the site puts on that file's URL (core/data.js): a file
 // keeps its URL, and stays in visitors' caches, until its content changes.
