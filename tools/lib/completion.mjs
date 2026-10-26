@@ -17,6 +17,8 @@ const DAY = 86400;
 /** Rows in the "recently cleared" list and the "only they have cleared" ranking. */
 const RECENT = 12;
 const SOLE = 10;
+/** Maps in the home page's "Still to clear" (meta.json, homeGoal). */
+const NEXT = 3;
 
 /** osu!'s passing grades. A failed play is 'F' (or carries no grade), and never counts. */
 const PASS_GRADES = new Set(['XH', 'X', 'SH', 'S', 'A', 'B', 'C', 'D']);
@@ -178,4 +180,35 @@ export function completion({ bot, beatmaps, homeCountry, previous = {}, extraTit
     }),
   };
   return { file, firsts, left: left.map(raw => raw.beatmap_id), titles };
+}
+
+/**
+ * The home page's slice of the goal, for meta.json: the home page never loads completion.json (about 200 KB, 90 KB
+ * compressed), so this is all it gets. `file` is completion.json with its `maps` filled in.
+ *   cleared, total, players   as in completion.json
+ *   next      the easiest maps nobody has cleared, one per set (the most played on osu! first among equal stars), as
+ *             rows of completion.json's `left`
+ *   sets      { setId: [artist, title] } for `next`
+ *   latest    [mapId, userId, time]: the newest first clear, or null
+ *   maps      { mapId: beatmap tuple } for `latest`
+ */
+export function homeGoal(file) {
+  const seen = new Set();
+  const next = [];
+  for (const row of file.left.filter(r => r[3] > 0).sort((a, b) => a[3] - b[3] || b[5] - a[5] || a[0] - b[0])) {
+    if (next.length === NEXT) break;
+    if (row[1] && seen.has(row[1])) continue;
+    seen.add(row[1]);
+    next.push(row);
+  }
+  const latest = file.recent[0] ?? null;
+  return {
+    cleared: file.cleared,
+    total: file.total,
+    players: file.players,
+    next,
+    sets: Object.fromEntries(next.filter(r => file.sets[r[1]]).map(r => [r[1], file.sets[r[1]]])),
+    latest,
+    maps: latest && file.maps[latest[0]] ? { [latest[0]]: file.maps[latest[0]] } : {},
+  };
 }

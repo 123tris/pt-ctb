@@ -7,7 +7,8 @@ import { ladderBand, passCounts, highestDan, topStage } from '../core/ladder.js'
 import { weeklySummary } from '../core/weekly.js';
 import { season } from '../core/fun.js';
 import {
-  setTitle, avatar, mapText, cover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
+  setTitle, avatar, mapText, cover, setCover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
+  playerLink, mapLabel,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { CONFIG } from '../config.js';
@@ -20,6 +21,59 @@ function ladderCaption(counts) {
   const left = !next ? '' : next === 'Shin' ? '; Shin is still waiting' : `; ${next} to Shin are still waiting`;
   return html`<b>The Dan course, since 2018.</b> Portugal has climbed to the ${danName(top)}${left}.
     <span lang="pt-PT" title="Still plenty of soup to eat: lots of growing to do">Ainda há muita sopa para comer.</span>`;
+}
+
+// ---- The completion goal ---------------------------------------------------------------------------------------------
+// meta.json `completion` (tools/lib/completion.mjs homeGoal); the home page never loads the whole completion.json. Data
+// from before the goal has none (both parts hide), and data from before homeGoal has only { cleared, total } (the band
+// shows, "Still to clear" hides). DESIGN.md "Home page" has the layout.
+
+/**
+ * The hero's second band, under the Dan ladder and in its shape: the share of ranked maps cleared as a figure on a thin
+ * meter (the ladder's counterpart: how far across, where the ladder is how far up), then a caption with a bold lead-in.
+ */
+function goalBand(goal) {
+  if (!goal?.total) return '';
+  const pct = (goal.cleared / goal.total) * 100;
+  const left = goal.total - goal.cleared;
+  const label = `${fmt.num(pct, 1)}% of ranked osu!catch maps cleared in Portugal: ${fmt.num(goal.cleared)} of ${fmt.num(goal.total)}`;
+  return html`<div class="hero-goal">
+    <a class="goal-line" href="#/challenges/completion" aria-label="${label}">
+      <span class="goal-pct">${fmt.num(pct, 1)}%</span>
+      <span class="goal-bar" aria-hidden="true" style="--done:${pct.toFixed(2)}%"><span></span></span>
+    </a>
+    <p class="hero-caption"><b>Every ranked map, together.</b> ${fmt.num(goal.cleared)} of ${fmt.num(goal.total)} ranked osu!catch maps
+      cleared${goal.players ? ` by ${fmt.plural(goal.players, 'player')}` : ''}; ${left ? `${fmt.num(left)} to go.` : 'nothing left.'}
+      <a href="#/challenges/completion">See what’s left</a></p>
+  </div>`;
+}
+
+/**
+ * "Still to clear", under the map of the week: the easiest maps nobody has passed (the quickest way to move the
+ * band's figure) and the newest first clear. Rows of `next`: [mapId, setId, version, stars, rankedDay, osu! plays].
+ */
+function goalNext(goal, index) {
+  if (!goal?.next?.length) return '';
+  const left = goal.total - goal.cleared;
+  const latest = goal.latest;
+  return html`<section class="goal-next">
+    <div class="section-head"><h2>Still to clear</h2><a href="#/challenges/completion?sort=easy">See all ${fmt.num(left)}</a></div>
+    <p class="muted small">The easiest ranked maps nobody in Portugal has passed yet.</p>
+    ${goal.next.map(([id, set, version, stars]) => {
+      const named = goal.sets?.[set];
+      const title = named ? `${named[0]} - ${named[1]}` : `Map #${id}`;
+      return html`<a class="map goal-map" href="#/map/${id}">
+        ${setCover(set)}
+        <span class="map-text">
+          <span class="map-title" title="${title}">${title}</span>
+          <span class="map-sub">${starsBadge(stars)} [${version}]</span>
+        </span>
+      </a>`;
+    })}
+    ${latest ? html`<div class="week-top"><span class="faint small">Latest clear</span> ${playerLink(latest[1], index, 'avatar-sm')}
+      ${latest[2] ? html`<span class="muted small" title="${fmt.date(latest[2])}">${fmt.ago(latest[2])}</span>` : ''}
+      <a class="dim-link" href="#/map/${latest[0]}">${mapLabel(latest[0], goal.maps?.[latest[0]])}</a></div>` : ''}
+  </section>`;
 }
 
 function miniBoard(list, key, cat) {
@@ -77,7 +131,8 @@ export default async function home(root, { isCurrent }) {
       </dl>
       <div class="hero-ladder">
         ${ladderBand(counts, { mine: highestDan(mine) })}
-        <p class="ladder-caption">${ladderCaption(counts)} <a href="#/challenges/dan">Open the Dan course</a></p>
+        <p class="hero-caption">${ladderCaption(counts)} <a href="#/challenges/dan">Open the Dan course</a></p>
+        ${goalBand(m.completion)}
       </div>
     </section>
 
@@ -110,7 +165,7 @@ export default async function home(root, { isCurrent }) {
           </div>
         </a>` : html`<div class="empty">No map of the week yet.</div>`}
         ${weeklySummary(ch.weekly, ch.maps, index)}
-        ${m.completion?.total ? html`<p class="small muted goal-teaser">Together Portugal has cleared <b>${fmt.num(m.completion.cleared / m.completion.total * 100, 1)}%</b> of ranked osu!catch maps. <a href="#/challenges/completion">See what’s left</a></p>` : ''}
+        ${goalNext(m.completion, index)}
       </div>
       <div>
         <div class="section-head"><h2>Recent activity</h2><a href="#/activity">See all →</a></div>

@@ -397,6 +397,38 @@ Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout)
 - A value that links to its leaderboard uses `.stat-link`.
 - At most one strip of four to six tiles per page, with the hero first.
 
+### Community goals and progress
+
+A goal the whole community works toward (the Dan course, the completion goal) is shown as **one band**: a mark of how
+far Portugal has got, then a one-line caption.
+- **The mark** is the ladder's glyphs (`ladderBand()`) or a figure on a thin meter (`.goal-line`: the share in
+  `--fs-2xl`, then a 4px `.goal-bar`, accent for the done part only). The mark is one link to the goal's page.
+- **The caption** (`.hero-caption`) starts with a bold lead-in naming the goal, gives the count in plain words, and ends
+  with one link ("See what's left", "Open the Dan course").
+- **Meters only for known totals** (§10), never a percentage without its "x of y" in text beside it.
+- **The goal's own page** has the big result (`.goal-figure`, `--fs-4xl`). Anywhere else the figure stays at stat-tile
+  size, so it never competes with that page's hero.
+- **A nudge** ("what to play next for it") is an open list of at most three map lines under a sentence-case heading,
+  with a link to the full list. No box, no button.
+
+### Home page
+
+The home page answers, in order: who we are, how far we've got, who's on top, what to play, what's happening. One
+hero, then sections that step down.
+1. **Hero:** H1, one lead sentence, the actions and the stat strip (`.hero-stats`). Under it, full width, the two
+   community goals as bands (`.hero-ladder`): the Dan ladder (how far up), then the completion goal (how far across,
+   `goalBand()`). They are the only progress marks on the page.
+2. **Throne line:** Tris's #1s, a ruled row.
+3. **Portugal's best:** the three top 5s.
+4. **Two columns:** what to play on the left (map of the week, "This week so far", then "Still to clear": the three
+   easiest uncleared ranked maps and the latest first clear, `goalNext()`); what's happening on the right (recent
+   activity).
+5. **Since 2018**, then **How to join**.
+
+Completion appears twice and never more: the figure in the hero, and the nudge beside the map of the week. Neither
+loads `completion.json` (about 90 KB compressed); both read `meta.json`'s `completion` (`homeGoal()` in
+`tools/lib/completion.mjs`). Each part hides on its own when the data doesn't have it yet.
+
 ### Cards and objects
 
 - **`.card`** is an open section: a hairline above it and a small sentence-case title (`h2.card-h`).

@@ -501,10 +501,20 @@ a.row.card-link:last-child { border-bottom: 0; }
 .rung-n { font-size: var(--fs-xs); color: var(--text-faint); }
 .rung.mine .rung-n { color: var(--accent); font-weight: 700; }
 .ladder:hover .rung-glyph { transform: translateY(-2px); }
-.hero .ladder-caption { max-width: none; margin: 10px 0 0; font-size: var(--fs-sm); }
-.ladder-caption b { color: var(--text); font-weight: 600; }
-.ladder-caption [lang='pt-PT'] { font-family: var(--display); font-weight: 600; color: var(--text); white-space: nowrap; }
+.hero .hero-caption { max-width: none; margin: 10px 0 0; font-size: var(--fs-sm); }
+.hero-caption b { color: var(--text); font-weight: 600; }
+.hero-caption [lang='pt-PT'] { font-family: var(--display); font-weight: 600; color: var(--text); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .ladder:hover .rung-glyph { transform: none; } }
+/* The completion goal (home.js goalBand), the ladder's second band: how far across, where the ladder is how far up. A
+   figure the size of the hero stats on a thin meter (the Completion page's .goal-bar), then a caption like the
+   ladder's. The figure and meter are one link, as the ladder is. */
+.hero-goal { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+.goal-line { display: flex; align-items: center; gap: 16px; color: var(--text); }
+.goal-line:hover { text-decoration: none; }
+.goal-pct { font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; transition: color .12s; }
+.goal-line:hover .goal-pct { color: var(--accent); }
+.goal-line .goal-bar { flex: 1; height: 4px; }
+@media (max-width: 480px) { .goal-pct { font-size: var(--fs-xl); } }
 /* Phones: the numerals on one row, the Hebrew letters under them. */
 @media (max-width: 600px) {
   .ladder-rungs { grid-template-columns: repeat(11, minmax(0, 1fr)); row-gap: 6px; }
@@ -1183,7 +1193,6 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .goal-bar { height: 6px; border-radius: var(--r-xs); background: var(--surface-3); overflow: hidden; }
 .goal-bar > span { display: block; width: var(--done, 0%); height: 100%; background: var(--accent); }
 .goal-aside { margin: 12px 0 0; color: var(--text-faint); font-size: var(--fs-sm); }
-.goal-teaser { margin: 12px 0 0; }
 .goal-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .goal-who > .faint { min-width: 1.5em; }
 @media (max-width: 480px) { .goal-figure { font-size: var(--fs-3xl); } }
@@ -1232,12 +1241,15 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .throne-strip.card-link:hover b { color: var(--accent); }
 
 /* The home page's "This week so far" (core/weekly.js weeklySummary): a few ruled lines under the map of the week. */
-.week-summary { margin-top: 28px; }
-.week-summary .section-head { margin-bottom: 6px; }
-.week-summary .section-head h2 { font-size: var(--fs-xl); }
-.week-summary > p { margin: 0; }
+/* "Still to clear" (home.js goalNext) follows it in the same column and the same form: the easiest uncleared maps as
+   ruled map lines, then the newest first clear as a .week-top line. */
+.week-summary, .goal-next { margin-top: 28px; }
+.week-summary .section-head, .goal-next .section-head { margin-bottom: 6px; }
+.week-summary .section-head h2, .goal-next .section-head h2 { font-size: var(--fs-xl); }
+.week-summary > p, .goal-next > p { margin: 0; }
 .week-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 0; border-top: 1px solid var(--border); }
-.week-summary > p.muted { margin-bottom: 8px; }
+.week-summary > p.muted, .goal-next > p.muted { margin-bottom: 8px; }
+.goal-map { padding: 8px 0; border-top: 1px solid var(--border); }
 .week-top > .faint { min-width: 7.5em; }
 .week-top .dim-link { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
 
