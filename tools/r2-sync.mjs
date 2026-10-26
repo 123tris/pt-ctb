@@ -30,12 +30,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export const BUCKETS = { data: process.env.R2_DATA_BUCKET || 'ptcatch-data', state: process.env.R2_STATE_BUCKET || 'ptcatch-state' };
 export const DIRS = { dataDir: path.join(root, 'data'), stateDir: path.join(root, 'state') };
 /** The exporter's memory, kept in the private bucket. */
-const STATE_FILES = ['state.json', 'beatmaps.json'];
+const STATE_FILES = ['state.json', 'beatmaps.json', 'avatars.json'];
 /** This tool's own record: usage counts and retired files. Also kept in the private bucket, uploaded last. */
 const LEDGER = 'r2.json';
 /** How long a file the manifest stopped naming stays, for visitors who loaded the previous manifest (open tabs). */
 export const GRACE_MS = 24 * 60 * 60 * 1000;
 const JSON_TYPE = 'application/json; charset=utf-8';
+/** The data is JSON apart from the avatar thumbnails (tools/lib/avatars.mjs). */
+export const contentType = key => (key.endsWith('.webp') ? 'image/webp' : JSON_TYPE);
 
 /**
  * meta.json: browsers always revalidate it (max-age=0); Cloudflare's edge keeps it a minute (s-maxage=60), so however
@@ -139,13 +141,13 @@ export async function upload({ client, budget: b, ledger, now = Date.now() }, { 
   const metaChanged = remoteByKey.get('meta.json')?.etag !== md5(local.meta.body);
 
   // Check the whole run against the caps before sending anything: these uploads, meta.json, the state bucket's list,
-  // up to three state files and the ledger.
+  // up to four state files and the ledger.
   b.uploads(uploads.length);
-  b.need(uploads.length + (metaChanged ? 1 : 0) + 5);
+  b.need(uploads.length + (metaChanged ? 1 : 0) + 6);
   const bytes = remote.reduce((n, o) => n + o.size, 0) - prune.reduce((n, o) => n + o.size, 0) + uploads.reduce((n, f) => n + f.size, 0);
   b.storage(bytes);
 
-  await pool(uploads.map(f => () => client.put(BUCKETS.data, f.key, fs.readFileSync(f.file), { 'Content-Type': JSON_TYPE, 'Cache-Control': cacheControl(f.key) })));
+  await pool(uploads.map(f => () => client.put(BUCKETS.data, f.key, fs.readFileSync(f.file), { 'Content-Type': contentType(f.key), 'Cache-Control': cacheControl(f.key) })));
   if (metaChanged) await client.put(BUCKETS.data, 'meta.json', local.meta.body, { 'Content-Type': JSON_TYPE, 'Cache-Control': cacheControl('meta.json') });
   await pool(prune.map(o => () => client.delete(BUCKETS.data, o.key)));
 

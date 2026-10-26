@@ -18,6 +18,9 @@
 // Only public osu! data leaves the bot's folder: usernames, scores and profile stats for home-country players.
 // Discord ids, the verification log and per-user settings are never read. Files are only rewritten when their
 // content changed, so an export with nothing new leaves git clean.
+//
+// It also writes small WebP copies of the players' avatars (avatars/{id}-64.webp and -128.webp, tools/lib/avatars.mjs),
+// which needs sharp (npm install). Without it the export still runs and the site shows osu!'s full-size avatars.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -26,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import { loadBotData, loadBeatmaps, loadPastOfficial, loadCommands } from './lib/source.mjs';
 import { build, neededMapIds, isUnclaimedCandidate, isCatchPlayable } from './lib/build.mjs';
 import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, fetchDates, hasCatchDifficulty } from './lib/osu-api.mjs';
+import { updateAvatars, sharpResizer } from './lib/avatars.mjs';
 import { STATUS } from '../assets/js/core/model.js';
 import { decodeMapsSearch } from '../assets/js/core/maps-search.js';
 
@@ -45,6 +49,8 @@ const outDir = path.resolve(arg('out', path.join(repoRoot, 'data')));
 const trial = outDir !== path.join(repoRoot, 'data');
 const stateFile = path.join(repoRoot, 'state', 'state.json');
 const stateOut = trial ? path.join(outDir, '.state.json') : stateFile;
+const avatarStateFile = path.join(repoRoot, 'state', 'avatars.json');
+const avatarStateOut = trial ? path.join(outDir, '.avatars.json') : avatarStateFile;
 
 const readJsonOr = (file, fallback) => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : fallback);
 
@@ -170,6 +176,20 @@ const commands = loadCommands(dataRoot);
 if (commands) files['commands.json'] = commands;
 else if (fs.existsSync(path.join(dataRoot, 'commands.json'))) console.warn('  commands.json in the data folder is not the expected shape; skipped');
 
+// Avatar thumbnails for everyone on players.json (other ids the site shows, like a record's past holder, use a.ppy.sh).
+let resize = null;
+try { resize = await sharpResizer(); } catch { console.warn('  sharp isn’t installed (npm install): avatar thumbnails are only kept, not made'); }
+const avatars = await updateAvatars({
+  ids: files['players.json'].map(p => p.id).sort((a, b) => a - b),
+  outDir,
+  state: readJsonOr(fs.existsSync(avatarStateOut) ? avatarStateOut : avatarStateFile, {}),
+  resize,
+  log: console.warn,
+});
+const av = avatars.stats;
+console.log(`  avatars: ${av.fetched} new or changed, ${av.unchanged} unchanged on osu!, ${av.kept} not due for a check` +
+  `${av.failed ? `, ${av.failed} failed` : ''}${av.missing ? `, ${av.missing} without a thumbnail` : ''}`);
+
 // meta.json lists a hash of every other file's content, which the site puts on that file's URL (core/data.js): a file
 // keeps its URL, and stays in visitors' caches, until its content changes.
 const hash = text => createHash('sha256').update(text).digest('base64url').slice(0, 10);
@@ -183,8 +203,13 @@ for (const [name, content] of Object.entries(files)) {
   versions[name] = hash(text);
   if (writeIfChanged(path.join(outDir, name), text)) changed++;
 }
-const keep = new Set(Object.keys(files));
-let removed = prune('players', keep) + prune('maps', keep) + prune('sets', keep);
+// The thumbnails are already in outDir (written as they were made).
+for (const [name, buf] of Object.entries(avatars.files)) {
+  bytes += buf.length;
+  versions[name] = hash(buf);
+}
+const keep = new Set([...Object.keys(files), ...Object.keys(avatars.files)]);
+let removed = prune('players', keep) + prune('maps', keep) + prune('sets', keep) + prune('avatars', keep);
 // Files earlier exports wrote that nothing reads any more.
 for (const name of RETIRED) {
   if (!fs.existsSync(path.join(outDir, name))) continue;
@@ -199,6 +224,7 @@ if (changed || removed || !fs.existsSync(metaFile) || JSON.stringify(readJsonOr(
   changed++;
 }
 writeIfChanged(stateOut, JSON.stringify(state));
+writeIfChanged(avatarStateOut, JSON.stringify(avatars.state));
 
 const untitled = decodeMapsSearch(files['maps-search.json']).filter(row => !row[3]).length;
 console.log(`  ${Object.keys(files).length} files (${(bytes / 1e6).toFixed(1)} MB), ${changed} changed, ${removed} removed` +

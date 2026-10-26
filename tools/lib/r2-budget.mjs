@@ -12,7 +12,7 @@ export const LIMITS = {
   classADay: 16_000,     // 500,000 / 31: one bad day can't use up the month
   classBMonth: 1_000_000, // 10% of the free 10,000,000, for our own reads (restoring data, the old manifest)
   storageBytes: 2 * 1024 ** 3, // 2 GiB, 20% of the free 10 GB
-  uploadsPerRun: 600,    // a full upload is ~490 files; more in one run means something is wrong
+  uploadsPerRun: 900,    // a full upload is ~710 files (~490 data, ~220 avatar thumbnails); more means something is wrong
 };
 
 export class BudgetError extends Error {}

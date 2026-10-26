@@ -6,7 +6,7 @@
 # worked out by tools/build-site.mjs on every build, so editing those snippets can't silently get them blocked.
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' {{inline-script-hashes}}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://a.ppy.sh https://assets.ppy.sh; connect-src 'self' https://data.ptcatch.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' {{inline-script-hashes}}; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://data.ptcatch.com https://a.ppy.sh https://assets.ppy.sh; connect-src 'self' https://data.ptcatch.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests
   Strict-Transport-Security: max-age=31536000
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY

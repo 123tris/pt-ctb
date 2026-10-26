@@ -8,5 +8,8 @@
     "serve": "node tools/serve.mjs",
     "test": "node --test signin/*.test.mjs usage/*.test.mjs tools/*.test.mjs tools/lib/*.test.mjs",
     "build": "node tools/build-site.mjs"
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5"
   }
 }

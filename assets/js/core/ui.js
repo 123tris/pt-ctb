@@ -4,6 +4,7 @@ import { html, raw } from './html.js';
 import { S, M, modString, DAN_STAGES } from './model.js';
 import { LOADING, LEGENDS, pick } from './lore.js';
 import * as fmt from './fmt.js';
+import { avatarThumbs } from './data.js';
 
 export const CAT_LABEL = { c: 'Converts', u: 'Loved & Unranked', r: 'Ranked' };
 export const CAT_SHORT = { c: 'Converts', u: 'Loved', r: 'Ranked' };
@@ -34,9 +35,22 @@ export function setTitle(title) {
 /** Displayed avatar sizes by class (site.css), as width/height so the layout doesn't move when they load. */
 const AVATAR_SIZE = { 'avatar-lg': 88, 'avatar-md': 44, 'avatar-sm': 22 };
 
+/**
+ * An avatar <img>'s src (and srcset) for `size` CSS pixels: the exporter's 64 and 128 px thumbnails, 1-5 KB each, which
+ * the browser picks between by screen density, instead of osu!'s 256 px original (17-75 KB). Only an avatar shown
+ * larger than 64 px also offers the original, for screens where 128 px would look soft. Players the export has no
+ * thumbnails for get the original.
+ */
+export function avatarSrc(id, size) {
+  const thumbs = avatarThumbs(id);
+  if (!thumbs) return html`src="${avatarUrl(id)}"`;
+  const srcset = [`${thumbs[64]} 64w`, `${thumbs[128]} 128w`, ...(size > 64 ? [`${avatarUrl(id)} 256w`] : [])].join(', ');
+  return html`src="${thumbs[size > 32 ? 128 : 64]}" srcset="${srcset}" sizes="${size}px"`;
+}
+
 export const avatar = (id, cls = '') => {
   const size = AVATAR_SIZE[cls] ?? 32;
-  return html`<img class="avatar ${cls}" src="${avatarUrl(id)}" alt="" width="${size}" height="${size}" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">`;
+  return html`<img class="avatar ${cls}" ${avatarSrc(id, size)} alt="" width="${size}" height="${size}" loading="lazy" decoding="async" data-hide-broken>`;
 };
 
 /** A player's name with avatar, linking to their page. `who` is a players.json entry or an id + index. */
@@ -105,7 +119,7 @@ export function setCover(set, kind = 'list', cls = 'map-cover') {
   // width/height give the box its size (or, where CSS sets the width, its shape) before the image arrives.
   const [w, h] = COVER_SIZE[kind] ?? COVER_SIZE.list;
   return set
-    ? html`<img class="${cls}" src="${coverUrl(set, kind)}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">`
+    ? html`<img class="${cls}" src="${coverUrl(set, kind)}" alt="" width="${w}" height="${h}" loading="lazy" decoding="async" data-hide-broken>`
     : html`<span class="${cls}"></span>`;
 }
 

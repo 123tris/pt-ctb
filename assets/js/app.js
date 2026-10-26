@@ -192,6 +192,12 @@ document.addEventListener('keydown', e => {
 // "Skip to content" focuses the page rather than following #content, which the router would treat as a route.
 document.querySelector('.skip')?.addEventListener('click', e => { e.preventDefault(); root.focus(); });
 
+// Hide images marked data-hide-broken (avatars, covers) that fail to load. One capture-phase listener, since error
+// doesn't bubble and the CSP in _headers blocks inline onerror handlers.
+document.addEventListener('error', e => {
+  if (e.target instanceof HTMLImageElement && e.target.hasAttribute('data-hide-broken')) e.target.style.visibility = 'hidden';
+}, true);
+
 // Scroll to the top on a new page, but not when only the query changes (e.g. a filter on the same page).
 let lastPath = null;
 window.addEventListener('hashchange', () => {

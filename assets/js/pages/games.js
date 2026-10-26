@@ -170,7 +170,7 @@ async function quizGame(root, query, isCurrent) {
           <div class="chips" style="justify-content:center">${Object.entries(QUIZ_MODES).map(([k, v]) => html`<a class="chip ${k === mode ? 'active' : ''}" href="#/games/quiz?mode=${k}">${v.label}</a>`)}</div>
         </header>
         <div class="scoreboard"><span>Round <b>${round + 1}<small>/${deck.length}</small></b></span><span>Points <b>${score}</b></span></div>
-        <div class="game-cover"><img src="${coverUrl(r[1], 'cover')}" alt="Map cover" onerror="this.style.visibility='hidden'"></div>
+        <div class="game-cover"><img src="${coverUrl(r[1], 'cover')}" alt="Map cover" data-hide-broken></div>
         <p class="center" style="margin:12px 0 0"><b>${r[2]} - ${r[3]}</b> ${starsBadge(r[5])}${mode === 'convert' ? html` <span class="faint">[${r[4]}]</span>` : ''}</p>
         <div class="btn-row" style="justify-content:center;margin-top:16px">
           ${picked === null

@@ -60,6 +60,13 @@ if (-not $NoUpload) {
     Invoke-R2 'restore'
 }
 
+# sharp makes the avatar thumbnails (tools/lib/avatars.mjs). Without it the export still runs and keeps the thumbnails
+# it has, so a failed install only warns.
+if (-not (Test-Path 'node_modules/sharp')) {
+    npm ci --no-audit --no-fund
+    if ($LASTEXITCODE -ne 0) { Write-Warning 'npm ci failed: avatar thumbnails are not updated this run.' }
+}
+
 node --max-old-space-size=4096 tools/export.mjs --data $DataRepo --fetch-titles
 if ($LASTEXITCODE -ne 0) { throw "Export failed (exit $LASTEXITCODE)" }
 

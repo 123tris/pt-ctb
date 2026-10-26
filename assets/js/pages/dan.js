@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { S, DAN_STAGES, DAN_ROLES, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { DAN_ROLE_LORE } from '../core/lore.js';
-import { playerLink, mapLink, scoreStats, posBadge, empty, prefs, scrollBehavior } from '../core/ui.js';
+import { playerLink, mapLink, scoreStats, posBadge, empty, prefs, scrollBehavior, avatarSrc } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 
 // The Dan course is the "Dan course" tab of Challenges (pages/challenges.js); #/dan still redirects there.
@@ -16,7 +16,7 @@ function stageCard(stage, data, index, selected) {
     <b>${danName(stage.index)}</b>
     <div class="small muted">${passers.length ? `${fmt.plural(passers.length, 'pass', 'passes')}` : 'No passes yet'}</div>
     ${passers.length ? html`<div class="avatars">
-      ${passers.slice(0, 5).map(([uid]) => html`<img src="https://a.ppy.sh/${uid}" alt="${index.get(uid)?.name ?? ''}" title="${index.get(uid)?.name ?? ''}" width="22" height="22" loading="lazy" decoding="async">`)}
+      ${passers.slice(0, 5).map(([uid]) => html`<img ${avatarSrc(uid, 22)} alt="${index.get(uid)?.name ?? ''}" title="${index.get(uid)?.name ?? ''}" width="22" height="22" loading="lazy" decoding="async">`)}
       ${passers.length > 5 ? html`<span class="more">+${passers.length - 5}</span>` : ''}
     </div>` : ''}
   </button>`;

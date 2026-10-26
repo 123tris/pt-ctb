@@ -186,7 +186,7 @@ test('the caps: a run that would pass the monthly, daily or storage cap sends no
     const dirs = folders({ files: many });
     const ctx = context(dirs);
     const r2 = fakeR2(ctx.budget);
-    await assert.rejects(upload({ ...ctx, client: r2 }, dirs), /would upload 601 files, over the per-run cap of 600/);
+    await assert.rejects(upload({ ...ctx, client: r2 }, dirs), new RegExp(`would upload ${LIMITS.uploadsPerRun + 1} files, over the per-run cap of ${LIMITS.uploadsPerRun}`));
     assert.deepEqual(r2.log, []);
   }
   // Storage: a bucket already near the cap takes no more.
@@ -238,4 +238,19 @@ test('restore fills an empty checkout from R2: plain file names, meta.json last,
 test('caching headers', () => {
   assert.equal(cacheControl('meta.json'), 'public, max-age=0, s-maxage=60');
   assert.equal(cacheControl('players/1.YqdZgQh-qv.json'), 'public, max-age=31536000, immutable');
+  assert.equal(cacheControl('avatars/1-64.YqdZgQh-qv.webp'), 'public, max-age=31536000, immutable');
+});
+
+test('avatar thumbnails go up as WebP images, byte for byte', async () => {
+  const webp = Buffer.from([0x52, 0x49, 0x46, 0x46, 0xff, 0x00, 0x80, 0x57, 0x45, 0x42, 0x50]); // not valid UTF-8
+  const files = { 'players.json': '[1]', 'avatars/1-64.webp': webp };
+  const dirs = folders({ files });
+  const ctx = context(dirs);
+  const r2 = fakeR2(ctx.budget);
+  await upload({ ...ctx, client: r2 }, dirs);
+  const thumb = r2.buckets[BUCKETS.data].get(hashedName('avatars/1-64.webp', hash(webp)));
+  assert.equal(thumb.headers['Content-Type'], 'image/webp');
+  assert.equal(thumb.headers['Cache-Control'], 'public, max-age=31536000, immutable');
+  assert.ok(Buffer.from(thumb.body).equals(webp));
+  assert.equal(r2.buckets[BUCKETS.data].get(hashedName('players.json', hash('[1]'))).headers['Content-Type'], 'application/json; charset=utf-8');
 });

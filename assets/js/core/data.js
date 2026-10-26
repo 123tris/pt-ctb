@@ -10,6 +10,8 @@ import { hashedName } from './data-name.js';
 
 const cache = new Map();
 let metaPromise = null;
+/** meta.json once it has loaded, for avatarThumbs. */
+let loadedMeta = null;
 
 export class NotFound extends Error {}
 
@@ -17,8 +19,19 @@ export function meta() {
   metaPromise ??= fetch(`${CONFIG.data}meta.json`, { cache: 'no-cache' }).then(r => {
     if (!r.ok) throw new Error('The site data hasn’t been generated yet.');
     return r.json();
-  });
+  }).then(m => (loadedMeta = m));
   return metaPromise;
+}
+
+/**
+ * The addresses of a player's avatar thumbnails, { 64, 128 } (WebP, tools/lib/avatars.mjs), or null when the export has
+ * none for them (they aren't on players.json) or meta.json hasn't loaded yet. Pages load it before drawing any player.
+ */
+export function avatarThumbs(id) {
+  const files = loadedMeta?.files;
+  const names = { 64: `avatars/${id}-64.webp`, 128: `avatars/${id}-128.webp` };
+  if (!files?.[names[64]] || !files[names[128]]) return null;
+  return { 64: `${CONFIG.data}${hashedName(names[64], files[names[64]])}`, 128: `${CONFIG.data}${hashedName(names[128], files[names[128]])}` };
 }
 
 export function load(path) {
