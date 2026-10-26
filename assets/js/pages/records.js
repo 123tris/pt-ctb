@@ -11,20 +11,20 @@ function throneSection(t, maps, index) {
   const boss = index.get(t.u);
   if (!boss) return '';
   return html`<section class="section" id="throne">
-    <div class="section-head"><h2>Dethrone ${boss.name}</h2><a href="#/player/${t.u}">${boss.name}’s profile →</a></div>
+    <div class="section-head"><h2>Dethrone ${boss.name}</h2><a href="#/player/${t.u}">${boss.name}’s profile</a></div>
     <div class="throne-head card">
       ${avatar(t.u, 'avatar-lg')}
       <div>
         <div class="stat-value">${fmt.num(t.held)} #1s</div>
-        <p class="muted" style="margin:4px 0 0">${boss.name} still holds ${fmt.num(t.held)} Portuguese #1s, ${fmt.num(t.contested)} of them on maps someone else has played too. He keeps asking to be sniped. Go on.</p>
+        <p class="m-0 mt-1 muted">${boss.name} still holds ${fmt.num(t.held)} Portuguese #1s, ${fmt.num(t.contested)} of them on maps someone else has played too. He keeps asking to be sniped. Go on.</p>
       </div>
     </div>
-    <div class="grid grid-2" style="margin-top:16px">
+    <div class="mt-4 grid grid-2">
       <div>
         <h3 class="small muted">His oldest #1s still standing</h3>
-        <div class="rows">${t.oldest.map(([cat, runner, ...s]) => html`<div class="row" style="grid-template-columns:1fr">
+        <div class="rows">${t.oldest.map(([cat, runner, ...s]) => html`<div class="row-1col row">
           ${mapLink(s[S.MAP], maps[s[S.MAP]])}
-          <div class="row-meta" style="justify-content:flex-start">${catChip(cat)} <span class="faint">#1 since ${fmt.date(s[S.TIME])}</span><span class="sep"></span>
+          <div class="justify-start row-meta">${catChip(cat)} <span class="faint">#1 since ${fmt.date(s[S.TIME])}</span><span class="sep"></span>
             <span class="faint">next in line:</span> ${playerLink(runner, index, 'avatar-sm')}</div>
         </div>`)}</div>
       </div>
@@ -47,8 +47,8 @@ function playRecord(title, row, maps, index, highlight) {
   const [uid, cat, ...s] = row;
   return html`<div class="card">
     <h3>${title}</h3>
-    <div class="stat-value" style="margin-bottom:8px">${highlight(s, maps[s[S.MAP]])}</div>
-    <div style="margin-bottom:10px">${mapLink(s[S.MAP], maps[s[S.MAP]])}</div>
+    <div class="mb-2 stat-value">${highlight(s, maps[s[S.MAP]])}</div>
+    <div class="mb-2">${mapLink(s[S.MAP], maps[s[S.MAP]])}</div>
     <div class="score-line">${playerLink(uid, index, 'avatar-sm')} ${catChip(cat)} ${scoreStats(s)} ${ppText(s[S.PP])}</div>
   </div>`;
 }
@@ -71,9 +71,9 @@ function leaders(title, rows, index, unit, { note, foot } = {}) {
 function hardFirsts(h, maps, index) {
   const [uid, cat, ...s] = h.fc || [];
   const foot = h.fc ? html`<div class="card-foot">
-    <div class="muted" style="margin-bottom:8px">Hardest full combo</div>
+    <div class="mb-2 muted">Hardest full combo</div>
     ${mapLink(s[S.MAP], maps[s[S.MAP]])}
-    <div class="score-line" style="margin-top:8px">${playerLink(uid, index, 'avatar-sm')} ${catChip(cat)} ${scoreStats(s)}</div>
+    <div class="mt-2 score-line">${playerLink(uid, index, 'avatar-sm')} ${catChip(cat)} ${scoreStats(s)}</div>
   </div>` : '';
   return leaders(`Most #1s on ${h.stars}★+ maps`, h.firsts, index, '', {
     note: `The same count, but only on maps of ${h.stars}★ and up (nomod stars, no EZ or HT).`, foot,
@@ -116,7 +116,7 @@ export default async function recordsPage(root, { query, isCurrent }) {
         ${playRecord('Oldest #1', r.oldestFirst, maps, index, s => `since ${fmt.date(s[S.TIME])}`)}
         ${['c', 'u', 'r'].map(cat => playRecord(`Hardest map (${CAT_LABEL[cat]})`, r.hardest[cat], maps, index, (s, meta) => (meta ? `★ ${fmt.num(meta[M.STARS], 2)}` : '—')))}
       </div>
-      <p class="small faint" style="margin-top:10px">Plays with EZ or HT don’t count for the hardest and longest maps.</p>
+      <p class="mt-2 small faint">Plays with EZ or HT don’t count for the hardest and longest maps.</p>
     </section>
 
     ${r.throne ? throneSection(r.throne, maps, index) : ''}
@@ -163,7 +163,7 @@ export default async function recordsPage(root, { query, isCurrent }) {
     <section class="section card" id="when">
       <h2 class="card-h">When does Portugal play?</h2>
       ${barChart(hours, { every: 3 })}
-      <p class="small muted" style="margin:8px 0 0">Lisbon time when each score was set. Peak time is between ${peak}h and ${peak + 1}h.</p>
+      <p class="m-0 mt-2 small muted">Lisbon time when each score was set. Peak time is between ${peak}h and ${peak + 1}h.</p>
     </section>
   `);
   if (query.at) root.querySelector(`#${CSS.escape(query.at)}`)?.scrollIntoView({ block: 'start' });

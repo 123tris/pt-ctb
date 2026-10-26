@@ -111,7 +111,7 @@ async function route({ newPage = false } = {}) {
       if (section === 'player' || section === 'recap') showError('Never heard of them!', 'There’s no Portuguese player with this id. They may not be tracked yet, or the link has a typo.', { newPage, players: true });
       else showError('Not found', 'There’s no data for this. The map may not be tracked yet.', { newPage });
     }
-    else showError('Something went wrong', e.message, { newPage });
+    else showError('This page didn’t load', 'The site couldn’t get its data: the connection may have dropped, or the data was being updated. Reload the page in a minute.', { newPage, detail: e.message });
   } finally {
     clearTimeout(spinner);
     if (ticket === current) root.removeAttribute('aria-busy');
@@ -125,11 +125,14 @@ function focusHeading() {
   heading.focus({ preventScroll: true });
 }
 
-/** An error page; `glyph` puts a Dan glyph above it (Shin, the stage nobody has reached, for a page that isn't there). */
-function showError(title, text, { newPage = false, players = false, glyph = '' } = {}) {
+/**
+ * An error page: what went wrong, why, and what to do (DESIGN.md §8). `detail` is the technical cause, in small print for
+ * bug reports; `glyph` puts a Dan glyph above it (Shin, the stage nobody has reached, for a page that isn't there).
+ */
+function showError(title, text, { newPage = false, players = false, glyph = '', detail = '' } = {}) {
   setTitle(title);
-  root.innerHTML = String(html`<div class="empty">${glyph ? html`<div class="lost-glyph" aria-hidden="true">${glyph}</div>` : ''}<h1>${title}</h1><p>${text}</p>
-    <div class="btn-row" style="justify-content:center">
+  root.innerHTML = String(html`<div class="empty">${glyph ? html`<div class="lost-glyph" aria-hidden="true">${glyph}</div>` : ''}<h1>${title}</h1><p>${text}</p>${detail ? html`<p class="small faint">${detail}</p>` : ''}
+    <div class="btn-row justify-center">
       <button class="btn btn-primary" type="button" data-open-search>Search players</button>
       ${players ? html`<a class="btn" href="#/players">Browse all players</a>` : ''}
       <a class="btn" href="#/">Go to the home page</a>

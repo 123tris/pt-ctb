@@ -90,11 +90,11 @@ export default async function commands(root, { isCurrent }) {
     <div class="grid grid-2">
       <div class="card">
         <h2 class="card-h">Why is the bot called Alphonse?</h2>
-        <p style="margin:0">Tris used to be <b>Edward Elric</b> on osu!. When he relaunched the bot in 2021, Nelson suggested the obvious: the bot is his brother. The Discord account still says DanProject, after the Dan course it was first built for in 2018.</p>
+        <p class="m-0">Tris used to be <b>Edward Elric</b> on osu!. When he relaunched the bot in 2021, Nelson suggested the obvious: the bot is his brother. The Discord account still says DanProject, after the Dan course it was first built for in 2018.</p>
       </div>
       <div class="card">
         <h2 class="card-h">The most-typed command</h2>
-        <p style="margin:0">Not one of ours: owo’s <span class="kbd">&lt;rc</span> has been typed on the server about 11,800 times. Yes, we know you’ve typed <span class="kbd">&lt;rc</span> more often than “hello”.</p>
+        <p class="m-0">Not one of ours: owo’s <span class="kbd">&lt;rc</span> has been typed on the server about 11,800 times. Yes, we know you’ve typed <span class="kbd">&lt;rc</span> more often than “hello”.</p>
       </div>
     </div>
     ${GROUPS.map(group => {

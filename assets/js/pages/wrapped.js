@@ -61,7 +61,7 @@ export default async function wrapped(root, { params, isCurrent }) {
   const year = years.includes(Number(params.year)) ? Number(params.year) : years[0];
   setTitle(`${p.name} in ${year ?? ''}`);
 
-  const yearChips = html`<div class="chips" style="margin-bottom:18px">${years.map(y => html`<a class="chip ${y === year ? 'active' : ''}" href="#/recap/${id}/${y}">${y}</a>`)}</div>`;
+  const yearChips = html`<div class="mb-4 chips">${years.map(y => html`<a class="chip ${y === year ? 'active' : ''}" href="#/recap/${id}/${y}">${y}</a>`)}</div>`;
   if (!year) {
     root.innerHTML = String(empty(`${p.name} has no recorded plays yet.`));
     return;
@@ -88,42 +88,42 @@ export default async function wrapped(root, { params, isCurrent }) {
       <div class="slide pink">
         <div class="muted">In ${year}, ${p.name} set</div>
         <div class="big">${fmt.plural(w.plays.length, 'score')}</div>
-        <div class="muted" style="margin-top:8px">${CATS.filter(c => w.perCat[c]).map((c, i) => html`${i ? ' · ' : ''}${fmt.num(w.perCat[c])} in ${CAT_LABEL[c]}`)}</div>
+        <div class="mt-2 muted">${CATS.filter(c => w.perCat[c]).map((c, i) => html`${i ? ' · ' : ''}${fmt.num(w.perCat[c])} in ${CAT_LABEL[c]}`)}</div>
       </div>
 
       <div class="grid grid-2">
-        <div class="slide"><div class="muted">Your era</div><div class="big" style="font-size:2rem">${yearEra(w)}</div></div>
+        <div class="slide"><div class="muted">Your era</div><div class="big-sm big">${yearEra(w)}</div></div>
         <div class="slide"><div class="muted">1-miss plays</div><div class="big">${fmt.num(w.oneMiss)}</div><div class="muted small">${w.oneMiss ? 'The 1-miss gods have been busy.' : 'Not a single one. Suspicious.'}</div></div>
       </div>
 
       <div class="grid grid-3">
-        <div class="slide green"><div class="muted">Fruits caught</div><div class="big">${fmt.num(w.fruits)}</div></div>
+        <div class="slide"><div class="muted">Fruits caught</div><div class="big">${fmt.num(w.fruits)}</div></div>
         <div class="slide gold"><div class="muted">SS plays</div><div class="big">${fmt.num(w.ss)}</div><div class="muted small">and ${fmt.plural(w.fc, 'full combo')}</div></div>
         <div class="slide blue"><div class="muted">#1s in Portugal won</div><div class="big">${fmt.num(w.firsts.length)}</div><div class="muted small">and still held</div></div>
       </div>
 
       ${topBest ? html`<div class="slide">
         <div class="muted">Play of the year</div>
-        <div class="big" style="margin:6px 0 14px">${fmt.pp(topBest.s[S.PP])} pp</div>
+        <div class="mt-2 mb-3 big">${fmt.pp(topBest.s[S.PP])} pp</div>
         ${mapLink(topBest.s[S.MAP], topBest.meta)}
-        <div class="score-line" style="margin-top:10px">${catChip(topBest.cat)} ${scoreStats(topBest.s)} <span>${fmt.date(topBest.s[S.TIME])}</span></div>
+        <div class="mt-2 score-line">${catChip(topBest.cat)} ${scoreStats(topBest.s)} <span>${fmt.date(topBest.s[S.TIME])}</span></div>
       </div>` : ''}
 
       <div class="grid grid-3">
         ${w.mods ? html`<div class="slide"><div class="muted">Favourite mods</div><div class="big">${w.mods[0]}</div><div class="muted small">${fmt.plural(w.mods[1], 'play')}</div></div>` : ''}
-        ${w.mapper ? html`<div class="slide"><div class="muted">Favourite mapper</div><div class="big" style="font-size:1.8rem">${w.mapper[0]}</div><div class="muted small">${fmt.plural(w.mapper[1], 'map')}</div></div>` : ''}
-        ${w.artist ? html`<div class="slide"><div class="muted">Favourite artist</div><div class="big" style="font-size:1.8rem">${w.artist[0]}</div><div class="muted small">${fmt.plural(w.artist[1], 'map')}</div></div>` : ''}
+        ${w.mapper ? html`<div class="slide"><div class="muted">Favourite mapper</div><div class="big-sm big">${w.mapper[0]}</div><div class="muted small">${fmt.plural(w.mapper[1], 'map')}</div></div>` : ''}
+        ${w.artist ? html`<div class="slide"><div class="muted">Favourite artist</div><div class="big-sm big">${w.artist[0]}</div><div class="muted small">${fmt.plural(w.artist[1], 'map')}</div></div>` : ''}
       </div>
 
       <div class="slide">
         <div class="muted">Month by month</div>
         ${barChart(w.months.map((n, m) => ({ label: fmt.monthName(m), value: n, title: `${fmt.monthName(m)}: ${fmt.num(n)}` })))}
-        <p class="muted small" style="margin:8px 0 0">Favourite day of the week to play: <b>${WEEKDAYS[w.weekday]}</b>.</p>
+        <p class="m-0 mt-2 muted small">Favourite day of the week to play: <b>${WEEKDAYS[w.weekday]}</b>.</p>
       </div>
 
       ${w.hardest ? html`<div class="slide">
         <div class="muted">Hardest map of the year</div>
-        <div class="big" style="margin:6px 0 14px">★ ${fmt.num(w.hardest.meta[M.STARS], 2)}</div>
+        <div class="mt-2 mb-3 big">★ ${fmt.num(w.hardest.meta[M.STARS], 2)}</div>
         ${mapLink(w.hardest.s[S.MAP], w.hardest.meta)}
       </div>` : ''}
 

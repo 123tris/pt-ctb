@@ -2,7 +2,7 @@
 
 import { html, raw } from './html.js';
 import { S, M, modString, DAN_STAGES } from './model.js';
-import { LOADING, LEGENDS, pick } from './lore.js';
+import { LEGENDS } from './lore.js';
 import * as fmt from './fmt.js';
 import { avatarThumbs } from './data.js';
 
@@ -317,7 +317,8 @@ export const placeholderRows = (n = 6) => html`<div class="rows rows-placeholder
 /** The loader: the Dan glyphs, 0 to Shin, climbing one window (site.css .climb). */
 export const climber = () => html`<span class="climb" aria-hidden="true"><span class="climb-strip">${DAN_STAGES.map(s => html`<span>${s.glyph}</span>`)}</span></span>`;
 
-export const loading = () => html`<div class="loading"><div class="center">${climber()}<div>${pick(LOADING)}</div></div>${placeholderRows()}</div>`;
+/** The loading state: the Dan climber and a plain "Loading…" (no joke: DESIGN.md §12), over rows the height of real ones. */
+export const loading = () => html`<div class="loading"><div class="center">${climber()}<div>Loading…</div></div>${placeholderRows()}</div>`;
 
 /**
  * In-joke badges or map tags ({ name, tip }). Each is a toggle button: tapping it shows its explanation in the line
@@ -374,7 +375,7 @@ export function paginate(container, items, render, size = 50, { page: start = 0,
       ${pages() > 1 ? html`<nav class="pager" aria-label="Pages">
         <button class="btn btn-small" type="button" data-page="prev" ${page === 0 ? raw('disabled') : ''}>← Previous</button>
         <span>Page ${page + 1} of ${pages()}</span>
-        <button class="btn btn-small" type="button" data-page="next" ${page >= pages() - 1 ? raw('disabled') : ''}>Next →</button>
+        <button class="btn btn-small" type="button" data-page="next" ${page >= pages() - 1 ? raw('disabled') : ''}>Next</button>
       </nav>` : ''}`);
   };
   container.addEventListener('click', e => {

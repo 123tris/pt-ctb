@@ -58,16 +58,16 @@ function weekSection(week, maps, index, me) {
         </div>
         <h3 class="banner-title"><a href="#/map/${week.map}">${title}</a></h3>
         <div class="sub">${sub}</div>
-        <p style="margin:12px 0 0">Ends in <span class="countdown" id="countdown">${countdown(week.end)}</span></p>
+        <p class="m-0 mt-3">Ends in <span class="countdown" id="countdown">${countdown(week.end)}</span></p>
       </div>
     </section>
-    <div class="btn-row" style="margin:14px 0 22px">
+    <div class="mt-3 mb-6 btn-row">
       <a class="btn btn-primary" href="${osuMap(week.map)}" target="_blank" rel="noopener">Open on osu! ↗</a>
       <a class="btn" href="#/map/${week.map}">Full leaderboard</a>
     </div>
     <div class="section-head"><h2>This week’s plays</h2></div>
     ${week.weekly.length ? boardTable(week.weekly, index, me, 'This week’s plays on the map of the week') : empty('Nobody has played this map this week. Be the first!')}
-    <div class="section-head" style="margin-top:28px"><h2>All-time top</h2></div>
+    <div class="mt-6 section-head"><h2>All-time top</h2></div>
     ${boardTable(week.board.slice(0, 10), index, me, 'All-time top 10 on the map of the week')}`;
 }
 
@@ -132,17 +132,17 @@ function targetsPanel(data, maps, index) {
       <div>
         <div class="section-head"><h2>One-player maps</h2></div>
         <p class="muted small">Hard maps (5★ and up; loved and unranked ones under 10★) with a single Portuguese player. Just pass to take #2, or beat them for #1.</p>
-        ${data.lonely.length ? html`<div class="rows">${data.lonely.map(([id, cat, [uid, ...s]]) => html`<div class="row" style="grid-template-columns:1fr">
+        ${data.lonely.length ? html`<div class="rows">${data.lonely.map(([id, cat, [uid, ...s]]) => html`<div class="row-1col row">
           ${mapLink(id, maps[id])}
-          <div class="row-meta" style="justify-content:flex-start">${catChip(cat)} ${playerLink(uid, index, 'avatar-sm')} ${ppText(s[S.PP])}</div>
+          <div class="justify-start row-meta">${catChip(cat)} ${playerLink(uid, index, 'avatar-sm')} ${ppText(s[S.PP])}</div>
         </div>`)}</div>` : empty('No one-player maps.')}
       </div>
       <div>
         <div class="section-head"><h2>Unclaimed</h2></div>
         <p class="muted small">Popular ranked osu!catch maps with no Portuguese score recorded.</p>
-        ${data.unclaimed.length ? html`<div class="rows">${data.unclaimed.map(([id, plays, favs]) => html`<div class="row" style="grid-template-columns:1fr">
+        ${data.unclaimed.length ? html`<div class="rows">${data.unclaimed.map(([id, plays, favs]) => html`<div class="row-1col row">
           ${mapLink(id, maps[id])}
-          <div class="row-meta" style="justify-content:flex-start">${fmt.num(plays)} plays on osu! · ${fmt.num(favs)} favourites</div>
+          <div class="justify-start row-meta">${fmt.num(plays)} plays on osu! · ${fmt.num(favs)} favourites</div>
         </div>`)}</div>` : empty('Nothing left to claim. Impressive.')}
       </div>
     </section>`;

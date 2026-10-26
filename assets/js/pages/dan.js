@@ -28,7 +28,7 @@ function stageDetail(stage, data, index) {
       <h2>${danName(stage.index)}</h2>
       <span class="faint small">${stage.points} points · needs ${stage.passAcc}%</span>
     </div>
-    <div style="margin-bottom:14px">${mapLink(data.map, data.meta)}</div>
+    <div class="mb-3">${mapLink(data.map, data.meta)}</div>
     ${data.passers.length ? html`<div class="table-wrap" data-label="Players who passed the ${danName(stage.index)}"><table class="table-compact">
       <thead><tr><th>#</th><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">Date</th></tr></thead>
       <tbody>${data.passers.map(([uid, ...s], i) => html`<tr>
@@ -78,7 +78,7 @@ export function renderDan(root, data, index, query) {
             </tr>`;
           })}</tbody>
         </table></div>
-        <p class="small muted" style="margin-top:12px">Stages are worth from ${DAN_STAGES[0].points} (Zeroth Dan) to ${fmt.num(DAN_STAGES[18].points)} (Shin) points. Each stage only counts once; replaying it for a higher score only improves your place on this page.</p>
+        <p class="mt-3 small muted">Stages are worth from ${DAN_STAGES[0].points} (Zeroth Dan) to ${fmt.num(DAN_STAGES[18].points)} (Shin) points. Each stage only counts once; replaying it for a higher score only improves your place on this page.</p>
       </div>
     </section>
   `);

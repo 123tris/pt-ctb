@@ -149,13 +149,13 @@ export default async function rankings(root, { params, query, isCurrent }) {
       ${slug === 'ranked' && list.some(p => isInactiveOnOsu(p) && p.pp > 0) ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show players inactive on osu!</label></span>` : ''}
     </div>
     ${filtered ? html`
-      <div id="sources" style="margin-bottom:8px">${chipGroup('Plays from', 'src', SOURCES, source)}</div>
-      <div id="modchips" style="margin-bottom:16px">${chipGroup('Mod', 'mod', modChoices.map(f => [f, f]), mod)}</div>` : ''}
+      <div id="sources" class="mb-2">${chipGroup('Plays from', 'src', SOURCES, source)}</div>
+      <div id="modchips" class="mb-4">${chipGroup('Mod', 'mod', modChoices.map(f => [f, f]), mod)}</div>` : ''}
     <p class="result-count" id="count"></p>
     <div id="board"></div>
     <div id="board-empty"></div>
-    <p class="small" style="margin-top:12px"><a href="#/players">Browse all ${fmt.num(list.length)} players →</a></p>
-    ${FOOTNOTE[slug] ? html`<p class="small faint" style="margin-top:6px">${FOOTNOTE[slug]}</p>` : ''}
+    <p class="mt-3 small"><a href="#/players">Browse all ${fmt.num(list.length)} players</a></p>
+    ${FOOTNOTE[slug] ? html`<p class="mt-2 small faint">${FOOTNOTE[slug]}</p>` : ''}
   `);
 
   const boardEl = root.querySelector('#board');

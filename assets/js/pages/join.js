@@ -10,7 +10,7 @@ export default async function join(root) {
     <header class="page-head">
       <h1>How to join</h1>
       <p>The server is for Portuguese osu!catch players. Three steps and you’re on the leaderboards.</p>
-      ${CONFIG.discordInvite ? html`<div class="btn-row" style="margin-top:14px">
+      ${CONFIG.discordInvite ? html`<div class="mt-3 btn-row">
         <a class="btn btn-discord" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>
       </div>` : ''}
     </header>

@@ -50,9 +50,11 @@ function describe(e, index, maps) {
   }
 }
 
-const EVENT_EMOJI = { snipe: '🐐', top: '🔥', dan: '🫡', mile: '🗣️' };
-
-/** The Discord's reaction to an event, in its own words. Stable per event, so it doesn't change on redraw. */
+/**
+ * The Discord's reaction to an event, in its own words, only for the few moments that have a real in-joke (a no-fail
+ * "snipe", Tris losing a #1, Christmas, a TrisAcc FC). Most events have none: one joke lands, a joke on every line is
+ * wallpaper (DESIGN.md §12). Stable per event, so it doesn't change on redraw.
+ */
 function quip(e) {
   const seed = `${e.k}:${e.u}:${e.t}`;
   const date = new Date(e.t * 1000);
@@ -61,15 +63,9 @@ function quip(e) {
       if (e.s[S.MODS] & MOD.NF) return QUIPS.noRealSnipe;
       if (e.v === THRONE_PLAYER) return QUIPS.throne;
       if (date.getUTCMonth() === 11 && (date.getUTCDate() === 24 || date.getUTCDate() === 25)) return QUIPS.christmas;
-      return pick(QUIPS.snipe, seed);
+      return null;
     case 'top':
-      if (e.s[S.MISS] === 1) return pick(QUIPS.oneMiss, seed);
-      if (e.s[S.MISS] === 0 && e.s[S.GRADE] === 'A') return pick(QUIPS.trisAcc, seed);
-      return e.i === 1 ? pick(QUIPS.topFirst, seed) : null;
-    case 'mile':
-      return pick(QUIPS.mile, seed);
-    case 'join':
-      return pick(QUIPS.join, seed);
+      return e.s[S.MISS] === 0 && e.s[S.GRADE] === 'A' ? pick(QUIPS.trisAcc, seed) : null;
     default:
       return null;
   }
@@ -85,7 +81,6 @@ export function eventItem(e, index, maps) {
     <div class="event-head">
       <span class="event-kind">${EVENT_KINDS[e.k]?.tag}</span>
       <span title="${fmt.dateTime(e.t)}">${fmt.ago(e.t)}</span>
-      ${EVENT_EMOJI[e.k] ? html`<span class="event-emoji" aria-hidden="true">${EVENT_EMOJI[e.k]}</span>` : ''}
     </div>
     <div class="what">${what}</div>
     ${where ? html`<div class="where">${where}</div>` : ''}

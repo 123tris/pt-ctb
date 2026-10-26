@@ -20,7 +20,7 @@ const PAGE = 50;
 
 const row = (r, index) => {
   const titled = Boolean(r[3]);
-  return html`<a class="row card-link" href="#/map/${r[0]}" style="color:inherit">
+  return html`<a class="plain-link row card-link" href="#/map/${r[0]}">
     <span class="map">
       ${setCover(r[1])}
       <span class="map-text">
@@ -60,7 +60,7 @@ export default async function maps(root, { query, isCurrent }) {
       <input class="input" type="search" id="q" placeholder="Artist, title, difficulty or id…" value="${query.q || ''}" aria-label="Search maps">
       <select class="select" id="sort" aria-label="Sort">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>
     </div>
-    <div id="cats" style="margin-bottom:8px">${chipGroup('Category', 'cat', CATS, cat)}</div>
+    <div id="cats" class="mb-2">${chipGroup('Category', 'cat', CATS, cat)}</div>
     ${starSlider(stars)}
     <p class="result-count" id="count"></p>
     <div id="list"></div>

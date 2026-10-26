@@ -57,7 +57,7 @@ export function weeklyRecap(weekly, maps, index) {
         <div class="row-main"><span class="muted small">${i + 1}.</span>${mapLink(id, maps[id])}</div>
         <div class="row-meta"><span>${fmt.plural(players, 'player')} from Portugal</span></div>
       </div>`)}</div>
-      <div class="btn-row" style="margin-top:12px"><a class="btn btn-primary" href="${mapVote.url}" target="_blank" rel="noopener">Vote on Discord ↗</a></div>
+      <div class="mt-3 btn-row"><a class="btn btn-primary" href="${mapVote.url}" target="_blank" rel="noopener">Vote on Discord ↗</a></div>
     </section>` : ''}
 
     ${past.length ? html`<section class="section">
@@ -83,7 +83,7 @@ export function weeklySummary(weekly, maps, index) {
   if (!current && !mapVote) return '';
   const top = current?.top;
   return html`<section class="week-summary">
-    <div class="section-head"><h2>This week so far</h2><a href="#/activity?view=week">The week’s recap →</a></div>
+    <div class="section-head"><h2>This week so far</h2><a href="#/activity?view=week">The week’s recap</a></div>
     ${current ? html`<p class="muted small">${weekLine(current)}</p>` : ''}
     ${top ? html`<div class="week-top"><span class="faint small">Top play</span> ${playerLink(top[0], index, 'avatar-sm')}
       <span>${ppText(top[2 + S.PP])}</span> <a class="dim-link" href="#/map/${top[2 + S.MAP]}">${mapLabel(top[2 + S.MAP], maps[top[2 + S.MAP]])}</a></div>` : ''}

@@ -7,7 +7,7 @@ How ptcatch.com looks, reads and behaves, written so changes stay consistent. It
 - Read §1.
 - Use §2–§12 while building.
 - Run §13 before committing UI.
-- §14 lists where today's code still breaks the guide; fix those when you're in the file anyway.
+- §14 lists where the code still breaks the guide; fix those when you're in the file anyway.
 
 Tokens and classes named here are the real ones, in `assets/css/site.css`, `assets/css/ambience.css` and
 `assets/js/core/ui.js`.
@@ -557,61 +557,35 @@ wrong".
 
 ## 14. Gaps in today's code
 
-Found on 2026-10-26 in the dev worktree and on the live site. Nothing here was changed. Line numbers drift, so search
-for the selector.
+The `design-pass` branch (2026-10-26) applied this guide to the site:
+- spacing tokens and classes in place of the static inline styles;
+- every size on the scale, and labels in sentence case;
+- osu!, grade, podium and Discord colours as tokens, and one job per colour (event squares, Compare, Wrapped, eyebrows,
+  code, hero);
+- contrast fixes for the slider track and the search field;
+- 44px touch targets on touch screens;
+- no pulses, shimmers, lifts or accent shadows;
+- no side stripes, dashed borders or boxed status tags;
+- four breakpoints, and no arrows after links;
+- a plain "Loading…", and errors written as problem, cause and fix;
+- quips only on the rare real-lore events, and no emoji in the activity feed;
+- the "Fewer boxes" and "Quieter labels" overrides folded into their original rules.
 
-1. **No spacing tokens.**
-   - The live profile uses 11 different paddings.
-   - There are 91 inline `style=""` attributes in `assets/js/pages/*.js` (`games.js` 18, `calculator.js` 11,
-     `records.js` 10, `wrapped.js` 9).
-2. **Off-scale type.**
-   - `.6875rem` (11px) appears 13 times in `site.css`: `.mod` (:310), `th` (:367), `.stat-label` (:438), `.kv dt` and
-     others.
-   - H2 and `.brand` are a literal 22px (:96, :111).
-   - `.kv .status-date` uses a literal `.8125rem` (:1149).
-   - `.stat-unit` at `.5em` renders at about 10.5px.
-3. **Uppercase left over.**
-   - 17 `text-transform: uppercase` rules remain; the override block at :1243 cancels most of them.
-   - Still uppercase: the table headers (allowed) and the home board titles (`.card > h3.board-title .cat`, :1273).
-4. **Glows and loops** in `ambience.css`. These break §5 and §7.
-   - The Dan frontier pulses with a `text-shadow` halo forever (`.rung.top`, `@keyframes frontier`).
-   - The hero's "osu!catch" shimmers forever (`.hero h1 em`).
-   - Game cards, `.subnav a` and `.dan-stage` lift 3px with an accent-tinted shadow; `.btn-primary` lifts too.
-5. **Hex values outside `:root`:**
-   - `.btn-discord` (:221);
-   - the mod pills and their ink (:310–316);
-   - the A/B/C grades (:322–324);
-   - the podium inks (:354–356);
-   - `.ev-snipe` `#f2706f` (:700);
-   - the DEV tag (:1077);
-   - the tile stroke in `ambience.css` (`--cat-c` by value).
-6. **Colours with two jobs.**
-   - `--cat-c` also marks Compare's second player (`.split .b`, :811) and the "pass" event (`.ev-pass`, :703).
-   - `--cat-u` also marks milestones (`.ev-mile`, :704).
-   - `.wrapped .slide.green` is accent-coloured (:823).
-7. **Low-contrast controls.**
-   - The slider's unfilled track is `--surface-3` on `--bg`, 1.43:1 (`.range-track`, :263).
-   - The top-bar search field's edge is `--border`, 1.29:1 (`.search-field input`, :955), where `.input` uses
-     `--input-border`.
-8. **Touch targets under 44px**, measured at 375px:
-   - 30px: `.btn-small`, `.btn-icon`, `.chip`, `.peek-btn`, `.title-link`;
-   - 28px: `.stat-link`, the `.history` summary.
+Still open. Line numbers drift, so search for the selector.
 
-   All of them pass 24px.
-9. **Meaning in `title` only.** There are 19 `title=` attributes in `pages/*.js`. `posBadge()`, the "estimated" note in
-   `officialPp()`, `inactiveTag()`, `legendTag()` and the misses span in `ui.js` explain themselves only through
-   `title`, plus `sr-only` text that touch users never see.
-10. **Error copy.** `app.js` shows "Something went wrong" above the raw `e.message`. `data.js` throws "Couldn't load
-    {path} ({status})", which gives a file path and no fix.
-11. **Jokes in the loader.** `loading()` in `ui.js` picks a random line from `LOADING` in `lore.js` on every page
-    change.
-12. **Arrows after links:** 32 `→` in `assets/js`, plus `.link-list b::after` (:545).
-13. **Dashed borders without a legend:** `.fun-chip` (:875), `.badge-era` (:887), `.diff-new` (:595).
-14. **11 breakpoints** (480, 560, 600, 620, 640, 700, 760, 820, 900, 940, 1100) instead of §4's four.
-15. **Patches over patches.** `site.css` :939–1311 appends blocks that re-set earlier rules ("Fewer boxes", "Quieter
-    rows and labels", the a11y fixes). Edit the original rule, and fold a block back in when its section is touched.
-16. **Static status in boxes.** `.legend-tag` and the remaining `.badge` uses are bordered boxes around
-    non-interactive text.
+1. **Component internals still use px paddings** (2–14px inside rows, chips, menus). Move them to `--sp-*` when you
+   touch a component; layout and page markup already use the scale.
+2. **Some meaning is still only in `title` or `aria-label`.** The quieter `.diff-new` (no Portuguese scores yet) says
+   why only in its label. `posBadge()`, `officialPp({ compact })` and the tags in `ui.js` show a visible cue (#3, ≈,
+   "inactive") but put the explanation in `title`.
+3. **Appended blocks.** `site.css` still ends with blocks added later: search, "you", sign-in, the a11y fixes,
+   subnav, goal and peek. They should move into their sections when next edited.
+4. **Small text targets.** `.stat-link` (28px) and heading `.title-link`s pass the 24px minimum but not 44px.
+5. **One hex value outside `:root`:** the tile stroke in `ambience.css`. A `data:` URI can't read a variable; it's
+   `--cat-c` by value.
+
+Allowed on purpose: table headers in small capitals, and fluid sizes made with `clamp()` (H1, stat values, Dan
+glyphs). Each of those is bounded by scale steps.
 
 ---
 

@@ -37,12 +37,12 @@ export default async function calculator(root, { query, isCurrent }) {
     <section class="grid grid-2">
       <div class="card">
         <h2>pp calculator</h2>
-        <nav class="chips" style="margin-bottom:14px" aria-label="Preset maps">
-          <span class="small faint" style="align-self:center;margin-right:4px">Try:</span>
+        <nav class="mb-3 chips" aria-label="Preset maps">
+          <span class="chips-label small faint">Try:</span>
           ${CALC_PRESETS.map(([id, label]) => html`<a class="chip ${id === mapId ? 'active' : ''}" href="#/calculator?map=${id}" ${id === mapId ? raw('aria-current="page"') : ''}>${label}</a>`)}
         </nav>
-        ${meta ? html`<div style="margin-bottom:14px">${mapLink(mapId, meta)}</div>` : ''}
-        <div class="grid grid-2" style="gap:12px">
+        ${meta ? html`<div class="mb-3">${mapLink(mapId, meta)}</div>` : ''}
+        <div class="gap-3 grid grid-2">
           <div class="field"><label for="stars">Stars (with mods applied)</label><input class="input" id="stars" type="number" step="0.01" min="0" value="${meta ? meta[M.STARS] : 5}"></div>
           <div class="field"><label for="ar">Base AR (without mods)</label><input class="input" id="ar" type="number" step="0.1" min="0" max="11" value="${meta ? meta[M.AR] : 9}"></div>
           <div class="field"><label for="maxcombo">Map max combo</label><input class="input" id="maxcombo" type="number" min="1" value="${meta?.[M.MAX_COMBO] || 1000}"></div>
@@ -50,28 +50,28 @@ export default async function calculator(root, { query, isCurrent }) {
           <div class="field"><label for="acc">Accuracy (%)</label><input class="input" id="acc" type="number" step="0.01" min="0" max="100" value="99"></div>
           <div class="field"><label for="miss">Misses</label><input class="input" id="miss" type="number" min="0" value="0"></div>
         </div>
-        <div class="field" style="margin-top:12px">
+        <div class="mt-3 field">
           <span class="field-label" id="mods-label">Mods</span>
           <div class="chips" id="mods" role="group" aria-labelledby="mods-label">${CALC_MODS.map(m => html`<button class="chip" type="button" data-mod="${m}" aria-pressed="false">${m}</button>`)}</div>
         </div>
-        <p class="small faint" style="margin:10px 0 0">EZ, HR, DT and HT change the star rating: enter the one osu! shows with the chosen mods. AR is adjusted here automatically. Copium included.</p>
-        <div style="margin-top:18px">
+        <p class="m-0 mt-2 small faint">EZ, HR, DT and HT change the star rating: enter the one osu! shows with the chosen mods. AR is adjusted here automatically. Copium included.</p>
+        <div class="mt-4">
           <div class="result-big" id="pp">0 pp</div>
           <div class="muted small" id="ar-note"></div>
         </div>
-        <div class="table-wrap" style="margin-top:14px"><table class="table-compact"><thead><tr><th>Accuracy</th><th class="num">pp (FC)</th></tr></thead><tbody id="acc-table"></tbody></table></div>
+        <div class="mt-3 table-wrap"><table class="table-compact"><thead><tr><th>Accuracy</th><th class="num">pp (FC)</th></tr></thead><tbody id="acc-table"></tbody></table></div>
       </div>
 
       <div class="card">
         <h2>What if…?</h2>
         <p class="muted small">Pick a player and a leaderboard and see how far a new play would take them.</p>
-        <div class="grid" style="gap:12px">
+        <div class="gap-3 grid">
           <div class="field"><label for="who">Player</label>${playerPicker('who', list, me)}</div>
           <div class="field"><label for="board">Leaderboard</label>
             <select class="select" id="board"><option value="c">Converts</option><option value="u">Loved & Unranked</option></select></div>
           <div class="field"><label for="newpp">New play pp</label><input class="input" id="newpp" type="number" min="0" step="0.01" value="300"></div>
         </div>
-        <div id="whatif" style="margin-top:18px"></div>
+        <div id="whatif" class="mt-4"></div>
       </div>
     </section>
   `);
@@ -130,7 +130,7 @@ export default async function calculator(root, { query, isCurrent }) {
         <div class="stat"><div class="stat-label">Now</div><div class="stat-value">${fmt.pp(now)} pp</div><div class="stat-sub">${fmt.rank(rankNow)} in Portugal</div></div>
         <div class="stat"><div class="stat-label">With the play</div><div class="stat-value">${fmt.pp(after)} pp</div><div class="stat-sub">+${fmt.num(after - now, 2)} pp · ${fmt.rank(rankAfter)}</div></div>
       </div>
-      <p class="small muted" style="margin-top:12px">${above
+      <p class="mt-3 small muted">${above
         ? needed !== null
           ? html`To pass <b>${above.name}</b> (${fmt.pp(above[key])} pp) you need a new play worth at least <b>${fmt.num(needed, 2)} pp</b>.`
           : html`No single play is enough to pass <b>${above.name}</b>.`

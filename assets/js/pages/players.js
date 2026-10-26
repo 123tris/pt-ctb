@@ -16,13 +16,13 @@ const SORTS = {
 const card = p => {
   const role = danRole(p.danScore);
   return html`<a class="card card-link" href="#/player/${p.id}">
-    <div class="player" style="margin-bottom:12px">${avatar(p.id, 'avatar-md')}<span style="font-size:1.05rem;font-weight:600">${p.name}</span></div>
+    <div class="mb-3 player">${avatar(p.id, 'avatar-md')}<span class="text-lg fw-600">${p.name}</span></div>
     <dl class="kv kv-3">
       <div><dt>Converts</dt><dd>${fmt.num(p.cv)}</dd></div>
       <div><dt>Loved</dt><dd>${fmt.num(p.ul)}</dd></div>
       <div><dt>Official</dt><dd>${fmt.num(p.pp)}</dd></div>
     </dl>
-    <p class="small faint" style="margin:10px 0 0">${role ? html`<span class="badge badge-gold">${role}</span> ` : ''}${p.last ? `Last played ${fmt.ago(p.last)}` : 'No plays recorded'}</p>
+    <p class="m-0 mt-2 small faint">${role ? html`<span class="badge badge-gold">${role}</span> ` : ''}${p.last ? `Last played ${fmt.ago(p.last)}` : 'No plays recorded'}</p>
   </a>`;
 };
 

@@ -59,6 +59,31 @@
   --gold: #f2c94c;
   --silver: #c9d1da;
   --bronze: #d08b5b;
+  --gold-ink: #261d00;        /* text on the podium fills */
+  --silver-ink: #1a1f25;
+  --bronze-ink: #251205;
+
+  /* osu!'s own data colours: players know them from the game, so they stay, small, and do no other job. */
+  --mod-reduce: #a9e66a;
+  --mod-increase: #f2706f;
+  --mod-auto: #6cb8f0;
+  --mod-other: #f2c94c;
+  --mod-ink: #101214;
+  --grade-a: #8fd14f;
+  --grade-b: #5aa8f0;
+  --grade-c: #e8905e;
+  --discord: #5865f2;         /* the Discord invite only */
+  --discord-hover: #6d78f5;
+  --discord-ink: #fff;
+
+  /* Spacing (4px steps): the space between groups is at least twice the space inside one. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
 
   --r: 5px;
   --r-sm: 3px;
@@ -68,7 +93,7 @@
   --display: 'Josefin Sans', 'Inter', system-ui, sans-serif;                          /* headings and the brand */
   --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
-  /* Type scale (16px root): 12 · 13 · 15 · 17 · 20 · 26 · 36 · 48 */
+  /* Type scale (16px root): 12 · 13 · 15 · 17 · 20 · 26 · 36 · 48. Nothing smaller, nothing in between. */
   --fs-xs: .75rem;
   --fs-sm: .8125rem;
   --fs-md: .9375rem;
@@ -93,7 +118,7 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; text-underline-offset: 3px; }
 h1, h2, h3, h4 { line-height: 1.15; margin: 0 0 .6em; font-weight: 700; }
 h1 { font: 700 clamp(1.875rem, 4vw, 2.5rem)/1.1 var(--display); letter-spacing: -.005em; }
-h2 { font: 700 1.375rem/1.2 var(--display); }
+h2 { font: 700 var(--fs-xl)/1.2 var(--display); }
 h3 { font-size: var(--fs-md); font-weight: 600; }
 p { margin: 0 0 1em; }
 b, strong { font-weight: 600; }
@@ -108,7 +133,7 @@ button, input, select { font: inherit; color: inherit; }
 
 .topbar { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--border); }
 .topbar-inner { max-width: var(--page); margin: 0 auto; padding: 0 16px; height: 56px; display: flex; align-items: stretch; gap: 28px; }
-.brand { display: flex; align-items: center; gap: 10px; color: var(--text); font: 700 1.375rem/1 var(--display); letter-spacing: .02em; padding-top: 3px; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); font: 700 var(--fs-xl)/1 var(--display); letter-spacing: .02em; padding-top: 3px; }
 .brand:hover { text-decoration: none; }
 .brand img { display: block; }
 .nav { display: flex; align-items: stretch; gap: 0; margin-left: auto; }
@@ -166,7 +191,7 @@ button, input, select { font: inherit; color: inherit; }
 
 /* ---- Page frame --------------------------------------------------------------------------------- */
 
-.page { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: 36px 16px 64px; outline: none; }
+.page { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: var(--sp-8) var(--sp-4) var(--sp-12); outline: none; }
 /* The page is drawn after load: keep the footer below the fold meanwhile, so it doesn't jump down when the page fills. */
 main#content { min-height: 100vh; }
 .footer { border-top: 1px solid var(--border); color: var(--text-dim); font-size: var(--fs-sm); }
@@ -174,15 +199,13 @@ main#content { min-height: 100vh; }
 .footer p { margin: 0 0 4px; }
 .footer-dim { color: var(--text-faint); }
 
-.page-head { margin-bottom: 28px; }
-.page-head p { color: var(--text-dim); max-width: 70ch; margin-top: 10px; }
-.eyebrow {
-  display: inline-block; color: var(--accent); font-weight: 600; font-size: var(--fs-xs);
-  letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px;
-}
+.page-head { margin-bottom: var(--sp-8); }
+.page-head p { color: var(--text-dim); max-width: 70ch; margin-top: var(--sp-3); }
+/* A small line above an H1 saying where you are ("Games · Guess the map"). Dim: it's a signpost, not a colour. */
+.eyebrow { display: inline-block; color: var(--text-dim); font-weight: 500; font-size: var(--fs-sm); margin-bottom: var(--sp-2); }
 .eyebrow a { color: inherit; }
-.section { margin-top: 44px; }
-.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.section { margin-top: var(--sp-12); }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-1) var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3); }
 .section-head h2 { margin: 0; }
 .section-head > a { font-size: var(--fs-sm); font-weight: 500; }
 .muted { color: var(--text-dim); }
@@ -190,20 +213,21 @@ main#content { min-height: 100vh; }
 .small { font-size: var(--fs-sm); }
 .center { text-align: center; }
 
-.grid { display: grid; gap: 16px; }
+
+.grid { display: grid; gap: var(--sp-4); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .grid-auto { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-@media (max-width: 900px) { .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 620px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 940px) { .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: minmax(0, 1fr); } }
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; min-width: 0; }
 .card > h2 { margin-bottom: 14px; }
 /* .card-h: a card title that has to be an h2 for the outline (WCAG 1.3.1) but looks like the small h3 titles. */
 .card > h3, .card > h2.card-h, .history > summary > h2.card-h {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
-  font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim);
+  display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3);
+  font: 600 var(--fs-md)/1.3 var(--font); color: var(--text);
 }
 .card-link { display: block; color: inherit; transition: border-color .12s, background-color .12s; }
 .card-link:hover { border-color: var(--border-strong); background: var(--surface-2); text-decoration: none; }
@@ -218,14 +242,20 @@ main#content { min-height: 100vh; }
 .btn:hover { background: var(--surface-3); text-decoration: none; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.btn-discord { background: #5865f2; border-color: #5865f2; color: #fff; }
-.btn-discord:hover { background: #6d78f5; border-color: #6d78f5; }
+.btn-discord { background: var(--discord); border-color: var(--discord); color: var(--discord-ink); }
+.btn-discord:hover { background: var(--discord-hover); border-color: var(--discord-hover); }
 .btn-small { height: 30px; padding: 0 11px; font-size: var(--fs-sm); }
 .btn-on { border-color: var(--accent-line); background: var(--accent-bg); color: var(--accent); }
 .btn-on:hover { background: var(--accent-bg); border-color: var(--accent); }
 .btn[disabled] { opacity: .45; cursor: default; }
 .btn[disabled]:hover { background: var(--surface-2); }
-.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+/* Touch screens: controls you tap get a 44px target (WCAG 2.5.5, DESIGN.md §11). */
+@media (pointer: coarse) {
+  .btn, .btn-small, .chip, .peek-btn, .you-signin, .input, .select { min-height: 44px; }
+  .btn-icon { min-width: 44px; }
+  .history > summary { padding-block: 10px; }
+}
 
 .input, .select {
   height: 36px; background: var(--bg-2); border: 1px solid var(--input-border); border-radius: var(--r); padding: 0 12px;
@@ -236,12 +266,12 @@ main#content { min-height: 100vh; }
 .input:focus, .select:focus { border-color: var(--accent); outline: none; }
 .field { display: grid; grid-template-rows: 1fr auto; gap: 6px; }
 .field label, .field .field-label { align-self: end; font-size: var(--fs-sm); color: var(--text-dim); font-weight: 500; }
-.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+.toolbar { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; margin-bottom: var(--sp-4); }
 .toolbar .input { max-width: 320px; }
 .toolbar .select { width: auto; }
 input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
 
-.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.chips { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
 .chip {
   display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border-radius: var(--r-sm);
   border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
@@ -252,7 +282,7 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 
 /* A min–max slider (the Maps star filter): two range inputs over one track. Only their thumbs are drawn, and they
    ignore the pointer; the whole strip takes presses and drags instead (pages/maps.js), so it is easy to hit. */
-.star-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; margin-bottom: 16px; }
+.star-filter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); margin-bottom: var(--sp-4); }
 .star-filter .chips-label { margin-right: 0; }
 .range {
   --thumb: 18px; --h: 36px; position: relative; flex: 0 1 320px; min-width: 200px; height: var(--h);
@@ -260,7 +290,7 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 }
 .range-track {
   position: absolute; left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2); top: 50%; height: 4px; margin-top: -2px;
-  border-radius: 2px; background: var(--surface-3);
+  border-radius: 2px; background: var(--input-border);
 }
 .range-fill { position: absolute; inset: 0; border-radius: inherit; background: var(--accent); clip-path: inset(0 calc(100% - var(--hi, 100%)) 0 var(--lo, 0%)); }
 .range input {
@@ -293,10 +323,7 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 .tabs .count { color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; margin-left: 6px; }
 
 /* A category: a small square in its colour, then the name. */
-.cat {
-  display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em;
-  text-transform: uppercase; white-space: nowrap; color: var(--text-dim);
-}
+.cat { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 500; white-space: nowrap; color: var(--text-dim); }
 .cat::before { content: ''; width: 7px; height: 7px; border-radius: 1px; background: var(--c); flex: none; }
 .cat-c { --c: var(--cat-c); }
 .cat-u { --c: var(--cat-u); }
@@ -307,25 +334,25 @@ h3 .cat { color: var(--text); }
 
 .mods { display: inline-flex; gap: 2px; flex-wrap: wrap; }
 .mod {
-  display: inline-block; min-width: 26px; text-align: center; font-size: .6875rem; font-weight: 700;
-  line-height: 18px; padding: 0 4px; border-radius: var(--r-xs); color: #101214; letter-spacing: .03em;
+  display: inline-block; min-width: 26px; text-align: center; font-size: var(--fs-xs); font-weight: 700;
+  line-height: 18px; padding: 0 4px; border-radius: var(--r-xs); color: var(--mod-ink); letter-spacing: .03em;
 }
-.mod-reduce { background: #a9e66a; }
-.mod-increase { background: #f2706f; }
-.mod-auto { background: #6cb8f0; }
-.mod-other { background: #f2c94c; }
+.mod-reduce { background: var(--mod-reduce); }
+.mod-increase { background: var(--mod-increase); }
+.mod-auto { background: var(--mod-auto); }
+.mod-other { background: var(--mod-other); }
 .mod-nm { background: var(--surface-3); color: var(--text-dim); }
 
 .grade { display: inline-block; min-width: 1.4em; font-weight: 800; font-size: var(--fs-md); letter-spacing: -.01em; }
 .grade-X, .grade-S { color: var(--gold); }
 .grade-XH, .grade-SH { color: var(--silver); }
-.grade-A { color: #8fd14f; }
-.grade-B { color: #5aa8f0; }
-.grade-C { color: #e8905e; }
+.grade-A { color: var(--grade-a); }
+.grade-B { color: var(--grade-b); }
+.grade-C { color: var(--grade-c); }
 .grade-D, .grade-F { color: var(--red); }
 
 .stars {
-  display: inline-flex; align-items: center; gap: 3px; font-size: .6875rem; font-weight: 700; line-height: 18px;
+  display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-xs); font-weight: 700; line-height: 18px;
   padding: 0 5px; border-radius: var(--r-xs); white-space: nowrap; vertical-align: 1px;
 }
 
@@ -351,12 +378,12 @@ a.map:hover .map-title { color: var(--accent); }
   display: inline-block; min-width: 30px; text-align: center; line-height: 20px; padding: 0 5px; border-radius: var(--r-xs);
   font-size: var(--fs-xs); font-weight: 700; background: var(--surface-3); color: var(--text-dim);
 }
-.pos-1 { background: var(--gold); color: #261d00; }
-.pos-2 { background: var(--silver); color: #1a1f25; }
-.pos-3 { background: var(--bronze); color: #251205; }
+.pos-1 { background: var(--gold); color: var(--gold-ink); }
+.pos-2 { background: var(--silver); color: var(--silver-ink); }
+.pos-3 { background: var(--bronze); color: var(--bronze-ink); }
 
 .pp { font-weight: 700; color: var(--text); white-space: nowrap; }
-.pp small { font-weight: 500; color: var(--text-faint); font-size: .8em; margin-left: 2px; }
+.pp small { font-weight: 500; color: var(--text-faint); font-size: var(--fs-xs); margin-left: 2px; }
 
 /* ---- Tables --------------------------------------------------------------------------------------- */
 
@@ -364,7 +391,7 @@ a.map:hover .map-title { color: var(--accent); }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
 th {
-  font-size: .6875rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); font-weight: 600;
+  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); font-weight: 600;
   background: var(--bg-2); padding-block: 8px;
 }
 tr:last-child td { border-bottom: 0; }
@@ -395,7 +422,7 @@ tr.target:not(.me) { background: var(--surface-2); }
    render. Lists already clip (overflow: hidden), so nothing new is cut off. */
 .row { content-visibility: auto; contain-intrinsic-size: auto 100px; }
 .event { content-visibility: auto; contain-intrinsic-size: auto 140px; }
-@media (max-width: 640px) { .row { contain-intrinsic-size: auto 130px; } }
+@media (max-width: 600px) { .row { contain-intrinsic-size: auto 130px; } }
 .row-main { display: grid; gap: 6px; min-width: 0; }
 .row-main > .map + div { padding-left: 72px; }
 .row:hover { background: var(--surface-2); }
@@ -408,7 +435,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 .card .rows { border: 0; border-radius: 0; background: none; }
 .card .row { padding-inline: 0; }
 .card .row:hover { background: none; }
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   .row { grid-template-columns: minmax(0, 1fr); }
   .row-meta { justify-content: flex-start; gap: 6px 10px; }
   .row-meta .sep { display: none; }
@@ -426,18 +453,17 @@ a.row.card-link:last-child { border-bottom: 0; }
 
 /* ---- Stat tiles ---------------------------------------------------------------------------------- */
 
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+/* Stat tiles: one strip of figures split by hairlines, not boxes. The strip reaches 17px left and clips its first pixel,
+   so the first figure of every row lines up with the page and no line stands at the row's left edge. */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); column-gap: 0; row-gap: 18px; margin-left: -17px; clip-path: inset(0 0 0 1px); }
 /* Label, value and subtitle sit on the same lines across a row of tiles, whatever wraps: each tile spans three rows of
    the parent grid (subgrid), so a two-line label or subtitle grows that line for the whole row instead of pushing one
    tile's value out of line. Without subgrid, tiles top-align on their own. */
-.stat { display: grid; grid-template-rows: auto auto 1fr; align-content: start; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px 16px 14px; min-width: 0; }
+.stat { display: grid; grid-template-rows: auto auto 1fr; align-content: start; border-left: 1px solid var(--border); padding: 2px 18px 2px 16px; min-width: 0; }
 @supports (grid-template-rows: subgrid) {
   .stat { grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
 }
-.stat-label {
-  display: flex; align-items: center; gap: 6px; color: var(--text-faint); font-size: .6875rem; font-weight: 600;
-  letter-spacing: .08em; text-transform: uppercase; align-self: end;
-}
+.stat-label { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; align-self: end; }
 .stat-value { font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* stat() wraps the value in .stat-fit, which scales with the tile's width (never above full size), so long numbers
    like 106,719,378 fit narrow tiles instead of being cut off. The container is the value line, not the tile: a size
@@ -448,7 +474,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* The parts of a subtitle ("7,175 pp · #1,563 global") wrap between each other, never inside one. */
 .stat-sub .keep { white-space: nowrap; }
 /* Where a rank on a tile counts ("#5 PT"): small and faint beside the big figure. */
-.stat-unit { font-size: .5em; font-weight: 600; letter-spacing: .04em; color: var(--text-faint); }
+.stat-unit { font-size: max(var(--fs-xs), .5em); font-weight: 600; letter-spacing: .04em; color: var(--text-faint); }
 /* A rank that links to its leaderboard (player.js): the figure's own colour with a faint dotted underline, rosa on
    hover. The value line clips (it ellipsises), which would cut a focus ring off, so the ring goes round the tile. */
 .stat-link { color: inherit; text-decoration: underline dotted var(--text-faint); text-decoration-thickness: 2px; text-underline-offset: 4px; transition: color .12s, text-decoration-color .12s; }
@@ -470,15 +496,15 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* The hero sits on the page itself, no box: the title and numbers, then the Dan ladder across the full width. */
 .hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 40px; align-items: end; padding-top: 8px; }
 .hero h1 { font-size: clamp(2.25rem, 6vw, var(--fs-4xl)); max-width: 14ch; margin-bottom: .35em; line-height: 1; }
-.hero h1 em { font-style: normal; color: var(--accent); }
+.hero h1 em { font-style: normal; }
 .hero p { color: var(--text-dim); font-size: var(--fs-lg); max-width: 50ch; margin-bottom: 22px; }
 .hero-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-top: 1px solid var(--border); }
 .hero-stats div { display: flex; flex-direction: column; justify-content: space-between; padding: 14px 0 12px; border-bottom: 1px solid var(--border); }
 .hero-stats div:nth-child(odd) { padding-right: 16px; }
 .hero-stats div:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--border); }
-.hero-stats dt { color: var(--text-faint); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.hero-stats dt { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
 .hero-stats dd { margin: 2px 0 0; font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
-@media (max-width: 820px) { .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
+@media (max-width: 760px) { .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
 @media (max-width: 480px) { .hero-stats dd { font-size: var(--fs-xl); } }
 
 /* The Dan ladder (core/ladder.js): the course's 19 glyphs as the site's mark. A stage lights up once someone in Portugal
@@ -542,7 +568,6 @@ a.row.card-link:last-child { border-bottom: 0; }
 .link-list a:nth-child(even) { padding-left: 14px; padding-right: 0; border-left: 1px solid var(--border); }
 .link-list a:hover { text-decoration: none; }
 .link-list a:hover b { color: var(--accent); }
-.link-list b::after { content: ' →'; color: var(--text-faint); font-weight: 400; }
 .link-list span { display: block; color: var(--text-dim); font-size: var(--fs-sm); margin-top: 2px; }
 @media (max-width: 480px) {
   .link-list { grid-template-columns: minmax(0, 1fr); }
@@ -568,7 +593,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 .banner-art { aspect-ratio: 18 / 5; max-height: 220px; width: 100%; background: var(--surface-3) center / cover no-repeat; border-bottom: 1px solid var(--border); }
 /* The art's two sizes come in as --art (900px) and --art-2x (1800px), from ui.js's bannerArt(): phones get the small one. */
 .banner-art { background-image: var(--art-2x, none); }
-@media (max-width: 640px) { .banner-art { background-image: var(--art, none); } }
+@media (max-width: 600px) { .banner-art { background-image: var(--art, none); } }
 .banner-body { padding: 18px 20px 20px; }
 .banner h1 { margin-bottom: .25em; }
 .banner h1 a { color: inherit; }
@@ -577,7 +602,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 .banner p { color: var(--text-dim); }
 /* The set's difficulties: small links with their star colour, wrapping, with a peek at the fourth row before it scrolls
    (mapping packs run to a hundred); on phones one row to swipe, out to the banner's edges. The padding keeps focus
-   rings inside the scroll box. Dashed: no Portuguese scores there yet. */
+   rings inside the scroll box. */
 .diffs {
   display: flex; flex-wrap: wrap; gap: 4px; max-height: 106px; overflow-y: auto; scrollbar-width: thin;
   margin: 8px -4px 0; padding: 4px;
@@ -592,7 +617,8 @@ a.row.card-link:last-child { border-bottom: 0; }
 .diff small { color: var(--text-faint); font-size: var(--fs-xs); }
 .diff:hover { color: var(--text); border-color: var(--text-faint); text-decoration: none; }
 .diff[aria-current='page'] { background: var(--accent-bg); border-color: var(--accent-line); color: var(--accent); }
-.diff-new { border-style: dashed; }
+/* No Portuguese scores there yet: quieter (the label says so). */
+.diff-new { color: var(--text-faint); }
 @media (max-width: 600px) {
   .diffs { flex-wrap: nowrap; max-height: none; overflow: auto hidden; scrollbar-width: none; margin: 8px -20px 0; padding: 4px 20px; }
   .diffs::-webkit-scrollbar { display: none; }
@@ -627,16 +653,14 @@ a.row.card-link:last-child { border-bottom: 0; }
 .title-link { color: inherit; border-radius: var(--r-xs); transition: color .12s; }
 .title-link:hover { color: var(--accent); text-decoration: none; }
 .profile-head .links { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.badge {
-  display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: var(--r-sm);
-  font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--border-strong); color: var(--text-dim); white-space: nowrap;
-}
-.badge-gold { border-color: color-mix(in srgb, var(--gold) 40%, transparent); color: var(--gold); }
-.badge-accent { border-color: var(--accent-line); color: var(--accent); }
-.badge-red { border-color: color-mix(in srgb, var(--red) 40%, transparent); color: var(--red); }
+/* A status ("Dan course: 4th Dan", "Week 43"): a coloured word, with no box, since it isn't something to click. */
+.badge { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+.badge-gold { color: var(--gold); }
+.badge-accent { color: var(--text); }
+.badge-red { color: var(--red); }
 
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 12px 20px; margin: 0; }
-.kv dt { color: var(--text-faint); font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
+.kv dt { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
 .kv dd { margin: 1px 0 0; font-weight: 600; font-size: var(--fs-lg); }
 .kv-strip { padding: 14px 0; border-bottom: 1px solid var(--border); }
 .kv-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
@@ -667,7 +691,7 @@ a.dan-stage:hover { text-decoration: none; }
   .dan-stage .small { font-size: var(--fs-xs); line-height: 1.3; }
 }
 .dan-stage .points { position: absolute; top: 12px; right: 12px; font-size: var(--fs-xs); color: var(--text-faint); font-weight: 600; }
-.dan-pass { color: var(--accent); }
+.dan-pass { color: var(--text); }
 .avatars { display: flex; margin-top: 10px; }
 .avatars img { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--surface); margin-left: -6px; background: var(--surface-3); }
 .dan-stage.selected .avatars img { border-color: var(--accent-bg); }
@@ -681,28 +705,28 @@ a.dan-stage:hover { text-decoration: none; }
 
 .feed { display: grid; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
 .feed-day {
-  padding: 8px 14px; background: var(--bg-2); border-bottom: 1px solid var(--border); color: var(--text-faint);
-  font-size: .6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em;
+  padding: var(--sp-2) 14px; background: var(--bg-2); border-bottom: 1px solid var(--border); color: var(--text-faint);
+  font-size: var(--fs-sm); font-weight: 500;
 }
 .event { padding: 11px 14px 12px; border-bottom: 1px solid var(--border); min-width: 0; }
 .event:last-child { border-bottom: 0; }
 .feed-more { display: flex; justify-content: center; margin-top: 12px; }
 .feed-more[hidden] { display: none; }
 .event-head { display: flex; align-items: center; gap: 10px; font-size: var(--fs-xs); color: var(--text-faint); margin-bottom: 2px; }
-/* An event's kind: its colour is only the small square; the word stays neutral. */
-.event-kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+/* An event's kind: its colour is only the small square, and only honours (#1s, Dan) get one; the word stays neutral. */
+.event-kind { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; color: var(--text-dim); }
 .event-kind::before { content: ''; width: 6px; height: 6px; border-radius: 1px; background: var(--k); }
 .event .what { font-weight: 400; }
 .event .what a { color: var(--text); }
 .event .what a:hover { color: var(--accent); text-decoration: none; }
 .event .where { color: var(--text-dim); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event-play { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; font-size: var(--fs-sm); }
-.ev-snipe { --k: #f2706f; }
+.ev-snipe { --k: var(--text-faint); }
 .ev-top { --k: var(--gold); }
-.ev-dan { --k: var(--accent); }
-.ev-pass { --k: var(--cat-c); }
-.ev-mile { --k: var(--cat-u); }
-.ev-join { --k: var(--text-dim); }
+.ev-dan { --k: var(--gold); }
+.ev-pass { --k: var(--text-faint); }
+.ev-mile { --k: var(--text-faint); }
+.ev-join { --k: var(--text-faint); }
 .chip .event-kind { letter-spacing: 0; text-transform: none; font-weight: inherit; color: inherit; }
 .chip .event-kind::before { background: var(--k); }
 
@@ -762,7 +786,7 @@ a.dan-stage:hover { text-decoration: none; }
 .game-cover { position: relative; aspect-ratio: 18 / 5; border-radius: var(--r); overflow: hidden; background: var(--surface-3); border: 1px solid var(--border); }
 .game-cover img { display: block; width: 100%; height: 100%; object-fit: cover; transition: filter .5s ease; }
 .game-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
-@media (max-width: 560px) { .game-options { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .game-options { grid-template-columns: minmax(0, 1fr); } }
 .option {
   padding: 12px 14px; border-radius: var(--r); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
   text-align: left; cursor: pointer; font-weight: 600; transition: background-color .12s, border-color .12s;
@@ -772,7 +796,7 @@ a.dan-stage:hover { text-decoration: none; }
 .option.right { border-color: var(--accent); background: var(--accent-bg); }
 .option.wrong { border-color: var(--red); background: var(--red-bg); }
 .option[disabled] { cursor: default; }
-.scoreboard { display: flex; gap: 28px; justify-content: center; margin: 0 0 16px; color: var(--text-faint); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.scoreboard { display: flex; gap: var(--sp-6); justify-content: center; margin: 0 0 var(--sp-4); color: var(--text-faint); font-size: var(--fs-sm); font-weight: 500; }
 .scoreboard > span { display: grid; justify-items: center; gap: 2px; }
 .scoreboard b { color: var(--text); font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.1; order: -1; }
 .scoreboard b small { font-size: .55em; color: var(--text-faint); font-weight: 600; margin-left: 1px; }
@@ -787,7 +811,7 @@ a.dan-stage:hover { text-decoration: none; }
 .duel-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 22px; text-align: center; display: grid; gap: 6px; justify-items: center; }
 .duel-card .value { font-size: var(--fs-3xl); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
 .duel-vs { align-self: center; font-family: var(--display); font-weight: 700; color: var(--text-faint); letter-spacing: .06em; }
-@media (max-width: 620px) {
+@media (max-width: 600px) {
   .duel { grid-template-columns: 1fr; gap: 8px; }
   .duel-vs { justify-self: center; }
   .duel-card { padding: 14px; gap: 2px; }
@@ -802,15 +826,16 @@ a.dan-stage:hover { text-decoration: none; }
 .versus .side.right { justify-content: flex-end; text-align: right; }
 .cmp-row { display: grid; grid-template-columns: minmax(0, 1fr) 128px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .cmp-row:last-child { border-bottom: 0; }
-.cmp-row .label { text-align: center; color: var(--text-faint); font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.cmp-row .label { text-align: center; color: var(--text-faint); font-size: var(--fs-sm); font-weight: 500; }
 .cmp-row .a { text-align: right; }
-.cmp-row .win { color: var(--accent); font-weight: 700; }
+.cmp-row > :not(.label) { color: var(--text-dim); }
+.cmp-row > .win { color: var(--text); font-weight: 700; }
 @media (max-width: 480px) { .cmp-row { grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); } }
 .split { display: flex; gap: 2px; height: 8px; overflow: hidden; }
 .split .a { background: var(--accent); border-radius: var(--r-xs); }
-.split .b { background: var(--cat-c); border-radius: var(--r-xs); }
+.split .b { background: var(--text-faint); border-radius: var(--r-xs); }
 .side-play.lost { opacity: .55; }
-.side-play .win-mark { font-size: var(--fs-xs); font-weight: 700; color: var(--accent); min-width: 1.8em; }
+.side-play .win-mark { font-size: var(--fs-xs); font-weight: 700; color: var(--gold); min-width: 1.8em; }
 
 /* ---- Wrapped ----------------------------------------------------------------------------------- */
 
@@ -818,22 +843,22 @@ a.dan-stage:hover { text-decoration: none; }
 .wrapped .grid { gap: 8px; }
 .wrapped .big { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.02; margin-top: 4px; overflow-wrap: anywhere; }
 .wrapped .slide { border-radius: var(--r); padding: clamp(18px, 3.5vw, 28px); border: 1px solid var(--border); background: var(--surface); min-width: 0; }
-.wrapped .slide > .muted:first-child { color: var(--text-faint); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.wrapped .slide > .muted:first-child { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
 .wrapped .chart { max-height: 240px; margin-top: 12px; }
-.wrapped .slide.green .big { color: var(--accent); }
 .wrapped .slide.gold .big { color: var(--gold); }
 
 /* ---- Misc ------------------------------------------------------------------------------------------ */
 
-.notice { background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: var(--r-sm); padding: 12px 16px; color: var(--text-dim); }
-.empty { text-align: center; color: var(--text-dim); padding: 40px 16px; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); }
+/* Notes and call-outs are text, with no stripe or panel. */
+.notice { color: var(--text-dim); }
+.empty { text-align: center; color: var(--text-dim); padding: var(--sp-12) var(--sp-4); border-block: 1px solid var(--border); }
 .empty h2 { color: var(--text); }
 .loading { display: grid; place-items: center; align-content: start; gap: 28px; min-height: 40vh; padding-top: 12vh; color: var(--text-faint); font-size: var(--fs-sm); }
 .loading .rows-placeholder { width: 100%; }
 /* Placeholder score rows (ui.js placeholderRows): the height of a real one, so the list arriving doesn't move the page. */
 .row-placeholder { height: 65px; }
 .row-placeholder::before { content: ''; display: block; width: 60%; height: 12px; margin-top: 10px; border-radius: var(--r-xs); background: var(--surface-3); opacity: .6; }
-@media (max-width: 700px) { .row-placeholder { height: 123px; } }
+@media (max-width: 760px) { .row-placeholder { height: 123px; } }
 /* The loader (ui.js climber): one window onto the Dan glyphs, stepping from 0 up to Shin and round again. */
 .climb { display: block; width: 3ch; height: 1.15em; margin: 0 auto 10px; overflow: hidden; font: 700 1.875rem/1.15 var(--display); color: var(--text); text-align: center; }
 .climb-strip { display: grid; animation: climb 3.8s steps(19) infinite; }
@@ -842,13 +867,13 @@ a.dan-stage:hover { text-decoration: none; }
 @keyframes climb { to { transform: translateY(-100%); } }
 @media (prefers-reduced-motion: reduce) { .climb-strip { animation: none; } }
 .pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; color: var(--text-dim); font-size: var(--fs-sm); }
-.kbd { font-family: var(--mono); font-size: .85em; background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 0 5px; color: var(--text); white-space: nowrap; }
+.kbd { font-family: var(--mono); font-size: var(--fs-sm); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 0 5px; color: var(--text); white-space: nowrap; }
 .cmd-list { display: grid; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
 .cmd { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 16px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
 .cmd:last-child { border-bottom: 0; }
-.cmd code { font-family: var(--mono); font-size: var(--fs-sm); color: var(--accent); padding-top: 2px; }
+.cmd code { font-family: var(--mono); font-size: var(--fs-sm); color: var(--text); padding-top: 2px; }
 @media (max-width: 600px) { .cmd { grid-template-columns: 1fr; gap: 2px; } }
-.result-big { font-size: var(--fs-4xl); font-weight: 800; letter-spacing: -.02em; color: var(--accent); line-height: 1.05; }
+.result-big { font-size: var(--fs-4xl); font-weight: 800; letter-spacing: -.02em; color: var(--text); line-height: 1.05; }
 .checks { display: flex; gap: 14px; flex-wrap: wrap; }
 .checks label { display: inline-flex; gap: 7px; align-items: center; cursor: pointer; color: var(--text-dim); font-size: var(--fs-sm); }
 .hidden { display: none !important; }
@@ -858,62 +883,61 @@ a.dan-stage:hover { text-decoration: none; }
 
 /* ---- Community lore: in-joke badges, map stories, captions, easter eggs ------------------------------------ */
 
-.hero-stats .hero-rework { grid-column: 1 / -1; padding-left: 0 !important; border-left: 0 !important; }
-.hero-rework dd { color: var(--text); }
 
+/* The home page's "Tris still holds…" line: a ruled row, not a panel. */
 .throne-strip {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px; align-items: center; margin-top: 16px;
-  padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--gold); border-radius: var(--r);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; margin-top: var(--sp-4);
+  padding: var(--sp-3) 0; border-block: 1px solid var(--border);
 }
 .throne-strip .throne-go { color: var(--accent); font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; }
-@media (max-width: 560px) { .throne-strip { grid-template-columns: auto minmax(0, 1fr); } .throne-strip .throne-go { grid-column: 2; } }
+@media (max-width: 600px) { .throne-strip { grid-template-columns: auto minmax(0, 1fr); } .throne-strip .throne-go { grid-column: 2; } }
 
-/* In-joke badges on profiles and tags on maps: dashed, so they read as jokes next to the real badges. */
+/* In-joke badges on profiles and tags on maps: small toggle buttons that open their story underneath. */
 .fun-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .fun-chip {
   display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--r-sm); cursor: pointer; font-family: inherit;
-  font-size: var(--fs-xs); font-weight: 600; color: var(--accent); border: 1px dashed var(--accent-line); background: color-mix(in srgb, var(--accent-bg) 55%, transparent);
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); border: 1px solid var(--border-strong); background: none;
 }
-.fun-chip:hover, .fun-chip:focus-visible, .fun-chip[aria-pressed='true'] { border-style: solid; }
-.fun-chip[aria-pressed='true'] { background: var(--accent-bg); }
+.fun-chip:hover { color: var(--text); border-color: var(--text-faint); }
+.fun-chip[aria-pressed='true'] { background: var(--accent-bg); border-color: var(--accent-line); color: var(--accent); }
 .fun-chip[hidden] { display: none; }
 .fun-more { color: var(--text-dim); border-color: var(--border); }
 
 /* "On this page" links at the top of long pages (Records). */
 .jump-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 20px; }
-.fun-tip { margin: 8px 0 0; padding: 8px 12px; max-width: 60ch; background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--text-dim); }
+.fun-tip { margin: var(--sp-2) 0 0; max-width: 60ch; font-size: var(--fs-sm); color: var(--text-dim); }
 .fun-tip b { color: var(--text); margin-right: 4px; }
 .map-tags { margin-top: 12px; }
-.badge-era { border-style: dashed; }
+
 
 .signature h3 .faint { text-transform: none; letter-spacing: 0; font-weight: 500; }
-.lore-card { margin-top: 16px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-left: 2px solid var(--accent); border-radius: var(--r-sm); }
+.lore-card { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
 .lore-card .eyebrow { margin-bottom: 4px; }
 .lore-card p { margin: 0 0 4px; }
 .role-lore { margin-top: 4px; font-size: var(--fs-xs); color: var(--text-faint); white-space: normal; max-width: 34ch; }
 
 .event .quip { margin-top: 4px; font-size: var(--fs-sm); color: var(--text-faint); font-style: italic; }
-.event-emoji { margin-left: auto; font-size: var(--fs-sm); }
 
 tr.inactive td, tr.inactive .player, tr.inactive .pp, .row.inactive .player, .row.inactive .pp { color: var(--text-dim); }
 tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
-.legend-tag { margin-left: 6px; font-size: .6875rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); padding: 0 4px; }
+/* "legend", "inactive": a quiet word after a name, not a boxed tag (a box would say you can click it). */
+.legend-tag { margin-left: 6px; font-size: var(--fs-xs); font-weight: 500; color: var(--text-faint); }
 
 .bounty-tag { color: var(--gold); font-weight: 600; }
 
-.throne-head { display: flex; gap: 18px; align-items: center; border-left: 2px solid var(--gold); }
+.throne-head { display: flex; gap: 18px; align-items: center; }
 .cmp-aura .label { color: var(--gold); }
-.special-round { min-height: 1.4em; margin: -6px 0 10px; color: var(--gold); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: var(--fs-xs); }
+.special-round { min-height: 1.4em; margin: -6px 0 10px; color: var(--gold); font-weight: 600; font-size: var(--fs-sm); }
 
 .timeline { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--border-strong); }
 .timeline li { position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; padding: 0 0 18px 18px; }
-.timeline li::before { content: ''; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.timeline li::before { content: ''; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-faint); }
 .timeline-year { font: 700 var(--fs-lg)/1.3 var(--display); color: var(--text-faint); }
 .timeline-body p { margin: 2px 0 0; color: var(--text-dim); }
 
 /* Toasts, the WYSI flash and the emote wall. */
 .toasts { position: fixed; right: 16px; bottom: 16px; z-index: 80; display: grid; gap: 8px; max-width: min(380px, calc(100vw - 32px)); }
-.toast { background: var(--surface-2); border: 1px solid var(--border-strong); border-left: 2px solid var(--accent); border-radius: var(--r); padding: 12px 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+.toast { background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r); padding: 12px 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
 .toast-body { margin-bottom: 6px; }
 .toast-close { background: none; border: 0; padding: 0; color: var(--text-faint); font-size: var(--fs-xs); cursor: pointer; }
 .toast-close:hover { color: var(--text); }
@@ -951,14 +975,14 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 .search-field { position: relative; display: flex; align-items: center; }
 .search-field > svg { position: absolute; left: 10px; color: var(--text-faint); pointer-events: none; }
 .search-field input {
-  width: 220px; height: 34px; padding: 0 30px 0 32px; background: var(--surface); color: var(--text);
-  border: 1px solid var(--border); border-radius: var(--r); font-size: var(--fs-sm); transition: border-color .12s;
+  width: 220px; height: 34px; padding: 0 30px 0 32px; background: var(--bg-2); color: var(--text);
+  border: 1px solid var(--input-border); border-radius: var(--r); font-size: var(--fs-sm); transition: border-color .12s;
 }
 .search-field input::placeholder { color: var(--text-faint); }
-.search-field input:hover { border-color: var(--border-strong); }
+.search-field input:hover { border-color: var(--text-faint); }
 .search-field input:focus { outline: none; border-color: var(--accent); }
 .search-key {
-  position: absolute; right: 8px; min-width: 18px; padding: 0 4px; text-align: center; font: 600 .6875rem/16px var(--font);
+  position: absolute; right: 8px; min-width: 18px; padding: 0 4px; text-align: center; font: 600 var(--fs-xs)/16px var(--font);
   color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); pointer-events: none;
 }
 .search-field input:focus ~ .search-key, .search-field input:not(:placeholder-shown) ~ .search-key { display: none; }
@@ -981,7 +1005,7 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 .search-all { display: block; padding: 9px 12px; border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 500; }
 .search-all:hover { background: var(--surface-2); text-decoration: none; }
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .search-field input { width: 170px; }
   .nav-top { padding-inline: 9px; }
 }
@@ -1030,7 +1054,7 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 .you-head { display: flex; align-items: center; gap: 10px; padding: 8px 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
 .you-head > div { display: grid; min-width: 0; }
 .you-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.you-label { color: var(--text-faint); font-size: .6875rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.you-label { color: var(--text-faint); font-size: var(--fs-xs); }
 .you-menu a, .you-forget {
   display: block; width: 100%; padding: 8px 14px; color: var(--text); font-size: var(--fs-sm); text-align: left;
   background: none; border: 0; cursor: pointer;
@@ -1074,8 +1098,8 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 
 html[data-env] .topbar { box-shadow: inset 0 3px 0 var(--gold); }
 html[data-env] .brand::after {
-  content: 'DEV'; padding: 3px 5px 2px; border-radius: var(--r-xs); background: var(--gold); color: #1f191b;
-  font: 800 .625rem/1 var(--font); letter-spacing: .08em;
+  content: 'DEV'; padding: 3px 5px 2px; border-radius: var(--r-xs); background: var(--gold); color: var(--gold-ink);
+  font: 800 var(--fs-xs)/1 var(--font); letter-spacing: .04em;
 }
 
 /* =================================================================================================================
@@ -1094,7 +1118,7 @@ p a.dim-link { text-decoration: underline; }
 
 
 /* U7: chip groups say what they filter. */
-.chips-label { align-self: center; margin-right: 4px; color: var(--text-dim); font-size: var(--fs-xs); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.chips-label { align-self: center; margin-right: var(--sp-1); color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
 
 /* U4/A3: result counts and empty states with a way back. */
 .result-count { margin: 0 0 10px; color: var(--text-dim); font-size: var(--fs-sm); }
@@ -1146,15 +1170,15 @@ p a.dim-link { text-decoration: underline; }
 .event .where a { display: inline-block; padding-block: 4px; margin-block: -4px; }
 /* "Ranked 14 Mar 2021" on a map page: the date on its own quieter line under the status, so it never runs into the
    next column of the strip. */
-.kv .status-date { display: block; font-size: .8125rem; font-weight: 500; color: var(--text-dim); }
+.kv .status-date { display: block; font-size: var(--fs-sm); font-weight: 500; color: var(--text-dim); }
 .kv .status-date .sep-dot { display: none; }
 
 /* Players inactive on osu! keep their official pp: an "est." after an estimated value, the "inactive" tag beside names. */
-.est { margin-left: 3px; font-size: .75em; font-weight: 600; color: var(--text-dim); cursor: help; }
+.est { margin-left: 3px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); cursor: help; }
 .mini-board .player .legend-tag { flex: none; overflow: visible; }
 .stat-sub .legend-tag { margin-left: 0; margin-right: 4px; }
 /* In a table the "(estimated)" sits on its own small line, so the pp column stays aligned. */
-td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height: 1.1; }
+td.num .est { display: block; margin: 1px 0 0; font-size: var(--fs-xs); line-height: 1.1; }
 
 /* Challenges' three sub-pages (This week · Dan course · Snipe targets) as big cards under the heading. */
 .subnav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 16px; }
@@ -1163,7 +1187,7 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
   background: var(--surface); color: var(--text); transition: border-color .12s, background-color .12s;
 }
 .subnav a:hover { border-color: var(--text-faint); background: var(--surface-2); text-decoration: none; }
-.subnav a.active { border-color: var(--accent); background: var(--accent-bg); box-shadow: inset 0 -3px 0 var(--accent); }
+.subnav a.active { border-color: var(--accent); background: var(--accent-bg); }
 .subnav b { font: 700 var(--fs-lg)/1.2 var(--display); }
 .subnav a.active b { color: var(--accent); }
 .subnav span { color: var(--text-dim); font-size: var(--fs-sm); }
@@ -1215,19 +1239,16 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .card:not(.card-link) { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 14px 0 0; }
 .game .card:not(.card-link) { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); }
 .card:not(.card-link) > .table-wrap { margin-top: 4px; }
+/* Variants used in page markup: a card whose image runs to its edges (with its text in .card-body), a roomy result
+   card, a one-column row and a right-aligned stack of row details. */
+.card.card-flush { padding: 0; overflow: hidden; }
+.card-body { padding: var(--sp-4); }
+.card.card-roomy { padding: var(--sp-8); }
+.row.row-1col { grid-template-columns: minmax(0, 1fr); }
+.row-meta.meta-stack { display: grid; justify-items: end; gap: var(--sp-1); }
+.wrapped .big.big-sm { font-size: var(--fs-3xl); }
 
-/* Stat tiles: one strip of figures split by hairlines. The strip reaches 17px left and clips its first pixel, so the
-   first figure of every row lines up with the page and no line stands at the row's left edge. */
-.stats { column-gap: 0; row-gap: 18px; margin-left: -17px; clip-path: inset(0 0 0 1px); }
-.stat { background: none; border: 0; border-left: 1px solid var(--border); border-radius: 0; padding: 2px 18px 2px 16px; }
 
-/* Notes and call-outs: text with no stripe or panel. */
-.notice { background: none; border: 0; border-radius: 0; padding: 0; }
-.lore-card { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 12px 0 0; }
-.empty { background: none; border: 0; border-block: 1px solid var(--border); border-radius: 0; }
-
-/* The home page's "Tris still holds…" line: a ruled row, not a gold-striped panel. */
-.throne-strip { background: none; border: 0; border-block: 1px solid var(--border); border-radius: 0; padding: 12px 0; }
 .throne-strip.card-link:hover { background: none; border-color: var(--border); }
 .throne-strip.card-link:hover b { color: var(--accent); }
 
@@ -1254,13 +1275,6 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .row-meta .pos { min-width: 0; padding: 0; background: none; line-height: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text-faint); }
 .row-meta .pos-1 { color: var(--gold); }
 
-.eyebrow, .card > h3, .card > h2.card-h, .history > summary > h2.card-h, .stat-label, .cat, .hero-stats dt, .kv dt, .feed-day,
-.event-kind, .scoreboard, .cmp-row .label, .wrapped .slide > .muted:first-child, .legend-tag, .chips-label, .you-label,
-.special-round { text-transform: none; letter-spacing: 0; }
-.card > h3, .card > h2.card-h, .history > summary > h2.card-h { font-size: var(--fs-md); color: var(--text); }
-.stat-label, .hero-stats dt, .kv dt, .feed-day, .chips-label, .scoreboard, .cmp-row .label { font-size: var(--fs-sm); font-weight: 500; }
-.stat-label, .hero-stats dt, .kv dt { color: var(--text-dim); }
-.cat, .event-kind { font-weight: 500; }
 
 /* Home: one main action (the Discord), the rest as plain links; "How to join" as three steps side by side. */
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
@@ -1277,14 +1291,14 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .badge-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; }
 .badge-list b { color: var(--text); font-weight: 600; }
 .badge-list span { color: var(--text-dim); font-size: var(--fs-sm); }
-@media (max-width: 620px) { .badge-list { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .badge-list { grid-template-columns: minmax(0, 1fr); } }
 
 /* app.js moves focus to a new page's heading (for keyboards and screen readers); no ring around it, as nobody tabbed
    there. */
 h1[tabindex='-1']:focus { outline: none; }
 
-/* Home, "Portugal's best": the three boards' names in spaced capitals, as headers over each top 5. */
-.card > h3.board-title .cat { font-size: var(--fs-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text); }
+/* Home, "Portugal's best": the three boards' names as the titles over each top 5. */
+.card > h3.board-title .cat { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
 
 /* Profile actions: "This is me", compare as an icon, and the badges folded into one button. */
 .btn-icon { width: 30px; padding: 0; }
@@ -1322,3 +1336,26 @@ h1[tabindex='-1']:focus { outline: none; }
 .page-head .page-links { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 6px 0 0; font-size: var(--fs-sm); }
 .page-head .page-links a { text-decoration: none; font-weight: 500; }
 .page-head .page-links a:hover { text-decoration: underline; }
+
+/* Spacing utilities on the scale, for a one-off gap between two blocks in page markup instead of style="". They come
+   last so they win over a component rule of the same weight. */
+.m-0 { margin: 0; }
+.mt-1 { margin-top: var(--sp-1); }
+.mt-2 { margin-top: var(--sp-2); }
+.mt-3 { margin-top: var(--sp-3); }
+.mt-4 { margin-top: var(--sp-4); }
+.mt-6 { margin-top: var(--sp-6); }
+.mb-2 { margin-bottom: var(--sp-2); }
+.mb-3 { margin-bottom: var(--sp-3); }
+.mb-4 { margin-bottom: var(--sp-4); }
+.mb-6 { margin-bottom: var(--sp-6); }
+.gap-3 { gap: var(--sp-3); }
+.justify-center { justify-content: center; }
+.justify-start { justify-content: flex-start; }
+.text-lg { font-size: var(--fs-lg); }
+.text-xl { font-size: var(--fs-xl); }
+.fw-600 { font-weight: 600; }
+.plain-link, .plain-link:hover { color: inherit; text-decoration: none; }
+/* A one-column link list (Team Portugal's forum threads). */
+.link-list.one-col { grid-template-columns: minmax(0, 1fr); }
+.link-list.one-col a:nth-child(even) { padding-left: 0; border-left: 0; }

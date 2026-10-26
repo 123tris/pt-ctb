@@ -19,12 +19,12 @@ export default async function team(root) {
       <div class="card">
         <h2>Top 10 PT Catch Players</h2>
         <p class="muted">Every year since 2020, someone posts their top 10 Portuguese catch players on the osu! forums and everyone replies with their own list. The rule since day one: you’re supposed to leave yourself out.</p>
-        <div class="link-list" style="grid-template-columns:1fr">${TOP10_THREADS.map(([year, url]) => html`<a href="${url}" target="_blank" rel="noopener"><b>The ${year} list</b><span>osu! forums ↗</span></a>`)}</div>
+        <div class="link-list one-col">${TOP10_THREADS.map(([year, url]) => html`<a href="${url}" target="_blank" rel="noopener"><b>The ${year} list</b><span>osu! forums ↗</span></a>`)}</div>
       </div>
       <div class="card">
         <h2>The currency</h2>
         <p class="muted">Bounties, challenges and bets on this server have been paid in osu!supporter since 2018: weekly prizes, a month per sniped loved score, the top-50 challenge, and in 2026 a month of supporter for every point the CWC team took.</p>
-        <a class="btn btn-small" href="#/challenges">See the challenges →</a>
+        <a class="btn btn-small" href="#/challenges">See the challenges</a>
       </div>
     </section>
   `);
