@@ -16,7 +16,6 @@ export const EVENT_KINDS = {
   pass: { tag: 'Overtake', label: 'Overtakes' },
   mile: { tag: 'Milestone', label: 'Milestones' },
   join: { tag: 'New player', label: 'New players' },
-  sotw: { tag: 'Score of the week', label: 'Score of the week' },
 };
 
 const who = (index, id) => html`<a href="#/player/${id}"><b>${playerName(index, id)}</b></a>`;
@@ -46,14 +45,12 @@ function describe(e, index, maps) {
       return { what: html`${who(index, e.u)} reached ${fmt.num(e.pp)} pp in ${CAT_LABEL[e.c]}`, where: '' };
     case 'join':
       return { what: html`${who(index, e.u)} joined the leaderboards`, where: '' };
-    case 'sotw':
-      return { what: html`${who(index, e.u)} won Score of the week`, where: html`${fmt.pp(e.s[S.PP])} pp · ${map}` };
     default:
       return { what: '', where: '' };
   }
 }
 
-const EVENT_EMOJI = { snipe: '🐐', top: '🔥', dan: '🫡', mile: '🗣️', sotw: '🏆' };
+const EVENT_EMOJI = { snipe: '🐐', top: '🔥', dan: '🫡', mile: '🗣️' };
 
 /** The Discord's reaction to an event, in its own words. Stable per event, so it doesn't change on redraw. */
 function quip(e) {

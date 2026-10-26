@@ -7,7 +7,7 @@ import {
 } from '../../assets/js/core/model.js';
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
 import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js';
-import { lisbonWeek, scoreId, weeklyBlock, sotwEvents } from './weekly.mjs';
+import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -266,8 +266,6 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // Restricted players (see restrictedIds) are in none of the files: never made a person, so off every board, ranking
   // and list, and the map boards' positions close up around them.
   const hidden = restrictedIds(bot.players);
-  // The weekly highlights (Score of the week, top pp play, most plays), as the bot closed them.
-  const weekly = weeklyBlock(bot.weekly, now, hidden);
   // Taiko and mania maps can't be played in catch: a score on one (filed off a wrong cached mode) is never shown. Plays
   // only need the map not to be known as another mode: they prove it's catch-playable, flagged by the dump or not.
   const playable = s => !!s && !isOtherMode(beatmaps.get(s.beatmap_id));
@@ -406,7 +404,6 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       firsts: p.firsts,
       danScore: p.danScore, dan: p.dan.map(([i]) => i),
       last: p.last,
-      ...(weekly.sotw.get(p.id) ? { sotw: weekly.sotw.get(p.id) } : {}),
     };
   });
 
@@ -538,7 +535,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // ---- Activity --------------------------------------------------------------------------------------------------
 
   const since = now - ACTIVITY_DAYS * DAY;
-  const derived = [...sotwEvents(bot.weekly?.weeks, since, now, hidden)];
+  const derived = [];
   // A #1 set after the current runner-up's score must have taken the spot from them: their score already stood
   // and was the best of everyone else's (nobody's best ever goes down), so no history is needed to see snipes.
   for (const [id, board] of boards) {
@@ -687,7 +684,11 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const week = lisbonWeek(now); // Monday 00:00 Lisbon: the same week as the bot's weekly highlights
   const weeks = { ...(previous.weeks || {}) };
-  if (!weeks[week.id] || !boards.has(weeks[week.id])) {
+  // The map the community voted for in the bot's weekly recap. Until the vote is counted (the first import after
+  // Monday 00:00, minutes in), and for a week nobody voted on, the automatic pick below stands.
+  const voted = votedMaps(bot.weekly?.weeks).get(week.id);
+  if (voted && boards.has(voted)) weeks[week.id] = voted;
+  else if (!weeks[week.id] || !boards.has(weeks[week.id])) {
     const pool = [...boards]
       .filter(([id, b]) => b.cat !== CAT.LOVED && !banned.has(id) && b.entries.length >= 4 && hasTitle(meta(id)) &&
         meta(id).difficultyrating >= 3.5 && meta(id).difficultyrating <= 6.5 && !Object.values(weeks).includes(id))
@@ -697,6 +698,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   }
   const weekMap = weeks[week.id];
   const weekBoard = weekMap ? boards.get(weekMap) : null;
+  // The weekly highlights (top pp play, most plays, the map vote), as the bot closed them.
+  const weekly = weeklyBlock(bot.weekly, now, hidden, { picked: weeks, playersOn: id => boards.get(id)?.entries.length ?? 0 });
 
   const beatable = contested
     .filter(([id, b]) => b.entries.length >= 3 && !banned.has(id) && hasTitle(meta(id)) && (b.entries[0][S.ACC + 1] < 97 || b.entries[0][S.MISS + 1] >= 3))
@@ -731,7 +734,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       board: weekBoard.entries, weekly: weekBoard.entries.filter(e => e[S.TIME + 1] >= week.start),
     } : null,
     beatable, lonely, unclaimed, bounties,
-    // Score of the week, top pp play and most plays: this week so far, the open vote and past weeks (null until the
+    // Top pp play and most plays: this week so far, the open map vote and past weeks (null until the
     // bot has written any).
     weekly: weekly.block,
     maps: mapsFor([weekMap, ...beatable.map(r => r[0]), ...lonely.map(r => r[0]), ...unclaimed.map(r => r[0]),

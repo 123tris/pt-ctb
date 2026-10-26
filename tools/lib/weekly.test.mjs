@@ -4,7 +4,8 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lisbonWeek, scoreId, modMask, weeklyBlock, sotwEvents } from './weekly.mjs';
+import { lisbonWeek, scoreId, modMask, weeklyBlock, votedMaps, weekOf } from './weekly.mjs';
+import { build } from './build.mjs';
 import { MOD } from '../../assets/js/core/model.js';
 
 const utc = (y, m, d, h = 0) => Date.UTC(y, m - 1, d, h) / 1000;
@@ -42,35 +43,55 @@ test('mod acronyms become the bitmask', () => {
 const play = (id, u, pp, extra = {}) => ({ id, solo: true, u, m: 1000 + id, c: 'r', t: utc(2026, 10, 20), pp, acc: 98.5, combo: 700, miss: 0, mods: 'HD', g: 'S', sc: 900000, ...extra });
 const week = (id, start, extra = {}) => ({
   week: id, start, end: start + 7 * 86400, complete: true, passes: 10, players: 3,
-  topPp: play(1, 11, 300), mostPlays: [[12, 400], [11, 200]],
-  candidates: [{ lens: 'topPp', play: play(1, 11, 300) }, { lens: 'snipe', play: play(2, 12, 250) }, { lens: 'hardestFc', play: play(3, 13, 200) }],
-  vote: null, winner: null, ...extra,
+  topPp: play(1, 11, 300), mostPlays: [[12, 400], [11, 200]], vote: null, ...extra,
+});
+const posted = { url: 'https://discord.com/channels/1/2/4', posted: '2026-11-02T00:31:00Z' };
+
+test('a week id gives back its Lisbon week', () => {
+  assert.deepEqual(weekOf('2026-W44'), lisbonWeek(utc(2026, 10, 28)));
+  assert.deepEqual(weekOf('2026-W29'), { id: '2026-W29', start: utc(2026, 7, 12, 23), end: utc(2026, 7, 19, 23) });
+  assert.equal(weekOf('2026-W53').id, '2026-W53');
+  assert.equal(weekOf('nope'), null);
+});
+
+test('a map vote decides a week only once counted, and only if its recap was posted', () => {
+  const weeks = [
+    week('2026-W43', utc(2026, 10, 18, 23), { vote: posted, mapVote: { week: '2026-W45', candidates: [7, 8, 9], winner: 1, map: 8 } }),
+    week('2026-W44', utc(2026, 10, 26), { vote: posted, mapVote: { week: '2026-W46', candidates: [4, 5, 6] } }),
+    week('2026-W42', utc(2026, 10, 11, 23), { mapVote: { week: '2026-W44', candidates: [1, 2, 3], winner: 0, map: 1 } }),
+  ];
+  assert.deepEqual([...votedMaps(weeks)], [['2026-W45', 8]]);
+  assert.deepEqual([...votedMaps(undefined)], []);
 });
 
 test('no weekly data: no block, so the page shows nothing', () => {
-  assert.deepEqual(weeklyBlock(undefined, utc(2026, 10, 28)), { block: null, sotw: new Map(), mapIds: [] });
+  assert.deepEqual(weeklyBlock(undefined, utc(2026, 10, 28)), { block: null, mapIds: [] });
   assert.equal(weeklyBlock({ weeks: [], current: null }, utc(2026, 10, 28)).block, null);
 });
 
-test('the block: the week so far, the open vote and past weeks with their winners', () => {
+test('the block: the week so far, the open map vote and past weeks with their maps', () => {
   const now = utc(2026, 11, 4); // in 2026-W45
-  const w43 = week('2026-W43', utc(2026, 10, 18, 23), { vote: { url: 'https://discord.com/channels/1/2/3' }, winner: 1, votes: [1, 4, 0] });
-  const w44 = week('2026-W44', utc(2026, 10, 26), { vote: { url: 'https://discord.com/channels/1/2/4', posted: '2026-11-02T00:31:00Z' } });
-  const current = { ...week('2026-W45', utc(2026, 11, 2)), candidates: [] };
+  const w43 = week('2026-W43', utc(2026, 10, 18, 23), { vote: posted, mapVote: { week: '2026-W45', candidates: [7, 8, 9], winner: 1, map: 8 } });
+  const w44 = week('2026-W44', utc(2026, 10, 26), { vote: posted, mapVote: { week: '2026-W46', candidates: [4, 5, 6] } });
+  const current = week('2026-W45', utc(2026, 11, 2));
 
-  const { block, sotw, mapIds } = weeklyBlock({ weeks: [w44, w43], current }, now);
+  const { block, mapIds } = weeklyBlock({ weeks: [w44, w43], current }, now, new Set(),
+    { picked: { '2026-W43': 300, '2026-W44': 8 }, playersOn: id => id * 10 });
 
   assert.equal(block.current.week, '2026-W45');
   assert.deepEqual(block.current.top.slice(0, 3), [11, 'r', 1001]);
   assert.equal(block.current.top[2 + 11], 1); // S.ID: the solo score id
   assert.deepEqual(block.current.most, [[12, 400], [11, 200]]);
-  assert.equal(block.vote.week, '2026-W44');
-  assert.equal(block.vote.url, 'https://discord.com/channels/1/2/4');
-  assert.deepEqual(block.vote.candidates.map(([lens, row]) => [lens, row[0]]), [['topPp', 11], ['snipe', 12], ['hardestFc', 13]]);
-  assert.deepEqual(block.past.map(p => [p.week, p.sotw?.[0] ?? null, p.votes]), [['2026-W44', null, null], ['2026-W43', 12, 4]]);
-  assert.equal(block.past[1].sotw[2 + 5], MOD.HD); // mods as a bitmask
-  assert.deepEqual([...sotw], [[12, 1]]);
-  assert.ok(mapIds.includes(1002));
+  assert.deepEqual(block.mapVote, { week: '2026-W46', start: utc(2026, 11, 9), end: utc(2026, 11, 16), url: posted.url, candidates: [[4, 40], [5, 50], [6, 60]] });
+  assert.deepEqual(block.past.map(p => [p.week, p.map, p.voted]), [['2026-W44', 8, false], ['2026-W43', 300, false]]);
+  assert.equal(block.past[1].top[2 + 5], MOD.HD); // mods as a bitmask
+  assert.deepEqual(mapIds.sort((a, b) => a - b), [4, 5, 6, 8, 300, 1001, 1001, 1001]);
+});
+
+test('no open vote once it is counted, or when the recap never went out', () => {
+  const counted = week('2026-W44', utc(2026, 10, 26), { vote: posted, mapVote: { week: '2026-W46', candidates: [4, 5, 6], winner: 0, map: 4 } });
+  const unposted = week('2026-W44', utc(2026, 10, 26), { mapVote: { week: '2026-W46', candidates: [4, 5, 6] } });
+  for (const w of [counted, unposted]) assert.equal(weeklyBlock({ weeks: [w] }, utc(2026, 11, 4)).block.mapVote, null);
 });
 
 test('a stale week so far (the bot stopped writing it) is left out', () => {
@@ -78,12 +99,40 @@ test('a stale week so far (the bot stopped writing it) is left out', () => {
   assert.equal(weeklyBlock({ weeks: [], current }, utc(2026, 11, 4)).block, null);
 });
 
-test('a Score of the week becomes an activity event when its vote closed', () => {
-  const w43 = week('2026-W43', utc(2026, 10, 18, 23), { winner: 2 });
-  const w44 = week('2026-W44', utc(2026, 10, 26), { vote: { posted: '2026-11-02T00:31:00Z' } });
+// ---- The exporter: the voted map is the map of the week ----------------------------------------------------------
 
-  const events = sotwEvents([w43, w44], utc(2026, 1, 1), utc(2026, 11, 4));
+const score = (uid, map) => ({
+  beatmap_id: map, user_id: uid, pp: 100, score: 900000, maxcombo: 700, count300: 690, count100: 5, count50: 5,
+  countmiss: 0, countkatu: 0, enabled_mods: 0, rank: 'S', date: '2026-10-20T12:00:00Z',
+});
+const players = [1, 2, 3, 4].map(uid => ({
+  user_id: uid, username: 'P' + uid, country: 'PT', pp_raw: 5000, pp_rank: 1000, pp_country_rank: 10, accuracy: 98, level: 100,
+  playcount: 1000, count_rank_ss: 1, count_rank_s: 2, count_rank_a: 3, profile_updated: '2026-10-25T00:00:00Z',
+  TopConvertedScores: [score(uid, 500), score(uid, 501), score(uid, 502)], TopUnrankedScores: [], RankedSpecificScores: [], PreRankScores: [], DanPasses: [],
+}));
+const beatmaps = new Map([500, 501, 502].map(id => [id, { beatmap_id: id, beatmapset_id: id, artist: 'A', title: 'T' + id, version: 'Hard', approved: 1, playmode: 0, difficultyrating: 5 }]));
+const exportIn = (now, weeks, state = {}) => build({
+  bot: { players, ptCatch: [], ptCatchState: {}, banned: new Set(), weekly: { weeks, current: null } }, beatmaps, homeCountry: 'PT', now, state,
+});
 
-  assert.deepEqual(events.map(e => [e.k, e.u, e.w, e.t]), [['sotw', 13, '2026-W43', utc(2026, 11, 2, 0) + 31 * 60]]);
-  assert.equal(sotwEvents([w43, w44], utc(2026, 1, 1), utc(2026, 11, 1)).length, 0); // not decided yet then
+test('the map the vote chose becomes that week\'s map of the week, even over an automatic pick already made', () => {
+  const now = utc(2026, 11, 4); // in 2026-W45
+  const auto = exportIn(now, []);
+  const autoPick = auto.files['challenges.json'].week.map;
+  const chosen = [500, 501, 502].find(id => id !== autoPick);
+  const weeks = [week('2026-W43', utc(2026, 10, 18, 23), { vote: posted, mapVote: { week: '2026-W45', candidates: [chosen, autoPick], winner: 0, map: chosen } })];
+
+  const { files, state } = exportIn(now, weeks, auto.state);
+
+  assert.equal(files['challenges.json'].week.map, chosen);
+  assert.equal(state.weeks['2026-W45'], chosen);
+  assert.equal(files['challenges.json'].weekly.past[0].map, auto.state.weeks['2026-W43'] ?? null);
+});
+
+test('with no counted vote the automatic pick stands', () => {
+  const now = utc(2026, 11, 4);
+  const weeks = [week('2026-W44', utc(2026, 10, 26), { vote: posted, mapVote: { week: '2026-W46', candidates: [500, 501, 502] } })];
+  const { files } = exportIn(now, weeks);
+  assert.ok([500, 501, 502].includes(files['challenges.json'].week.map));
+  assert.deepEqual(files['challenges.json'].weekly.mapVote.candidates, [[500, 4], [501, 4], [502, 4]]);
 });
