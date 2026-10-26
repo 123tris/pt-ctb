@@ -1,19 +1,22 @@
 import { html, raw } from '../core/html.js';
-import { challenges, playerIndex, dan } from '../core/data.js';
+import { challenges, playerIndex, dan, completion } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
   setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, bannerArt, mapText, starsBadge, empty, osuMap, prefs,
-  pageHead, scoreWhen,
+  pageHead, scoreWhen, setCover, paginate, writeQuery, announce, resultCount, emptyFiltered,
 } from '../core/ui.js';
+import { ANY_STARS, parseStars, formatStars, starsLabel, inStars, isAnyStars } from '../core/star-range.js';
+import { starSlider, bindStarSlider } from '../core/star-slider.js';
 import { renderDan, DAN_INTRO } from './dan.js';
 import * as fmt from '../core/fmt.js';
 
-// Three sub-pages with their own URLs (#/challenges/week, /dan, /targets). "Dan" keeps the community's own word, and
-// the three are shown as big cards under the heading so the Dan course can't be missed.
+// Four sub-pages with their own URLs (#/challenges/week, /dan, /targets, /completion). "Dan" keeps the community's own
+// word, and the four are shown as big cards under the heading so the Dan course can't be missed.
 const TABS = [
   { slug: 'week', label: 'This week', blurb: 'The map of the week', intro: html`A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on <a href="#/activity?view=week">Activity</a>.` },
   { slug: 'dan', label: 'Dan course', blurb: '19 stages, Zeroth Dan to Shin', intro: DAN_INTRO },
   { slug: 'targets', label: 'Snipe targets', blurb: '#1s up for grabs', intro: '#1s that are begging to be sniped, boss maps nobody has FC’d, and maps nobody in Portugal has played yet.' },
+  { slug: 'completion', label: 'Completion', blurb: 'Every ranked map, together', intro: 'A map counts once any Portuguese player passes it without NF. The goal is every ranked osu!catch-specific difficulty; converts are a separate count.' },
 ];
 
 /** The sub-page switcher: three labelled cards, a real nav with aria-current (the pages have their own URLs). */
@@ -70,11 +73,14 @@ function weekSection(week, maps, index, me) {
 
 export default async function challengesPage(root, { params, query, isCurrent }) {
   const tab = TABS.find(t => t.slug === params.tab) ?? TABS[0];
-  const [data, index, danData] = await Promise.all([challenges(), playerIndex(), tab.slug === 'dan' ? dan() : null]);
+  const goal = tab.slug === 'completion';
+  const [data, index, danData, goalData] = await Promise.all([
+    goal ? null : challenges(), playerIndex(), tab.slug === 'dan' ? dan() : null, goal ? completion() : null,
+  ]);
   if (!isCurrent()) return;
   setTitle(tab.slug === 'week' ? 'Challenges' : `${tab.label} · Challenges`);
   const me = prefs.get('me', null);
-  const { maps } = data;
+  const maps = data?.maps;
 
   root.innerHTML = String(html`
     ${pageHead({ title: 'Challenges' })}
@@ -84,6 +90,7 @@ export default async function challengesPage(root, { params, query, isCurrent })
   `);
 
   if (tab.slug === 'dan') renderDan(root.querySelector('#panel'), danData, index, query);
+  if (goal) renderCompletion(root.querySelector('#panel'), goalData, index, query);
   if (tab.slug === 'week' && data.week) {
     const el = root.querySelector('#countdown');
     const timer = setInterval(() => {
@@ -139,4 +146,118 @@ function targetsPanel(data, maps, index) {
         </div>`)}</div>` : empty('Nothing left to claim. Impressive.')}
       </div>
     </section>`;
+}
+
+// ---- Completion ------------------------------------------------------------------------------------------------------
+// completion.json (tools/lib/completion.mjs): how many ranked catch-specific maps Portugal has cleared, and the rest as a
+// to-do list. Rows of `left`: [mapId, setId, version, stars, rankedDay, osu! plays]; `sets`: { setId: [artist, title] }.
+
+const LEFT_SORTS = {
+  popular: ['Most played on osu!', (a, b) => b[5] - a[5] || a[0] - b[0]],
+  easy: ['Fewest stars', (a, b) => a[3] - b[3] || a[0] - b[0]],
+  hard: ['Most stars', (a, b) => b[3] - a[3] || a[0] - b[0]],
+  new: ['Newest ranked', (a, b) => (b[4] ?? 0) - (a[4] ?? 0) || b[0] - a[0]],
+};
+const LEFT_PAGE = 50;
+const percent = (n, total) => (total ? (n / total) * 100 : 0);
+
+function leftRow([id, set, version, stars, rankedDay, plays], sets) {
+  const named = sets[set];
+  const title = named ? `${named[0]} - ${named[1]}` : `Map #${id}`;
+  return html`<a class="row card-link" href="#/map/${id}">
+    <span class="map">
+      ${setCover(set)}
+      <span class="map-text">
+        <span class="map-title" title="${title}">${title}</span>
+        <span class="map-sub">${starsBadge(stars)} [${version}]</span>
+      </span>
+    </span>
+    <span class="row-meta">
+      ${rankedDay ? html`<span>Ranked ${fmt.monthYear(rankedDay * 86400)}</span><span class="sep"></span>` : ''}
+      <span>${fmt.plural(plays, 'play')} on osu!</span>
+    </span>
+  </a>`;
+}
+
+function renderCompletion(panel, goal, index, query) {
+  if (!goal) {
+    panel.innerHTML = String(empty('The completion goal arrives with the next data update.'));
+    return;
+  }
+  const pct = percent(goal.cleared, goal.total);
+  const conv = goal.converts;
+  let stars = parseStars(query);
+  let sortKey = LEFT_SORTS[query.sort] ? query.sort : 'popular';
+  let page = Math.max(0, (Number(query.page) || 1) - 1);
+
+  panel.innerHTML = String(html`
+    <section class="goal">
+      <p class="goal-figure">${fmt.num(pct, 1)}%</p>
+      <p class="goal-of"><b>${fmt.num(goal.cleared)}</b> of <b>${fmt.num(goal.total)}</b> ranked osu!catch maps cleared${goal.players ? `, by ${fmt.plural(goal.players, 'player')}` : ''}</p>
+      <div class="goal-bar" role="meter" aria-label="Ranked osu!catch maps cleared" aria-valuemin="0" aria-valuemax="${goal.total}"
+        aria-valuenow="${goal.cleared}" aria-valuetext="${fmt.num(pct, 1)}% cleared" style="--done:${pct.toFixed(2)}%"><span></span></div>
+      ${conv?.total ? html`<p class="goal-aside">Converts, the long road: ${fmt.num(conv.cleared)} of ${fmt.num(conv.total)} ranked osu!standard maps (${fmt.num(percent(conv.cleared, conv.total), 1)}%).</p>` : ''}
+    </section>
+
+    ${goal.recent.length || goal.sole.length ? html`<section class="section grid grid-2">
+      <div>
+        <div class="section-head"><h2>Recently cleared</h2></div>
+        <p class="muted small">The newest first clears: the earliest pass on record for each map.</p>
+        ${goal.recent.length ? html`<div class="rows">${goal.recent.map(([id, uid, t]) => html`<div class="row">
+          ${mapLink(id, goal.maps[id])}
+          <div class="row-meta">${playerLink(uid, index, 'avatar-sm')} <span class="faint">${fmt.ago(t)}</span></div>
+        </div>`)}</div>` : empty('No dated clears yet.')}
+      </div>
+      <div>
+        <div class="section-head"><h2>Only they have cleared</h2></div>
+        <p class="muted small">Ranked maps no other Portuguese player has passed.</p>
+        ${goal.sole.length ? html`<div class="rows">${goal.sole.map(([uid, n], i) => html`<div class="row">
+          <span class="goal-who"><span class="faint">${i + 1}</span> ${playerLink(uid, index, 'avatar-sm')}</span>
+          <span class="row-meta">${fmt.plural(n, 'map')}</span>
+        </div>`)}</div>` : empty('Every cleared map has at least two players on it.')}
+      </div>
+    </section>` : ''}
+
+    <section class="section">
+      <div class="section-head"><h2>Not cleared yet</h2><span class="muted small">Ranked maps no Portuguese player has passed.</span></div>
+      ${goal.left.length ? html`
+        <div class="toolbar">
+          <select class="select" id="left-sort" aria-label="Sort">${Object.entries(LEFT_SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>
+        </div>
+        ${starSlider(stars)}
+        <p class="result-count" id="left-count"></p>
+        <div id="left-list"></div>` : empty('Every ranked osu!catch map is cleared. Converts next?')}
+    </section>
+  `);
+  if (!goal.left.length) return;
+
+  const sort = panel.querySelector('#left-sort');
+  const count = panel.querySelector('#left-count');
+  const visible = () => goal.left.filter(r => inStars(r[3], stars)).sort(LEFT_SORTS[sortKey][1]);
+  const save = () => writeQuery({ sort: sortKey, stars: formatStars(stars), page: page + 1 }, { sort: 'popular', page: 1 });
+  let items = visible();
+  const showCount = speak => {
+    count.textContent = resultCount(items.length, goal.left.length, 'map');
+    if (speak) announce(count.textContent);
+  };
+  const redraw = paginate(panel.querySelector('#left-list'), items, slice => html`<div class="rows">${slice.map(r => leftRow(r, goal.sets))}</div>`, LEFT_PAGE, {
+    page,
+    onPage: p => { page = p; save(); },
+    empty: () => emptyFiltered(`No uncleared maps at ${starsLabel(stars)}.`),
+  });
+  showCount(false);
+  // A new sort or range starts again from the first page (paginate's redraw, which saves it).
+  const refilter = () => {
+    items = visible();
+    redraw(items);
+    showCount(true);
+  };
+  sort.addEventListener('change', () => { sortKey = sort.value; refilter(); });
+  const slider = bindStarSlider(panel, stars, next => { stars = next; refilter(); });
+  panel.querySelector('#left-list').addEventListener('click', e => {
+    if (!e.target.closest('[data-clear]')) return;
+    stars = [...ANY_STARS];
+    slider.set(stars);
+    refilter();
+  });
 }

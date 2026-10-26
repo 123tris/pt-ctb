@@ -8,6 +8,7 @@ import {
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
 import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js';
 import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
+import { completion } from './completion.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -33,7 +34,7 @@ const MAX_EVENTS = 400;
 const round = (n, places = 2) => Math.round(n * 10 ** places) / 10 ** places;
 // Older profiles hold accuracy as a 0-1 fraction, newer ones as a percentage.
 const percent = acc => (acc > 0 && acc <= 1 ? acc * 100 : acc);
-const isoTime = date => Math.floor(Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(date) ? date : `${date}Z`) / 1000);
+export const isoTime = date => Math.floor(Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(date) ? date : `${date}Z`) / 1000);
 
 /** A bot UserScore as the compact tuple the site reads (see S in model.js). */
 function toTuple(s) {
@@ -67,7 +68,7 @@ function updatedAt(raw) {
  * When a ranked, approved, qualified or loved map got there (unix seconds), or null. A graveyard map can still carry
  * the date of a status it lost, so only these statuses count.
  */
-function rankedAt(raw) {
+export function rankedAt(raw) {
   const status = Number(raw.approved);
   if (!raw.approved_date || !(status === STATUS.RANKED || status === STATUS.APPROVED || status === STATUS.QUALIFIED || status === STATUS.LOVED))
     return null;
@@ -260,7 +261,11 @@ export const isUnclaimedCandidate = raw =>
   hasTitle(raw) && isCatchPlayable(raw) && Number(raw.playmode) === MODE.CATCH &&
   (Number(raw.approved) === STATUS.RANKED || Number(raw.approved) === STATUS.APPROVED);
 
-export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOfficial = {} }) {
+/**
+ * `extraTitles`: more cached maps (the exporter's osu! API cache) that only lend their set's artist and title to the
+ * completion goal's maps, many of which the dump left without one.
+ */
+export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOfficial = {}, extraTitles = [] }) {
   // A banned map keeps its scores, but every one of them is worth 0pp (as in the bot).
   const banned = bot.banned;
   // Restricted players (see restrictedIds) are in none of the files: never made a person, so off every board, ranking
@@ -784,6 +789,22 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     for (const id of rows.keys()) if (newEntries.has(id)) (mapBuckets[id % BUCKETS] ??= {})[id] = newEntries.get(id);
   }
 
+  // ---- Completion -------------------------------------------------------------------------------------------------
+  // How many ranked osu!catch maps the country has cleared (completion.mjs has the rules). Each map nobody has cleared
+  // gets a page too, its details over an empty board, borrowing its set's title when the dump left it without one.
+
+  const goal = completion({ bot, beatmaps, homeCountry, previous: previous.cleared, extraTitles });
+  const titledTuple = id => {
+    const raw = meta(id);
+    const title = hasTitle(raw) ? null : goal.titles.get(raw.beatmapset_id);
+    return toMapTuple(title ? { ...raw, artist: title[0], title: title[1], creator: title[2] } : raw);
+  };
+  goal.file.maps = Object.fromEntries(goal.file.recent.map(r => r[0]).sort((a, b) => a - b).map(id => [id, titledTuple(id)]));
+  for (const id of goal.left) {
+    const bucket = (mapBuckets[id % BUCKETS] ??= {});
+    if (!bucket[id]) bucket[id] = { m: titledTuple(id), c: CAT.RANKED, s: [] };
+  }
+
   // ---- Quiz pool ---------------------------------------------------------------------------------------------------
 
   const sets = new Map();
@@ -866,6 +887,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     homeCountry,
     dump: bot.ptCatchState.last_imported_dump || null,
     totals: records.totals,
+    // The completion goal's headline, for the home page: { cleared, total } ranked catch-specific maps.
+    completion: { cleared: goal.file.cleared, total: goal.file.total },
   };
 
   const state = {
@@ -882,6 +905,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     known: [...new Set([...people.keys(), ...(previous.known || []).filter(id => hidden.has(id))])].sort((a, b) => a - b),
     events: keptStateEvents,
     weeks,
+    // Each cleared ranked catch map's first clear, [userId, unix time] (completion.mjs keeps the earliest seen).
+    cleared: goal.firsts,
   };
 
   return {
@@ -894,6 +919,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'activity.json': activity,
       'records.json': records,
       'challenges.json': challenges,
+      'completion.json': goal.file,
       'quiz.json': quiz,
       'history.json': history,
       'maps-top.json': { total: mapsIndex.length, rows: mapsIndex.slice(0, MAPS_TOP) },

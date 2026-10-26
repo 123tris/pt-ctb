@@ -81,6 +81,8 @@ export const dan = () => load('dan.json');
 export const activity = () => load('activity.json');
 export const records = () => load('records.json');
 export const challenges = () => load('challenges.json');
+/** The completion goal (tools/lib/completion.mjs), or null for data from before it. */
+export const completion = () => load('completion.json').catch(e => (e instanceof NotFound ? null : Promise.reject(e)));
 export const quiz = () => load('quiz.json');
 export const history = () => load('history.json');
 

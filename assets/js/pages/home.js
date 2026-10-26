@@ -110,6 +110,7 @@ export default async function home(root, { isCurrent }) {
           </div>
         </a>` : html`<div class="empty">No map of the week yet.</div>`}
         ${weeklySummary(ch.weekly, ch.maps, index)}
+        ${m.completion?.total ? html`<p class="small muted goal-teaser">Together Portugal has cleared <b>${fmt.num(m.completion.cleared / m.completion.total * 100, 1)}%</b> of ranked osu!catch maps. <a href="#/challenges/completion">See what’s left</a></p>` : ''}
       </div>
       <div>
         <div class="section-head"><h2>Recent activity</h2><a href="#/activity">See all →</a></div>

@@ -1157,7 +1157,7 @@ p a.dim-link { text-decoration: underline; }
 td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height: 1.1; }
 
 /* Challenges' three sub-pages (This week · Dan course · Snipe targets) as big cards under the heading. */
-.subnav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 4px 0 16px; }
+.subnav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 16px; }
 .subnav a {
   display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r);
   background: var(--surface); color: var(--text); transition: border-color .12s, background-color .12s;
@@ -1169,11 +1169,25 @@ td.num .est { display: block; margin: 1px 0 0; font-size: .6875rem; line-height:
 .subnav span { color: var(--text-dim); font-size: var(--fs-sm); }
 .subnav-intro { margin: 0 0 20px; max-width: 75ch; }
 @media (max-width: 600px) {
-  .subnav { gap: 6px; }
+  .subnav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .subnav a { padding: 10px; }
   .subnav b { font-size: var(--fs-md); }
   .subnav span { display: none; }
 }
+/* Challenges → Completion: the share of ranked maps cleared is the page's one result, then a thin bar with the accent
+   only for the cleared part, and the converts as a quiet aside. */
+.goal { max-width: 640px; }
+.goal-figure { margin: 0; font: 800 var(--fs-4xl)/1 var(--font); letter-spacing: -.02em; }
+.goal-of { margin: 6px 0 14px; color: var(--text-dim); font-size: var(--fs-lg); }
+.goal-of b { color: var(--text); font-weight: 700; }
+.goal-bar { height: 6px; border-radius: var(--r-xs); background: var(--surface-3); overflow: hidden; }
+.goal-bar > span { display: block; width: var(--done, 0%); height: 100%; background: var(--accent); }
+.goal-aside { margin: 12px 0 0; color: var(--text-faint); font-size: var(--fs-sm); }
+.goal-teaser { margin: 12px 0 0; }
+.goal-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.goal-who > .faint { min-width: 1.5em; }
+@media (max-width: 480px) { .goal-figure { font-size: var(--fs-3xl); } }
+
 /* Pages in the header search's results (e.g. "Dan course"), above the players. */
 .search-results .search-page-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
 

@@ -31,6 +31,7 @@ const PAGES = [
   { name: 'Dan course', href: '#/challenges/dan', detail: 'Challenges · 19 stages', words: 'dan dans course stage stages zeroth aleph shin updatedan claimdanrole' },
   { name: 'Map of the week', href: '#/challenges/week', detail: 'Challenges', words: 'week weekly challenge challenges' },
   { name: 'Snipe targets', href: '#/challenges/targets', detail: 'Challenges', words: 'snipe snipes sniping targets vulnerable bounty bounties unclaimed' },
+  { name: 'Completion', href: '#/challenges/completion', detail: 'Challenges · ranked maps cleared', words: 'completion complete cleared clear uncleared progress goal' },
   { name: 'Glossary', href: '#/glossary', detail: 'pp, FC, mods explained', words: 'glossary help words meaning new' },
   { name: 'Records', href: '#/records', detail: 'Biggest combos, most #1s', words: 'records record' },
   { name: 'Calculator', href: '#/calculator', detail: 'How much pp is a play worth', words: 'calculator calc pp' },

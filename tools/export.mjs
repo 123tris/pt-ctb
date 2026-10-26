@@ -28,6 +28,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { loadBotData, loadBeatmaps, loadPastOfficial, loadCommands } from './lib/source.mjs';
 import { build, neededMapIds, isUnclaimedCandidate, isCatchPlayable } from './lib/build.mjs';
+import { isRankedSpecific } from './lib/completion.mjs';
 import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, fetchDates, hasCatchDifficulty } from './lib/osu-api.mjs';
 import { updateAvatars, sharpResizer } from './lib/avatars.mjs';
 import { STATUS } from '../assets/js/core/model.js';
@@ -37,6 +38,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 /** Files earlier exports wrote and this one doesn't: maps-index.json, replaced by maps-search.json and maps-top.json. */
 const RETIRED = ['maps-index.json'];
 const MAX_CATCH_FETCHES = 100; // per export: under two minutes at one request a second, well inside osu!'s limit
+const MAX_SET_TITLE_FETCHES = 1000; // ids per export (one per set): 20 requests
 
 function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
@@ -113,6 +115,24 @@ for (const id of untitledIds) {
   beatmaps.set(id, merged);
 }
 
+// The completion goal lists every ranked catch map nobody here has cleared, and the dump left most of them without a
+// title. A set takes its title from any cached map of it; for sets with none, one map each is fetched (a capped number
+// per export, so the first exports after this fill them in over a few runs).
+const titledSets = new Set();
+for (const raw of [...beatmaps.values(), ...Object.values(cache.maps)]) if (raw.title && raw.title !== 'Unknown') titledSets.add(raw.beatmapset_id);
+const untitledSets = new Map();
+for (const raw of beatmaps.values()) {
+  if (isRankedSpecific(raw) && !titledSets.has(raw.beatmapset_id) && !untitledSets.has(raw.beatmapset_id)) untitledSets.set(raw.beatmapset_id, raw.beatmap_id);
+}
+if (fetching && credentials && untitledSets.size) {
+  const batch = [...untitledSets.values()].filter(id => !cache.gone.includes(id)).slice(0, MAX_SET_TITLE_FETCHES);
+  try {
+    console.log(`  fetched the titles of ${await fetchMissing(batch, cache, cacheFile, credentials)} ranked catch sets`);
+  } catch (e) {
+    console.warn(`  couldn't fetch ranked catch set titles (${e.message}); the next export retries`);
+  }
+} else if (untitledSets.size) console.log(`  ${untitledSets.size} ranked catch sets have no title in either cache (--fetch-titles fills them in)`);
+
 // Ranked/loved dates (a set's) and last-updated times the bot's cache doesn't have: ours, from --fetch-dates.
 const RANKED_LIKE = new Set([STATUS.RANKED, STATUS.APPROVED, STATUS.QUALIFIED, STATUS.LOVED]);
 const isUndated = raw => RANKED_LIKE.has(Number(raw.approved)) && !raw.approved_date;
@@ -170,7 +190,7 @@ const unknownInactive = bot.players
 const pastOfficial = unknownInactive.length ? loadPastOfficial(dataRoot, unknownInactive) : {};
 if (unknownInactive.length)
   console.log(`  ${unknownInactive.length} inactive players with no plays to estimate from; ${Object.keys(pastOfficial).length} found in the data folder's history`);
-const { files, state } = build({ bot, beatmaps, homeCountry: country, now, state: previous, pastOfficial });
+const { files, state } = build({ bot, beatmaps, homeCountry: country, now, state: previous, pastOfficial, extraTitles: Object.values(cache.maps) });
 // The bot's public commands, passed through as the bot wrote them (an older bot writes none: then there's no file).
 const commands = loadCommands(dataRoot);
 if (commands) files['commands.json'] = commands;
@@ -226,6 +246,9 @@ if (changed || removed || !fs.existsSync(metaFile) || JSON.stringify(readJsonOr(
 writeIfChanged(stateOut, JSON.stringify(state));
 writeIfChanged(avatarStateOut, JSON.stringify(avatars.state));
 
+const goal = files['completion.json'];
+console.log(`  completion: ${goal.cleared}/${goal.total} ranked catch maps cleared (${(goal.cleared / goal.total * 100).toFixed(1)}%),` +
+  ` converts ${goal.converts.cleared}/${goal.converts.total}; ${goal.left.filter(r => !goal.sets[r[1]]).length} of those left have no title`);
 const untitled = decodeMapsSearch(files['maps-search.json']).filter(row => !row[3]).length;
 console.log(`  ${Object.keys(files).length} files (${(bytes / 1e6).toFixed(1)} MB), ${changed} changed, ${removed} removed` +
   ` in ${((Date.now() - started) / 1000).toFixed(1)}s`);
