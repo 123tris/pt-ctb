@@ -64,65 +64,68 @@ const row = l => (l ? [l.u, l.c, ...logTuple(l)] : null);
 
 const isWeekId = id => /^\d{4}-W\d\d$/.test(id ?? '');
 
+/** The week an id like "2026-W44" names: { id, start, end } (unix seconds, Lisbon time), or null. */
+export function weekOf(id) {
+  const m = /^(\d{4})-W(\d\d)$/.exec(id ?? '');
+  if (!m) return null;
+  const jan4 = Date.UTC(Number(m[1]), 0, 4) / 1000;
+  const monday = jan4 - ((new Date(jan4 * 1000).getUTCDay() + 6) % 7) * DAY + (Number(m[2]) - 1) * 7 * DAY;
+  return lisbonWeek(monday + 12 * 3600);
+}
+
+/**
+ * The maps the bot's votes chose, by the week they're the map of the week for: each closed week's map vote, once the
+ * next recap has counted it. A vote whose recap was never posted decides nothing.
+ */
+export function votedMaps(weeks = []) {
+  const voted = new Map();
+  for (const w of weeks) {
+    const vote = w?.mapVote;
+    if (w?.vote && isWeekId(vote?.week) && Number.isInteger(vote.map)) voted.set(vote.week, vote.map);
+  }
+  return voted;
+}
+
 /**
  * The weekly block of challenges.json, or null when the bot hasn't written any weekly data yet:
  *   current: the week so far (top pp play, most plays) from Weekly/current.json, when it's this week's;
- *   vote:    the newest closed week's Score of the week candidates, while its vote runs (with the Discord post), each
- *            with its number on that post;
- *   past:    every closed week, newest first: the Score of the week (once decided), top pp play and most plays.
- * Also returns the Score of the week count per player and the map ids the rows mention.
+ *   mapVote: the newest recap's vote for a coming map of the week, while it runs: the week it's for, the Discord post and
+ *            the maps, [map id, community players on it], in their number order on the post;
+ *   past:    every closed week, newest first: its map of the week (`picked`, the exporter's record, with whether a vote
+ *            chose it), top pp play and most plays.
+ * Also returns the map ids the block mentions.
  *
  * The players in `hidden` (restricted on osu!) are left out: a play of theirs shows as none (the bot's summary has no
- * runner-up to put in its place), a candidate of theirs is dropped, and most plays goes to the next player.
+ * runner-up to put in its place), and most plays goes to the next player.
  */
-export function weeklyBlock({ weeks = [], current = null } = {}, now, hidden = new Set()) {
+export function weeklyBlock({ weeks = [], current = null } = {}, now, hidden = new Set(), { picked = {}, playersOn = () => 0 } = {}) {
   const closed = weeks.filter(w => isWeekId(w?.week)).sort((a, b) => a.week.localeCompare(b.week));
   const live = isWeekId(current?.week) && current.week === lisbonWeek(now).id ? current : null;
-  if (!closed.length && !live) return { block: null, sotw: new Map(), mapIds: [] };
+  if (!closed.length && !live) return { block: null, mapIds: [] };
 
   const latest = closed.at(-1);
   const shown = play => (play && !hidden.has(play.u) ? play : null);
   const most = rows => (rows ?? []).filter(r => !hidden.has(r[0]));
-  const winnerOf = w => shown(Number.isInteger(w.winner) ? w.candidates?.[w.winner]?.play ?? null : null);
-  const candidates = latest?.vote?.url && latest.winner == null
-    ? (latest.candidates ?? []).map((c, i) => [c.lens, row(shown(c.play)), i + 1]).filter(c => c[1])
-    : [];
+  const vote = latest?.mapVote;
+  const open = latest?.vote?.url && vote?.candidates?.length && !Number.isInteger(vote.winner) ? weekOf(vote.week) : null;
+  const voted = votedMaps(closed);
   const block = {
     current: live ? {
       week: live.week, start: live.start, end: live.end, complete: live.complete, passes: live.passes, players: live.players,
       top: row(shown(live.topPp)), most: most(live.mostPlays).slice(0, 3),
     } : null,
-    vote: candidates.length ? { week: latest.week, url: latest.vote.url, candidates } : null,
+    mapVote: open ? {
+      week: open.id, start: open.start, end: open.end, url: latest.vote.url,
+      candidates: vote.candidates.map(id => [id, playersOn(id)]),
+    } : null,
     past: closed.slice().reverse().map(w => ({
       week: w.week, start: w.start, end: w.end, complete: w.complete,
-      sotw: row(winnerOf(w)), votes: w.votes && winnerOf(w) ? w.votes[w.winner] ?? 0 : null,
+      map: picked[w.week] ?? null, voted: Boolean(picked[w.week]) && voted.get(w.week) === picked[w.week],
       top: row(shown(w.topPp)), most: most(w.mostPlays)[0] ?? null,
     })),
   };
 
-  const sotw = new Map();
-  for (const w of closed) {
-    const play = winnerOf(w);
-    if (play) sotw.set(play.u, (sotw.get(play.u) ?? 0) + 1);
-  }
-  const rows = [block.current?.top, ...(block.vote?.candidates ?? []).map(c => c[1]),
-    ...block.past.flatMap(p => [p.sotw, p.top])].filter(Boolean);
-  return { block, sotw, mapIds: rows.map(r => r[2]) };
-}
-
-/**
- * Activity events for the decided Scores of the week: { t, k: 'sotw', u, w, s } at the moment the vote closed (the
- * next week's recap), or the following Monday when that isn't known. None for the players in `hidden`.
- */
-export function sotwEvents(weeks = [], since, now, hidden = new Set()) {
-  const closed = weeks.filter(w => isWeekId(w?.week)).sort((a, b) => a.week.localeCompare(b.week));
-  const events = [];
-  closed.forEach((w, i) => {
-    const play = Number.isInteger(w.winner) ? w.candidates?.[w.winner]?.play : null;
-    if (!play || hidden.has(play.u)) return;
-    const posted = closed[i + 1]?.vote?.posted;
-    const t = posted ? Math.floor(Date.parse(/[zZ]|[+-]\d\d:\d\d$/.test(posted) ? posted : `${posted}Z`) / 1000) : w.end + 7 * DAY;
-    if (t >= since && t <= now) events.push({ t, k: 'sotw', u: play.u, w: w.week, s: logTuple(play) });
-  });
-  return events;
+  const mapIds = [block.current?.top?.[2], ...(block.mapVote?.candidates ?? []).map(c => c[0]),
+    ...block.past.flatMap(p => [p.map, p.top?.[2]])].filter(Boolean);
+  return { block, mapIds };
 }

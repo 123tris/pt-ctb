@@ -27,7 +27,6 @@ export function playerBadges(p, file, records, now = Date.now() / 1000) {
   const out = [];
   const add = (name, tip) => out.push({ name, tip });
 
-  if (p.sotw) add(`Score of the week ×${p.sotw}`, `Voted (or picked) Score of the week ${p.sotw === 1 ? 'once' : `${p.sotw} times`}.`);
   if (records?.oneMiss?.[0]?.[0] === p.id) add('Choke d’Or', `More plays with exactly one miss than anyone in Portugal (${records.oneMiss[0][1]}).`);
   const wall = records?.wall?.find(([id]) => id === p.id);
   if (wall) add('The Wall', `${wall[1]} #1s that have stood for more than two years: one of the three biggest walls in Portugal.`);

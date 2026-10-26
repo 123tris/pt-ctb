@@ -5,7 +5,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build, neededMapIds, restrictedIds } from './build.mjs';
-import { weeklyBlock } from './weekly.mjs';
 import { S } from '../../assets/js/core/model.js';
 
 const SERG = 7025890, ALICE = 1, BOB = 2;
@@ -93,12 +92,9 @@ test('a restricted player is in none of the exported files', () => {
   assert.equal(files['records.json'].totals.players, 2);
   assert.ok(!(SERG in files['history.json'].series));
   assert.deepEqual(files['activity.json'].events.filter(e => e.k === 'pass').map(e => e.u), [ALICE]);
-  assert.ok(files['activity.json'].events.every(e => e.k !== 'sotw')); // his Score of the week
-  // The weekly block: his top play and win show as none, his candidate and most plays go.
+  // The weekly block: his top play shows as none, and most plays goes to the next player.
   const past = files['challenges.json'].weekly.past[0];
   assert.equal(past.top, null);
-  assert.equal(past.sotw, null);
-  assert.equal(past.votes, null);
   assert.deepEqual(past.most, [ALICE, 100]);
   // Still known, so coming back isn't a "join".
   assert.ok(state.known.includes(SERG));
@@ -120,12 +116,6 @@ test('with the stamp lifted the player is back, at his place', () => {
   assert.ok(neededMapIds(botData({ restricted: false }), 'PT').has(LOVED_MAP));
   assert.deepEqual(files[`maps/${MAP % 128}.json`][MAP].s.map(e => e[0]), [SERG, ALICE, BOB]);
   assert.ok(files[`players/${SERG}.json`]);
-  assert.equal(files['challenges.json'].weekly.past[0].sotw[0], SERG);
+  assert.equal(files['challenges.json'].weekly.past[0].top[0], SERG);
   assert.ok(!files['activity.json'].events.some(e => e.k === 'join' && e.u === SERG));
-});
-
-test('an open vote drops a restricted candidate but keeps the numbers of the Discord post', () => {
-  const week = { ...botData({ restricted: true }).weekly.weeks[0], winner: null, votes: null };
-  const { block } = weeklyBlock({ weeks: [week] }, now, new Set([SERG]));
-  assert.deepEqual(block.vote.candidates.map(([lens, row, n]) => [lens, row[0], n]), [['snipe', ALICE, 2]]);
 });
