@@ -32,9 +32,9 @@ function throneSection(t, maps, index) {
         <h3>Closest challengers</h3>
         <p class="small muted">Who sits at #2, right behind ${boss.name}, on the most maps.</p>
         <div class="mini-board">${t.challengers.map(([uid, n], i) => html`<a class="line" href="#/compare/${uid}/${t.u}">
-          <span class="n">${i + 1}</span>
+          <span class="n">${i + 1}<span class="sr-only">.</span></span>
           <span class="player">${avatar(uid, 'avatar-sm')}<span>${index.get(uid)?.name ?? uid}</span></span>
-          <span class="pp">${fmt.num(n)}<small>maps</small></span>
+          <span class="sr-only">, </span><span class="pp">${fmt.num(n)}<small><span class="sr-only"> </span>maps</small></span>
         </a>`)}</div>
       </div>
     </div>
@@ -59,9 +59,9 @@ function leaders(title, rows, index, unit, { note, foot } = {}) {
     <h3>${title}</h3>
     ${note ? html`<p class="small muted">${note}</p>` : ''}
     <div class="mini-board">${rows.map(([uid, value], i) => html`<a class="line" href="#/player/${uid}">
-      <span class="n">${i + 1}</span>
+      <span class="n">${i + 1}<span class="sr-only">.</span></span>
       <span class="player">${avatar(uid, 'avatar-sm')}<span>${index.get(uid)?.name ?? uid}</span></span>
-      <span class="pp">${fmt.num(value)}${unit ? html`<small>${unit}</small>` : ''}</span>
+      <span class="sr-only">, </span><span class="pp">${fmt.num(value)}${unit ? html`<small><span class="sr-only"> </span>${unit}</small>` : ''}</span>
     </a>`)}</div>
     ${foot || ''}
   </div>`;

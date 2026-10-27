@@ -45,7 +45,7 @@ function inactiveMark(p, official) {
   const offOsu = official && isInactiveOnOsu(p);
   return {
     greyed: official ? offOsu : isInactive(p),
-    tag: official ? (isLegend(p) ? legendTag() : offOsu ? inactiveTag() : '') : statusTag(p),
+    tag: official ? (isLegend(p) ? legendTag() : offOsu ? inactiveTag(p) : '') : statusTag(p),
   };
 }
 

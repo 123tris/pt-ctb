@@ -170,10 +170,19 @@ export const ppText = n => html`<span class="pp">${fmt.pp(n)}<small>pp</small></
 // means 0 pp and no place on the board. Older data has none of these fields.
 export const isInactiveOnOsu = p => Boolean(p?.inactive);
 const isEstimated = p => isInactiveOnOsu(p) && p.ppSource === 'estimated';
-const ESTIMATE_TIP = 'Estimated from their stored plays, so probably a little low';
+const ESTIMATE_TIP = 'Estimated from their stored plays, so probably a little low.';
 
-/** A quiet "inactive" tag for players inactive on osu!. */
-export const inactiveTag = () => html`<span class="legend-tag" title="Inactive on osu!, which shows them at 0 pp">inactive<span class="sr-only"> on osu!</span></span>`;
+/**
+ * A tag that explains itself (a toggletip, DESIGN.md §9): tapping it shows `tip` in a small bubble beside it, read out
+ * by screen readers, so it works on touch and with the keyboard, unlike a title tooltip. `plain` is for a tag inside a
+ * link, where a button can't go: the bare tag, with the tip for screen readers and as a hover title.
+ */
+export const tipTag = (text, tip, { cls = 'legend-tag', plain = false } = {}) => (plain
+  ? html`<span class="${cls}" title="${tip}">${text}<span class="sr-only">: ${tip}</span></span>`
+  : html`<button type="button" class="${cls}" data-tip="${tip}" aria-expanded="false" aria-controls="tip-pop">${text}</button>`);
+
+/** The "inactive" tag for players inactive on osu!, with when osu! last showed their pp if we know it. */
+export const inactiveTag = (p, opts) => tipTag('inactive', `Inactive on osu!, which shows them at 0 pp.${p?.ppSeen ? ` Last seen there ${fmt.date(p.ppSeen)}.` : ''}`, opts);
 
 /** Inactive: inactive on osu!, or no play stored in over a year. They stay on the leaderboards, greyed out. */
 const INACTIVE_AFTER = 365 * 86400;
@@ -181,28 +190,28 @@ export const isInactive = p => isInactiveOnOsu(p) || !p.last || p.last < Date.no
 
 /** A legend is a former Portuguese top-5 player (lore.js LEGENDS) who is now inactive. */
 export const isLegend = p => LEGENDS.has(p?.id) && isInactive(p);
-export const legendTag = () => html`<span class="legend-tag" title="Former Portuguese top 5, now inactive">legend<span class="sr-only">: former Portuguese top 5, now inactive</span></span>`;
+export const legendTag = opts => tipTag('legend', 'A former Portuguese top 5 player, now inactive.', opts);
 
-/** The tag after an inactive player's name: "legend" for legends, otherwise a quiet "inactive" saying why. */
+/** The tag after an inactive player's name: "legend" for legends, otherwise "inactive" saying why. */
 export function statusTag(p) {
   if (isLegend(p)) return legendTag();
-  if (isInactiveOnOsu(p)) return inactiveTag();
-  if (isInactive(p)) return html`<span class="legend-tag" title="No new plays stored in over a year">inactive<span class="sr-only">: no new plays stored in over a year</span></span>`;
+  if (isInactiveOnOsu(p)) return inactiveTag(p);
+  if (isInactive(p)) return tipTag('inactive', 'No new plays stored in over a year.');
   return '';
 }
 
 /**
- * Official pp. An estimate reads "≈ 8,224pp (estimated)" (`compact`: just "≈ 8,224pp", with the rest in the tooltip);
- * a last-known value with a date says when it was seen in its tooltip.
+ * Official pp. An estimate reads "≈ 8,224pp (estimated)", and "estimated" explains itself on tap (`compact`, inside a
+ * link: just "≈ 8,224pp", with the rest for screen readers and as a hover title). When osu! last showed a last-known
+ * value is in the "inactive" tag beside the name.
  */
 export function officialPp(p, { compact = false } = {}) {
   if (isEstimated(p)) {
-    return html`<span class="pp" title="${ESTIMATE_TIP}"><span aria-hidden="true">≈ </span>${fmt.pp(p.pp)}<small>pp</small></span>${compact
+    return html`<span class="pp"><span aria-hidden="true">≈ </span>${fmt.pp(p.pp)}<small>pp</small></span>${compact
       ? html`<span class="sr-only"> (estimated)</span>`
-      : html`<span class="est" title="${ESTIMATE_TIP}">(estimated)</span>`}`;
+      : html`<span class="est">${tipTag('estimated', ESTIMATE_TIP, { cls: 'est-tip' })}</span>`}`;
   }
-  const seen = isInactiveOnOsu(p) && p.ppSeen ? `Last seen on osu! ${fmt.date(p.ppSeen)}` : '';
-  return seen ? html`<span class="pp" title="${seen}">${fmt.pp(p.pp)}<small>pp</small></span>` : ppText(p.pp);
+  return ppText(p.pp);
 }
 
 /** Where an inactive player's official pp comes from: "estimated from their plays", "last seen 3 Mar 2026", "last known". */
@@ -255,10 +264,11 @@ export const stat = (label, value, sub = '', cls = '') =>
 
 /**
  * A strip of links between sibling pages (real URLs, so not an ARIA tablist). `label` names the landmark. A tab's
- * `count` is a number, or a short text figure ("2d left", "79.3%").
+ * `count` is a number, or a short text figure ("2d left", "79.3%"); a hidden comma keeps it apart from the name when
+ * read out ("Snipe targets, 30", not "Snipe targets30").
  */
 export const tabs = (items, label = 'Sections') => html`<nav class="tabs" aria-label="${label}">${items.map(t =>
-  html`<a href="${t.href}" class="${t.active ? 'active' : ''}" ${t.active ? raw('aria-current="page"') : ''}>${t.label}${t.count !== undefined ? html`<span class="count">${typeof t.count === 'number' ? fmt.num(t.count) : t.count}</span>` : ''}</a>`)}</nav>`;
+  html`<a href="${t.href}" class="${t.active ? 'active' : ''}" ${t.active ? raw('aria-current="page"') : ''}>${t.label}${t.count !== undefined ? html`<span class="count"><span class="sr-only">, </span>${typeof t.count === 'number' ? fmt.num(t.count) : t.count}</span>` : ''}</a>`)}</nav>`;
 
 /**
  * A labelled row of toggle chips: `items` = [[value, label]]. Each chip is a button with aria-pressed, and the
@@ -361,6 +371,50 @@ document.addEventListener('click', e => {
   tip.hidden = !open;
   tip.innerHTML = open ? String(html`<b>${chip.textContent}</b> ${chip.dataset.tip}`) : '';
 });
+
+// One bubble for every tipTag(): fixed to the viewport beside the tapped tag, so a scrolling table can't clip it, and a
+// live region from the start, so filling it is read out. It closes on Escape, any other click (on it too), losing focus,
+// or scroll.
+const tipPop = document.createElement('div');
+tipPop.className = 'tip-pop';
+tipPop.id = 'tip-pop';
+tipPop.setAttribute('role', 'status');
+document.body.append(tipPop);
+let tipOwner = null;
+
+function closeTip({ refocus = false } = {}) {
+  if (!tipOwner) return;
+  tipOwner.setAttribute('aria-expanded', 'false');
+  if (refocus) tipOwner.focus();
+  tipOwner = null;
+  tipPop.textContent = '';
+  tipPop.classList.remove('open');
+}
+
+function openTip(button) {
+  closeTip();
+  tipOwner = button;
+  button.setAttribute('aria-expanded', 'true');
+  tipPop.textContent = button.dataset.tip;
+  tipPop.classList.add('open');
+  const at = button.getBoundingClientRect();
+  const gutter = 16, gap = 6;
+  const left = Math.max(gutter, Math.min(at.left, innerWidth - gutter - tipPop.offsetWidth));
+  const below = at.bottom + gap + tipPop.offsetHeight <= innerHeight - gutter;
+  tipPop.style.left = `${left}px`;
+  tipPop.style.top = `${below ? at.bottom + gap : at.top - gap - tipPop.offsetHeight}px`;
+}
+
+document.addEventListener('click', e => {
+  const button = e.target.closest('button[data-tip][aria-controls="tip-pop"]');
+  if (button && button !== tipOwner) openTip(button);
+  else closeTip();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && tipOwner) closeTip({ refocus: true }); });
+document.addEventListener('focusout', e => { if (e.target === tipOwner && e.relatedTarget) closeTip(); });
+addEventListener('scroll', () => closeTip(), { passive: true, capture: true });
+addEventListener('resize', () => closeTip());
+addEventListener('hashchange', () => closeTip());
 
 /**
  * Renders `items` a page at a time into `container`, with previous/next buttons. `render(slice, offset)` returns

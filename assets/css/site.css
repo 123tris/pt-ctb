@@ -89,6 +89,9 @@
   --r-sm: 3px;
   --r-xs: 2px;
 
+  /* Floating layers only (menus, popovers, toasts): one neutral shadow. Nothing on the page has one. */
+  --shadow-float: 0 14px 36px rgba(0, 0, 0, .45);
+
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;           /* text and every number */
   --display: 'Josefin Sans', 'Inter', system-ui, sans-serif;                          /* headings and the brand */
   --mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
@@ -132,7 +135,7 @@ button, input, select { font: inherit; color: inherit; }
 /* ---- Top bar ------------------------------------------------------------------------------------- */
 
 .topbar { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--border); }
-.topbar-inner { max-width: var(--page); margin: 0 auto; padding: 0 16px; height: 56px; display: flex; align-items: stretch; gap: 28px; }
+.topbar-inner { max-width: var(--page); margin: 0 auto; padding: 0 var(--sp-4); height: 56px; display: flex; align-items: stretch; gap: 28px; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font: 700 var(--fs-xl)/1 var(--display); letter-spacing: .02em; padding-top: 3px; }
 .brand:hover { text-decoration: none; }
 .brand img { display: block; }
@@ -158,35 +161,173 @@ button, input, select { font: inherit; color: inherit; }
   visibility: visible; opacity: 1; transform: none; transition: opacity .12s .08s, transform .12s .08s, visibility 0s .08s;
 }
 .nav-cat.shut .nav-menu { visibility: hidden; opacity: 0; transition: none; }
-.nav-menu a { padding: 8px 16px; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
+.nav-menu a { padding: var(--sp-2) var(--sp-4); color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
 .nav-menu a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
 .nav-menu a.current { color: var(--accent); }
 .nav-menu a:focus-visible { outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) { .nav-menu, .nav-cat:hover .nav-menu { transform: none; } }
-.nav-toggle { display: none; margin-left: auto; align-self: center; width: 40px; height: 40px; background: none; border: 0; cursor: pointer; padding: 12px 10px; }
+.nav-toggle { display: none; margin-left: auto; align-self: center; width: 40px; height: 40px; background: none; border: 0; cursor: pointer; padding: var(--sp-3) 10px; }
 .nav-toggle span { display: block; height: 2px; background: var(--text); margin: 0 0 5px; transition: transform .2s, opacity .2s; }
+@media (prefers-reduced-motion: reduce) { .nav-toggle span { transition: none; } }
 
 @media (max-width: 940px) {
   .nav-toggle { display: block; }
   .nav {
     display: none; position: absolute; top: 56px; left: 0; right: 0; flex-direction: column; align-items: stretch;
-    padding: 6px 0 12px; background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 6px 0 var(--sp-3); background: var(--bg); border-bottom: 1px solid var(--border);
   }
   .nav.open { display: flex; max-height: calc(100vh - 56px); overflow-y: auto; }
   /* Phones: every category open, its name as the heading and its pages in two columns under it. */
-  .nav-cat { display: block; padding: 4px 0 8px; border-bottom: 1px solid var(--border); }
+  .nav-cat { display: block; padding: var(--sp-1) 0 var(--sp-2); border-bottom: 1px solid var(--border); }
   .nav-cat:last-child { border-bottom: 0; }
-  .nav-top { padding: 10px 16px 4px; border-bottom: 0; border-left: 2px solid transparent; margin: 0; color: var(--text); font-weight: 600; }
+  .nav-top { padding: 10px var(--sp-4) var(--sp-1); border-bottom: 0; border-left: 2px solid transparent; margin: 0; color: var(--text); font-weight: 600; }
   .nav-top.active { border-left-color: var(--accent); }
   .nav-menu, .nav-cat:hover .nav-menu, .nav-cat.shut .nav-menu {
     position: static; visibility: visible; opacity: 1; transform: none; transition: none;
-    grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; padding: 0 0 0 8px; background: none; border: 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; padding: 0 0 0 var(--sp-2); background: none; border: 0;
   }
-  .nav-menu a { padding: 8px 10px; white-space: normal; }
+  .nav-menu a { padding: var(--sp-2) 10px; white-space: normal; }
   .nav-menu a:hover { background: none; }
   .nav-toggle[aria-expanded='true'] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
   .nav-toggle[aria-expanded='true'] span:nth-child(2) { opacity: 0; }
   .nav-toggle[aria-expanded='true'] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+}
+
+/* Player search in the top bar (core/search.js). Inline next to the brand from 1180px; below that a search button
+   that opens a full-width row under the bar. */
+
+.search { position: relative; display: flex; align-items: center; }
+.search-toggle {
+  display: none; align-self: center; width: 40px; height: 40px; place-items: center; padding: 0;
+  background: none; border: 0; color: var(--text); cursor: pointer;
+}
+.search-toggle[aria-expanded='true'] { color: var(--accent); }
+.search-panel { display: block; }
+.search-field { position: relative; display: flex; align-items: center; }
+.search-field > svg { position: absolute; left: 10px; color: var(--text-faint); pointer-events: none; }
+.search-field input {
+  width: 220px; height: 34px; padding: 0 30px 0 var(--sp-8); background: var(--bg-2); color: var(--text);
+  border: 1px solid var(--input-border); border-radius: var(--r); font-size: var(--fs-sm); transition: border-color .12s;
+}
+.search-field input::placeholder { color: var(--text-faint); }
+.search-field input:hover { border-color: var(--text-faint); }
+.search-field input:focus { outline: none; border-color: var(--accent); }
+.search-key {
+  position: absolute; right: 8px; min-width: 18px; padding: 0 var(--sp-1); text-align: center; font: 600 var(--fs-xs)/16px var(--font);
+  color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); pointer-events: none;
+}
+.search-field input:focus ~ .search-key, .search-field input:not(:placeholder-shown) ~ .search-key { display: none; }
+
+.search-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; width: 340px; z-index: 55; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r);
+}
+.search-pop[hidden] { display: none; }
+.search-results { list-style: none; margin: 0; padding: var(--sp-1) 0; max-height: min(420px, 70vh); overflow-y: auto; }
+.search-results [role='option'] {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 7px var(--sp-3); cursor: pointer;
+}
+.search-results [aria-selected='true'] { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
+.search-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.search-name mark { background: none; color: var(--accent); }
+.search-detail { color: var(--text-faint); font-size: var(--fs-xs); white-space: nowrap; }
+.search-none { padding: var(--sp-3); color: var(--text-dim); font-size: var(--fs-sm); }
+.search-all { display: block; padding: 9px var(--sp-3); border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 500; }
+.search-all:hover { background: var(--surface-2); text-decoration: none; }
+
+@media (max-width: 1180px) {
+  .search-field input { width: 170px; }
+  .nav-top { padding-inline: 9px; }
+}
+@media (max-width: 940px) {
+  .search { position: static; order: 3; }
+  .nav-toggle { order: 4; }
+  .search-toggle { display: grid; }
+  .search-panel {
+    display: none; position: absolute; top: 56px; left: 0; right: 0; z-index: 51;
+    padding: 10px var(--sp-4) var(--sp-3); background: var(--bg); border-bottom: 1px solid var(--border);
+  }
+  .search.open .search-panel { display: block; }
+  .search-field input, .search-field input:focus { width: 100%; height: 38px; font-size: var(--fs-md); }
+  .search-pop { position: static; width: auto; margin-top: var(--sp-2); }
+  .search-key { display: none; }
+}
+@media (max-width: 940px) {
+  .search { margin-left: auto; }
+  .search ~ .nav-toggle { margin-left: -24px; }
+}
+
+/* On phones the search button says "Search", not just a magnifier. */
+.search-toggle-label { display: none; }
+@media (max-width: 940px) {
+  .search-toggle { width: auto; gap: 6px; padding: 0 var(--sp-2); grid-auto-flow: column; font: 600 var(--fs-sm)/1 var(--font); color: var(--text); }
+  .search-toggle-label { display: inline; }
+}
+.search-status { padding: 10px var(--sp-3); color: var(--text-dim); font-size: var(--fs-sm); }
+.search-status:empty { display: none; }
+
+/* Pages in the header search's results (e.g. "Dan course"), above the players. */
+.search-results .search-page-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
+
+/* "You" in the top bar (core/you.js): the avatar of whoever this browser marked with "This is me", and its menu. Sits
+   last on wide screens; on narrow ones between the search button and the menu button. */
+
+.you { position: relative; display: flex; align-items: center; order: 5; margin-left: -12px; }
+.you[hidden] { display: none; }
+.you-btn {
+  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
+  background: none; cursor: pointer;
+}
+.you-btn .avatar { width: 28px; height: 28px; box-shadow: 0 0 0 2px var(--border-strong); transition: box-shadow .12s; }
+.you-btn:hover .avatar, .you-btn[aria-expanded='true'] .avatar { box-shadow: 0 0 0 2px var(--accent); }
+.you-menu {
+  position: absolute; top: calc(100% - 2px); right: 0; z-index: 56; width: 240px; padding: 6px 0;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r);
+}
+.you-menu[hidden] { display: none; }
+.you-head { display: flex; align-items: center; gap: 10px; padding: var(--sp-2) 14px var(--sp-3); border-bottom: 1px solid var(--border); margin-bottom: var(--sp-1); }
+.you-head > div { display: grid; min-width: 0; }
+.you-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.you-label { color: var(--text-faint); font-size: var(--fs-xs); }
+.you-menu a, .you-forget {
+  display: block; width: 100%; padding: var(--sp-2) 14px; color: var(--text); font-size: var(--fs-sm); text-align: left;
+  background: none; border: 0; cursor: pointer;
+}
+.you-menu a:hover, .you-forget:hover { background: var(--surface-2); text-decoration: none; }
+.you-forget { color: var(--text-dim); }
+.you-note { margin: var(--sp-1) 14px 6px; color: var(--text-faint); font-size: var(--fs-xs); }
+/* The avatar and name at the top link to your profile, with the profile page avatar's quiet hover and focus ring. */
+.you-menu a.you-head { display: flex; width: auto; padding: var(--sp-2) 14px var(--sp-3); font-size: var(--fs-md); border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.you-menu a.you-head:hover { background: none; }
+.you-head .avatar { transition: box-shadow .12s, filter .12s; }
+.you-head:hover .avatar { box-shadow: 0 0 0 2px var(--border-strong); filter: brightness(1.08); }
+.you-head:hover b { text-decoration: underline; text-underline-offset: 2px; }
+.you-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+
+@media (max-width: 940px) {
+  .you { order: 4; margin-left: -20px; }
+  .nav-toggle { order: 5; }
+}
+
+/* "Sign in with osu!" (core/you.js, only when CONFIG.signIn is set): takes the avatar's place while nobody is chosen. */
+
+.you:has(.you-signin) { margin-left: 0; }
+.you-signin {
+  height: 32px; padding: 0 var(--sp-3); border: 1px solid var(--border-strong); border-radius: var(--r);
+  background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); font-weight: 600; white-space: nowrap;
+  cursor: pointer; transition: border-color .12s, color .12s;
+}
+.you-signin:hover { border-color: var(--accent); color: var(--accent); }
+.you-signin:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Development builds (tools/build-site.mjs sets <html data-env="dev"> on every branch but main): a gold line along
+   the top bar and a DEV tag after the logo, so dev.ptcatch.com can't be mistaken for the real site. */
+
+html[data-env] .topbar { box-shadow: inset 0 3px 0 var(--gold); }
+html[data-env] .brand::after {
+  content: 'DEV'; padding: 3px 5px 2px; border-radius: var(--r-xs); background: var(--gold); color: var(--gold-ink);
+  font: 800 var(--fs-xs)/1 var(--font); letter-spacing: .04em;
 }
 
 /* ---- Page frame --------------------------------------------------------------------------------- */
@@ -195,8 +336,8 @@ button, input, select { font: inherit; color: inherit; }
 /* The page is drawn after load: keep the footer below the fold meanwhile, so it doesn't jump down when the page fills. */
 main#content { min-height: 100vh; }
 .footer { border-top: 1px solid var(--border); color: var(--text-dim); font-size: var(--fs-sm); }
-.footer-inner { max-width: var(--page); margin: 0 auto; padding: 22px 16px 28px; }
-.footer p { margin: 0 0 4px; }
+.footer-inner { max-width: var(--page); margin: 0 auto; padding: 22px var(--sp-4) 28px; }
+.footer p { margin: 0 0 var(--sp-1); }
 .footer-dim { color: var(--text-faint); }
 
 .page-head { margin-bottom: var(--sp-8); }
@@ -212,7 +353,6 @@ main#content { min-height: 100vh; }
 .faint { color: var(--text-faint); }
 .small { font-size: var(--fs-sm); }
 .center { text-align: center; }
-
 
 .grid { display: grid; gap: var(--sp-4); }
 .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -232,10 +372,38 @@ main#content { min-height: 100vh; }
 .card-link { display: block; color: inherit; transition: border-color .12s, background-color .12s; }
 .card-link:hover { border-color: var(--border-strong); background: var(--surface-2); text-decoration: none; }
 
+/* Links inside running text are underlined, not told apart by colour alone. */
+p a:not(.btn), li a:not(.btn), dd a:not(.btn), .muted a:not(.btn), .notice a:not(.btn) { text-decoration: underline; text-underline-offset: 3px; }
+p a.dim-link { text-decoration: underline; }
+
+/* Home: find yourself, and the Discord. */
+.footer-links { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); align-items: center; margin-bottom: 10px !important; }
+
+/* Fewer boxes. A box (fill, border, radius) marks one thing you can pick up as a whole: a map, a game, a Dan stage, a
+   list of rows or a table. Everything else is an open section under a hairline, so the page reads as sections of one
+   document instead of a grid of equal grey tiles. */
+
+.card:not(.card-link) { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 14px 0 0; }
+.card:not(.card-link) > .table-wrap { margin-top: var(--sp-1); }
+/* Variants used in page markup: a card whose image runs to its edges (with its text in .card-body), a roomy result
+   card, a one-column row and a right-aligned stack of row details. */
+.card.card-flush { padding: 0; overflow: hidden; }
+.card-body { padding: var(--sp-4); }
+.card.card-roomy { padding: var(--sp-8); }
+
+/* app.js moves focus to a new page's heading (for keyboards and screen readers); no ring around it, as nobody tabbed
+   there. */
+h1[tabindex='-1']:focus { outline: none; }
+
+/* Quiet links to a section's other pages, under the heading (Leaderboards: all players, compare). */
+.page-head .page-links { display: flex; flex-wrap: wrap; gap: var(--sp-1) 18px; margin: 6px 0 0; font-size: var(--fs-sm); }
+.page-head .page-links a { text-decoration: none; font-weight: 500; }
+.page-head .page-links a:hover { text-decoration: underline; }
+
 /* ---- Buttons, inputs, chips, tabs --------------------------------------------------------------- */
 
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 14px;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); height: 36px; padding: 0 14px;
   border-radius: var(--r); border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text);
   font-weight: 600; font-size: var(--fs-md); cursor: pointer; white-space: nowrap; transition: background-color .12s, border-color .12s;
 }
@@ -258,7 +426,7 @@ main#content { min-height: 100vh; }
 }
 
 .input, .select {
-  height: 36px; background: var(--bg-2); border: 1px solid var(--input-border); border-radius: var(--r); padding: 0 12px;
+  height: 36px; background: var(--bg-2); border: 1px solid var(--input-border); border-radius: var(--r); padding: 0 var(--sp-3);
   min-width: 0; width: 100%;
 }
 .input::placeholder { color: var(--text-faint); }
@@ -310,7 +478,7 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 .range input:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--accent); }
 .range-out { min-width: 6.5em; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; white-space: nowrap; }
 .range-out.on { color: var(--text); }
-.range-reset { padding: 4px 0; border: 0; background: none; color: var(--accent); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
+.range-reset { padding: var(--sp-1) 0; border: 0; background: none; color: var(--accent); font-size: var(--fs-sm); font-weight: 500; cursor: pointer; }
 .range-reset:hover { text-decoration: underline; text-underline-offset: 3px; }
 /* Phones: the label, readout and reset on one line, the track the full width under them (and a taller strip to hit). */
 @media (max-width: 480px) { .range { --h: 44px; order: 1; flex: 1 1 100%; } }
@@ -330,12 +498,20 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 .cat-r { --c: var(--cat-r); }
 h3 .cat { color: var(--text); }
 
+/* Chip groups say what they filter. */
+.chips-label { align-self: center; margin-right: var(--sp-1); color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
+
+/* "This is me" is a toggle with a visible state. */
+.btn[aria-pressed='true'] { border-color: var(--accent-line); background: var(--accent-bg); color: var(--accent); }
+.btn[aria-pressed='true']::before { content: '✓'; }
+.not-you { font-size: var(--fs-sm); }
+
 /* ---- osu! bits: mods, grades, stars ------------------------------------------------------------- */
 
 .mods { display: inline-flex; gap: 2px; flex-wrap: wrap; }
 .mod {
   display: inline-block; min-width: 26px; text-align: center; font-size: var(--fs-xs); font-weight: 700;
-  line-height: 18px; padding: 0 4px; border-radius: var(--r-xs); color: var(--mod-ink); letter-spacing: .03em;
+  line-height: 18px; padding: 0 var(--sp-1); border-radius: var(--r-xs); color: var(--mod-ink); letter-spacing: .03em;
 }
 .mod-reduce { background: var(--mod-reduce); }
 .mod-increase { background: var(--mod-increase); }
@@ -363,10 +539,10 @@ h3 .cat { color: var(--text); }
 .avatar-sm { width: 22px; height: 22px; }
 .player { display: inline-flex; align-items: center; gap: 10px; color: var(--text); font-weight: 500; min-width: 0; }
 .player span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.player:has(.avatar-sm) { gap: 8px; }
+.player:has(.avatar-sm) { gap: var(--sp-2); }
 a.player:hover { color: var(--accent); text-decoration: none; }
 
-.map { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--text); }
+.map { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; color: var(--text); }
 a.map:hover { text-decoration: none; }
 a.map:hover .map-title { color: var(--accent); }
 .map-cover { width: 60px; height: 42px; border-radius: var(--r-sm); object-fit: cover; background: var(--surface-3); flex: none; }
@@ -392,7 +568,7 @@ table { width: 100%; border-collapse: collapse; }
 th, td { padding: 9px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
 th {
   font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); font-weight: 600;
-  background: var(--bg-2); padding-block: 8px;
+  background: var(--bg-2); padding-block: var(--sp-2);
 }
 tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--surface-2); }
@@ -404,15 +580,27 @@ tr.me:hover, .row.me:hover { background: var(--accent-bg); }
 /* The row a profile's rank link points at (rankings.js, ?at=): framed, so it still reads beside "This is me". */
 tr.target { outline: 1px solid var(--accent-line); outline-offset: -1px; }
 tr.target:not(.me) { background: var(--surface-2); }
-.table-compact td, .table-compact th { padding: 7px 12px; }
+.table-compact td, .table-compact th { padding: 7px var(--sp-3); }
 .card .table-wrap { border-radius: var(--r-sm); }
-@media (max-width: 600px) { th, td { padding: 8px 10px; } }
+@media (max-width: 600px) { th, td { padding: var(--sp-2) 10px; } }
+
+/* Data tables are focusable, labelled regions; on phones they keep only rank, player and the key number. */
+.table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cell-sub { display: none; margin-top: 2px; color: var(--text-dim); font-size: var(--fs-xs); font-weight: 400; white-space: normal; }
+.cell-sub .score-line { font-size: var(--fs-xs); gap: var(--sp-1) var(--sp-2); }
+@media (max-width: 600px) {
+  .col-opt { display: none; }
+  .cell-sub { display: block; }
+  td.cell-player { white-space: normal; }
+}
+/* The play's stats under a player's name on phones: no desktop column widths, so they pack onto one or two lines. */
+.cell-sub .score-line > * { min-width: 0; text-align: left; }
 
 /* ---- Lists of rows (score lists, events): one bordered list with dividers ---------------------------- */
 
 .rows { display: grid; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
 .row {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 18px; align-items: center;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-2) 18px; align-items: center;
   padding: 10px 14px; border-bottom: 1px solid var(--border);
 }
 .row:last-child { border-bottom: 0; }
@@ -428,7 +616,7 @@ tr.target:not(.me) { background: var(--surface-2); }
 .row:hover { background: var(--surface-2); }
 a.row.card-link { border-radius: 0; border-width: 0 0 1px; }
 a.row.card-link:last-child { border-bottom: 0; }
-.row-meta { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; justify-content: flex-end; color: var(--text-dim); font-size: var(--fs-sm); }
+.row-meta { display: flex; align-items: center; gap: 6px var(--sp-3); flex-wrap: wrap; justify-content: flex-end; color: var(--text-dim); font-size: var(--fs-sm); }
 .row-meta .sep { width: 1px; height: 14px; background: var(--border-strong); }
 .row-meta .pp { min-width: 4.6em; text-align: right; font-size: var(--fs-md); }
 .row-meta > .faint:last-child { min-width: 7.5em; text-align: right; }
@@ -451,6 +639,20 @@ a.row.card-link:last-child { border-bottom: 0; }
 .miss-fc { color: var(--accent); font-weight: 600; }
 .miss-n { color: var(--red); }
 
+@media (max-width: 600px) { .rows .map-sub { white-space: normal; } }
+.row.row-1col { grid-template-columns: minmax(0, 1fr); }
+.row-meta.meta-stack { display: grid; justify-items: end; gap: var(--sp-1); }
+
+/* Quieter rows. In a score row one number leads (pp); the rest of the play is one dim run of text, nomod shows
+   nothing, FC is a word rather than a colour, and only a #1 is marked in gold. */
+
+.row-stats { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) 10px; color: var(--text-dim); }
+.row-stats .acc { color: var(--text-dim); }
+.row-meta .pp { font-size: var(--fs-lg); }
+.miss-fc { color: var(--text-dim); font-weight: 500; }
+.row-meta .pos { min-width: 0; padding: 0; background: none; line-height: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text-faint); }
+.row-meta .pos-1 { color: var(--gold); }
+
 /* ---- Stat tiles ---------------------------------------------------------------------------------- */
 
 /* Stat tiles: one strip of figures split by hairlines, not boxes. The strip reaches 17px left and clips its first pixel,
@@ -459,12 +661,12 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* Label, value and subtitle sit on the same lines across a row of tiles, whatever wraps: each tile spans three rows of
    the parent grid (subgrid), so a two-line label or subtitle grows that line for the whole row instead of pushing one
    tile's value out of line. Without subgrid, tiles top-align on their own. */
-.stat { display: grid; grid-template-rows: auto auto 1fr; align-content: start; border-left: 1px solid var(--border); padding: 2px 18px 2px 16px; min-width: 0; }
+.stat { display: grid; grid-template-rows: auto auto 1fr; align-content: start; border-left: 1px solid var(--border); padding: 2px 18px 2px var(--sp-4); min-width: 0; }
 @supports (grid-template-rows: subgrid) {
   .stat { grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; }
 }
 .stat-label { display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; align-self: end; }
-.stat-value { font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-value { font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; margin-top: var(--sp-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* stat() wraps the value in .stat-fit, which scales with the tile's width (never above full size), so long numbers
    like 106,719,378 fit narrow tiles instead of being cut off. The container is the value line, not the tile: a size
    container can't be a subgrid. */
@@ -482,8 +684,12 @@ a.row.card-link:last-child { border-bottom: 0; }
 .stat-link:hover .stat-unit { color: inherit; }
 .stat-link:focus-visible { outline: none; }
 .stat:has(.stat-link:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-xs); }
+/* The link's hit area is the whole value line, padded to 45px tall (DESIGN.md §11) with the padding taken back by the
+   margins, so nothing moves. The line is a size container, so it's also what the ::after is placed in. */
+.stat-value:has(.stat-link) { padding-block: 7px; margin-block: -3px -7px; }
+.stat-link::after { content: ''; position: absolute; inset: 0; }
 /* Grade counts as compact chips ("SS 281  S 2,379  A 354"); they wrap between chips, never inside one. */
-.grade-counts { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.grade-counts { display: flex; flex-wrap: wrap; gap: 2px var(--sp-2); }
 .grade-counts > span { white-space: nowrap; }
 .grade-counts .grade { min-width: 0; margin-right: 2px; font-size: inherit; }
 .stat-c .stat-label::before, .stat-u .stat-label::before, .stat-r .stat-label::before { content: ''; width: 7px; height: 7px; border-radius: 1px; }
@@ -494,14 +700,14 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* ---- Home --------------------------------------------------------------------------------------- */
 
 /* The hero sits on the page itself, no box: the title and numbers, then the Dan ladder across the full width. */
-.hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 40px; align-items: end; padding-top: 8px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 40px; align-items: end; padding-top: var(--sp-2); }
 .hero h1 { font-size: clamp(2.25rem, 6vw, var(--fs-4xl)); max-width: 14ch; margin-bottom: .35em; line-height: 1; }
 .hero h1 em { font-style: normal; }
 .hero p { color: var(--text-dim); font-size: var(--fs-lg); max-width: 50ch; margin-bottom: 22px; }
 .hero-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-top: 1px solid var(--border); }
-.hero-stats div { display: flex; flex-direction: column; justify-content: space-between; padding: 14px 0 12px; border-bottom: 1px solid var(--border); }
-.hero-stats div:nth-child(odd) { padding-right: 16px; }
-.hero-stats div:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--border); }
+.hero-stats div { display: flex; flex-direction: column; justify-content: space-between; padding: 14px 0 var(--sp-3); border-bottom: 1px solid var(--border); }
+.hero-stats div:nth-child(odd) { padding-right: var(--sp-4); }
+.hero-stats div:nth-child(even) { padding-left: var(--sp-4); border-left: 1px solid var(--border); }
 .hero-stats dt { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
 .hero-stats dd { margin: 2px 0 0; font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
 @media (max-width: 760px) { .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; } }
@@ -514,7 +720,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 .ladder { display: block; color: inherit; }
 .ladder:hover { text-decoration: none; }
 .ladder-rungs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(19, minmax(0, 1fr)); }
-.rung { position: relative; display: grid; justify-items: center; gap: 8px; padding: 6px 0 10px; }
+.rung { position: relative; display: grid; justify-items: center; gap: var(--sp-2); padding: 6px 0 10px; }
 .rung:nth-child(12) { border-left: 1px solid var(--border); }
 .rung-glyph { font: 700 clamp(1.25rem, 2.6vw, 2.25rem)/1 var(--display); color: transparent; -webkit-text-stroke: 1px var(--border-strong); transition: transform .15s; }
 .rung.lit .rung-glyph { color: var(--text); -webkit-text-stroke: 0; }
@@ -534,8 +740,8 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* The completion goal (home.js goalBand), the ladder's second band: how far across, where the ladder is how far up. A
    figure the size of the hero stats on a thin meter (the Completion page's .goal-bar), then a caption like the
    ladder's. The figure and meter are one link, as the ladder is. */
-.hero-goal { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
-.goal-line { display: flex; align-items: center; gap: 16px; color: var(--text); }
+.hero-goal { margin-top: var(--sp-6); padding-top: var(--sp-4); border-top: 1px solid var(--border); }
+.goal-line { display: flex; align-items: center; gap: var(--sp-4); color: var(--text); }
 .goal-line:hover { text-decoration: none; }
 .goal-pct { font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; transition: color .12s; }
 .goal-line:hover .goal-pct { color: var(--accent); }
@@ -544,7 +750,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* Phones: the numerals on one row, the Hebrew letters under them. */
 @media (max-width: 600px) {
   .ladder-rungs { grid-template-columns: repeat(11, minmax(0, 1fr)); row-gap: 6px; }
-  .rung { gap: 4px; padding-bottom: 8px; }
+  .rung { gap: var(--sp-1); padding-bottom: var(--sp-2); }
   .rung:nth-child(12) { border-left: 0; }
 }
 
@@ -564,8 +770,8 @@ a.row.card-link:last-child { border-bottom: 0; }
 }
 
 /* Numbered steps: 01, 02… in the display face. */
-.steps { counter-reset: step; display: grid; gap: 16px; }
-.step { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: baseline; }
+.steps { counter-reset: step; display: grid; gap: var(--sp-4); }
+.step { display: grid; grid-template-columns: 34px 1fr; gap: var(--sp-3); align-items: baseline; }
 .step::before {
   counter-increment: step; content: counter(step, decimal-leading-zero);
   font: 700 var(--fs-xl)/1 var(--display); color: var(--text-faint);
@@ -574,7 +780,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 
 /* A list of links with a title and a line of description. */
 .link-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--border); }
-.link-list a { display: block; padding: 12px 14px 12px 0; border-bottom: 1px solid var(--border); color: var(--text); }
+.link-list a { display: block; padding: var(--sp-3) 14px var(--sp-3) 0; border-bottom: 1px solid var(--border); color: var(--text); }
 .link-list a:nth-child(even) { padding-left: 14px; padding-right: 0; border-left: 1px solid var(--border); }
 .link-list a:hover { text-decoration: none; }
 .link-list a:hover b { color: var(--accent); }
@@ -593,9 +799,41 @@ a.row.card-link:last-child { border-bottom: 0; }
 .mini-board a.line:hover { text-decoration: none; }
 .mini-board a.line:hover .player span { color: var(--accent); }
 .mini-board .n { color: var(--text-faint); font-weight: 700; font-size: var(--fs-sm); }
-.card-foot { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: var(--fs-sm); }
+.card-foot { margin: var(--sp-3) 0 0; padding-top: var(--sp-3); border-top: 1px solid var(--border); font-size: var(--fs-sm); }
 .card-foot a { color: var(--text-dim); }
 .card-foot a:hover { color: var(--accent); }
+
+/* Your row on the home page's top 5s. */
+.mini-board a.line.me { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); padding-inline: var(--sp-2); margin-inline: -8px; }
+
+/* The home page's "This week so far" (core/weekly.js weeklySummary): a few ruled lines under the map of the week. */
+/* "Still to clear" (home.js goalNext) follows it in the same column and the same form: the easiest uncleared maps as
+   ruled map lines, then the newest first clear as a .week-top line. */
+.week-summary, .goal-next { margin-top: 28px; }
+.week-summary .section-head, .goal-next .section-head { margin-bottom: 6px; }
+.week-summary .section-head h2, .goal-next .section-head h2 { font-size: var(--fs-xl); }
+.week-summary > p, .goal-next > p { margin: 0; }
+.week-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) 10px; padding: var(--sp-2) 0; border-top: 1px solid var(--border); }
+.week-summary > p.muted, .goal-next > p.muted { margin-bottom: var(--sp-2); }
+.goal-map { padding: var(--sp-2) 0; border-top: 1px solid var(--border); }
+.week-top > .faint { min-width: 7.5em; }
+.week-top .dim-link { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+
+/* Home: one main action (the Discord), the rest as plain links; "How to join" as three steps side by side. */
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.hero-actions > a:not(.btn), .hero-actions .link-button { font-weight: 600; color: var(--text); }
+.hero-actions > a:not(.btn):hover, .hero-actions .link-button:hover { color: var(--accent); }
+.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
+.link-button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.steps-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-6); }
+@media (max-width: 760px) { .steps-row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); } }
+
+/* Home, "Portugal's best": the three boards' names as the titles over each top 5. */
+.card > h3.board-title .cat { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+
+/* A one-column link list (Team Portugal's forum threads). */
+.link-list.one-col { grid-template-columns: minmax(0, 1fr); }
+.link-list.one-col a:nth-child(even) { padding-left: 0; border-left: 0; }
 
 /* ---- Map banner / player header ---------------------------------------------------------------- */
 
@@ -608,17 +846,17 @@ a.row.card-link:last-child { border-bottom: 0; }
 .banner h1 { margin-bottom: .25em; }
 .banner h1 a { color: inherit; }
 .banner .sub { color: var(--text-dim); font-size: var(--fs-lg); }
-.banner .links { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.banner .links { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: var(--sp-3); }
 .banner p { color: var(--text-dim); }
 /* The set's difficulties: small links with their star colour, wrapping, with a peek at the fourth row before it scrolls
    (mapping packs run to a hundred); on phones one row to swipe, out to the banner's edges. The padding keeps focus
    rings inside the scroll box. */
 .diffs {
-  display: flex; flex-wrap: wrap; gap: 4px; max-height: 106px; overflow-y: auto; scrollbar-width: thin;
-  margin: 8px -4px 0; padding: 4px;
+  display: flex; flex-wrap: wrap; gap: var(--sp-1); max-height: 106px; overflow-y: auto; scrollbar-width: thin;
+  margin: var(--sp-2) -4px 0; padding: var(--sp-1);
 }
 .diff {
-  display: inline-flex; align-items: center; gap: 6px; height: 26px; max-width: min(100%, 32ch); padding: 0 8px;
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; max-width: min(100%, 32ch); padding: 0 var(--sp-2);
   border: 1px solid var(--border-strong); border-radius: var(--r-sm); color: var(--text-dim); font-size: var(--fs-sm);
   font-weight: 500; white-space: nowrap; flex: none;
 }
@@ -630,11 +868,11 @@ a.row.card-link:last-child { border-bottom: 0; }
 /* No Portuguese scores there yet: quieter (the label says so). */
 .diff-new { color: var(--text-faint); }
 @media (max-width: 600px) {
-  .diffs { flex-wrap: nowrap; max-height: none; overflow: auto hidden; scrollbar-width: none; margin: 8px -20px 0; padding: 4px 20px; }
+  .diffs { flex-wrap: nowrap; max-height: none; overflow: auto hidden; scrollbar-width: none; margin: var(--sp-2) -20px 0; padding: var(--sp-1) 20px; }
   .diffs::-webkit-scrollbar { display: none; }
 }
 /* A map's leaderboard views (the plays that count, and those from before it was ranked), when it has both. */
-.board-views { margin: -4px 0 12px; }
+.board-views { margin: -4px 0 var(--sp-3); }
 .board-views .faint { font-size: var(--fs-xs); }
 .week-cover { display: block; width: 100%; aspect-ratio: 18 / 5; object-fit: cover; background: var(--surface-3); border-bottom: 1px solid var(--border); }
 
@@ -655,30 +893,87 @@ a.row.card-link:last-child { border-bottom: 0; }
 .profile-head h1 { margin: 0 0 10px; }
 /* Name, badges, tags, buttons and hint stack with one gap between them. The block keeps beside the avatar (rows wrap
    inside it) until there's less than 280px there, as on phones, where it drops below. */
-.profile-info { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.profile-info { flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
 .profile-info > h1, .profile-info > p, .profile-info .fun-chips { margin: 0; }
 .profile-head h1 .legend-tag { margin-left: 10px; vertical-align: middle; font-family: var(--font); line-height: 1.5; }
 /* A heading that links to osu! (a player's name to their profile, a map's title to its page) looks like the plain
    heading until hovered. */
 .title-link { color: inherit; border-radius: var(--r-xs); transition: color .12s; }
+/* On touch, padding (which doesn't move an inline link's text) takes a heading link's hit area to at least 44px. */
+@media (pointer: coarse) { .title-link { padding-block: 6px; } }
 .title-link:hover { color: var(--accent); text-decoration: none; }
-.profile-head .links { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.profile-head .links { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; }
 /* A status ("Dan course: 4th Dan", "Week 43"): a coloured word, with no box, since it isn't something to click. */
 .badge { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); white-space: nowrap; }
 .badge-gold { color: var(--gold); }
 .badge-accent { color: var(--text); }
 .badge-red { color: var(--red); }
 
-.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 12px 20px; margin: 0; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--sp-3) 20px; margin: 0; }
 .kv dt { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
 .kv dd { margin: 1px 0 0; font-weight: 600; font-size: var(--fs-lg); }
 .kv-strip { padding: 14px 0; border-bottom: 1px solid var(--border); }
-.kv-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.kv-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
 .kv-3 dd { font-size: var(--fs-md); }
+
+/* The profile picture on a player page links to their osu! profile: a quiet ring on hover, the usual focus ring. */
+.avatar-link { display: block; flex: none; border-radius: 50%; }
+.avatar-link .avatar { display: block; transition: box-shadow .12s, filter .12s; }
+.avatar-link:hover .avatar { box-shadow: 0 0 0 2px var(--border-strong); filter: brightness(1.08); }
+.avatar-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* The map of the week's title sits under the "Map of the week" heading, so it's an h3 styled like a title. */
+.banner .banner-title { font: 700 clamp(1.5rem, 3.6vw, 2.25rem)/1.1 var(--display); margin: 0 0 .25em; }
+.banner .banner-title a { color: inherit; }
+
+/* "Ranked 14 Mar 2021" on a map page: the date on its own quieter line under the status, so it never runs into the
+   next column of the strip. */
+.kv .status-date { display: block; font-size: var(--fs-sm); font-weight: 500; color: var(--text-dim); }
+.kv .status-date .sep-dot { display: none; }
+
+/* A profile's role, #1s, last play and era as one line of text under the name, and its badges as a list lower down. */
+.profile-line { color: var(--text-dim); }
+.profile-role { color: var(--gold); font-weight: 600; }
+.badge-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; }
+.badge-list b { color: var(--text); font-weight: 600; }
+.badge-list span { color: var(--text-dim); font-size: var(--fs-sm); }
+@media (max-width: 600px) { .badge-list { grid-template-columns: minmax(0, 1fr); } }
+
+/* Profile actions: "This is me", compare as an icon, and the badges folded into one button. */
+.btn-icon { width: 30px; padding: 0; }
+.peek { position: relative; display: inline-flex; }
+.peek-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--border-strong);
+  border-radius: var(--r); background: none; color: var(--gold); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+  transition: border-color .12s;
+}
+.peek-btn:hover, .peek.open .peek-btn { border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
+/* The card hangs under the button; its top padding bridges the gap so the pointer can travel into it. */
+.peek-pop {
+  position: absolute; top: 100%; left: 0; z-index: 30; width: min(440px, calc(100vw - 32px)); padding-top: var(--sp-2);
+  visibility: hidden; opacity: 0; transform: translateY(-4px); transition: opacity .14s, transform .14s, visibility 0s .14s;
+}
+.peek-pop .badge-list {
+  grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); padding: 14px var(--sp-4); background: var(--surface-2);
+  border: 1px solid var(--border-strong); border-radius: var(--r); box-shadow: var(--shadow-float);
+}
+.peek-pop .badge-list li { display: grid; gap: 2px; }
+.peek-pop .badge-list b { color: var(--gold); }
+@media (hover: hover) {
+  .peek:hover .peek-pop { visibility: visible; opacity: 1; transform: none; transition: opacity .14s .1s, transform .14s .1s, visibility 0s .1s; }
+}
+.peek.open .peek-pop { visibility: visible; opacity: 1; transform: none; transition: opacity .14s, transform .14s; }
+.peek.shut .peek-pop { visibility: hidden; opacity: 0; }
+/* Phones: the card drops under the whole header, edge to edge, instead of hanging off the button. */
+@media (max-width: 600px) {
+  .peek { position: static; }
+  .peek-pop { left: 0; right: 0; width: auto; }
+}
+@media (prefers-reduced-motion: reduce) { .peek-pop { transform: none !important; } }
 
 /* ---- Dan -------------------------------------------------------------------------------------------- */
 
-.dan-ladder { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.dan-ladder { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); }
 .dan-stage {
   position: relative; display: block; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 14px;
   cursor: pointer; text-align: left; color: var(--text); transition: border-color .12s, background-color .12s;
@@ -695,7 +990,7 @@ a.dan-stage:hover { text-decoration: none; }
 /* Phones: four stages a row, glyph and passes only, so the 19 stages take one screen instead of five. */
 @media (max-width: 600px) {
   .dan-ladder { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .dan-stage { padding: 10px 8px; }
+  .dan-stage { padding: 10px var(--sp-2); }
   .dan-stage .points, .dan-stage > b, .dan-stage .avatars { display: none; }
   .dan-stage .dan-glyph { font-size: 1.75rem; margin-bottom: 6px; }
   .dan-stage .small { font-size: var(--fs-xs); line-height: 1.3; }
@@ -708,8 +1003,25 @@ a.dan-stage:hover { text-decoration: none; }
 .dan-stage:hover .avatars img { border-color: var(--surface-2); }
 .avatars img:first-child { margin-left: 0; }
 .avatars .more { font-size: var(--fs-xs); color: var(--text-faint); margin-left: 6px; align-self: center; }
-.detail-head { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.detail-head { display: flex; align-items: baseline; gap: var(--sp-1) var(--sp-3); flex-wrap: wrap; margin-bottom: 14px; }
 .detail-head h2 { margin: 0; }
+
+/* ---- Challenges ---------------------------------------------------------------------------------- */
+
+/* Challenges: the line under the tabs that says what the open one is. */
+.tabs-intro { margin: 0 0 20px; max-width: 75ch; }
+/* Challenges → Completion: the share of ranked maps cleared is the page's one result, then a thin bar with the accent
+   only for the cleared part, and the converts as a quiet aside. */
+.goal { max-width: 640px; }
+.goal-figure { margin: 0; font: 800 var(--fs-4xl)/1 var(--font); letter-spacing: -.02em; }
+.goal-of { margin: 6px 0 14px; color: var(--text-dim); font-size: var(--fs-lg); }
+.goal-of b { color: var(--text); font-weight: 700; }
+.goal-bar { height: 6px; border-radius: var(--r-xs); background: var(--surface-3); overflow: hidden; }
+.goal-bar > span { display: block; width: var(--done, 0%); height: 100%; background: var(--accent); }
+.goal-aside { margin: var(--sp-3) 0 0; color: var(--text-faint); font-size: var(--fs-sm); }
+.goal-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.goal-who > .faint { min-width: 1.5em; }
+@media (max-width: 480px) { .goal-figure { font-size: var(--fs-3xl); } }
 
 /* ---- Activity ----------------------------------------------------------------------------------- */
 
@@ -718,9 +1030,9 @@ a.dan-stage:hover { text-decoration: none; }
   padding: var(--sp-2) 14px; background: var(--bg-2); border-bottom: 1px solid var(--border); color: var(--text-faint);
   font-size: var(--fs-sm); font-weight: 500;
 }
-.event { padding: 11px 14px 12px; border-bottom: 1px solid var(--border); min-width: 0; }
+.event { padding: 11px 14px var(--sp-3); border-bottom: 1px solid var(--border); min-width: 0; }
 .event:last-child { border-bottom: 0; }
-.feed-more { display: flex; justify-content: center; margin-top: 12px; }
+.feed-more { display: flex; justify-content: center; margin-top: var(--sp-3); }
 .feed-more[hidden] { display: none; }
 .event-head { display: flex; align-items: center; gap: 10px; font-size: var(--fs-xs); color: var(--text-faint); margin-bottom: 2px; }
 /* An event's kind: its colour is only the small square, and only honours (#1s, Dan) get one; the word stays neutral. */
@@ -730,7 +1042,7 @@ a.dan-stage:hover { text-decoration: none; }
 .event .what a { color: var(--text); }
 .event .what a:hover { color: var(--accent); text-decoration: none; }
 .event .where { color: var(--text-dim); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.event-play { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; font-size: var(--fs-sm); }
+.event-play { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-top: 6px; font-size: var(--fs-sm); }
 .ev-snipe { --k: var(--text-faint); }
 .ev-top { --k: var(--gold); }
 .ev-dan { --k: var(--gold); }
@@ -740,6 +1052,9 @@ a.dan-stage:hover { text-decoration: none; }
 .chip .event-kind { letter-spacing: 0; text-transform: none; font-weight: inherit; color: inherit; }
 .chip .event-kind::before { background: var(--k); }
 
+/* WCAG 2.5.8: the map link under each activity event stands on its own line, so it gets a 24px-tall target. */
+.event .where a { display: inline-block; padding-block: var(--sp-1); margin-block: -4px; }
+
 /* ---- Charts ------------------------------------------------------------------------------------- */
 
 .chart { width: 100%; height: auto; display: block; }
@@ -748,7 +1063,7 @@ a.dan-stage:hover { text-decoration: none; }
 .chart .bar { fill: var(--accent); }
 .chart .bar:hover { opacity: .8; }
 .chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: var(--fs-sm); color: var(--text-dim); margin-top: 10px; }
+.legend { display: flex; gap: var(--sp-4); flex-wrap: wrap; font-size: var(--fs-sm); color: var(--text-dim); margin-top: 10px; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .legend i { width: 12px; height: 2px; display: inline-block; }
 /* pp history: the part rebuilt from score dates is dashed, and the legend says so. */
@@ -756,7 +1071,7 @@ a.dan-stage:hover { text-decoration: none; }
 .legend-dashed { cursor: help; }
 .legend .legend-dashed i { width: 14px; height: 0; border-top: 2px dashed var(--text-dim); }
 /* The profile's pp chart is a disclosure, closed by default: "PP OVER TIME ... Show". */
-.history > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; list-style: none; cursor: pointer; margin: -4px -6px; padding: 4px 6px; border-radius: var(--r-sm); }
+.history > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); list-style: none; cursor: pointer; margin: -4px -6px; padding: var(--sp-1) 6px; border-radius: var(--r-sm); }
 .history > summary::-webkit-details-marker { display: none; }
 .history > summary > h2.card-h { margin: 0; }
 .history > summary:hover .history-toggle { color: var(--accent); }
@@ -764,8 +1079,8 @@ a.dan-stage:hover { text-decoration: none; }
 .history-toggle { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
 .history-toggle::after { content: 'Show \25B8'; }
 .history[open] .history-toggle::after { content: 'Hide \25BE'; }
-.history-body { margin-top: 12px; }
-.history-body .chips { margin-bottom: 8px; }
+.history-body { margin-top: var(--sp-3); }
+.history-body .chips { margin-bottom: var(--sp-2); }
 /* Hover readout (chartHover): a guide line, dots, and a small tooltip beside the line. */
 .chart-wrap { position: relative; }
 .chart[tabindex] { touch-action: pan-y; }
@@ -784,7 +1099,7 @@ a.dan-stage:hover { text-decoration: none; }
 .chart-tip i { width: 8px; height: 8px; border-radius: 1px; }
 .chart-tip small { color: var(--text-faint); }
 .hbars { display: grid; gap: 9px; }
-.hbar { display: grid; grid-template-columns: 80px minmax(0, 1fr) 56px; gap: 12px; align-items: center; font-size: var(--fs-sm); }
+.hbar { display: grid; grid-template-columns: 80px minmax(0, 1fr) 56px; gap: var(--sp-3); align-items: center; font-size: var(--fs-sm); }
 .hbar > span:first-child { font-weight: 600; }
 .hbar .track { height: 8px; background: var(--surface-3); border-radius: var(--r-xs); overflow: hidden; }
 .hbar .fill { height: 100%; background: var(--accent); }
@@ -795,10 +1110,10 @@ a.dan-stage:hover { text-decoration: none; }
 .game { max-width: 760px; margin: 0 auto; }
 .game-cover { position: relative; aspect-ratio: 18 / 5; border-radius: var(--r); overflow: hidden; background: var(--surface-3); border: 1px solid var(--border); }
 .game-cover img { display: block; width: 100%; height: 100%; object-fit: cover; transition: filter .5s ease; }
-.game-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.game-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); margin-top: var(--sp-4); }
 @media (max-width: 600px) { .game-options { grid-template-columns: minmax(0, 1fr); } }
 .option {
-  padding: 12px 14px; border-radius: var(--r); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  padding: var(--sp-3) 14px; border-radius: var(--r); border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
   text-align: left; cursor: pointer; font-weight: 600; transition: background-color .12s, border-color .12s;
 }
 .option:hover:not([disabled]) { background: var(--surface-2); border-color: var(--text-faint); }
@@ -810,31 +1125,44 @@ a.dan-stage:hover { text-decoration: none; }
 .scoreboard > span { display: grid; justify-items: center; gap: 2px; }
 .scoreboard b { color: var(--text); font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.1; order: -1; }
 .scoreboard b small { font-size: .55em; color: var(--text-faint); font-weight: 600; margin-left: 1px; }
-.game-result { display: flex; justify-content: center; gap: 8px; margin-top: 14px; font-weight: 600; }
+.game-result { display: flex; justify-content: center; gap: var(--sp-2); margin-top: 14px; font-weight: 600; }
 .game-result.right { color: var(--accent); }
 .game-result.wrong { color: var(--red); }
 .game-result b { color: var(--text); }
 .game-score { font-size: clamp(3rem, 12vw, 4.5rem); font-weight: 800; letter-spacing: -.02em; line-height: 1; margin-bottom: 6px; }
-.game-score small { font-size: .4em; color: var(--text-faint); font-weight: 600; margin-left: 4px; }
+.game-score small { font-size: .4em; color: var(--text-faint); font-weight: 600; margin-left: var(--sp-1); }
 
-.duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: stretch; }
+.duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--sp-4); align-items: stretch; }
 .duel-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 22px; text-align: center; display: grid; gap: 6px; justify-items: center; }
 .duel-card .value { font-size: var(--fs-3xl); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
 .duel-vs { align-self: center; font-family: var(--display); font-weight: 700; color: var(--text-faint); letter-spacing: .06em; }
 @media (max-width: 600px) {
-  .duel { grid-template-columns: 1fr; gap: 8px; }
+  .duel { grid-template-columns: 1fr; gap: var(--sp-2); }
   .duel-vs { justify-self: center; }
   .duel-card { padding: 14px; gap: 2px; }
-  .duel-card .avatar-lg { width: 52px; height: 52px; margin-bottom: 4px; }
+  .duel-card .avatar-lg { width: 52px; height: 52px; margin-bottom: var(--sp-1); }
   .duel-card .value { font-size: var(--fs-2xl); }
 }
 
+/* Games hub: each game shows what it's made of. A blurred boss cover for Guess the map, the "Eu estou aqui" cover for
+   the quiz, and a classic rivalry for Higher or lower. */
+.game-cards .card { display: flex; flex-direction: column; overflow: hidden; }
+.game-cards .card > p:last-child { margin-top: auto; }
+.game-art { position: relative; display: block; margin: -18px -18px var(--sp-4); aspect-ratio: 20 / 7; overflow: hidden; background: var(--surface-3); border-bottom: 1px solid var(--border); }
+.game-art > img:not(.avatar) { display: block; width: 100%; height: 100%; object-fit: cover; }
+.game-art .game-art-blur { filter: blur(7px); transform: scale(1.12); transition: filter .3s; }
+.card-link:hover .game-art-blur { filter: blur(4px); }
+.game-art-duel { display: flex; flex-wrap: wrap; align-content: center; align-items: center; justify-content: center; gap: var(--sp-2) 14px; background: var(--surface-2); }
+.game-art-duel small { flex-basis: 100%; text-align: center; color: var(--text-faint); font-size: var(--fs-xs); }
+@media (prefers-reduced-motion: reduce) { .game-art .game-art-blur { transition: none; } }
+.game .card:not(.card-link) { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); }
+
 /* ---- Compare ------------------------------------------------------------------------------------ */
 
-.versus { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; }
-.versus .side { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.versus { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--sp-3); align-items: center; }
+.versus .side { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
 .versus .side.right { justify-content: flex-end; text-align: right; }
-.cmp-row { display: grid; grid-template-columns: minmax(0, 1fr) 128px minmax(0, 1fr); gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.cmp-row { display: grid; grid-template-columns: minmax(0, 1fr) 128px minmax(0, 1fr); gap: 10px; align-items: center; padding: var(--sp-2) 0; border-bottom: 1px solid var(--border); }
 .cmp-row:last-child { border-bottom: 0; }
 .cmp-row .label { text-align: center; color: var(--text-faint); font-size: var(--fs-sm); font-weight: 500; }
 .cmp-row .a { text-align: right; }
@@ -849,13 +1177,15 @@ a.dan-stage:hover { text-decoration: none; }
 
 /* ---- Wrapped ----------------------------------------------------------------------------------- */
 
-.wrapped { display: grid; gap: 8px; }
-.wrapped .grid { gap: 8px; }
-.wrapped .big { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.02; margin-top: 4px; overflow-wrap: anywhere; }
+.wrapped { display: grid; gap: var(--sp-2); }
+.wrapped .grid { gap: var(--sp-2); }
+.wrapped .big { font-size: clamp(2.25rem, 6vw, 3.5rem); font-weight: 800; letter-spacing: -.02em; line-height: 1.02; margin-top: var(--sp-1); overflow-wrap: anywhere; }
 .wrapped .slide { border-radius: var(--r); padding: clamp(18px, 3.5vw, 28px); border: 1px solid var(--border); background: var(--surface); min-width: 0; }
 .wrapped .slide > .muted:first-child { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
-.wrapped .chart { max-height: 240px; margin-top: 12px; }
+.wrapped .chart { max-height: 240px; margin-top: var(--sp-3); }
 .wrapped .slide.gold .big { color: var(--gold); }
+
+.wrapped .big.big-sm { font-size: var(--fs-3xl); }
 
 /* ---- Misc ------------------------------------------------------------------------------------------ */
 
@@ -876,10 +1206,10 @@ a.dan-stage:hover { text-decoration: none; }
 .climb-strip > span:nth-child(n + 12) { color: var(--gold); }
 @keyframes climb { to { transform: translateY(-100%); } }
 @media (prefers-reduced-motion: reduce) { .climb-strip { animation: none; } }
-.pager { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; color: var(--text-dim); font-size: var(--fs-sm); }
+.pager { display: flex; gap: var(--sp-3); align-items: center; justify-content: center; margin-top: var(--sp-4); color: var(--text-dim); font-size: var(--fs-sm); }
 .kbd { font-family: var(--mono); font-size: var(--fs-sm); background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 0 5px; color: var(--text); white-space: nowrap; }
 .cmd-list { display: grid; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }
-.cmd { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: 16px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.cmd { display: grid; grid-template-columns: minmax(180px, 260px) minmax(0, 1fr); gap: var(--sp-4); padding: 11px 14px; border-bottom: 1px solid var(--border); }
 .cmd:last-child { border-bottom: 0; }
 .cmd code { font-family: var(--mono); font-size: var(--fs-sm); color: var(--text); padding-top: 2px; }
 @media (max-width: 600px) { .cmd { grid-template-columns: 1fr; gap: 2px; } }
@@ -891,8 +1221,29 @@ a.dan-stage:hover { text-decoration: none; }
 .dim-link { color: var(--text-dim); }
 .dim-link:hover { color: var(--text); }
 
-/* ---- Community lore: in-joke badges, map stories, captions, easter eggs ------------------------------------ */
+/* Text for screen readers only. */
+.sr-only {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
+/* Result counts and empty states with a way back. */
+.result-count { margin: 0 0 10px; color: var(--text-dim); font-size: var(--fs-sm); }
+.empty p { margin: 0 0 var(--sp-3); }
+.empty p:last-child { margin-bottom: 0; }
+
+/* The glossary. */
+.glossary { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--border); }
+.glossary > div { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: var(--sp-1) 20px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.glossary dt { font-weight: 700; color: var(--text); }
+.glossary dd { margin: 0; color: var(--text-dim); }
+@media (max-width: 600px) { .glossary > div { grid-template-columns: 1fr; } }
+.help-link { margin-left: 6px; font-size: var(--fs-xs); font-weight: 600; }
+
+/* The page-not-found glyph: Shin, the last Dan, which nobody has reached either. */
+.lost-glyph { margin-bottom: 14px; font: 700 clamp(5rem, 16vw, 8rem)/1 var(--display); color: color-mix(in srgb, var(--gold) 35%, var(--surface)); }
+
+/* ---- Community lore: in-joke badges, map stories, captions, easter eggs ------------------------------------ */
 
 /* The home page's "Tris still holds…" line: a ruled row, not a panel. */
 .throne-strip {
@@ -905,7 +1256,7 @@ a.dan-stage:hover { text-decoration: none; }
 /* In-joke badges on profiles and tags on maps: small toggle buttons that open their story underneath. */
 .fun-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .fun-chip {
-  display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--r-sm); cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; height: 24px; padding: 0 var(--sp-2); border-radius: var(--r-sm); cursor: pointer; font-family: inherit;
   font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); border: 1px solid var(--border-strong); background: none;
 }
 .fun-chip:hover { color: var(--text); border-color: var(--text-faint); }
@@ -916,17 +1267,16 @@ a.dan-stage:hover { text-decoration: none; }
 /* "On this page" links at the top of long pages (Records). */
 .jump-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 20px; }
 .fun-tip { margin: var(--sp-2) 0 0; max-width: 60ch; font-size: var(--fs-sm); color: var(--text-dim); }
-.fun-tip b { color: var(--text); margin-right: 4px; }
-.map-tags { margin-top: 12px; }
-
+.fun-tip b { color: var(--text); margin-right: var(--sp-1); }
+.map-tags { margin-top: var(--sp-3); }
 
 .signature h3 .faint { text-transform: none; letter-spacing: 0; font-weight: 500; }
 .lore-card { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
-.lore-card .eyebrow { margin-bottom: 4px; }
-.lore-card p { margin: 0 0 4px; }
-.role-lore { margin-top: 4px; font-size: var(--fs-xs); color: var(--text-faint); white-space: normal; max-width: 34ch; }
+.lore-card .eyebrow { margin-bottom: var(--sp-1); }
+.lore-card p { margin: 0 0 var(--sp-1); }
+.role-lore { margin-top: var(--sp-1); font-size: var(--fs-xs); color: var(--text-faint); white-space: normal; max-width: 34ch; }
 
-.event .quip { margin-top: 4px; font-size: var(--fs-sm); color: var(--text-faint); font-style: italic; }
+.event .quip { margin-top: var(--sp-1); font-size: var(--fs-sm); color: var(--text-faint); font-style: italic; }
 
 tr.inactive td, tr.inactive .player, tr.inactive .pp, .row.inactive .player, .row.inactive .pp { color: var(--text-dim); }
 tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
@@ -937,6 +1287,22 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
   font-size: var(--fs-xs); font-weight: 500; color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs);
 }
 .player:has(+ .legend-tag) { vertical-align: middle; }
+/* Tags that explain themselves (ui.js tipTag) are buttons: the outline brightens on hover, and the hit area reaches 24px. */
+button.legend-tag { position: relative; background: none; font-family: inherit; cursor: pointer; transition: color .12s, border-color .12s; }
+button.legend-tag::after { content: ''; position: absolute; inset: -3px -2px; }
+button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--text-dim); border-color: var(--text-faint); }
+.est-tip {
+  padding: var(--sp-1) 0; margin: -4px 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 2px;
+}
+.est-tip:hover, .est-tip[aria-expanded='true'] { color: var(--text); text-decoration-color: currentColor; }
+/* The one bubble every tipTag() opens, fixed beside the tag (ui.js places it). A floating layer, so it has the shadow. */
+.tip-pop {
+  position: fixed; left: 0; top: 0; z-index: 85; max-width: min(300px, calc(100vw - 32px)); padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r); box-shadow: var(--shadow-float);
+  color: var(--text); font-size: var(--fs-sm); line-height: 1.45; visibility: hidden;
+}
+.tip-pop.open { visibility: visible; }
 
 .bounty-tag { color: var(--gold); font-weight: 600; }
 
@@ -951,8 +1317,8 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 .timeline-body p { margin: 2px 0 0; color: var(--text-dim); }
 
 /* Toasts, the WYSI flash and the emote wall. */
-.toasts { position: fixed; right: 16px; bottom: 16px; z-index: 80; display: grid; gap: 8px; max-width: min(380px, calc(100vw - 32px)); }
-.toast { background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r); padding: 12px 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+.toasts { position: fixed; right: 16px; bottom: 16px; z-index: 80; display: grid; gap: var(--sp-2); max-width: min(380px, calc(100vw - 32px)); }
+.toast { background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: var(--r); padding: var(--sp-3) 14px; box-shadow: var(--shadow-float); }
 .toast-body { margin-bottom: 6px; }
 .toast-close { background: none; border: 0; padding: 0; color: var(--text-faint); font-size: var(--fs-xs); cursor: pointer; }
 .toast-close:hover { color: var(--text); }
@@ -962,381 +1328,33 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 .emote-wall { position: fixed; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
 .emote-wall span { position: absolute; top: -60px; animation: fall 2.4s ease-in forwards; }
 @keyframes fall { to { transform: translateY(110vh) rotate(25deg); } }
-@media (prefers-reduced-motion: reduce) { .flash { animation-duration: .9s; } }
+/* Reduced motion: the flash only fades, and faster. (The emote wall isn't shown then: fun.js flashes instead.) */
+@keyframes flash-fade { 20% { opacity: 1; } 0%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .flash { animation-name: flash-fade; animation-duration: .9s; } }
 
 /* Bacalhau mode (type "bacalhau"): the loader shows a cod instead of climbing the Dan. */
 .bacalhau .climb { width: auto; height: auto; overflow: visible; }
 .bacalhau .climb-strip { display: none; }
 .bacalhau .climb::before { content: '🐟'; display: inline-block; font-size: 26px; animation: bob .8s ease-in-out infinite alternate; }
 @keyframes bob { to { transform: translateY(-8px) rotate(-12deg); } }
+@media (prefers-reduced-motion: reduce) { .bacalhau .climb::before { animation: none; } }
 
 /* The logo's seasonal hat: Santa in December, a bacalhau on Portugal Day. */
 [data-season] .brand::after { font-size: 1rem; margin-left: -2px; }
 [data-season='xmas'] .brand::after { content: '🎅'; }
 [data-season='ptday'] .brand::after { content: '🐟'; }
 
-/* =================================================================================================================
-   Player search in the top bar (core/search.js). Inline next to the brand from 1180px; below that a search button
-   that opens a full-width row under the bar. Kept as one block so it stays out of the way of other edits.
-   ================================================================================================================= */
-
-.search { position: relative; display: flex; align-items: center; }
-.search-toggle {
-  display: none; align-self: center; width: 40px; height: 40px; place-items: center; padding: 0;
-  background: none; border: 0; color: var(--text); cursor: pointer;
-}
-.search-toggle[aria-expanded='true'] { color: var(--accent); }
-.search-panel { display: block; }
-.search-field { position: relative; display: flex; align-items: center; }
-.search-field > svg { position: absolute; left: 10px; color: var(--text-faint); pointer-events: none; }
-.search-field input {
-  width: 220px; height: 34px; padding: 0 30px 0 32px; background: var(--bg-2); color: var(--text);
-  border: 1px solid var(--input-border); border-radius: var(--r); font-size: var(--fs-sm); transition: border-color .12s;
-}
-.search-field input::placeholder { color: var(--text-faint); }
-.search-field input:hover { border-color: var(--text-faint); }
-.search-field input:focus { outline: none; border-color: var(--accent); }
-.search-key {
-  position: absolute; right: 8px; min-width: 18px; padding: 0 4px; text-align: center; font: 600 var(--fs-xs)/16px var(--font);
-  color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs); pointer-events: none;
-}
-.search-field input:focus ~ .search-key, .search-field input:not(:placeholder-shown) ~ .search-key { display: none; }
-
-.search-pop {
-  position: absolute; top: calc(100% + 6px); left: 0; width: 340px; z-index: 55; overflow: hidden;
-  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r);
-}
-.search-pop[hidden] { display: none; }
-.search-results { list-style: none; margin: 0; padding: 4px 0; max-height: min(420px, 70vh); overflow-y: auto; }
-.search-results [role='option'] {
-  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 10px; align-items: center;
-  padding: 7px 12px; cursor: pointer;
-}
-.search-results [aria-selected='true'] { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
-.search-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-.search-name mark { background: none; color: var(--accent); }
-.search-detail { color: var(--text-faint); font-size: var(--fs-xs); white-space: nowrap; }
-.search-none { padding: 12px; color: var(--text-dim); font-size: var(--fs-sm); }
-.search-all { display: block; padding: 9px 12px; border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 500; }
-.search-all:hover { background: var(--surface-2); text-decoration: none; }
-
-@media (max-width: 1180px) {
-  .search-field input { width: 170px; }
-  .nav-top { padding-inline: 9px; }
-}
-@media (max-width: 940px) {
-  .search { position: static; order: 3; }
-  .nav-toggle { order: 4; }
-  .search-toggle { display: grid; }
-  .search-panel {
-    display: none; position: absolute; top: 56px; left: 0; right: 0; z-index: 51;
-    padding: 10px 16px 12px; background: var(--bg); border-bottom: 1px solid var(--border);
-  }
-  .search.open .search-panel { display: block; }
-  .search-field input, .search-field input:focus { width: 100%; height: 38px; font-size: var(--fs-md); }
-  .search-pop { position: static; width: auto; margin-top: 8px; }
-  .search-key { display: none; }
-}
-@media (max-width: 940px) {
-  .search { margin-left: auto; }
-  .search ~ .nav-toggle { margin-left: -24px; }
-}
-
-/* The profile picture on a player page links to their osu! profile: a quiet ring on hover, the usual focus ring. */
-.avatar-link { display: block; flex: none; border-radius: 50%; }
-.avatar-link .avatar { display: block; transition: box-shadow .12s, filter .12s; }
-.avatar-link:hover .avatar { box-shadow: 0 0 0 2px var(--border-strong); filter: brightness(1.08); }
-.avatar-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-/* =================================================================================================================
-   "You" in the top bar (core/you.js): the avatar of whoever this browser marked with "This is me", and its menu.
-   Sits last on wide screens; on narrow ones between the search button and the menu button.
-   ================================================================================================================= */
-
-.you { position: relative; display: flex; align-items: center; order: 5; margin-left: -12px; }
-.you[hidden] { display: none; }
-.you-btn {
-  display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%;
-  background: none; cursor: pointer;
-}
-.you-btn .avatar { width: 28px; height: 28px; box-shadow: 0 0 0 2px var(--border-strong); transition: box-shadow .12s; }
-.you-btn:hover .avatar, .you-btn[aria-expanded='true'] .avatar { box-shadow: 0 0 0 2px var(--accent); }
-.you-menu {
-  position: absolute; top: calc(100% - 2px); right: 0; z-index: 56; width: 240px; padding: 6px 0;
-  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r);
-}
-.you-menu[hidden] { display: none; }
-.you-head { display: flex; align-items: center; gap: 10px; padding: 8px 14px 12px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
-.you-head > div { display: grid; min-width: 0; }
-.you-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.you-label { color: var(--text-faint); font-size: var(--fs-xs); }
-.you-menu a, .you-forget {
-  display: block; width: 100%; padding: 8px 14px; color: var(--text); font-size: var(--fs-sm); text-align: left;
-  background: none; border: 0; cursor: pointer;
-}
-.you-menu a:hover, .you-forget:hover { background: var(--surface-2); text-decoration: none; }
-.you-forget { color: var(--text-dim); }
-.you-note { margin: 4px 14px 6px; color: var(--text-faint); font-size: var(--fs-xs); }
-/* The avatar and name at the top link to your profile, with the profile page avatar's quiet hover and focus ring. */
-.you-menu a.you-head { display: flex; width: auto; padding: 8px 14px 12px; font-size: var(--fs-md); border-radius: var(--r-sm) var(--r-sm) 0 0; }
-.you-menu a.you-head:hover { background: none; }
-.you-head .avatar { transition: box-shadow .12s, filter .12s; }
-.you-head:hover .avatar { box-shadow: 0 0 0 2px var(--border-strong); filter: brightness(1.08); }
-.you-head:hover b { text-decoration: underline; text-underline-offset: 2px; }
-.you-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
-
-@media (max-width: 940px) {
-  .you { order: 4; margin-left: -20px; }
-  .nav-toggle { order: 5; }
-}
-
-/* Your row on the home page's top 5s. */
-.mini-board a.line.me { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); padding-inline: 8px; margin-inline: -8px; }
-
-/* =================================================================================================================
-   "Sign in with osu!" (core/you.js, only when CONFIG.signIn is set): takes the avatar's place while nobody is chosen.
-   ================================================================================================================= */
-
-.you:has(.you-signin) { margin-left: 0; }
-.you-signin {
-  height: 32px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: var(--r);
-  background: none; color: var(--text); font: inherit; font-size: var(--fs-sm); font-weight: 600; white-space: nowrap;
-  cursor: pointer; transition: border-color .12s, color .12s;
-}
-.you-signin:hover { border-color: var(--accent); color: var(--accent); }
-.you-signin:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* =================================================================================================================
-   Development builds (tools/build-site.mjs sets <html data-env="dev"> on every branch but main): a gold line along the
-   top bar and a DEV tag after the logo, so dev.ptcatch.com can't be mistaken for the real site.
-   ================================================================================================================= */
-
-html[data-env] .topbar { box-shadow: inset 0 3px 0 var(--gold); }
-html[data-env] .brand::after {
-  content: 'DEV'; padding: 3px 5px 2px; border-radius: var(--r-xs); background: var(--gold); color: var(--gold-ink);
-  font: 800 var(--fs-xs)/1 var(--font); letter-spacing: .04em;
-}
-
-/* =================================================================================================================
-   Accessibility and UX review fixes (notes/ux-review.md): shared states, phone tables, filters, newcomer help.
-   ================================================================================================================= */
-
-.sr-only {
-  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
-  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
-}
-
-/* A5: links inside running text are underlined, not told apart by colour alone. */
-p a:not(.btn), li a:not(.btn), dd a:not(.btn), .muted a:not(.btn), .notice a:not(.btn) { text-decoration: underline; text-underline-offset: 3px; }
-p a.dim-link { text-decoration: underline; }
-
-
-
-/* U7: chip groups say what they filter. */
-.chips-label { align-self: center; margin-right: var(--sp-1); color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
-
-/* U4/A3: result counts and empty states with a way back. */
-.result-count { margin: 0 0 10px; color: var(--text-dim); font-size: var(--fs-sm); }
-.empty p { margin: 0 0 12px; }
-.empty p:last-child { margin-bottom: 0; }
-
-/* U1: data tables are focusable, labelled regions; on phones they keep only rank, player and the key number. */
-.table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.cell-sub { display: none; margin-top: 2px; color: var(--text-dim); font-size: var(--fs-xs); font-weight: 400; white-space: normal; }
-.cell-sub .score-line { font-size: var(--fs-xs); gap: 4px 8px; }
-@media (max-width: 600px) {
-  .col-opt { display: none; }
-  .cell-sub { display: block; }
-  td.cell-player { white-space: normal; }
-}
-
-/* D3: on phones the search button says "Search", not just a magnifier. */
-.search-toggle-label { display: none; }
-@media (max-width: 940px) {
-  .search-toggle { width: auto; gap: 6px; padding: 0 8px; grid-auto-flow: column; font: 600 var(--fs-sm)/1 var(--font); color: var(--text); }
-  .search-toggle-label { display: inline; }
-}
-.search-status { padding: 10px 12px; color: var(--text-dim); font-size: var(--fs-sm); }
-.search-status:empty { display: none; }
-
-/* D5: "This is me" is a toggle with a visible state. */
-.btn[aria-pressed='true'] { border-color: var(--accent-line); background: var(--accent-bg); color: var(--accent); }
-.btn[aria-pressed='true']::before { content: '✓'; }
-.not-you { font-size: var(--fs-sm); }
-
-/* Home: find yourself, and the Discord. */
-.footer-links { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 10px !important; }
-
-/* D8: the glossary. */
-.glossary { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--border); }
-.glossary > div { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: 4px 20px; padding: 14px 0; border-bottom: 1px solid var(--border); }
-.glossary dt { font-weight: 700; color: var(--text); }
-.glossary dd { margin: 0; color: var(--text-dim); }
-@media (max-width: 600px) { .glossary > div { grid-template-columns: 1fr; } }
-.help-link { margin-left: 6px; font-size: var(--fs-xs); font-weight: 600; }
-
-/* The map of the week's title sits under the "Map of the week" heading, so it's an h3 styled like a title. */
-.banner .banner-title { font: 700 clamp(1.5rem, 3.6vw, 2.25rem)/1.1 var(--display); margin: 0 0 .25em; }
-.banner .banner-title a { color: inherit; }
-/* The play's stats under a player's name on phones: no desktop column widths, so they pack onto one or two lines. */
-.cell-sub .score-line > * { min-width: 0; text-align: left; }
-@media (max-width: 600px) { .rows .map-sub { white-space: normal; } }
-/* WCAG 2.5.8: the map link under each activity event stands on its own line, so it gets a 24px-tall target. */
-.event .where a { display: inline-block; padding-block: 4px; margin-block: -4px; }
-/* "Ranked 14 Mar 2021" on a map page: the date on its own quieter line under the status, so it never runs into the
-   next column of the strip. */
-.kv .status-date { display: block; font-size: var(--fs-sm); font-weight: 500; color: var(--text-dim); }
-.kv .status-date .sep-dot { display: none; }
-
 /* Players inactive on osu! keep their official pp: an "est." after an estimated value, the "inactive" tag beside names. */
-.est { margin-left: 3px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); cursor: help; }
+.est { margin-left: 3px; font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim); }
 .mini-board .player .legend-tag { flex: none; overflow: visible; }
-.stat-sub .legend-tag { margin-left: 0; margin-right: 4px; }
+.stat-sub .legend-tag { margin-left: 0; margin-right: var(--sp-1); }
 /* In a table the "(estimated)" sits on its own small line, so the pp column stays aligned. */
 td.num .est { display: block; margin: 1px 0 0; font-size: var(--fs-xs); line-height: 1.1; }
-
-/* Challenges: the line under the tabs that says what the open one is. */
-.tabs-intro { margin: 0 0 20px; max-width: 75ch; }
-/* Challenges → Completion: the share of ranked maps cleared is the page's one result, then a thin bar with the accent
-   only for the cleared part, and the converts as a quiet aside. */
-.goal { max-width: 640px; }
-.goal-figure { margin: 0; font: 800 var(--fs-4xl)/1 var(--font); letter-spacing: -.02em; }
-.goal-of { margin: 6px 0 14px; color: var(--text-dim); font-size: var(--fs-lg); }
-.goal-of b { color: var(--text); font-weight: 700; }
-.goal-bar { height: 6px; border-radius: var(--r-xs); background: var(--surface-3); overflow: hidden; }
-.goal-bar > span { display: block; width: var(--done, 0%); height: 100%; background: var(--accent); }
-.goal-aside { margin: 12px 0 0; color: var(--text-faint); font-size: var(--fs-sm); }
-.goal-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.goal-who > .faint { min-width: 1.5em; }
-@media (max-width: 480px) { .goal-figure { font-size: var(--fs-3xl); } }
-
-/* Pages in the header search's results (e.g. "Dan course"), above the players. */
-.search-results .search-page-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
-
-/* Games hub: each game shows what it's made of. A blurred boss cover for Guess the map, the "Eu estou aqui" cover for
-   the quiz, and a classic rivalry for Higher or lower. */
-.game-cards .card { display: flex; flex-direction: column; overflow: hidden; }
-.game-cards .card > p:last-child { margin-top: auto; }
-.game-art { position: relative; display: block; margin: -18px -18px 16px; aspect-ratio: 20 / 7; overflow: hidden; background: var(--surface-3); border-bottom: 1px solid var(--border); }
-.game-art > img:not(.avatar) { display: block; width: 100%; height: 100%; object-fit: cover; }
-.game-art .game-art-blur { filter: blur(7px); transform: scale(1.12); transition: filter .3s; }
-.card-link:hover .game-art-blur { filter: blur(4px); }
-.game-art-duel { display: flex; flex-wrap: wrap; align-content: center; align-items: center; justify-content: center; gap: 8px 14px; background: var(--surface-2); }
-.game-art-duel small { flex-basis: 100%; text-align: center; color: var(--text-faint); font-size: var(--fs-xs); }
-@media (prefers-reduced-motion: reduce) { .game-art .game-art-blur { transition: none; } }
-
-/* The page-not-found glyph: Shin, the last Dan, which nobody has reached either. */
-.lost-glyph { margin-bottom: 14px; font: 700 clamp(5rem, 16vw, 8rem)/1 var(--display); color: color-mix(in srgb, var(--gold) 35%, var(--surface)); }
-
-/* =================================================================================================================
-   Fewer boxes. A box (fill, border, radius) marks one thing you can pick up as a whole: a map, a game, a Dan stage, a
-   tab card, a list of rows or a table. Everything else is an open section under a hairline, so the page reads as
-   sections of one document instead of a grid of equal grey tiles.
-   ================================================================================================================= */
-
-.card:not(.card-link) { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 14px 0 0; }
-.game .card:not(.card-link) { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); }
-.card:not(.card-link) > .table-wrap { margin-top: 4px; }
-/* Variants used in page markup: a card whose image runs to its edges (with its text in .card-body), a roomy result
-   card, a one-column row and a right-aligned stack of row details. */
-.card.card-flush { padding: 0; overflow: hidden; }
-.card-body { padding: var(--sp-4); }
-.card.card-roomy { padding: var(--sp-8); }
-.row.row-1col { grid-template-columns: minmax(0, 1fr); }
-.row-meta.meta-stack { display: grid; justify-items: end; gap: var(--sp-1); }
-.wrapped .big.big-sm { font-size: var(--fs-3xl); }
-
 
 .throne-strip.card-link:hover { background: none; border-color: var(--border); }
 .throne-strip.card-link:hover b { color: var(--accent); }
 
-/* The home page's "This week so far" (core/weekly.js weeklySummary): a few ruled lines under the map of the week. */
-/* "Still to clear" (home.js goalNext) follows it in the same column and the same form: the easiest uncleared maps as
-   ruled map lines, then the newest first clear as a .week-top line. */
-.week-summary, .goal-next { margin-top: 28px; }
-.week-summary .section-head, .goal-next .section-head { margin-bottom: 6px; }
-.week-summary .section-head h2, .goal-next .section-head h2 { font-size: var(--fs-xl); }
-.week-summary > p, .goal-next > p { margin: 0; }
-.week-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 0; border-top: 1px solid var(--border); }
-.week-summary > p.muted, .goal-next > p.muted { margin-bottom: 8px; }
-.goal-map { padding: 8px 0; border-top: 1px solid var(--border); }
-.week-top > .faint { min-width: 7.5em; }
-.week-top .dim-link { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
-
-/* =================================================================================================================
-   Quieter rows and labels. In a score row one number leads (pp); the rest of the play is one dim run of text, nomod
-   shows nothing, FC is a word rather than a colour, and only a #1 is marked in gold. Labels are in sentence case:
-   spaced capitals stay only on table headers.
-   ================================================================================================================= */
-
-.row-stats { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--text-dim); }
-.row-stats .acc { color: var(--text-dim); }
-.row-meta .pp { font-size: var(--fs-lg); }
-.miss-fc { color: var(--text-dim); font-weight: 500; }
-.row-meta .pos { min-width: 0; padding: 0; background: none; line-height: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text-faint); }
-.row-meta .pos-1 { color: var(--gold); }
-
-
-/* Home: one main action (the Discord), the rest as plain links; "How to join" as three steps side by side. */
-.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
-.hero-actions > a:not(.btn), .hero-actions .link-button { font-weight: 600; color: var(--text); }
-.hero-actions > a:not(.btn):hover, .hero-actions .link-button:hover { color: var(--accent); }
-.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
-.link-button:hover { text-decoration: underline; text-underline-offset: 3px; }
-.steps-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-@media (max-width: 760px) { .steps-row { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
-
-/* A profile's role, #1s, last play and era as one line of text under the name, and its badges as a list lower down. */
-.profile-line { color: var(--text-dim); }
-.profile-role { color: var(--gold); font-weight: 600; }
-.badge-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 28px; }
-.badge-list b { color: var(--text); font-weight: 600; }
-.badge-list span { color: var(--text-dim); font-size: var(--fs-sm); }
-@media (max-width: 600px) { .badge-list { grid-template-columns: minmax(0, 1fr); } }
-
-/* app.js moves focus to a new page's heading (for keyboards and screen readers); no ring around it, as nobody tabbed
-   there. */
-h1[tabindex='-1']:focus { outline: none; }
-
-/* Home, "Portugal's best": the three boards' names as the titles over each top 5. */
-.card > h3.board-title .cat { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
-
-/* Profile actions: "This is me", compare as an icon, and the badges folded into one button. */
-.btn-icon { width: 30px; padding: 0; }
-.peek { position: relative; display: inline-flex; }
-.peek-btn {
-  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--border-strong);
-  border-radius: var(--r); background: none; color: var(--gold); font: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
-  transition: border-color .12s;
-}
-.peek-btn:hover, .peek.open .peek-btn { border-color: color-mix(in srgb, var(--gold) 60%, transparent); }
-/* The card hangs under the button; its top padding bridges the gap so the pointer can travel into it. */
-.peek-pop {
-  position: absolute; top: 100%; left: 0; z-index: 30; width: min(440px, calc(100vw - 32px)); padding-top: 8px;
-  visibility: hidden; opacity: 0; transform: translateY(-4px); transition: opacity .14s, transform .14s, visibility 0s .14s;
-}
-.peek-pop .badge-list {
-  grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 14px 16px; background: var(--surface-2);
-  border: 1px solid var(--border-strong); border-radius: var(--r); box-shadow: 0 14px 36px rgba(0, 0, 0, .45);
-}
-.peek-pop .badge-list li { display: grid; gap: 2px; }
-.peek-pop .badge-list b { color: var(--gold); }
-@media (hover: hover) {
-  .peek:hover .peek-pop { visibility: visible; opacity: 1; transform: none; transition: opacity .14s .1s, transform .14s .1s, visibility 0s .1s; }
-}
-.peek.open .peek-pop { visibility: visible; opacity: 1; transform: none; transition: opacity .14s, transform .14s; }
-.peek.shut .peek-pop { visibility: hidden; opacity: 0; }
-/* Phones: the card drops under the whole header, edge to edge, instead of hanging off the button. */
-@media (max-width: 600px) {
-  .peek { position: static; }
-  .peek-pop { left: 0; right: 0; width: auto; }
-}
-@media (prefers-reduced-motion: reduce) { .peek-pop { transform: none !important; } }
-
-/* Quiet links to a section's other pages, under the heading (Leaderboards: all players, compare). */
-.page-head .page-links { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 6px 0 0; font-size: var(--fs-sm); }
-.page-head .page-links a { text-decoration: none; font-weight: 500; }
-.page-head .page-links a:hover { text-decoration: underline; }
+/* ---- Utilities ------------------------------------------------------------------------------------ */
 
 /* Spacing utilities on the scale, for a one-off gap between two blocks in page markup instead of style="". They come
    last so they win over a component rule of the same weight. */
@@ -1357,6 +1375,3 @@ h1[tabindex='-1']:focus { outline: none; }
 .text-xl { font-size: var(--fs-xl); }
 .fw-600 { font-weight: 600; }
 .plain-link, .plain-link:hover { color: inherit; text-decoration: none; }
-/* A one-column link list (Team Portugal's forum threads). */
-.link-list.one-col { grid-template-columns: minmax(0, 1fr); }
-.link-list.one-col a:nth-child(even) { padding-left: 0; border-left: 0; }

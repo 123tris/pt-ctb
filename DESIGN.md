@@ -225,7 +225,7 @@ Never above 5px, and no pill-shaped buttons.
 ### Elevation
 
 - **On the page:** no shadows.
-- **Floating layers** (menus, popovers, toasts) may have one neutral black shadow, up to `0 18px 40px rgba(0,0,0,.45)`.
+- **Floating layers** (popovers, toasts, the toggletip bubble) may have one neutral black shadow: `--shadow-float`.
 - **No glows:** no coloured shadows, `text-shadow` halos or gradient surfaces.
 - **Translucency:** the frosted top bar and its menus are the only translucent surfaces.
 
@@ -463,7 +463,12 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
 
 - **`title=""`** may only repeat what is already visible, such as the full date behind "3 days ago" or a truncated
   title. It doesn't show on touch or keyboard.
-- **Explanations people need** go in visible text, the glossary, or a toggletip button (the `funChips()` pattern).
+- **Explanations people need** go in visible text, the glossary, or a toggletip:
+  - a row of in-jokes under a name: `funChips()`, with the tip in the line under the row;
+  - one tag or word in a line or a table cell ("legend", "inactive", "estimated"): `tipTag()`, a button that opens one
+    shared bubble (`.tip-pop`) beside it. The bubble is fixed to the window, so a scrolling table can't clip it, and is
+    a live region, so it's read out. Escape, another click, losing focus or scrolling closes it.
+  - Inside a link a button can't go, so `tipTag(…, { plain: true })` gives the bare tag; the page it links to explains.
 - **Length:** under 200 characters. Complete sentences end with a full stop.
 
 ### Notices, toasts and disclosures
@@ -612,16 +617,20 @@ The `design-pass` branch (2026-10-26) applied this guide to the site:
 
 Still open. Line numbers drift, so search for the selector.
 
-1. **Component internals still use px paddings** (2–14px inside rows, chips, menus). Move them to `--sp-*` when you
-   touch a component; layout and page markup already use the scale.
+1. **Off-scale px inside components.** Every padding, margin and gap that was already a step (4, 8, 12, 16, 24, 32,
+   48px) is now `var(--sp-*)`. What's left is off the scale on purpose or by drift (2, 6, 10, 14, 18px inside rows,
+   chips, menus and tags). Snap them when you redesign that component and can look at it; doing it blind shifts the
+   whole site by a few pixels.
 2. **Some meaning is still only in `title` or `aria-label`.** The quieter `.diff-new` (no Portuguese scores yet) says
-   why only in its label. `posBadge()`, `officialPp({ compact })` and the tags in `ui.js` show a visible cue (#3, ≈,
-   "inactive") but put the explanation in `title`.
-3. **Appended blocks.** `site.css` still ends with blocks added later: search, "you", sign-in, the a11y fixes,
-   goal and peek. They should move into their sections when next edited.
-4. **Small text targets.** `.stat-link` (28px) and heading `.title-link`s pass the 24px minimum but not 44px.
-5. **One hex value outside `:root`:** the tile stroke in `ambience.css`. A `data:` URI can't read a variable; it's
+   why only in its label, and `posBadge()` puts "Position in Portugal" in `title`. The tags and "estimated" are
+   toggletips now (`tipTag()`).
+3. **One hex value outside `:root`:** the tile stroke in `ambience.css`. A `data:` URI can't read a variable; it's
    `--cat-c` by value.
+
+Done since: the blocks once appended to `site.css` (search, "you", sign-in, the a11y fixes, goal, peek) sit in their
+sections, with a Challenges section and a Utilities section last; rank links on stat tiles have a 45px-tall hit area and
+heading links reach 44px on touch; tabs and top 5 lines read their figures apart from their names; the menu button, the
+bacalhau loader and the flash easter egg calm down under reduced motion.
 
 Allowed on purpose: table headers in small capitals, and fluid sizes made with `clamp()` (H1, stat values, Dan
 glyphs). Each of those is bounded by scale steps.
