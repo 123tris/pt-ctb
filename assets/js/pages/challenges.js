@@ -161,18 +161,25 @@ function targetsPanel(data, maps, index) {
 
 // ---- Completion ------------------------------------------------------------------------------------------------------
 // completion.json (tools/lib/completion.mjs): how many ranked catch-specific maps Portugal has cleared, and the rest as a
-// to-do list. Rows of `left`: [mapId, setId, version, stars, rankedDay, osu! plays]; `sets`: { setId: [artist, title] }.
+// to-do list. Rows of `left`: [mapId, setId, version, stars, rankedDay, osu! plays, length]; `sets`: { setId: [artist,
+// title] }. Length (drain seconds) is newer than the rest: data from before it has none, and then the length sorts hide.
 
+const byPlays = (a, b) => b[5] - a[5] || a[0] - b[0];
+/** Shortest (1) or longest (-1) first; maps without a length go last either way, ties keep the default order. */
+const byLength = dir => (a, b) => !a[6] - !b[6] || dir * ((a[6] ?? 0) - (b[6] ?? 0)) || byPlays(a, b);
+/** key: [label, compare, needs lengths] */
 const LEFT_SORTS = {
-  popular: ['Most played on osu!', (a, b) => b[5] - a[5] || a[0] - b[0]],
+  popular: ['Most played on osu!', byPlays],
   easy: ['Fewest stars', (a, b) => a[3] - b[3] || a[0] - b[0]],
   hard: ['Most stars', (a, b) => b[3] - a[3] || a[0] - b[0]],
   new: ['Newest ranked', (a, b) => (b[4] ?? 0) - (a[4] ?? 0) || b[0] - a[0]],
+  short: ['Shortest first', byLength(1), true],
+  long: ['Longest first', byLength(-1), true],
 };
 const LEFT_PAGE = 50;
 const percent = (n, total) => (total ? (n / total) * 100 : 0);
 
-function leftRow([id, set, version, stars, rankedDay, plays], sets) {
+function leftRow([id, set, version, stars, rankedDay, plays, length], sets) {
   const named = sets[set];
   const title = named ? `${named[0]} - ${named[1]}` : `Map #${id}`;
   return html`<a class="row card-link" href="#/map/${id}">
@@ -184,6 +191,7 @@ function leftRow([id, set, version, stars, rankedDay, plays], sets) {
       </span>
     </span>
     <span class="row-meta">
+      ${length ? html`<span>${fmt.duration(length)}</span><span class="sep"></span>` : ''}
       ${rankedDay ? html`<span>Ranked ${fmt.monthYear(rankedDay * 86400)}</span><span class="sep"></span>` : ''}
       <span>${fmt.plural(plays, 'play')} on osu!</span>
     </span>
@@ -198,7 +206,9 @@ function renderCompletion(panel, goal, index, query) {
   const pct = percent(goal.cleared, goal.total);
   const conv = goal.converts;
   let stars = parseStars(query);
-  let sortKey = LEFT_SORTS[query.sort] ? query.sort : 'popular';
+  const timed = goal.left.some(r => r[6]);
+  const sorts = Object.entries(LEFT_SORTS).filter(([, [, , needsLength]]) => timed || !needsLength);
+  let sortKey = sorts.some(([k]) => k === query.sort) ? query.sort : 'popular';
   let page = Math.max(0, (Number(query.page) || 1) - 1);
 
   panel.innerHTML = String(html`
@@ -233,7 +243,7 @@ function renderCompletion(panel, goal, index, query) {
       <div class="section-head"><h2>Not cleared yet</h2><span class="muted small">Ranked maps no Portuguese player has passed.</span></div>
       ${goal.left.length ? html`
         <div class="toolbar">
-          <select class="select" id="left-sort" aria-label="Sort">${Object.entries(LEFT_SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>
+          <select class="select" id="left-sort" aria-label="Sort">${sorts.map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>
         </div>
         ${starSlider(stars)}
         <p class="result-count" id="left-count"></p>
