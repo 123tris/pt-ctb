@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from './build.mjs';
-import { completion, clearsMap, isRankedSpecific, isRankedConvert, NF } from './completion.mjs';
+import { completion, homeGoal, clearsMap, isRankedSpecific, isRankedConvert, NF } from './completion.mjs';
 
 const now = Date.UTC(2026, 9, 25, 12) / 1000;
 const day = 86400;
@@ -131,7 +131,12 @@ test('the export writes the goal, a page for every uncleared map and the headlin
 
   const file = files['completion.json'];
   assert.deepEqual([file.cleared, file.total], [1, 3]);
-  assert.deepEqual(files['meta.json'].completion, { cleared: 1, total: 3 });
+  const home = files['meta.json'].completion;
+  assert.deepEqual([home.cleared, home.total, home.players], [1, 3, 1]);
+  assert.deepEqual(home.next.map(r => r[0]), [3, 2]); // equal stars: the most played on osu! first
+  assert.deepEqual(home.sets, { 20: ['A', 'Map 2'], 77: ['Set artist', 'Set title'] });
+  assert.deepEqual(home.latest, [1, 10, now - 30 * day]);
+  assert.deepEqual(home.maps, { 1: file.maps[1] });
   assert.deepEqual(file.left.map(r => r[0]), [3, 2]); // most played on osu! first
   assert.deepEqual(file.sets[77], ['Set artist', 'Set title']);
   assert.ok(file.maps[1]);
@@ -142,4 +147,27 @@ test('the export writes the goal, a page for every uncleared map and the headlin
   assert.equal(page.c, 'r');
   assert.equal(page.m[1], 'Set title');
   assert.ok(files[`maps/${2 % 128}.json`][2]);
+});
+
+test('the home page gets the easiest maps still to clear, one per set, and the newest first clear', () => {
+  const file = {
+    cleared: 5, total: 10, players: 2,
+    recent: [[1, 10, now], [2, 11, now - day]],
+    maps: { 1: ['tuple 1'], 2: ['tuple 2'] },
+    sets: { 50: ['A', 'Five'], 60: ['B', 'Six'], 70: ['C', 'Seven'], 80: ['D', 'Eight'] },
+    // [mapId, setId, version, stars, rankedDay, osu! plays]
+    left: [
+      [5, 50, 'Hard', 4, null, 900], [6, 50, 'Cup', 1, null, 100], [7, 60, 'Salad', 2, null, 50],
+      [8, 70, 'Platter', 2, null, 500], [9, 80, 'Cup', 0, null, 9000], [11, 0, 'Cup', 3, null, 1],
+    ],
+  };
+  const home = homeGoal(file);
+  // Stars first, then osu! plays; a second difficulty of a set already listed and maps with no star rating are skipped.
+  assert.deepEqual(home.next.map(r => r[0]), [6, 8, 7]);
+  assert.deepEqual(home.sets, { 50: ['A', 'Five'], 60: ['B', 'Six'], 70: ['C', 'Seven'] });
+  assert.deepEqual(home.latest, [1, 10, now]);
+  assert.deepEqual(home.maps, { 1: ['tuple 1'] });
+  assert.deepEqual(file.left.map(r => r[0]), [5, 6, 7, 8, 9, 11]); // left as it was
+  const none = homeGoal({ ...file, recent: [], left: [] });
+  assert.deepEqual([none.next, none.sets, none.latest, none.maps], [[], {}, null, {}]);
 });

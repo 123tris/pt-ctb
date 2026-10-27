@@ -8,7 +8,7 @@ import {
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
 import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js';
 import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
-import { completion } from './completion.mjs';
+import { completion, homeGoal } from './completion.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -887,8 +887,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     homeCountry,
     dump: bot.ptCatchState.last_imported_dump || null,
     totals: records.totals,
-    // The completion goal's headline, for the home page: { cleared, total } ranked catch-specific maps.
-    completion: { cleared: goal.file.cleared, total: goal.file.total },
+    // The completion goal's slice for the home page (completion.mjs homeGoal): the headline, the easiest maps still to
+    // clear and the newest first clear. Older data has only { cleared, total }.
+    completion: homeGoal(goal.file),
   };
 
   const state = {
