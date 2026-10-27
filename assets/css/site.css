@@ -593,6 +593,18 @@ tr.target:not(.me) { background: var(--surface-2); }
   .cell-sub { display: block; }
   td.cell-player { white-space: normal; }
 }
+/* Activity → Past weeks (core/weekly.js): a fixed layout, so long map names end in "…" instead of widening the table;
+   every cell is one or two lines (.cell-line), and the map of the week is the usual map line with its cover. On phones
+   the week and the top play fold under the map, each on its own line. */
+.table-weeks { table-layout: fixed; }
+.table-weeks .col-week { width: 8.5rem; }
+.table-weeks .col-top { width: 30%; }
+.table-weeks .col-most { width: 11rem; }
+.table-weeks td { white-space: normal; }
+.cell-line { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-line .player { max-width: 100%; vertical-align: middle; }
+@media (max-width: 600px) { .table-weeks .cell-sub { display: flex; align-items: center; gap: var(--sp-1); margin-top: var(--sp-1); } }
+
 /* The play's stats under a player's name on phones: no desktop column widths, so they pack onto one or two lines. */
 .cell-sub .score-line > * { min-width: 0; text-align: left; }
 
