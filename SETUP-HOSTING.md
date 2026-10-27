@@ -252,8 +252,9 @@ me" on the old site, it's still picked on the new one.
 
 ## 4. Usage counts and your dashboard (/stats)
 
-The site counts page views and button presses anonymously (`assets/js/core/track.js` → `functions/api/hit.js`), and
-`https://ptcatch.com/stats` shows them to you only. Until the steps below are done, the site sends the counts but they
+The site counts how it's used, per visitor (a random id in the browser) and, when the visitor said who they are, per
+osu! player (`assets/js/core/track.js` → `functions/api/hit.js` → `usage/store.js`; `#/privacy` explains it to
+visitors), and `https://ptcatch.com/stats` shows it to you only: Overview, People, Health, and one page per player. Until the steps below are done, the site sends the counts but they
 are dropped (the endpoint answers "no-database"), and `/stats` says what's missing.
 
 1. **Storage & Databases → D1 SQL Database → Create.** Name it `ptctb-usage`, with location hint Western Europe. There's
@@ -270,8 +271,24 @@ are dropped (the endpoint answers "no-database"), and `/stats` says what's missi
 `STATS_PASSWORD`. Then press **Don't count this browser** at the bottom, so your own visits stay out of the numbers. Do
 that once on each browser and site (ptcatch.com and dev.ptcatch.com separately).
 
-Free-plan limits: D1 allows 100,000 written rows and 5 million read rows a day. One visit writes about 5–15 rows, and a
-30-day dashboard view reads every event in the range about 12 times, so there's plenty of room at this site's size.
+Free-plan limits: D1 allows 100,000 written rows and 5 million read rows a day. One visit writes about 50–70 rows (about
+25 events at 2 rows each, plus the session and visitor rows), and `usage/store.js` stops at 8,000 events, an estimated
+45,000 rows written, or 1,500 events from one IP address a day. A dashboard view reads every event in its range about
+10 times and refuses a range that would pass 2 million reads in a day.
+
+**Upgrading the usage database to version 2 (per-visitor counts)**, once, before the release that brings it:
+
+1. `npx wrangler d1 execute ptctb-usage --local --file=usage/migrations/0002_people.sql` tries it on a local copy.
+2. `npx wrangler d1 execute ptctb-usage --remote --file=usage/migrations/0002_people.sql` runs it on the real database.
+   It adds columns and empty tables and rewrites no rows, so it costs almost nothing. Run twice, the ALTERs fail with
+   "duplicate column name", which is harmless. If it's skipped, the code makes the same changes on its first request.
+3. Release as usual. `/auth/callback` now adds a signed `proof` to sign-ins (`signin/proof.js`, keyed by
+   `OSU_CLIENT_SECRET`), so the dashboard marks osu! sign-ins on ptcatch.com as **verified**; nothing new to set up.
+4. Check `/stats?view=people` after a visit of your own, then press **Don't count this browser** again (the old switch
+   still works, but your browser now also has a visitor id).
+
+`npm run serve -- --usage` runs the usage Functions locally over SQLite (dashboard at `/stats`, password `local`).
+`CONFIG.analyticsConsent` in `assets/js/config.js` turns on a consent question (`'identity'` or `'all'`); it's off.
 
 ## Day to day
 
