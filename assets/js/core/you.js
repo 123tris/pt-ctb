@@ -13,6 +13,12 @@ import { toast } from './fun.js';
 import { CONFIG } from '../config.js';
 
 const SIGN_IN_TTL = 15 * 60 * 1000;
+
+// On localhost the maintainer (Tris) is "me" until this browser chooses: a fresh profile has no 'ptctb:me' at all,
+// while "This isn't me" stores null, so un-marking still sticks. Runs when the module loads, before any page reads it.
+if (['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)) {
+  try { if (localStorage.getItem('ptctb:me') === null) prefs.set('me', 3821475); } catch { /* storage blocked */ }
+}
 // The osu! app only knows CONFIG.home's callback, so pages.dev previews, the old github.io copy and localhost don't offer it.
 const SIGN_IN_HERE = CONFIG.signIn && (!CONFIG.home || location.origin === new URL(CONFIG.home).origin);
 
