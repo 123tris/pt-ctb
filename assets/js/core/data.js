@@ -40,7 +40,7 @@ export function load(path) {
       .then(m => fetch(m.files?.[path] ? `${CONFIG.data}${hashedName(path, m.files[path])}` : `${CONFIG.data}${path}?v=${m.generatedAt}`))
       .then(r => {
         if (r.status === 404) throw new NotFound(path);
-        if (!r.ok) throw new Error(`Couldn’t load ${path} (${r.status}).`);
+        if (!r.ok) throw new Error(`${path} answered HTTP ${r.status}.`);
         return r.json();
       });
     promise.catch(() => cache.delete(path));

@@ -244,19 +244,19 @@ export default async function player(root, { params, query, isCurrent }) {
             // "(estimated)" is only for screen readers here: the subtitle already says it, and the value stays one line.
             ? html`<span title="Estimated from their stored plays, so probably a little low"><span aria-hidden="true">≈ </span>${fmt.pp(p.pp)} pp</span><span class="sr-only"> (estimated)</span>`
             : html`${fmt.pp(p.pp)} pp`,
-            html`${inactiveTag()} ${officialPpNote(p)}`, 'stat-r')
+            html`${inactiveTag(p)} ${officialPpNote(p)}`, 'stat-r')
           // Inactive with nothing to go on (no last-known value, no plays to estimate from).
-          : stat('Official pp', '—', html`${inactiveTag()} no official pp known`, 'stat-r')}
+          : stat('Official pp', '—', html`${inactiveTag(p)} no official pp known`, 'stat-r')}
       ${stat('Accuracy', fmt.acc(p.acc), `Level ${fmt.num(p.level, 0)}`)}
       ${stat('Play count', fmt.num(p.plays), html`<span class="grade-counts">${['X', 'S', 'A'].map((g, i) => html`<span>${gradeBadge(g)}${fmt.num(p.grades[i])}</span>`)}</span>`)}
       ${stat('Dan points', fmt.num(p.danScore), `${p.dan.length} of ${DAN_STAGES.length} stages`)}    </div>
 
-    ${id === THRONE_PLAYER ? html`<p class="notice" style="margin-top:16px">Every #1 on this profile is up for grabs. <a href="#/records?at=throne">Dethrone Tris →</a></p>` : ''}
+    ${id === THRONE_PLAYER ? html`<p class="mt-4 notice">Every #1 on this profile is up for grabs. <a href="#/records?at=throne">Dethrone Tris</a></p>` : ''}
 
     ${signature ? html`<section class="section card signature">
       <h2 class="card-h">Signature map <span class="faint">· ${signature.kind}</span></h2>
       ${mapLink(signature.s[S.MAP], signature.meta)}
-      <div class="score-line" style="margin-top:10px">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
+      <div class="mt-2 score-line">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
     </section>` : ''}
 
 

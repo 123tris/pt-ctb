@@ -30,11 +30,41 @@ const highlightRow = (label, [uid, cat, ...s], maps, index) => html`<div class="
     <span class="faint" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.ago(s[S.TIME]))}</span></div>
 </div>`;
 
-/** A play in one table cell: who, pp (linked to the play on osu! when known) and the map. */
+/** A play in one table cell, on two lines: who and the pp (linked to the play on osu! when known), then the map. */
 function playCell([uid, , ...s], maps, index) {
   const url = scoreUrl(s);
   const pp = url ? html`<a href="${url}" target="_blank" rel="noopener" title="This play on osu!">${ppText(s[S.PP])}</a>` : ppText(s[S.PP]);
-  return html`${playerLink(uid, index, 'avatar-sm')} ${pp} <a class="dim-link small" href="#/map/${s[S.MAP]}">${mapLabel(s[S.MAP], maps[s[S.MAP]])}</a>`;
+  const label = mapLabel(s[S.MAP], maps[s[S.MAP]]);
+  return html`<span class="cell-line">${playerLink(uid, index, 'avatar-sm')} ${pp}</span>
+    <a class="cell-line dim-link small" href="#/map/${s[S.MAP]}" title="${label}">${label}</a>`;
+}
+
+/** How a past week's map was picked, when the data says. */
+const PICKED = { true: 'Voted', false: 'Automatic pick' };
+
+/** "19–25 Oct", with a * when the bot missed part of the week (the footnote under the table says so). */
+const week = p => html`${weekRange(p)}${p.complete ? '' : html`<span aria-hidden="true">*</span><span class="sr-only"> (some plays missing)</span>`}`;
+
+/**
+ * Past weeks as a table that always fits the page: every cell is one or two lines, and long names end in "…". On
+ * phones only the map column stays, with the week and the top play folded under it.
+ */
+function pastWeeks(past, maps, index) {
+  const weeks = past.slice(0, 26);
+  return html`<div class="table-wrap" data-label="Past weeks"><table class="table-compact table-weeks">
+    <thead><tr><th class="col-opt col-week">Week</th><th>Map of the week</th><th class="col-opt col-top">Top pp play</th><th class="col-opt col-most">Most plays</th></tr></thead>
+    <tbody>${weeks.map(p => html`<tr>
+      <td class="col-opt"><span class="cell-line">${week(p)}</span>
+        ${p.map && p.voted !== undefined ? html`<span class="cell-line faint small">${PICKED[p.voted]}</span>` : ''}</td>
+      <td>${p.map ? mapLink(p.map, maps[p.map]) : '—'}
+        <span class="cell-sub"><span>${week(p)}${p.map && p.voted !== undefined ? ` · ${PICKED[p.voted]}` : ''}</span></span>
+        ${p.top ? html`<span class="cell-sub">Top play ${playerLink(p.top[0], index, 'avatar-sm')} ${ppText(p.top[2 + S.PP])}</span>` : ''}</td>
+      <td class="col-opt">${p.top ? playCell(p.top, maps, index) : '—'}</td>
+      <td class="col-opt">${p.most ? html`<span class="cell-line">${playerLink(p.most[0], index, 'avatar-sm')}</span>
+        <span class="cell-line faint small">${fmt.plural(p.most[1], 'play')}</span>` : '—'}</td>
+    </tr>`)}</tbody>
+  </table></div>
+  ${weeks.some(p => !p.complete) ? html`<p class="faint small mt-2">* The bot was offline for part of this week, so some plays may be missing.</p>` : ''}`;
 }
 
 /** The whole recap (Activity's "This week" tab). Each part only appears once the bot has written it. */
@@ -57,20 +87,12 @@ export function weeklyRecap(weekly, maps, index) {
         <div class="row-main"><span class="muted small">${i + 1}.</span>${mapLink(id, maps[id])}</div>
         <div class="row-meta"><span>${fmt.plural(players, 'player')} from Portugal</span></div>
       </div>`)}</div>
-      <div class="btn-row" style="margin-top:12px"><a class="btn btn-primary" href="${mapVote.url}" target="_blank" rel="noopener">Vote on Discord ↗</a></div>
+      <div class="mt-3 btn-row"><a class="btn btn-primary" href="${mapVote.url}" target="_blank" rel="noopener">Vote on Discord ↗</a></div>
     </section>` : ''}
 
     ${past.length ? html`<section class="section">
       <div class="section-head"><h2>Past weeks</h2><span class="muted small">The map of the week is voted on Discord; a week nobody voted for gets an automatic pick.</span></div>
-      <div class="table-wrap" data-label="Past weeks"><table class="table-compact">
-        <thead><tr><th>Week</th><th>Map of the week</th><th class="col-opt">Top pp play</th><th class="col-opt">Most plays</th></tr></thead>
-        <tbody>${past.slice(0, 26).map(p => html`<tr>
-          <td title="${p.complete ? '' : 'The bot was offline for part of this week'}">${weekRange(p)}${p.complete ? '' : '*'}</td>
-          <td>${p.map ? html`<a href="#/map/${p.map}">${mapLabel(p.map, maps[p.map])}</a>${p.voted ? html` <span class="faint small">voted</span>` : ''}` : '—'}</td>
-          <td class="col-opt">${p.top ? playCell(p.top, maps, index) : '—'}</td>
-          <td class="col-opt">${p.most ? html`${playerLink(p.most[0], index, 'avatar-sm')} ${fmt.num(p.most[1])}` : '—'}</td>
-        </tr>`)}</tbody>
-      </table></div>
+      ${pastWeeks(past, maps, index)}
     </section>` : ''}`;
 }
 
@@ -83,7 +105,7 @@ export function weeklySummary(weekly, maps, index) {
   if (!current && !mapVote) return '';
   const top = current?.top;
   return html`<section class="week-summary">
-    <div class="section-head"><h2>This week so far</h2><a href="#/activity?view=week">The week’s recap →</a></div>
+    <div class="section-head"><h2>This week so far</h2><a href="#/activity?view=week">The week’s recap</a></div>
     ${current ? html`<p class="muted small">${weekLine(current)}</p>` : ''}
     ${top ? html`<div class="week-top"><span class="faint small">Top play</span> ${playerLink(top[0], index, 'avatar-sm')}
       <span>${ppText(top[2 + S.PP])}</span> <a class="dim-link" href="#/map/${top[2 + S.MAP]}">${mapLabel(top[2 + S.MAP], maps[top[2 + S.MAP]])}</a></div>` : ''}

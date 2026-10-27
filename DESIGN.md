@@ -7,7 +7,7 @@ How ptcatch.com looks, reads and behaves, written so changes stay consistent. It
 - Read §1.
 - Use §2–§12 while building.
 - Run §13 before committing UI.
-- §14 lists where today's code still breaks the guide; fix those when you're in the file anyway.
+- §14 lists where the code still breaks the guide; fix those when you're in the file anyway.
 
 Tokens and classes named here are the real ones, in `assets/css/site.css`, `assets/css/ambience.css` and
 `assets/js/core/ui.js`.
@@ -21,6 +21,8 @@ Tokens and classes named here are the real ones, in `assets/css/site.css`, `asse
 - Background tiles only in the side margins, with grain and no glows.
 - Rank-first stat tiles, sentence-case labels, fewer boxes. Less is more.
 - A star-range slider with a single Rosa fill.
+- The "legend" and "inactive" tags keep a small outline, centred on the name.
+- Challenges' four modes are tabs, each with its live figure, not cards.
 
 ---
 
@@ -121,7 +123,7 @@ ours is 15px), but the same restraint applies.
 | Family | Use for |
 |---|---|
 | Inter (`--font`) | All text and every number (tabular figures are on for the whole `body`) |
-| Josefin Sans (`--display`) | H1, H2, Dan glyphs, years, step numbers, `.subnav b` |
+| Josefin Sans (`--display`) | H1, H2, Dan glyphs, years, step numbers |
 | Unbounded 800 | `.brand` only. The file is subset to "PT Catch"; re-make it if the name changes |
 | `--mono` | Bot commands and `.kbd` |
 
@@ -164,9 +166,9 @@ Windowing (adapt to size, avoid two scrollbars).*
 
 ### Spacing scale
 
-Add these as tokens (§14).
+They are tokens in `:root`, and every padding, margin and gap uses them.
 
-| Proposed token | px | Typical use |
+| Token | px | Typical use |
 |---|---|---|
 | `--sp-1` | 4 | Icon to text; chip to chip |
 | `--sp-2` | 8 | Items in a group (buttons in `.btn-row`) |
@@ -180,6 +182,12 @@ Add these as tokens (§14).
 - The space between groups is at least twice the space within one, as with Foundations' 2px versus 8px.
 - Neighbouring objects share the same inset.
 - No inline `style=""` in page JS; add a class.
+- **Px only where it isn't spacing:** 1–3px optical nudges (a baseline, a pill's border), offsets that cancel another
+  value (a bleed of `-16px` under a 16px inset), and sizes that come from geometry (the 72px row indent under a map
+  cover, the jersey's 170px, the hamburger's line spacing). Everything else is a step.
+- **Which step:** icon or dot to its text `--sp-1`; items in a group `--sp-2`; padding inside rows and small controls
+  `--sp-3`; the inset of objects (tables, row lists, menus, toasts, cards) `--sp-4`; between groups `--sp-6`; under
+  a head or between blocks `--sp-8`.
 
 ### Grid
 
@@ -214,7 +222,7 @@ Never above 5px, and no pill-shaped buttons.
 ### Containers
 
 - **A full box** (fill, 1px border, radius) is for one object: a table, a row list, a banner, a game option, a Dan
-  stage, a sub-nav card or a menu.
+  stage or a menu.
 - **Everything else is open:** a `--border` hairline above it or between its items.
 - **No coloured `border-left` callouts.** The 2px inset accent edge on `.me` rows stays, because it marks a state.
 - **Inputs are inset:** a `--bg-2` fill and an `--input-border` edge. **Actions are outset:** a `--surface-2` fill and
@@ -223,7 +231,7 @@ Never above 5px, and no pill-shaped buttons.
 ### Elevation
 
 - **On the page:** no shadows.
-- **Floating layers** (menus, popovers, toasts) may have one neutral black shadow, up to `0 18px 40px rgba(0,0,0,.45)`.
+- **Floating layers** (popovers, toasts, the toggletip bubble) may have one neutral black shadow: `--shadow-float`.
 - **No glows:** no coloured shadows, `text-shadow` halos or gradient surfaces.
 - **Translucency:** the frosted top bar and its menus are the only translucent surfaces.
 
@@ -355,7 +363,10 @@ Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout)
 ### Tabs (`tabs()`)
 
 - Tabs switch between sibling views of one thing. They are real links with `aria-current` and an optional `.count`.
+- The `.count` is a number, or a short live figure where the views are challenges: Challenges shows "5d left", "10th
+  Dan", "30" (#1s up for grabs) and "79.3%", so each tab says where it stands before you open it.
 - One or two words, at most about six tabs, and no heading repeating the tab name.
+- Tabs are spaced by a gap, not padding, so a strip that wraps on a phone starts every line at the left edge.
 - If the views need comparing side by side, use columns instead.
 
 ### Menus (`.nav-menu`, `.you-menu`, `.peek-pop`, `.search-pop`)
@@ -439,7 +450,9 @@ loads `completion.json` (about 90 KB compressed); both read `meta.json`'s `compl
 
 Prefer status as words in the line under a name (`.profile-line`): Foundations doesn't box static status.
 - **`.badge`** is a status outline: gold for honours, accent for "you", red for problems.
-- **`.legend-tag`** is the quiet "legend" or "inactive" tag. It must explain itself visibly (see Tooltips).
+- **`.legend-tag`** is the "legend" or "inactive" tag: faint text in a thin `--border-strong` outline (the user's
+  choice; the one boxed status), middle-aligned so it's centred on the name. It must explain itself visibly (see
+  Tooltips).
 - **`.fun-chip`** is an in-joke as a toggletip, on profiles and maps only, three at most before "+N more".
 
 ### Search and fields
@@ -456,7 +469,12 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
 
 - **`title=""`** may only repeat what is already visible, such as the full date behind "3 days ago" or a truncated
   title. It doesn't show on touch or keyboard.
-- **Explanations people need** go in visible text, the glossary, or a toggletip button (the `funChips()` pattern).
+- **Explanations people need** go in visible text, the glossary, or a toggletip:
+  - a row of in-jokes under a name: `funChips()`, with the tip in the line under the row;
+  - one tag or word in a line or a table cell ("legend", "inactive", "estimated"): `tipTag()`, a button that opens one
+    shared bubble (`.tip-pop`) beside it. The bubble is fixed to the window, so a scrolling table can't clip it, and is
+    a live region, so it's read out. Escape, another click, losing focus or scrolling closes it.
+  - Inside a link a button can't go, so `tipTag(…, { plain: true })` gives the bare tag; the page it links to explains.
 - **Length:** under 200 characters. Complete sentences end with a full stop.
 
 ### Notices, toasts and disclosures
@@ -589,61 +607,35 @@ wrong".
 
 ## 14. Gaps in today's code
 
-Found on 2026-10-26 in the dev worktree and on the live site. Nothing here was changed. Line numbers drift, so search
-for the selector.
+The `design-pass` branch (2026-10-26) applied this guide to the site:
+- spacing tokens and classes in place of the static inline styles;
+- every size on the scale, and labels in sentence case;
+- osu!, grade, podium and Discord colours as tokens, and one job per colour (event squares, Compare, Wrapped, eyebrows,
+  code, hero);
+- contrast fixes for the slider track and the search field;
+- 44px touch targets on touch screens;
+- no pulses, shimmers, lifts or accent shadows;
+- no side stripes, dashed borders or boxed status (the legend tag aside);
+- four breakpoints, and no arrows after links;
+- a plain "Loading…", and errors written as problem, cause and fix;
+- quips only on the rare real-lore events, and no emoji in the activity feed;
+- the "Fewer boxes" and "Quieter labels" overrides folded into their original rules.
 
-1. **No spacing tokens.**
-   - The live profile uses 11 different paddings.
-   - There are 91 inline `style=""` attributes in `assets/js/pages/*.js` (`games.js` 18, `calculator.js` 11,
-     `records.js` 10, `wrapped.js` 9).
-2. **Off-scale type.**
-   - `.6875rem` (11px) appears 13 times in `site.css`: `.mod` (:310), `th` (:367), `.stat-label` (:438), `.kv dt` and
-     others.
-   - H2 and `.brand` are a literal 22px (:96, :111).
-   - `.kv .status-date` uses a literal `.8125rem` (:1149).
-   - `.stat-unit` at `.5em` renders at about 10.5px.
-3. **Uppercase left over.**
-   - 17 `text-transform: uppercase` rules remain; the override block at :1243 cancels most of them.
-   - Still uppercase: the table headers (allowed) and the home board titles (`.card > h3.board-title .cat`, :1273).
-4. **Glows and loops** in `ambience.css`. These break §5 and §7.
-   - The Dan frontier pulses with a `text-shadow` halo forever (`.rung.top`, `@keyframes frontier`).
-   - The hero's "osu!catch" shimmers forever (`.hero h1 em`).
-   - Game cards, `.subnav a` and `.dan-stage` lift 3px with an accent-tinted shadow; `.btn-primary` lifts too.
-5. **Hex values outside `:root`:**
-   - `.btn-discord` (:221);
-   - the mod pills and their ink (:310–316);
-   - the A/B/C grades (:322–324);
-   - the podium inks (:354–356);
-   - `.ev-snipe` `#f2706f` (:700);
-   - the DEV tag (:1077);
-   - the tile stroke in `ambience.css` (`--cat-c` by value).
-6. **Colours with two jobs.**
-   - `--cat-c` also marks Compare's second player (`.split .b`, :811) and the "pass" event (`.ev-pass`, :703).
-   - `--cat-u` also marks milestones (`.ev-mile`, :704).
-   - `.wrapped .slide.green` is accent-coloured (:823).
-7. **Low-contrast controls.**
-   - The slider's unfilled track is `--surface-3` on `--bg`, 1.43:1 (`.range-track`, :263).
-   - The top-bar search field's edge is `--border`, 1.29:1 (`.search-field input`, :955), where `.input` uses
-     `--input-border`.
-8. **Touch targets under 44px**, measured at 375px:
-   - 30px: `.btn-small`, `.btn-icon`, `.chip`, `.peek-btn`, `.title-link`;
-   - 28px: `.stat-link`, the `.history` summary.
+Still open. Line numbers drift, so search for the selector.
 
-   All of them pass 24px.
-9. **Meaning in `title` only.** There are 19 `title=` attributes in `pages/*.js`. `posBadge()`, the "estimated" note in
-   `officialPp()`, `inactiveTag()`, `legendTag()` and the misses span in `ui.js` explain themselves only through
-   `title`, plus `sr-only` text that touch users never see.
-10. **Error copy.** `app.js` shows "Something went wrong" above the raw `e.message`. `data.js` throws "Couldn't load
-    {path} ({status})", which gives a file path and no fix.
-11. **Jokes in the loader.** `loading()` in `ui.js` picks a random line from `LOADING` in `lore.js` on every page
-    change.
-12. **Arrows after links:** 32 `→` in `assets/js`, plus `.link-list b::after` (:545).
-13. **Dashed borders without a legend:** `.fun-chip` (:875), `.badge-era` (:887), `.diff-new` (:595).
-14. **11 breakpoints** (480, 560, 600, 620, 640, 700, 760, 820, 900, 940, 1100) instead of §4's four.
-15. **Patches over patches.** `site.css` :939–1311 appends blocks that re-set earlier rules ("Fewer boxes", "Quieter
-    rows and labels", the a11y fixes). Edit the original rule, and fold a block back in when its section is touched.
-16. **Static status in boxes.** `.legend-tag` and the remaining `.badge` uses are bordered boxes around
-    non-interactive text.
+1. **Some meaning is still only in `title` or `aria-label`.** The quieter `.diff-new` (no Portuguese scores yet) says
+   why only in its label, and `posBadge()` puts "Position in Portugal" in `title`. The tags and "estimated" are
+   toggletips now (`tipTag()`).
+2. **One hex value outside `:root`:** the tile stroke in `ambience.css`. A `data:` URI can't read a variable; it's
+   `--cat-c` by value.
+
+Done since: the blocks once appended to `site.css` (search, "you", sign-in, the a11y fixes, goal, peek) sit in their
+sections, with a Challenges section and a Utilities section last; rank links on stat tiles have a 45px-tall hit area and
+heading links reach 44px on touch; spacing is on the scale everywhere (§4); tabs and top 5 lines read their figures apart from their names; the menu button, the
+bacalhau loader and the flash easter egg calm down under reduced motion.
+
+Allowed on purpose: table headers in small capitals, and fluid sizes made with `clamp()` (H1, stat values, Dan
+glyphs). Each of those is bounded by scale steps.
 
 ---
 

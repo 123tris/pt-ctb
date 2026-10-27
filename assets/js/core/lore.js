@@ -29,22 +29,6 @@ export function pick(list, seed) {
   return list[h % list.length];
 }
 
-export const LOADING = [
-  'Derusting…',
-  'Catching fruit…',
-  'Counting misses…',
-  'Waking up Alphonse…',
-  'Loading copium…',
-  'Recalculating the rework (again)…',
-  'Farming pp for you…',
-  'Reading low AR HD… this may take a while.',
-  'Looking for that one miss…',
-  'Retry #30: almost a clear with a 400x combo.',
-  'Everything will freeze. The site won’t.',
-  'Asking peppy to fix CTB star rating…',
-  'Ainda há muita sopa para comer…', // PT text (intentional): "still plenty of soup to eat", i.e. lots of growing to do
-];
-
 export const NOT_FOUND = [
   'It’s probably been in qualified since 2018.',
   'Reverse choke: everything was going fine and we died right at the end.',
@@ -67,17 +51,12 @@ export const HISTORY = [
   [2026, 'The first series win in Portugal’s CWC history. Alphonse wakes up again two weeks later.'],
 ];
 
-/** Short lines under activity events, by kind. A function gets the event and returns a line or null. */
+/** The few lines under activity events (core/events.js quip()): each tied to a real in-joke or a rare moment. */
 export const QUIPS = {
-  snipe: ['Hey bro, you just got sniped. What u gonna do, huh?', 'Sniped. Respect.', 'The #1 changes hands.'],
-  topFirst: ['NEW TOP PLAY 🔥'],
-  oneMiss: ['The 1-miss gods have blessed you.'],
   trisAcc: ['TrisAcc: an FC is an FC.'],
   noRealSnipe: 'That’s not a real snipe (NF).',
   christmas: 'An early Christmas present.',
   throne: 'The throne wobbles.',
-  mile: ['Another thousand. Respect.'],
-  join: ['Welcome! Bad scores are most appreciated :)'],
 };
 
 /** Dan role lore, shown under each role on the Dan page. `empty` replaces the text while nobody has the role. */

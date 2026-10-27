@@ -46,19 +46,19 @@ function hub(root) {
         <span class="game-art"><img class="game-art-blur" src="${coverUrl(BOSS_SETS[Math.floor(Date.now() / 864e5) % BOSS_SETS.length], 'card')}" alt="" width="400" height="140" loading="lazy" decoding="async"></span>
         <h2>Guess the map</h2>
         <p class="muted">Name the map from its blurred cover. <b>Daily:</b> one map a day, three tries, like the Discord’s Wordle but with fruit. <b>Practice:</b> ten rounds with a boss round at the end.</p>
-        <p class="small faint" style="margin:0">${daily?.streak ? `Daily streak: ${daily.streak} ${daily.streak === 1 ? 'day' : 'days'}` : 'No daily streak yet.'}${best !== null ? ` · Practice record: ${best} of 30` : ''}</p>
+        <p class="m-0 small faint">${daily?.streak ? `Daily streak: ${daily.streak} ${daily.streak === 1 ? 'day' : 'days'}` : 'No daily streak yet.'}${best !== null ? ` · Practice record: ${best} of 30` : ''}</p>
       </a>
       <a class="card card-link" href="#/games/quiz">
         <span class="game-art"><img src="${coverUrl(TUGA_SET, 'card')}" alt="" width="400" height="140" loading="lazy" decoding="async"></span>
         <h2>Convert or specific?</h2>
         <p class="muted">The eternal argument, as a quiz. Or try “Overdose or Rain?” and name the difficulty from the cover and the stars.</p>
-        <p class="small faint" style="margin:0">${quizBest !== null ? `Your record: ${quizBest} of 10` : 'You haven’t played yet.'}</p>
+        <p class="m-0 small faint">${quizBest !== null ? `Your record: ${quizBest} of 10` : 'You haven’t played yet.'}</p>
       </a>
       <a class="card card-link" href="#/games/higher-lower">
         <span class="game-art game-art-duel">${avatar(RIVALRIES[0][0], 'avatar-md')}<span class="duel-vs">vs</span>${avatar(RIVALRIES[0][1], 'avatar-md')}<small>${RIVALRIES[0][2]}</small></span>
         <h2>Higher or lower?</h2>
         <p class="muted">Who has more pp, more #1s or more plays? Guess whether the next player is higher or lower and keep the streak alive.</p>
-        <p class="small faint" style="margin:0">${streak !== null ? `Your best streak: ${streak}` : 'You haven’t played yet.'}</p>
+        <p class="m-0 small faint">${streak !== null ? `Your best streak: ${streak}` : 'You haven’t played yet.'}</p>
       </a>
     </div>
   `);
@@ -66,7 +66,7 @@ function hub(root) {
 
 // ---- Guess the map: Daily (one map a day) or Practice (ten rounds) ------------------------------------------------
 
-const guessModes = mode => html`<div class="chips" style="justify-content:center;margin-bottom:12px">
+const guessModes = mode => html`<div class="justify-center mb-3 chips">
   <a class="chip ${mode === 'daily' ? 'active' : ''}" href="#/games/guess" ${mode === 'daily' ? html`aria-current="page"` : ''}>Daily</a>
   <a class="chip ${mode === 'practice' ? 'active' : ''}" href="#/games/guess?mode=practice" ${mode === 'practice' ? html`aria-current="page"` : ''}>Practice</a>
 </div>`;
@@ -110,7 +110,7 @@ async function dailyGame(root, isCurrent) {
         <div class="game-options" id="options">${options.map((s, i) => html`<button class="option ${done && s === answer ? 'right' : ''}" type="button" data-i="${i}" ${done ? html`disabled` : ''}>${s[2]}<small>${s[1]}</small></button>`)}</div>
         ${done ? html`<p class="game-result ${tried ? 'right' : 'wrong'}">${verdict(tried)}</p>
           <p class="center muted small">${answer[1]} - ${answer[2]}, mapped by ${answer[3]}. A new map tomorrow.</p>
-          <div class="btn-row" style="justify-content:center"><button class="btn" id="share" type="button">Copy result</button></div>` : ''}
+          <div class="justify-center btn-row"><button class="btn" id="share" type="button">Copy result</button></div>` : ''}
       </div>`);
     if (done) copyButton(root, `Guess the map (daily) · PT Catch ${today}: ${tried ? `${'🍎'.repeat(tried - 1)}🎯 (${tried}/3)` : '❌'} · streak ${streak}`);
   };
@@ -169,15 +169,15 @@ async function quizGame(root, query, isCurrent) {
         <header class="page-head center">
           <span class="eyebrow"><a href="#/games">Games</a> · ${m.label}</span>
           <h1>${m.question}</h1>
-          <div class="chips" style="justify-content:center">${Object.entries(QUIZ_MODES).map(([k, v]) => html`<a class="chip ${k === mode ? 'active' : ''}" href="#/games/quiz?mode=${k}">${v.label}</a>`)}</div>
+          <div class="justify-center chips">${Object.entries(QUIZ_MODES).map(([k, v]) => html`<a class="chip ${k === mode ? 'active' : ''}" href="#/games/quiz?mode=${k}">${v.label}</a>`)}</div>
         </header>
         <div class="scoreboard"><span>Round <b>${round + 1}<small>/${deck.length}</small></b></span><span>Points <b>${score}</b></span></div>
         <div class="game-cover"><img src="${coverUrl(r[1], 'cover')}" alt="Map cover" data-hide-broken></div>
-        <p class="center" style="margin:12px 0 0"><b>${r[2]} - ${r[3]}</b> ${starsBadge(r[5])}${mode === 'convert' ? html` <span class="faint">[${r[4]}]</span>` : ''}</p>
-        <div class="btn-row" style="justify-content:center;margin-top:16px">
+        <p class="m-0 mt-3 center"><b>${r[2]} - ${r[3]}</b> ${starsBadge(r[5])}${mode === 'convert' ? html` <span class="faint">[${r[4]}]</span>` : ''}</p>
+        <div class="justify-center mt-4 btn-row">
           ${picked === null
             ? m.answers.map(([k, label]) => html`<button class="btn btn-primary" type="button" data-pick="${k}">${label}</button>`)
-            : html`<button class="btn btn-primary" id="next" type="button">${round + 1 >= deck.length ? 'See result' : 'Next →'}</button>`}
+            : html`<button class="btn btn-primary" id="next" type="button">${round + 1 >= deck.length ? 'See result' : 'Next'}</button>`}
         </div>
         ${picked !== null ? html`<p class="game-result ${right ? 'right' : 'wrong'}">${right ? 'Right!' : 'Unlucky, 1 miss.'} <span class="muted">${catChip(r[6])} ${m.reveal(r)}</span></p>` : ''}
       </div>`);
@@ -190,11 +190,12 @@ async function quizGame(root, query, isCurrent) {
       if (round < deck.length) { draw(); return; }
       prefs.set('quiz-best', Math.max(score, prefs.get('quiz-best', 0)));
       track('game', 'quiz', `finished ${mode}`, '', score);
-      root.querySelector('.game').innerHTML = String(html`<div class="card center" style="padding:36px">
+      root.querySelector('.game').innerHTML = String(html`<div class="card-roomy card center">
+
         <span class="eyebrow">${m.label}</span>
         <div class="game-score">${score}<small>/ ${deck.length}</small></div>
         <p class="muted">${score >= 9 ? 'You’ve clearly had this argument before.' : score >= 6 ? 'Not bad.' : 'Skill issue. Try again?'}</p>
-        <div class="btn-row" style="justify-content:center"><a class="btn btn-primary" href="#/games/quiz?mode=${mode}&r=${Date.now()}">Play again</a></div>
+        <div class="justify-center btn-row"><a class="btn btn-primary" href="#/games/quiz?mode=${mode}&r=${Date.now()}">Play again</a></div>
       </div>`);
     });
   };
@@ -239,11 +240,11 @@ async function guessGame(root, isCurrent) {
       <p class="center special-round" id="special"></p>
       <div class="game-cover"><img id="cover" alt="Map cover (blurred)"></div>
       <div class="game-options" id="options"></div>
-      <div class="btn-row" style="justify-content:center;margin-top:16px">
+      <div class="justify-center mt-4 btn-row">
         <button class="btn" id="hint" type="button">Less blur (−1 point)</button>
-        <button class="btn btn-primary hidden" id="next" type="button">Next →</button>
+        <button class="btn btn-primary hidden" id="next" type="button">Next</button>
       </div>
-      <p class="center muted small" id="reveal" style="margin-top:14px"></p>
+      <p class="mt-3 center muted small" id="reveal"></p>
     </div>
   `);
 
@@ -281,12 +282,12 @@ async function guessGame(root, isCurrent) {
     prefs.set('guess-best', best);
     track('game', 'guess', 'finished', '', score);
     root.querySelector('.game').innerHTML = String(html`
-      <div class="card center" style="padding:36px">
+      <div class="card-roomy card center">
         <span class="eyebrow">Result</span>
         <div class="game-score">${score}<small>/ ${ROUNDS * 3}</small></div>
-        <h1 style="font-size:var(--fs-xl)">${score} of ${ROUNDS * 3} points</h1>
+        <h1 class="text-xl">${score} of ${ROUNDS * 3} points</h1>
         <p class="muted">${score >= 25 ? 'You know your maps by heart!' : score >= 15 ? 'Not bad, you’ve been playing.' : 'Plenty of maps left to discover.'} Your record is ${best}.</p>
-        <div class="btn-row" style="justify-content:center">
+        <div class="justify-center btn-row">
           <a class="btn btn-primary" href="#/games/guess?mode=practice&r=${Date.now()}">Play again</a>
           <button class="btn" id="share" type="button">Copy result</button>
         </div>
@@ -314,7 +315,7 @@ async function guessGame(root, isCurrent) {
     if (!right) button.classList.add('wrong');
     reveal.textContent = `${right ? 'Right!' : 'Unlucky, 1 miss. It was'} ${current[1]} - ${current[2]}, mapped by ${current[3]} · ${fmt.plural(current[4], 'Portuguese player')} on this set’s most played map.`;
     next.classList.remove('hidden');
-    next.textContent = round + 1 >= ROUNDS ? 'See result' : 'Next →';
+    next.textContent = round + 1 >= ROUNDS ? 'See result' : 'Next';
     drawStatus();
   });
   next.addEventListener('click', () => {
@@ -354,7 +355,7 @@ async function higherLower(root, isCurrent) {
 
   const card = (p, shown) => html`<div class="duel-card">
     ${avatar(p.id, 'avatar-lg')}
-    <b style="font-size:1.15rem">${p.name}</b>
+    <b class="text-lg">${p.name}</b>
     <span class="muted small">has</span>
     <span class="value">${shown ? stat.format(stat.value(p)) : '?'}</span>
     <span class="muted small">${stat.label}</span>
@@ -373,10 +374,10 @@ async function higherLower(root, isCurrent) {
           <div class="duel-vs">VS</div>
           ${card(b, revealed)}
         </div>
-        <div class="btn-row" style="justify-content:center;margin-top:18px">
+        <div class="justify-center mt-4 btn-row">
           ${revealed
             ? result
-              ? html`<button class="btn btn-primary" id="continue" type="button">Continue →</button>`
+              ? html`<button class="btn btn-primary" id="continue" type="button">Continue</button>`
               : html`<button class="btn btn-primary" id="restart" type="button">Start again</button><button class="btn" id="share" type="button">Copy result</button>`
             : html`<button class="btn btn-primary" data-guess="up" type="button">↑ Higher</button><button class="btn" data-guess="down" type="button">↓ Lower</button>`}
         </div>

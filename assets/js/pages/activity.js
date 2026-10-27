@@ -67,7 +67,7 @@ export default async function activityPage(root, { query, isCurrent }) {
       { href: '#/activity?view=plays', label: 'Recent plays', active: view === 'plays' },
       ...(weekly ? [{ href: '#/activity?view=week', label: 'This week', active: view === 'week' }] : []),
     ], 'Activity views')}
-    ${view === 'events' ? html`<div id="kinds" style="margin-bottom:12px">${chipGroup('Show', 'kind', [
+    ${view === 'events' ? html`<div id="kinds" class="mb-3">${chipGroup('Show', 'kind', [
       ['', 'All'], ...kinds.map(([k, { label }]) => [k, html`<span class="event-kind ev-${k}">${label}</span>`]),
     ], kind)}</div>
     <p class="result-count" id="count"></p>` : ''}

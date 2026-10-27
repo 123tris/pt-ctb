@@ -2,8 +2,8 @@
    - The page sits on faint azulejo tiles, with film grain.
      The tiles live in the margins beside the page and fade out behind the reading column so text stays clear.
    - The logo's name is set in Unbounded.
-   - Motion: sections fade up as they arrive, cards lift a little under the pointer, the Dan ladder's frontier pulses
-     and "osu!catch" in the hero shimmers. All of it stops under prefers-reduced-motion. */
+   - Motion: sections further down fade up once as they arrive; nothing else moves on its own.
+   - The tiles' stroke is the azulejo blue (#73c5e8, --cat-c by value): a data: URI can't read a CSS variable. */
 
 :root {
   --tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%2373c5e8' stroke-opacity='.08' stroke-width='1.2'%3E%3Cpath d='M0 0h72v72H0z'/%3E%3Ccircle cx='0' cy='0' r='20'/%3E%3Ccircle cx='72' cy='0' r='20'/%3E%3Ccircle cx='0' cy='72' r='20'/%3E%3Ccircle cx='72' cy='72' r='20'/%3E%3Cpath d='M36 16l20 20-20 20-20-20z'/%3E%3Ccircle cx='36' cy='36' r='7'/%3E%3Cpath d='M36 2v10M36 60v10M2 36h10M60 36h10'/%3E%3C/g%3E%3C/svg%3E");
@@ -47,33 +47,11 @@ body::after {
 
 /* ---- Motion ------------------------------------------------------------------------------------------------------ */
 
-/* Sections fade up from below the first time they scroll into view (core/reveal.js adds .reveal, then .in). */
+/* Motion confirms a change and never performs (DESIGN.md §7): no pulses, shimmers, glows or lifts. The one entrance:
+   sections further down fade up the first time they scroll into view (core/reveal.js adds .reveal, then .in). */
 .reveal { opacity: 0; transform: translateY(16px); transition: opacity .55s ease, transform .55s cubic-bezier(.2, .7, .2, 1); }
 .reveal.in { opacity: 1; transform: none; }
 
-/* "osu!catch" in the hero shimmers slowly, rosa to a lighter rosa: one hue, no second colour. */
-.hero h1 em {
-  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-hover) 35%, var(--accent) 70%, var(--accent-hover) 100%); background-size: 220% 100%;
-  -webkit-background-clip: text; background-clip: text; color: transparent; animation: shimmer 7s ease-in-out infinite alternate;
-}
-@keyframes shimmer { to { background-position: 100% 0; } }
-
-/* The Dan ladder: the highest stage anyone has reached rises and glows, again and again. */
-.rung.top .rung-glyph { animation: frontier 2.4s ease-in-out infinite; }
-@keyframes frontier { 50% { text-shadow: 0 0 24px color-mix(in srgb, var(--text) 45%, transparent); transform: translateY(-3px); } }
-
-/* Things you can pick up lift a little under the pointer; rows get the accent along their edge. */
-.game-cards .card-link, .subnav a, .dan-stage { transition: transform .2s, box-shadow .2s, border-color .2s, background-color .2s; }
-.game-cards .card-link:hover, .subnav a:hover, .dan-stage:hover {
-  transform: translateY(-3px); box-shadow: 0 18px 36px -18px color-mix(in srgb, var(--accent) 70%, transparent);
-}
-.btn-primary { transition: transform .15s, background-color .12s, border-color .12s; }
-.btn-primary:hover { transform: translateY(-1px); }
-.rows .row, tbody tr { transition: background-color .15s, box-shadow .15s; }
-.rows .row:hover, tbody tr:hover { box-shadow: inset 3px 0 0 var(--accent); }
-
 @media (prefers-reduced-motion: reduce) {
-  .hero h1 em, .rung.top .rung-glyph { animation: none; }
   .reveal { opacity: 1; transform: none; }
-  .game-cards .card-link:hover, .subnav a:hover, .dan-stage:hover, .btn-primary:hover { transform: none; }
 }

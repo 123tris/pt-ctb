@@ -80,7 +80,7 @@ export default async function compare(root, { params, query, isCurrent }) {
       ${!a && presets.length ? html`<section class="section"><h2>Classic rivalries</h2>
         <div class="grid grid-3">${presets.map(([x, y, label]) => html`<a class="card card-link" href="#/compare/${x}/${y}">
           <span class="eyebrow">${label}</span>
-          <div class="versus" style="margin-top:4px">
+          <div class="mt-1 versus">
             <span class="side">${avatar(x, 'avatar-sm')}<b>${byId.get(x).name}</b></span>
             <span class="faint small">vs</span>
             <span class="side right"><b>${byId.get(y).name}</b>${avatar(y, 'avatar-sm')}</span>
@@ -107,10 +107,10 @@ export default async function compare(root, { params, query, isCurrent }) {
     <header class="page-head"><span class="eyebrow">Compare</span><h1>${a.name} vs ${b.name}</h1></header>
     ${pickers}
     <section class="card">
-      <div class="versus" style="margin-bottom:12px">
-        <a class="side" href="#/player/${a.id}" style="color:inherit">${avatar(a.id, 'avatar-md')}<b>${a.name}</b></a>
+      <div class="mb-3 versus">
+        <a class="plain-link side" href="#/player/${a.id}">${avatar(a.id, 'avatar-md')}<b>${a.name}</b></a>
         <span class="faint">vs</span>
-        <a class="side right" href="#/player/${b.id}" style="color:inherit"><b>${b.name}</b>${avatar(b.id, 'avatar-md')}</a>
+        <a class="plain-link side right" href="#/player/${b.id}"><b>${b.name}</b>${avatar(b.id, 'avatar-md')}</a>
       </div>
       ${statRows(a, b)}
       ${(() => {
@@ -125,12 +125,12 @@ export default async function compare(root, { params, query, isCurrent }) {
       <h2>Maps in common</h2>
       ${tabs(CATS.map(c => ({ href: `#/compare/${a.id}/${b.id}?cat=${c}`, label: CAT_LABEL[c], count: shared(fa, fb, c).length, active: c === cat })))}
       ${both.length ? html`
-        <div class="versus" style="margin-bottom:8px">
+        <div class="mb-2 versus">
           <b class="side">${a.name}: ${fmt.num(winsA)}</b>
           <span class="faint small">${cat === CAT.LOVED ? 'by pp' : 'by score'}</span>
           <b class="side right">${fmt.num(winsB)}: ${b.name}</b>
         </div>
-        <div class="split" style="margin-bottom:16px"><div class="a" style="flex:${winsA || 0.0001}"></div><div class="b" style="flex:${winsB || 0.0001}"></div></div>
+        <div class="mb-4 split"><div class="a" style="flex:${winsA || 0.0001}"></div><div class="b" style="flex:${winsB || 0.0001}"></div></div>
         <div id="shared"></div>` : empty(`There are no ${CAT_LABEL[cat]} maps they’ve both played.`)}
     </section>
   `);
@@ -138,7 +138,7 @@ export default async function compare(root, { params, query, isCurrent }) {
   if (!both.length) return;
   paginate(root.querySelector('#shared'), both, slice => html`<div class="rows">${slice.map(x => html`<div class="row">
     <div>${mapLink(x.map, x.meta)}</div>
-    <div class="row-meta" style="display:grid;justify-items:end;gap:4px">
+    <div class="meta-stack row-meta">
       ${side(x.a, cat, x.winner === 'a', a.id)}
       ${side(x.b, cat, x.winner === 'b', b.id)}
     </div>

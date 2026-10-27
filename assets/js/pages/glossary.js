@@ -40,6 +40,6 @@ export default async function glossary(root) {
       <h2>${title}</h2>
       <dl class="glossary">${terms.map(([term, text]) => html`<div><dt>${term}</dt><dd>${text}</dd></div>`)}</dl>
     </section>`)}
-    <p class="section muted">Still stuck? Ask in the Discord: someone’s always around. <a href="#/join">How to join →</a></p>
+    <p class="section muted">Still stuck? Ask in the Discord: someone’s always around. <a href="#/join">How to join</a></p>
   `);
 }

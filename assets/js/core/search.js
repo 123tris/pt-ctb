@@ -76,7 +76,7 @@ export function initSearch() {
       <div class="search-pop" hidden>
         <ul class="search-results" id="search-results" role="listbox" aria-label="Players"></ul>
         <p class="search-status" id="search-status" role="status"></p>
-        <a class="search-all" href="#/players">Search all players →</a>
+        <a class="search-all" href="#/players">Search all players</a>
       </div>
     </div>`;
   bar.insertBefore(box, bar.querySelector('.nav-toggle'));

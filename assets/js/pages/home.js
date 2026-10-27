@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { meta, players, activity, challenges, records } from '../core/data.js';
 import { M, DAN_STAGES } from '../core/model.js';
 import { eventItem, danName } from '../core/events.js';
-import { LAST_REWORK, THRONE_PLAYER, HISTORY } from '../core/lore.js';
+import { THRONE_PLAYER, HISTORY } from '../core/lore.js';
 import { ladderBand, passCounts, highestDan, topStage } from '../core/ladder.js';
 import { weeklySummary } from '../core/weekly.js';
 import { season } from '../core/fun.js';
@@ -87,13 +87,13 @@ function miniBoard(list, key, cat) {
         // (lore.js) get their own tag on any board.
         const offOsu = cat === 'r' && isInactiveOnOsu(p);
         return html`<a class="line ${p.id === me ? 'me' : ''}" href="#/player/${p.id}">
-          <span class="n">${i + 1}</span>
-          <span class="player">${avatar(p.id, 'avatar-sm')}<span>${p.name}</span>${isLegend(p) ? legendTag() : offOsu ? inactiveTag() : ''}</span>
-          ${offOsu ? officialPp(p, { compact: true }) : html`<span class="pp">${fmt.pp(p[key])}<small>pp</small></span>`}
+          <span class="n">${i + 1}<span class="sr-only">.</span></span>
+          <span class="player">${avatar(p.id, 'avatar-sm')}<span>${p.name}</span>${isLegend(p) ? legendTag({ plain: true }) : offOsu ? inactiveTag(p, { plain: true }) : ''}</span>
+          <span class="sr-only">, </span>${offOsu ? officialPp(p, { compact: true }) : html`<span class="pp">${fmt.pp(p[key])}<small>pp</small></span>`}
         </a>`;
       })}
     </div>
-    <p class="card-foot"><a href="#/rankings/${{ c: 'converts', u: 'loved', r: 'ranked' }[cat]}">Full leaderboard →</a></p>
+    <p class="card-foot"><a href="#/rankings/${{ c: 'converts', u: 'loved', r: 'ranked' }[cat]}">Full leaderboard</a></p>
   </div>`;
 }
 
@@ -103,7 +103,6 @@ export default async function home(root, { isCurrent }) {
   setTitle('');
   const index = new Map(list.map(p => [p.id, p]));
   const mine = index.get(prefs.get('me', null)) ?? null;
-  const reworkDays =Math.floor((Date.now() / 1000 - LAST_REWORK) / 86400);
   const boss = index.get(THRONE_PLAYER);
   const bossHeld = rec?.throne?.held ?? (boss ? boss.firsts.c + boss.firsts.u + boss.firsts.r : 0);
   const week = ch.week;
@@ -127,7 +126,6 @@ export default async function home(root, { isCurrent }) {
         <div><dt>Scores</dt><dd>${fmt.num(m.totals.scores)}</dd></div>
         <div><dt>Maps played</dt><dd>${fmt.num(m.totals.maps)}</dd></div>
         <div><dt>Fruits caught</dt><dd>${fmt.num(m.totals.fruits)}</dd></div>
-        <div class="hero-rework" title="Last osu!catch pp change: ${fmt.date(LAST_REWORK)}"><dt>Days without a pp rework</dt><dd>${fmt.num(reworkDays)}</dd></div>
       </dl>
       <div class="hero-ladder">
         ${ladderBand(counts, { mine: highestDan(mine) })}
@@ -136,16 +134,16 @@ export default async function home(root, { isCurrent }) {
       </div>
     </section>
 
-    ${season() === 'xmas' ? html`<p class="notice" style="margin-top:16px">Feliz Natal, you lot. Play less, eat more. 🎅</p>` : ''}
+    ${season() === 'xmas' ? html`<p class="mt-4 notice">Feliz Natal, you lot. Play less, eat more. 🎅</p>` : ''}
 
     ${boss && bossHeld ? html`<a class="throne-strip card-link" href="#/records?at=throne">
       ${avatar(boss.id, 'avatar-md')}
       <span><b>${boss.name} still holds ${fmt.num(bossHeld)} #1s.</b> <span class="muted">Snipe him. He keeps asking.</span></span>
-      <span class="throne-go">Dethrone Tris →</span>
+      <span class="throne-go">Dethrone Tris</span>
     </a>` : ''}
 
     <section class="section">
-      <div class="section-head"><h2>Portugal’s best</h2><a href="#/rankings">All leaderboards →</a></div>
+      <div class="section-head"><h2>Portugal’s best</h2><a href="#/rankings">All leaderboards</a></div>
       <div class="grid grid-3">
         ${miniBoard(list, 'cv', 'c')}
         ${miniBoard(list, 'ul', 'u')}
@@ -155,31 +153,31 @@ export default async function home(root, { isCurrent }) {
 
     <section class="section grid grid-2">
       <div>
-        <div class="section-head"><h2>Map of the week</h2><a href="#/challenges/week">Challenges →</a></div>
-        ${week ? html`<a class="card card-link" href="#/map/${week.map}" style="padding:0;overflow:hidden">
+        <div class="section-head"><h2>Map of the week</h2><a href="#/challenges/week">Challenges</a></div>
+        ${week ? html`<a class="card-flush card card-link" href="#/map/${week.map}">
           ${cover(weekMeta, 'cover', 'week-cover')}
-          <div style="padding:16px">
-            <div class="map-title" style="font-size:1.05rem">${weekText.title}</div>
+          <div class="card-body">
+            <div class="text-lg map-title">${weekText.title}</div>
             <div class="map-sub">${starsBadge(weekMeta?.[M.STARS])} ${weekText.sub}</div>
-            <p class="small muted" style="margin:10px 0 0">${fmt.plural(week.weekly.length, 'play')} this week · ${fmt.plural(week.board.length, 'player')} in total. Ends ${fmt.ago(week.end)}.</p>
+            <p class="m-0 mt-2 small muted">${fmt.plural(week.weekly.length, 'play')} this week · ${fmt.plural(week.board.length, 'player')} in total. Ends ${fmt.ago(week.end)}.</p>
           </div>
         </a>` : html`<div class="empty">No map of the week yet.</div>`}
         ${weeklySummary(ch.weekly, ch.maps, index)}
         ${goalNext(m.completion, index)}
       </div>
       <div>
-        <div class="section-head"><h2>Recent activity</h2><a href="#/activity">See all →</a></div>
+        <div class="section-head"><h2>Recent activity</h2><a href="#/activity">See all</a></div>
         <div class="feed">${act.events.slice(0, 5).map(e => eventItem(e, index, act.maps))}</div>
       </div>
     </section>
 
     <section class="section">
-      <div class="section-head"><h2>Since 2018</h2><a href="#/team">Team Portugal →</a></div>
+      <div class="section-head"><h2>Since 2018</h2><a href="#/team">Team Portugal</a></div>
       <ol class="since">${HISTORY.map(([year, text]) => html`<li><span class="since-year">${year}</span><p>${text}</p></li>`)}</ol>
     </section>
 
     <section class="section">
-      <div class="section-head"><h2>How to join</h2><a href="#/join">The full guide →</a></div>
+      <div class="section-head"><h2>How to join</h2><a href="#/join">The full guide</a></div>
       <div class="steps steps-row">
           <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p></div></div>
           <div class="step"><div><b>Verify your account with <span class="kbd">/verify</span></b><p>You sign in to osu! and, if your account is Portuguese, you get the verified role straight away. </p></div></div>

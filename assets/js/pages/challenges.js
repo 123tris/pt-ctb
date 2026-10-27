@@ -1,28 +1,37 @@
 import { html, raw } from '../core/html.js';
-import { challenges, playerIndex, dan, completion } from '../core/data.js';
+import { challenges, playerIndex, dan, completion, meta } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
   setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, bannerArt, mapText, starsBadge, empty, osuMap, prefs,
-  pageHead, scoreWhen, setCover, paginate, writeQuery, announce, resultCount, emptyFiltered,
+  pageHead, scoreWhen, setCover, paginate, writeQuery, announce, resultCount, emptyFiltered, tabs,
 } from '../core/ui.js';
+import { passCounts, topStage } from '../core/ladder.js';
+import { danName } from '../core/events.js';
 import { ANY_STARS, parseStars, formatStars, starsLabel, inStars, isAnyStars } from '../core/star-range.js';
 import { starSlider, bindStarSlider } from '../core/star-slider.js';
 import { renderDan, DAN_INTRO } from './dan.js';
 import * as fmt from '../core/fmt.js';
 
 // Four sub-pages with their own URLs (#/challenges/week, /dan, /targets, /completion). "Dan" keeps the community's own
-// word, and the four are shown as big cards under the heading so the Dan course can't be missed.
+// word. They're tabs, like the leaderboards', and each tab shows where that challenge stands right now.
 const TABS = [
-  { slug: 'week', label: 'This week', blurb: 'The map of the week', intro: html`A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on <a href="#/activity?view=week">Activity</a>.` },
-  { slug: 'dan', label: 'Dan course', blurb: '19 stages, Zeroth Dan to Shin', intro: DAN_INTRO },
-  { slug: 'targets', label: 'Snipe targets', blurb: '#1s up for grabs', intro: '#1s that are begging to be sniped, boss maps nobody has FC’d, and maps nobody in Portugal has played yet.' },
-  { slug: 'completion', label: 'Completion', blurb: 'Every ranked map, together', intro: 'A map counts once any Portuguese player passes it without NF. The goal is every ranked osu!catch-specific difficulty; converts are a separate count.' },
+  { slug: 'week', label: 'This week', intro: html`A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on <a href="#/activity?view=week">Activity</a>.` },
+  { slug: 'dan', label: 'Dan course', intro: DAN_INTRO },
+  { slug: 'targets', label: 'Snipe targets', intro: '#1s that are begging to be sniped, boss maps nobody has FC’d, and maps nobody in Portugal has played yet.' },
+  { slug: 'completion', label: 'Completion', intro: 'A map counts once any Portuguese player passes it without NF. The goal is every ranked osu!catch-specific difficulty; converts are a separate count.' },
 ];
 
-/** The sub-page switcher: three labelled cards, a real nav with aria-current (the pages have their own URLs). */
-const subnav = current => html`<nav class="subnav" aria-label="Challenges">${TABS.map(t => html`<a href="#/challenges/${t.slug}" class="${t === current ? 'active' : ''}" ${t === current ? raw('aria-current="page"') : ''}>
-  <b>${t.label}</b><span>${t.blurb}</span>
-</a>`)}</nav>`;
+/** Each tab's figure: the map of the week's time left, Portugal's highest Dan, #1s up for grabs, the share cleared. */
+function tabFigures(data, index, goal) {
+  const left = data.week ? Math.max(0, data.week.end - Date.now() / 1000) : 0;
+  const top = topStage(passCounts(index.values()));
+  return {
+    week: data.week ? (left >= 86400 ? `${Math.floor(left / 86400)}d left` : `${Math.floor(left / 3600)}h left`) : undefined,
+    dan: top >= 0 ? danName(top) : undefined,
+    targets: data.beatable.length,
+    completion: goal?.total ? `${fmt.num((goal.cleared / goal.total) * 100, 1)}%` : undefined,
+  };
+}
 
 function countdown(end) {
   const left = Math.max(0, end - Date.now() / 1000);
@@ -58,34 +67,36 @@ function weekSection(week, maps, index, me) {
         </div>
         <h3 class="banner-title"><a href="#/map/${week.map}">${title}</a></h3>
         <div class="sub">${sub}</div>
-        <p style="margin:12px 0 0">Ends in <span class="countdown" id="countdown">${countdown(week.end)}</span></p>
+        <p class="m-0 mt-3">Ends in <span class="countdown" id="countdown">${countdown(week.end)}</span></p>
       </div>
     </section>
-    <div class="btn-row" style="margin:14px 0 22px">
+    <div class="mt-3 mb-6 btn-row">
       <a class="btn btn-primary" href="${osuMap(week.map)}" target="_blank" rel="noopener">Open on osu! ↗</a>
       <a class="btn" href="#/map/${week.map}">Full leaderboard</a>
     </div>
     <div class="section-head"><h2>This week’s plays</h2></div>
     ${week.weekly.length ? boardTable(week.weekly, index, me, 'This week’s plays on the map of the week') : empty('Nobody has played this map this week. Be the first!')}
-    <div class="section-head" style="margin-top:28px"><h2>All-time top</h2></div>
+    <div class="mt-6 section-head"><h2>All-time top</h2></div>
     ${boardTable(week.board.slice(0, 10), index, me, 'All-time top 10 on the map of the week')}`;
 }
 
 export default async function challengesPage(root, { params, query, isCurrent }) {
   const tab = TABS.find(t => t.slug === params.tab) ?? TABS[0];
   const goal = tab.slug === 'completion';
-  const [data, index, danData, goalData] = await Promise.all([
-    goal ? null : challenges(), playerIndex(), tab.slug === 'dan' ? dan() : null, goal ? completion() : null,
+  // challenges.json (about 12 KB, and cached) comes on every tab for the tabs' figures; meta.json is already loaded.
+  const [data, index, danData, goalData, m] = await Promise.all([
+    challenges(), playerIndex(), tab.slug === 'dan' ? dan() : null, goal ? completion() : null, meta(),
   ]);
   if (!isCurrent()) return;
   setTitle(tab.slug === 'week' ? 'Challenges' : `${tab.label} · Challenges`);
   const me = prefs.get('me', null);
-  const maps = data?.maps;
+  const maps = data.maps;
+  const figures = tabFigures(data, index, m.completion);
 
   root.innerHTML = String(html`
     ${pageHead({ title: 'Challenges' })}
-    ${subnav(tab)}
-    <p class="muted subnav-intro">${tab.intro}</p>
+    ${tabs(TABS.map(t => ({ href: `#/challenges/${t.slug}`, label: t.label, count: figures[t.slug], active: t === tab })), 'Challenges')}
+    <p class="muted tabs-intro">${tab.intro}</p>
     <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me) : tab.slug === 'targets' ? targetsPanel(data, maps, index) : ''}</div>
   `);
 
@@ -132,17 +143,17 @@ function targetsPanel(data, maps, index) {
       <div>
         <div class="section-head"><h2>One-player maps</h2></div>
         <p class="muted small">Hard maps (5★ and up; loved and unranked ones under 10★) with a single Portuguese player. Just pass to take #2, or beat them for #1.</p>
-        ${data.lonely.length ? html`<div class="rows">${data.lonely.map(([id, cat, [uid, ...s]]) => html`<div class="row" style="grid-template-columns:1fr">
+        ${data.lonely.length ? html`<div class="rows">${data.lonely.map(([id, cat, [uid, ...s]]) => html`<div class="row-1col row">
           ${mapLink(id, maps[id])}
-          <div class="row-meta" style="justify-content:flex-start">${catChip(cat)} ${playerLink(uid, index, 'avatar-sm')} ${ppText(s[S.PP])}</div>
+          <div class="justify-start row-meta">${catChip(cat)} ${playerLink(uid, index, 'avatar-sm')} ${ppText(s[S.PP])}</div>
         </div>`)}</div>` : empty('No one-player maps.')}
       </div>
       <div>
         <div class="section-head"><h2>Unclaimed</h2></div>
         <p class="muted small">Popular ranked osu!catch maps with no Portuguese score recorded.</p>
-        ${data.unclaimed.length ? html`<div class="rows">${data.unclaimed.map(([id, plays, favs]) => html`<div class="row" style="grid-template-columns:1fr">
+        ${data.unclaimed.length ? html`<div class="rows">${data.unclaimed.map(([id, plays, favs]) => html`<div class="row-1col row">
           ${mapLink(id, maps[id])}
-          <div class="row-meta" style="justify-content:flex-start">${fmt.num(plays)} plays on osu! · ${fmt.num(favs)} favourites</div>
+          <div class="justify-start row-meta">${fmt.num(plays)} plays on osu! · ${fmt.num(favs)} favourites</div>
         </div>`)}</div>` : empty('Nothing left to claim. Impressive.')}
       </div>
     </section>`;

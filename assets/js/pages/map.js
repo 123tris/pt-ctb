@@ -103,14 +103,14 @@ export default async function mapPage(root, { params, isCurrent }) {
         <div class="sub">${sub}</div>
         ${diffs ? diffSwitcher(id, diffs) : ''}
         ${funChips(tags, 'map-tags')}
-        ${unrankedForever ? html`<p class="small faint" style="margin:10px 0 0">Still waiting to be ranked. Since 2018, probably.</p>` : ''}
+        ${unrankedForever ? html`<p class="m-0 mt-2 small faint">Still waiting to be ranked. Since 2018, probably.</p>` : ''}
       </div>
     </section>
 
     ${lore ? html`<div class="lore-card">
       <span class="eyebrow">${lore.title}</span>
       <p>${lore.text(board.length, board.reduce((max, e) => Math.max(max, e[S.PP + 1]), 0))}</p>
-      ${board.length ? html`<p class="small muted" style="margin:0">FC watch: ${fmt.num(fcs)} of ${fmt.plural(board.length, 'Portuguese player')} ${fcs === 1 ? 'has' : 'have'} a full combo on this diff.</p>` : ''}
+      ${board.length ? html`<p class="m-0 small muted">FC watch: ${fmt.num(fcs)} of ${fmt.plural(board.length, 'Portuguese player')} ${fcs === 1 ? 'has' : 'have'} a full combo on this diff.</p>` : ''}
     </div>` : ''}
 
     ${meta ? html`<dl class="kv kv-strip">
@@ -123,7 +123,7 @@ export default async function mapPage(root, { params, isCurrent }) {
       <div><dt>HP</dt><dd>${fmt.num(meta[M.HP], 1)}</dd></div>
     </dl>` : ''}
 
-    <div class="btn-row" style="margin-top:16px">
+    <div class="mt-4 btn-row">
       <a class="btn btn-small" href="${osuGame(id)}" title="Opens this difficulty in the osu! game (on stable, downloading it through osu!direct needs supporter)">Open in osu!</a>
       ${meta?.[M.MAX_COMBO] ? html`<a class="btn btn-small" href="#/calculator?map=${id}">Calculate pp</a>` : ''}
     </div>
