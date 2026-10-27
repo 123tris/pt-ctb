@@ -315,9 +315,9 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 /* Phones: the label, readout and reset on one line, the track the full width under them (and a taller strip to hit). */
 @media (max-width: 480px) { .range { --h: 44px; order: 1; flex: 1 1 100%; } }
 
-.tabs { display: flex; flex-wrap: wrap; column-gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
-.tabs a { padding: 10px 12px 11px; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
-.tabs a:first-child { padding-left: 0; }
+/* Spaced by a gap, not padding, so a strip that wraps on a phone starts each line at the left edge. */
+.tabs { display: flex; flex-wrap: wrap; column-gap: var(--sp-6); border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+.tabs a { padding: 10px 0 11px; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
 .tabs a:hover { color: var(--text); text-decoration: none; }
 .tabs a.active { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
 .tabs .count { color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; margin-left: 6px; }
@@ -930,8 +930,13 @@ a.dan-stage:hover { text-decoration: none; }
 
 tr.inactive td, tr.inactive .player, tr.inactive .pp, .row.inactive .player, .row.inactive .pp { color: var(--text-dim); }
 tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
-/* "legend", "inactive": a quiet word after a name, not a boxed tag (a box would say you can click it). */
-.legend-tag { margin-left: 6px; font-size: var(--fs-xs); font-weight: 500; color: var(--text-faint); }
+/* "legend", "inactive": a small outlined tag after a name (the user's choice: the one boxed status, DESIGN.md §9), centred
+   on the name. A .player link is avatar-tall, so it's middle-aligned too when a tag follows it. */
+.legend-tag {
+  display: inline-block; margin-left: 6px; padding: 0 5px; vertical-align: middle; line-height: 18px;
+  font-size: var(--fs-xs); font-weight: 500; color: var(--text-faint); border: 1px solid var(--border-strong); border-radius: var(--r-xs);
+}
+.player:has(+ .legend-tag) { vertical-align: middle; }
 
 .bounty-tag { color: var(--gold); font-weight: 600; }
 
@@ -1190,24 +1195,8 @@ p a.dim-link { text-decoration: underline; }
 /* In a table the "(estimated)" sits on its own small line, so the pp column stays aligned. */
 td.num .est { display: block; margin: 1px 0 0; font-size: var(--fs-xs); line-height: 1.1; }
 
-/* Challenges' three sub-pages (This week · Dan course · Snipe targets) as big cards under the heading. */
-.subnav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 4px 0 16px; }
-.subnav a {
-  display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: var(--r);
-  background: var(--surface); color: var(--text); transition: border-color .12s, background-color .12s;
-}
-.subnav a:hover { border-color: var(--text-faint); background: var(--surface-2); text-decoration: none; }
-.subnav a.active { border-color: var(--accent); background: var(--accent-bg); }
-.subnav b { font: 700 var(--fs-lg)/1.2 var(--display); }
-.subnav a.active b { color: var(--accent); }
-.subnav span { color: var(--text-dim); font-size: var(--fs-sm); }
-.subnav-intro { margin: 0 0 20px; max-width: 75ch; }
-@media (max-width: 600px) {
-  .subnav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-  .subnav a { padding: 10px; }
-  .subnav b { font-size: var(--fs-md); }
-  .subnav span { display: none; }
-}
+/* Challenges: the line under the tabs that says what the open one is. */
+.tabs-intro { margin: 0 0 20px; max-width: 75ch; }
 /* Challenges → Completion: the share of ranked maps cleared is the page's one result, then a thin bar with the accent
    only for the cleared part, and the converts as a quiet aside. */
 .goal { max-width: 640px; }

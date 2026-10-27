@@ -21,6 +21,8 @@ Tokens and classes named here are the real ones, in `assets/css/site.css`, `asse
 - Background tiles only in the side margins, with grain and no glows.
 - Rank-first stat tiles, sentence-case labels, fewer boxes. Less is more.
 - A star-range slider with a single Rosa fill.
+- The "legend" and "inactive" tags keep a small outline, centred on the name.
+- Challenges' four modes are tabs, each with its live figure, not cards.
 
 ---
 
@@ -121,7 +123,7 @@ ours is 15px), but the same restraint applies.
 | Family | Use for |
 |---|---|
 | Inter (`--font`) | All text and every number (tabular figures are on for the whole `body`) |
-| Josefin Sans (`--display`) | H1, H2, Dan glyphs, years, step numbers, `.subnav b` |
+| Josefin Sans (`--display`) | H1, H2, Dan glyphs, years, step numbers |
 | Unbounded 800 | `.brand` only. The file is subset to "PT Catch"; re-make it if the name changes |
 | `--mono` | Bot commands and `.kbd` |
 
@@ -214,7 +216,7 @@ Never above 5px, and no pill-shaped buttons.
 ### Containers
 
 - **A full box** (fill, 1px border, radius) is for one object: a table, a row list, a banner, a game option, a Dan
-  stage, a sub-nav card or a menu.
+  stage or a menu.
 - **Everything else is open:** a `--border` hairline above it or between its items.
 - **No coloured `border-left` callouts.** The 2px inset accent edge on `.me` rows stays, because it marks a state.
 - **Inputs are inset:** a `--bg-2` fill and an `--input-border` edge. **Actions are outset:** a `--surface-2` fill and
@@ -355,7 +357,10 @@ Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout)
 ### Tabs (`tabs()`)
 
 - Tabs switch between sibling views of one thing. They are real links with `aria-current` and an optional `.count`.
+- The `.count` is a number, or a short live figure where the views are challenges: Challenges shows "5d left", "10th
+  Dan", "30" (#1s up for grabs) and "79.3%", so each tab says where it stands before you open it.
 - One or two words, at most about six tabs, and no heading repeating the tab name.
+- Tabs are spaced by a gap, not padding, so a strip that wraps on a phone starts every line at the left edge.
 - If the views need comparing side by side, use columns instead.
 
 ### Menus (`.nav-menu`, `.you-menu`, `.peek-pop`, `.search-pop`)
@@ -439,7 +444,9 @@ loads `completion.json` (about 90 KB compressed); both read `meta.json`'s `compl
 
 Prefer status as words in the line under a name (`.profile-line`): Foundations doesn't box static status.
 - **`.badge`** is a status outline: gold for honours, accent for "you", red for problems.
-- **`.legend-tag`** is the quiet "legend" or "inactive" tag. It must explain itself visibly (see Tooltips).
+- **`.legend-tag`** is the "legend" or "inactive" tag: faint text in a thin `--border-strong` outline (the user's
+  choice; the one boxed status), middle-aligned so it's centred on the name. It must explain itself visibly (see
+  Tooltips).
 - **`.fun-chip`** is an in-joke as a toggletip, on profiles and maps only, three at most before "+N more".
 
 ### Search and fields
@@ -597,7 +604,7 @@ The `design-pass` branch (2026-10-26) applied this guide to the site:
 - contrast fixes for the slider track and the search field;
 - 44px touch targets on touch screens;
 - no pulses, shimmers, lifts or accent shadows;
-- no side stripes, dashed borders or boxed status tags;
+- no side stripes, dashed borders or boxed status (the legend tag aside);
 - four breakpoints, and no arrows after links;
 - a plain "Loading…", and errors written as problem, cause and fix;
 - quips only on the rare real-lore events, and no emoji in the activity feed;
@@ -611,7 +618,7 @@ Still open. Line numbers drift, so search for the selector.
    why only in its label. `posBadge()`, `officialPp({ compact })` and the tags in `ui.js` show a visible cue (#3, ≈,
    "inactive") but put the explanation in `title`.
 3. **Appended blocks.** `site.css` still ends with blocks added later: search, "you", sign-in, the a11y fixes,
-   subnav, goal and peek. They should move into their sections when next edited.
+   goal and peek. They should move into their sections when next edited.
 4. **Small text targets.** `.stat-link` (28px) and heading `.title-link`s pass the 24px minimum but not 44px.
 5. **One hex value outside `:root`:** the tile stroke in `ambience.css`. A `data:` URI can't read a variable; it's
    `--cat-c` by value.

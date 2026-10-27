@@ -253,9 +253,12 @@ export const pageHead = ({ title, intro, extra }) => html`<header class="page-he
 export const stat = (label, value, sub = '', cls = '') =>
   html`<div class="stat ${cls}"><div class="stat-label">${label}</div><div class="stat-value"><span class="stat-fit">${value}</span></div>${sub ? html`<div class="stat-sub">${sub}</div>` : ''}</div>`;
 
-/** A strip of links between sibling pages (real URLs, so not an ARIA tablist). `label` names the landmark. */
+/**
+ * A strip of links between sibling pages (real URLs, so not an ARIA tablist). `label` names the landmark. A tab's
+ * `count` is a number, or a short text figure ("2d left", "79.3%").
+ */
 export const tabs = (items, label = 'Sections') => html`<nav class="tabs" aria-label="${label}">${items.map(t =>
-  html`<a href="${t.href}" class="${t.active ? 'active' : ''}" ${t.active ? raw('aria-current="page"') : ''}>${t.label}${t.count !== undefined ? html`<span class="count">${fmt.num(t.count)}</span>` : ''}</a>`)}</nav>`;
+  html`<a href="${t.href}" class="${t.active ? 'active' : ''}" ${t.active ? raw('aria-current="page"') : ''}>${t.label}${t.count !== undefined ? html`<span class="count">${typeof t.count === 'number' ? fmt.num(t.count) : t.count}</span>` : ''}</a>`)}</nav>`;
 
 /**
  * A labelled row of toggle chips: `items` = [[value, label]]. Each chip is a button with aria-pressed, and the
