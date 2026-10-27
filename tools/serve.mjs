@@ -4,9 +4,10 @@
 // npm run export or publish.ps1 -NoUpload), by serving config.js with that one setting changed, and answers the hashed
 // names the site asks for (data/players/1.<hash>.json) with the plain files (core/data-name.js).
 //
-// Design on/off (review aid, localhost only): index.html gets a "Design: new / old" button (tools/design-switch.js,
-// never deployed). "Old" sets a cookie, and then every site file the design pass changed (DESIGN_PASS) is served as it
-// was before it, straight from git, so the old CSS, markup and JS come back together. Drop this once it's reviewed.
+// Review aids, for requests to localhost only (tools/local-review.js, never deployed): "This is me" starts as Tris in a
+// browser that never chose, and a "Design: new / old" button sits in the corner. "Old" sets a cookie, and then every site
+// file this branch has changed since it last took in dev is served as dev had it, straight from git, so the old CSS,
+// markup and JS come back together. Drop this once the design pass is merged.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -24,38 +25,50 @@ const TYPES = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
 };
 
-const DESIGN_PASS = { before: 'b1d9a4e', after: '693476b' };
+const DESIGN_BASE = 'dev';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
-const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 26 });
-/** '/assets/css/site.css' → its text before the design pass, for each site file the pass changed. */
-const oldDesign = (() => {
-  try {
-    const files = git('diff', '--name-only', DESIGN_PASS.before, DESIGN_PASS.after, '--', 'index.html', '404.html', 'assets').split('\n').filter(Boolean);
-    return new Map(files.map(f => [`/${f}`, git('show', `${DESIGN_PASS.before}:${f}`)]));
-  } catch (e) {
-    console.warn(`Design switch off: couldn't read ${DESIGN_PASS.before} from git (${e.message.split('\n')[0]})`);
-    return null;
-  }
-})();
+const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', maxBuffer: 1 << 26, stdio: ['ignore', 'pipe', 'ignore'] });
 const isLocal = req => { try { return LOCAL_HOSTS.has(new URL(`http://${req.headers.host}`).hostname); } catch { return false; } };
 const wantsOld = req => /(?:^|;\s*)ptcatch-design=old(?:;|$)/.test(req.headers.cookie ?? '');
+
+/** Where this branch last took in dev, and the site files that differ from it (uncommitted edits too). */
+let before = null;
+function readBefore() {
+  try {
+    const base = git('merge-base', 'HEAD', DESIGN_BASE).trim();
+    const files = git('diff', '--name-only', base, '--', 'index.html', '404.html', 'assets').split('\n').filter(Boolean);
+    before = { base, files: new Set(files.map(f => `/${f}`)) };
+  } catch {
+    if (before !== false) console.warn(`Design switch off: no merge base with ${DESIGN_BASE} in git.`);
+    before = false;
+  }
+}
+const oldTexts = new Map();
+/** A file's text as dev had it, or null if it didn't exist there. */
+function oldText(page) {
+  const key = `${before.base}:${page.slice(1)}`;
+  if (!oldTexts.has(key)) { try { oldTexts.set(key, git('show', key)); } catch { oldTexts.set(key, null); } }
+  return oldTexts.get(key);
+}
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   let file = path.join(root, decodeURIComponent(url.pathname));
   if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
-  if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
-  if (localData && !fs.existsSync(file) && url.pathname.startsWith('/data/')) file = plainName(file);
-  if (!fs.existsSync(file)) { res.writeHead(404).end('Not found'); return; }
-  const page = '/' + path.relative(root, file).split(path.sep).join('/');
-  const old = oldDesign && isLocal(req) && wantsOld(req) && oldDesign.has(page);
-  if (old || (oldDesign && isLocal(req) && page === '/index.html')) {
-    let text = old ? oldDesign.get(page) : fs.readFileSync(file, 'utf8');
-    if (page === '/index.html') text = text.replace('</body>', '<script type="module" src="tools/design-switch.js"></script>\n</body>');
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)], 'Cache-Control': 'no-cache' });
+  const local = isLocal(req);
+  const page = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
+  if (local && page === '/index.html') readBefore(); // on every page load, so new edits and commits count
+  const old = local && wantsOld(req) && before?.files.has(page) ? oldText(page) : null;
+  if (old !== null || (local && page === '/index.html')) {
+    let text = old ?? fs.readFileSync(path.join(root, page), 'utf8');
+    if (page === '/index.html') text = text.replace('</head>', '<script src="tools/local-review.js"></script>\n</head>');
+    res.writeHead(200, { 'Content-Type': TYPES[path.extname(page)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(text);
     return;
   }
+  if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
+  if (localData && !fs.existsSync(file) && url.pathname.startsWith('/data/')) file = plainName(file);
+  if (!fs.existsSync(file)) { res.writeHead(404).end('Not found'); return; }
   if (localData && url.pathname === '/assets/js/config.js') {
     res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-cache' });
     res.end(`${fs.readFileSync(file, 'utf8')}\nObject.assign(CONFIG, { data: 'data/' }); // npm run serve -- --local-data\n`);
