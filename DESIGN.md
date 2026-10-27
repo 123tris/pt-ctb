@@ -166,9 +166,9 @@ Windowing (adapt to size, avoid two scrollbars).*
 
 ### Spacing scale
 
-Add these as tokens (§14).
+They are tokens in `:root`, and every padding, margin and gap uses them.
 
-| Proposed token | px | Typical use |
+| Token | px | Typical use |
 |---|---|---|
 | `--sp-1` | 4 | Icon to text; chip to chip |
 | `--sp-2` | 8 | Items in a group (buttons in `.btn-row`) |
@@ -182,6 +182,12 @@ Add these as tokens (§14).
 - The space between groups is at least twice the space within one, as with Foundations' 2px versus 8px.
 - Neighbouring objects share the same inset.
 - No inline `style=""` in page JS; add a class.
+- **Px only where it isn't spacing:** 1–3px optical nudges (a baseline, a pill's border), offsets that cancel another
+  value (a bleed of `-16px` under a 16px inset), and sizes that come from geometry (the 72px row indent under a map
+  cover, the jersey's 170px, the hamburger's line spacing). Everything else is a step.
+- **Which step:** icon or dot to its text `--sp-1`; items in a group `--sp-2`; padding inside rows and small controls
+  `--sp-3`; the inset of objects (tables, row lists, menus, toasts, cards) `--sp-4`; between groups `--sp-6`; under
+  a head or between blocks `--sp-8`.
 
 ### Grid
 
@@ -617,19 +623,15 @@ The `design-pass` branch (2026-10-26) applied this guide to the site:
 
 Still open. Line numbers drift, so search for the selector.
 
-1. **Off-scale px inside components.** Every padding, margin and gap that was already a step (4, 8, 12, 16, 24, 32,
-   48px) is now `var(--sp-*)`. What's left is off the scale on purpose or by drift (2, 6, 10, 14, 18px inside rows,
-   chips, menus and tags). Snap them when you redesign that component and can look at it; doing it blind shifts the
-   whole site by a few pixels.
-2. **Some meaning is still only in `title` or `aria-label`.** The quieter `.diff-new` (no Portuguese scores yet) says
+1. **Some meaning is still only in `title` or `aria-label`.** The quieter `.diff-new` (no Portuguese scores yet) says
    why only in its label, and `posBadge()` puts "Position in Portugal" in `title`. The tags and "estimated" are
    toggletips now (`tipTag()`).
-3. **One hex value outside `:root`:** the tile stroke in `ambience.css`. A `data:` URI can't read a variable; it's
+2. **One hex value outside `:root`:** the tile stroke in `ambience.css`. A `data:` URI can't read a variable; it's
    `--cat-c` by value.
 
 Done since: the blocks once appended to `site.css` (search, "you", sign-in, the a11y fixes, goal, peek) sit in their
 sections, with a Challenges section and a Utilities section last; rank links on stat tiles have a 45px-tall hit area and
-heading links reach 44px on touch; tabs and top 5 lines read their figures apart from their names; the menu button, the
+heading links reach 44px on touch; spacing is on the scale everywhere (§4); tabs and top 5 lines read their figures apart from their names; the menu button, the
 bacalhau loader and the flash easter egg calm down under reduced motion.
 
 Allowed on purpose: table headers in small capitals, and fluid sizes made with `clamp()` (H1, stat values, Dan
