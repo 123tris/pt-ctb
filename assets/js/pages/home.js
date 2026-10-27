@@ -181,7 +181,7 @@ export default async function home(root, { isCurrent }) {
       <div class="steps steps-row">
           <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p></div></div>
           <div class="step"><div><b>Verify your account with <span class="kbd">/verify</span></b><p>You sign in to osu! and, if your account is Portuguese, you get the verified role straight away. </p></div></div>
-          <div class="step"><div><b>Play!</b><p>The bot fetches recent plays for everyone it tracks every 30 minutes. You can also use <span class="kbd">/rs</span> to show your latest one.</p></div></div>
+          <div class="step"><div><b>Play!</b><p>The bot fetches recent plays for everyone it tracks every 15 minutes, and new plays show up here within a few minutes after that. You can also use <span class="kbd">/rs</span> to show your latest one.</p></div></div>
         </div>
     </section>
   `);

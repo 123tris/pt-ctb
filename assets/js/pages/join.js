@@ -21,7 +21,7 @@ export default async function join(root) {
         <div class="steps">
           <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p></div></div>
           <div class="step"><div><b>Type <span class="kbd">/verify</span> in the verification channel</b><p>The bot replies to you only, with a <b>Verify with osu!</b> button. Sign in on osu!’s official page (osu.ppy.sh); the bot only asks to read your public profile. Back in Discord, within a few seconds your message shows the result and, if the account is Portuguese, you get the verified role. Nothing showed up? The confirmation page shows a code: press <b>Enter code</b> on the bot’s message and paste it there.</p></div></div>
-          <div class="step"><div><b>Play!</b><p>The bot picks up everyone’s recent plays every 30 minutes. Use <span class="kbd">/rs</span> to show your latest one, and <a href="#/commands">the commands page</a> for the rest. Words you don’t know are in <a href="#/glossary">the glossary</a>.</p></div></div>
+          <div class="step"><div><b>Play!</b><p>The bot picks up everyone’s recent plays every 15 minutes, and they reach the site within a few minutes after that. Use <span class="kbd">/rs</span> to show your latest one, and <a href="#/commands">the commands page</a> for the rest. Words you don’t know are in <a href="#/glossary">the glossary</a>.</p></div></div>
         </div>
       </div>
       <div class="card">
