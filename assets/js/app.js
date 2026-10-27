@@ -9,7 +9,8 @@ import { startFun } from './core/fun.js';
 import { initSearch } from './core/search.js';
 import { initYou } from './core/you.js';
 import { initReveal } from './core/reveal.js';
-import { startTracking, trackView } from './core/track.js';
+import { startTracking, trackView, trackError } from './core/track.js';
+import { initConsent } from './core/consent.js';
 import * as fmt from './core/fmt.js';
 import { CONFIG } from './config.js';
 
@@ -31,6 +32,7 @@ const ROUTES = [
   ['join', () => import('./pages/join.js')],
   ['team', () => import('./pages/team.js')],
   ['glossary', () => import('./pages/glossary.js')],
+  ['privacy', () => import('./pages/privacy.js')],
 ];
 
 /** Old addresses that moved: the Dan course is now a tab of Challenges (#/dan?stage=3 → #/challenges/dan?stage=3). */
@@ -69,6 +71,16 @@ function pageKey(found, path, query) {
   return extra ? `${name}/${extra}` : name;
 }
 
+/** What a page is about, for the usage counts: p123 a player, m456 a map, p1|p2 a comparison (core/track.js). */
+function pageObject(found) {
+  const { id, a, b } = found.params;
+  const n = v => /^\d{1,10}$/.test(v ?? '');
+  if (/^(player|recap)\//.test(found.pattern) && n(id)) return `p${id}`;
+  if (found.pattern.startsWith('map/') && n(id)) return `m${id}`;
+  if (found.pattern.startsWith('compare') && n(a)) return n(b) ? `p${a}|p${b}` : `p${a}`;
+  return '';
+}
+
 const root = document.getElementById('content');
 let current = 0;
 
@@ -78,6 +90,7 @@ let current = 0;
  */
 async function route({ newPage = false } = {}) {
   const ticket = ++current;
+  const started = performance.now();
   let [path, search = ''] = location.hash.replace(/^#\/?/, '').split('?');
   const moved = MOVED[path.split('/')[0]];
   if (moved) {
@@ -103,7 +116,7 @@ async function route({ newPage = false } = {}) {
     await page(root, { params: found.params, query, isCurrent: () => ticket === current });
     if (ticket === current && newPage) focusHeading();
     // One view per page opened (a filter or sort that only changes the query isn't a new view).
-    if (ticket === current && (newPage || ticket === 1)) trackView(pageKey(found, path, query));
+    if (ticket === current && (newPage || ticket === 1)) trackView(pageKey(found, path, query), { ms: performance.now() - started, obj: pageObject(found) });
   } catch (e) {
     if (ticket !== current) return;
     console.error(e);
@@ -111,7 +124,10 @@ async function route({ newPage = false } = {}) {
       if (section === 'player' || section === 'recap') showError('Never heard of them!', 'There’s no Portuguese player with this id. They may not be tracked yet, or the link has a typo.', { newPage, players: true });
       else showError('Not found', 'There’s no data for this. The map may not be tracked yet.', { newPage });
     }
-    else showError('Something went wrong', e.message, { newPage });
+    else {
+      trackError(e, pageKey(found, path, query));
+      showError('Something went wrong', e.message, { newPage });
+    }
   } finally {
     clearTimeout(spinner);
     if (ticket === current) root.removeAttribute('aria-busy');
@@ -208,6 +224,7 @@ window.addEventListener('hashchange', () => {
   route({ newPage });
 });
 lastPath = location.hash.split('?')[0];
+startTracking();
 route();
 // Tables are rendered by many pages, some after the fact (paging, filters): label each one as it appears.
 new MutationObserver(() => enhanceTables(root)).observe(root, { childList: true, subtree: true });
@@ -215,7 +232,7 @@ startFun();
 initSearch();
 initYou();
 initReveal();
-startTracking();
+initConsent();
 
 if (CONFIG.discordInvite) {
   document.getElementById('footer-links')?.insertAdjacentHTML('afterbegin',

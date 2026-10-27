@@ -4,6 +4,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { onRequestGet as loginRoute } from '../functions/auth/login.js';
 import { onRequestGet as callbackRoute } from '../functions/auth/callback.js';
+import { checkProof } from './proof.js';
 
 const env = { OSU_CLIENT_ID: '123', OSU_CLIENT_SECRET: 'shh-secret' };
 const STATE = 'AbCdEfGhIjKlMnOpQrStUv';
@@ -90,15 +91,19 @@ test('a dev sign-in goes all the way round: dev login → release login → osu!
   const { state: osuState, redirect_uri: redirectUri } = authorizeParams(authorize);
   // osu! sends the visitor to the redirect_uri with a code and the state it was given.
   const res = await get(`${redirectUri}?code=the-code&state=${osuState}`);
-  assert.deepEqual(signinParams(res, DEV), { id: '4158549', name: 'Tristan', state: STATE });
+  assert.deepEqual({ ...signinParams(res, DEV), proof: 'x' }, { id: '4158549', name: 'Tristan', state: STATE, proof: 'x' });
   const token = calls.find(c => c.url.endsWith('/oauth/token'));
   assert.equal(new URLSearchParams(token.body).get('redirect_uri'), CALLBACK, 'the token exchange repeats the same redirect_uri');
 });
 
-test('/auth/callback trades the code, reads /me, revokes the token and returns only id, name and state', async () => {
+test('/auth/callback trades the code, reads /me, revokes the token and returns only id, name, state and a proof', async () => {
   const res = await get(`/auth/callback?code=the-code&state=p.${STATE}`);
   assert.equal(res.status, 302);
-  assert.deepEqual(signinParams(res), { id: '4158549', name: 'Tristan', state: STATE });
+  const { proof, ...answer } = signinParams(res);
+  assert.deepEqual(answer, { id: '4158549', name: 'Tristan', state: STATE });
+  assert.ok(await checkProof('shh-secret', 4158549, proof), 'the proof checks out for that id');
+  assert.ok(!(await checkProof('shh-secret', 4158550, proof)), 'and only for that id');
+  assert.ok(!(await checkProof('other-secret', 4158549, proof)), 'and only with the app secret');
   assert.ok(!res.headers.get('Location').includes('tok-abc'), 'the token never reaches the browser');
   assert.equal(res.headers.get('Referrer-Policy'), 'no-referrer');
 
@@ -118,7 +123,7 @@ test('/auth/callback trades the code, reads /me, revokes the token and returns o
 test('a callback marked for an unknown site, or not marked, stays on the release site', async () => {
   for (const osuState of [`x.${STATE}`, STATE]) {
     const res = await get(`/auth/callback?code=c&state=${osuState}`);
-    assert.deepEqual(signinParams(res, RELEASE), { id: '4158549', name: 'Tristan', state: STATE }, osuState);
+    assert.deepEqual({ ...signinParams(res, RELEASE), proof: 'x' }, { id: '4158549', name: 'Tristan', state: STATE, proof: 'x' }, osuState);
   }
 });
 

@@ -3,6 +3,7 @@ import { quiz, players, mapsIndex } from '../core/data.js';
 import { setTitle, avatar, coverUrl, prefs, starsBadge, catChip } from '../core/ui.js';
 import { BOSS_SETS, TUGA_SET, RIVALRIES, pick as stablePick } from '../core/lore.js';
 import { wysi } from '../core/fun.js';
+import { track } from '../core/track.js';
 import * as fmt from '../core/fmt.js';
 
 const shuffle = list => {
@@ -91,6 +92,7 @@ async function dailyGame(root, isCurrent) {
     const won = tried > 0;
     const streak = won ? (saved.last === yesterday || saved.last === today ? saved.streak : 0) + (saved.last === today ? 0 : 1) : 0;
     prefs.set('daily', { last: today, streak, best: Math.max(streak, saved.best || 0), result: tried });
+    track('game', 'daily', won ? 'solved' : 'missed', '', tried);
     return streak;
   };
   const verdict = tried => (tried === 1 ? 'First try. Show-off.' : tried === 2 ? 'Second try. Not bad.' : tried === 3 ? '3rd try gang.' : 'Unlucky, 1 miss. Back tomorrow.');
@@ -187,6 +189,7 @@ async function quizGame(root, query, isCurrent) {
       round++;
       if (round < deck.length) { draw(); return; }
       prefs.set('quiz-best', Math.max(score, prefs.get('quiz-best', 0)));
+      track('game', 'quiz', `finished ${mode}`, '', score);
       root.querySelector('.game').innerHTML = String(html`<div class="card center" style="padding:36px">
         <span class="eyebrow">${m.label}</span>
         <div class="game-score">${score}<small>/ ${deck.length}</small></div>
@@ -276,6 +279,7 @@ async function guessGame(root, isCurrent) {
   const finish = () => {
     const best = Math.max(score, prefs.get('guess-best', 0));
     prefs.set('guess-best', best);
+    track('game', 'guess', 'finished', '', score);
     root.querySelector('.game').innerHTML = String(html`
       <div class="card center" style="padding:36px">
         <span class="eyebrow">Result</span>
@@ -383,7 +387,10 @@ async function higherLower(root, isCurrent) {
       const higher = stat.value(b) > stat.value(a);
       const right = (button.dataset.guess === 'up') === higher;
       if (right) streak++;
-      else prefs.set('hilo-best', Math.max(streak, prefs.get('hilo-best', 0)));
+      else {
+        prefs.set('hilo-best', Math.max(streak, prefs.get('hilo-best', 0)));
+        track('game', 'higher or lower', 'streak ended', '', streak);
+      }
       if (right) prefs.set('hilo-best', Math.max(streak, prefs.get('hilo-best', 0)));
       draw(true, right);
       if (Math.round(stat.value(b)) === 727) wysi();

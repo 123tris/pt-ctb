@@ -14,8 +14,10 @@
 // whose browser never stored that N, so it's thrown away there. That keeps this stateless: no cookies, no signing
 // key, nothing stored. The osu! token lives only inside one request; it is revoked straight after reading the profile
 // and never logged. The release site needs OSU_CLIENT_ID and OSU_CLIENT_SECRET; the development one needs nothing.
+// The answer also carries a `proof` (signin/proof.js), which only the usage counts use.
 
 import { CONFIG } from '../assets/js/config.js';
+import { makeProof } from './proof.js';
 
 /** The only places a sign-in starts from and returns to, by the letter `state` carries. */
 const SITES = { p: CONFIG.production, d: CONFIG.development };
@@ -86,7 +88,8 @@ export async function callback(request, env) {
     await fetch(new URL('/api/v2/oauth/tokens/current', osu(env)), { method: 'DELETE', headers: auth }).catch(() => {});
 
     if (!Number.isSafeInteger(me?.id) || typeof me.username !== 'string') return back(site, { error: 'osu', state });
-    return back(site, { id: String(me.id), name: me.username, state });
+    // proof: lets the usage counts mark this id as confirmed by osu! rather than picked by hand (signin/proof.js).
+    return back(site, { id: String(me.id), name: me.username, state, proof: await makeProof(env.OSU_CLIENT_SECRET, me.id) });
   } catch {
     return back(site, { error: 'osu', state });
   }

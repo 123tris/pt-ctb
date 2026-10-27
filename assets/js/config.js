@@ -27,4 +27,11 @@ export const CONFIG = {
    * `production` (assets/js/moved.js). Turn on once the release site works.
    */
   leaveGithub: true,
+  /**
+   * Ask before counting usage (core/consent.js, core/track.js; pages/privacy.js explains what's counted).
+   * '' never asks: counting runs unless the browser opted out or sends Do Not Track / Global Privacy Control.
+   * 'identity' counts, but links events to the visitor's osu! player only after they say yes.
+   * 'all' counts nothing until they say yes.
+   */
+  analyticsConsent: '',
 };

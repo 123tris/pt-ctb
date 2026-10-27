@@ -6,6 +6,7 @@ import { html } from './html.js';
 import { players } from './data.js';
 import { avatar } from './ui.js';
 import * as fmt from './fmt.js';
+import { track, shapeOf } from './track.js';
 
 const LIMIT = 8;
 const ICON = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
@@ -153,7 +154,9 @@ export function initSearch() {
     input.blur();
   };
 
+  // Usage counts: what was picked and the shape of what was typed, never the text (core/track.js).
   const go = r => {
+    track('search', 'header', `${r.page ? 'picked a page' : 'picked a player'} · ${shapeOf(input.value)}`);
     location.hash = r.page ? r.page.href : `#/player/${r.id}`;
     reset();
   };
@@ -173,7 +176,7 @@ export function initSearch() {
       e.preventDefault();
       const p = results[active] ?? results[0];
       if (p) go(p);
-      else if (input.value.trim()) { location.hash = all.getAttribute('href'); reset(); }
+      else if (input.value.trim()) { track('search', 'header', `all results · ${shapeOf(input.value)}`); location.hash = all.getAttribute('href'); reset(); }
     } else if (e.key === 'Escape') {
       if (!pop.hidden) showPop(false);
       else { input.value = ''; setOpen(false); input.blur(); }
@@ -189,7 +192,7 @@ export function initSearch() {
     const li = e.target.closest('[data-i]');
     if (li && Number(li.dataset.i) !== active) setActive(Number(li.dataset.i));
   });
-  all.addEventListener('click', () => setTimeout(reset));
+  all.addEventListener('click', () => { track('search', 'header', `all results · ${shapeOf(input.value)}`); setTimeout(reset); });
   box.addEventListener('focusout', e => { if (!box.contains(e.relatedTarget)) showPop(false); });
   document.addEventListener('click', e => { if (!box.contains(e.target)) { showPop(false); if (!input.value) setOpen(false); } });
 

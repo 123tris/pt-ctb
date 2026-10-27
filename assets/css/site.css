@@ -927,6 +927,9 @@ tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
 .toast-body { margin-bottom: 6px; }
 .toast-close { background: none; border: 0; padding: 0; color: var(--text-faint); font-size: var(--fs-xs); cursor: pointer; }
 .toast-close:hover { color: var(--text); }
+/* The usage-counting question (core/consent.js), only when CONFIG.analyticsConsent is set: a strip, not a dialog. */
+.consent { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 70; max-width: 640px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; background: var(--surface-2); border: 1px solid var(--border-strong); border-left: 2px solid var(--accent); border-radius: var(--r); padding: 12px 14px; box-shadow: 0 8px 24px rgba(0, 0, 0, .35); }
+.consent p { margin: 0; flex: 1 1 260px; font-size: var(--fs-sm); color: var(--text-dim); }
 .flash { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; pointer-events: none; font: 800 clamp(4rem, 18vw, 12rem)/1 var(--display); color: var(--accent); animation: flash 1.4s ease-out forwards; }
 .flash-wall { font-size: clamp(2.5rem, 10vw, 6rem); }
 @keyframes flash { 0% { opacity: 0; transform: scale(.8); } 20% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.15); } }

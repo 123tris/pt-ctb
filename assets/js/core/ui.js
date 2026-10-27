@@ -301,9 +301,12 @@ export const readQuery = () => Object.fromEntries(new URLSearchParams(location.h
  */
 export function writeQuery(params, defaults = {}) {
   const [path] = location.hash.split('?');
+  const before = readQuery();
   const kept = Object.entries(params).filter(([k, v]) => v !== '' && v !== null && v !== undefined && v !== false && String(v) !== String(defaults[k] ?? ''));
   const q = String(new URLSearchParams(kept.map(([k, v]) => [k, v === true ? '1' : v])));
   history.replaceState(history.state, '', `${path || '#/'}${q ? `?${q}` : ''}`);
+  // For the usage counts (core/track.js): which filters, sorts and search fields get used.
+  window.dispatchEvent(new CustomEvent('ptctb:query', { detail: { before, after: readQuery() } }));
 }
 
 /** Opens and focuses the header player search, the same as pressing "/". */

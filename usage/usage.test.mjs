@@ -9,6 +9,9 @@ import { onRequestGet as statsRoute } from '../functions/stats.js';
 import { recordHit, parseBatch, KEEP_DAYS, DAILY_EVENT_CAP, DAILY_READ_BUDGET, ensureSchema } from './store.js';
 import { stats } from './dashboard.js';
 
+// The dashboard fetches player names from R2; tests run offline.
+globalThis.fetch = async () => { throw new Error('offline'); };
+
 /** Just enough of D1 (prepare/bind/first/all/run/batch) over node:sqlite. */
 function fakeD1() {
   const sqlite = new DatabaseSync(':memory:');
@@ -47,7 +50,7 @@ test('a batch is stored with a daily visitor hash and no IP or user agent', asyn
   const [view, click] = rows(db);
   assert.deepEqual({ ...view, visitor: typeof view.visitor }, {
     ts: DAY / 1000, day: '2026-10-25', env: 'prod', visitor: 'string', kind: 'view', name: 'player/loved', detail: 'search',
-    device: 'phone', country: 'PT', ref: 'discord.com', me: 1,
+    device: 'phone', country: 'PT', ref: 'discord.com', me: 1, sid: '', player: null, val: null, obj: '',
   });
   assert.match(view.visitor, /^[0-9a-f]{16}$/);
   assert.equal(click.visitor, view.visitor);
@@ -83,11 +86,11 @@ test('requests from other sites, bots, junk and oversized batches are ignored', 
 });
 
 test('labels are cleaned: no markup, emoji or control characters, 60 characters at most', () => {
-  const [r] = parseBatch(batch(['click', 'games', `<img src=x onerror=alert(1)> 🍎 Copy\u0007 result ${'x'.repeat(80)}`]));
+  const [r] = parseBatch(batch(['click', 'games', `<img src=x onerror=alert(1)> 🍎 Copy\u0007 result ${'x'.repeat(80)}`])).rows;
   assert.ok(!/[<>=🍎\u0007]/u.test(r.detail));
   assert.ok(r.detail.startsWith('img srcx onerroralert(1) Copy result'));
   assert.equal(r.detail.length, 60);
-  assert.equal(parseBatch(batch(['view', 'home', '', 'not a host!']))[0].ref, '');
+  assert.equal(parseBatch(batch(['view', 'home', '', 'not a host!'])).rows[0].ref, '');
 });
 
 test('the development site and previews are kept apart from the release site', async () => {
@@ -185,9 +188,11 @@ test('the dashboard refuses a range that would read past the daily read budget, 
   assert.equal((await stats(get('/stats?days=7', basic('pw')), env, DAY)).status, 200);
   const reads = () => db.sqlite.prepare('SELECT reads FROM quota WHERE day = ?').get('2026-10-25').reads;
   assert.ok(reads() > 0, 'the report adds its reads to today');
-  // A busy day 100 days ago: the 365-day view would read too much, the 7-day view doesn't reach it.
-  db.sqlite.prepare('INSERT INTO quota (day, events) VALUES (?, ?)').run('2026-07-17', Math.ceil(DAILY_READ_BUDGET / 8));
-  const refused = await stats(get('/stats?days=365', basic('pw')), env, DAY);
+  // A busy day 60 days ago: the 90-day view would read too much, the 7-day view doesn't reach it, and the 365-day view
+  // reads the much smaller daily rollup instead.
+  db.sqlite.prepare('INSERT INTO quota (day, events) VALUES (?, ?)').run('2026-08-26', Math.ceil(DAILY_READ_BUDGET / 8));
+  assert.equal((await stats(get('/stats?days=365', basic('pw')), env, DAY)).status, 200);
+  const refused = await stats(get('/stats?days=90', basic('pw')), env, DAY);
   assert.equal(refused.status, 429);
   assert.match(await refused.text(), /Pick a shorter range/);
   assert.equal((await stats(get('/stats?days=7', basic('pw')), env, DAY)).status, 200);

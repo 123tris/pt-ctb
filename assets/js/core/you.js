@@ -10,6 +10,7 @@ import { html } from './html.js';
 import { playerIndex } from './data.js';
 import { avatar, prefs } from './ui.js';
 import { toast } from './fun.js';
+import { track, identify } from './track.js';
 import { CONFIG } from '../config.js';
 
 const SIGN_IN_TTL = 15 * 60 * 1000;
@@ -21,6 +22,7 @@ function signIn() {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   const state = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   prefs.set('signin', { state, back: location.hash, at: Date.now() });
+  track('auth', 'start');
   location.assign(`/auth/login?state=${state}`);
 }
 
@@ -36,7 +38,7 @@ const signInResult = (() => {
   if (!pending || pending.state !== answer.get('state') || Date.now() - pending.at > SIGN_IN_TTL) return { error: 'stale' };
   if (answer.get('error')) return { error: answer.get('error') };
   const id = Number(answer.get('id'));
-  return Number.isSafeInteger(id) && id > 0 ? { id, name: answer.get('name') ?? '' } : { error: 'osu' };
+  return Number.isSafeInteger(id) && id > 0 ? { id, name: answer.get('name') ?? '', proof: answer.get('proof') ?? '' } : { error: 'osu' };
 })();
 
 const SIGN_IN_ERRORS = {
@@ -45,10 +47,19 @@ const SIGN_IN_ERRORS = {
   osu: 'osu! didn’t confirm who you are. Try again in a moment.',
 };
 
-async function finishSignIn({ id, name, error }) {
-  if (error) return toast(SIGN_IN_ERRORS[error] ?? SIGN_IN_ERRORS.osu);
+async function finishSignIn({ id, name, proof, error }) {
+  if (error) {
+    track('auth', 'error', error);
+    return toast(SIGN_IN_ERRORS[error] ?? SIGN_IN_ERRORS.osu);
+  }
   const p = (await playerIndex().catch(() => null))?.get(id);
-  if (!p) return toast(html`Signed in as <b>${name}</b>, but you’re not on the Portuguese leaderboards yet, so there’s nothing to show as yours.`);
+  if (!p) {
+    track('auth', 'not listed');
+    return toast(html`Signed in as <b>${name}</b>, but you’re not on the Portuguese leaderboards yet, so there’s nothing to show as yours.`);
+  }
+  track('auth', 'ok');
+  // Lets the usage counts tell an osu! sign-in from a hand-picked "This is me" (signin/proof.js).
+  prefs.set('osuProof', proof ? { id, proof } : null);
   prefs.set('osuMe', id);
   prefs.set('me', id);
   window.dispatchEvent(new HashChangeEvent('hashchange')); // re-render the page with your rows highlighted
@@ -80,6 +91,7 @@ export function initYou() {
     drawn = state;
     box.hidden = !state;
     if (!state) { box.innerHTML = ''; return; }
+    if (p) identify(p.name);
     if (!p) {
       box.innerHTML = String(html`<button class="you-signin" type="button" aria-label="Sign in with osu!"
         title="Sign in with your osu! account to see your rows highlighted on any device">Sign in</button>`);
@@ -101,6 +113,8 @@ export function initYou() {
     if (e.target.closest('.you-signin')) signIn();
     else if (e.target.closest('.you-btn')) setMenu(box.querySelector('.you-menu').hidden);
     else if (e.target.closest('.you-forget')) {
+      track('auth', prefs.get('osuMe', null) ? 'sign out' : 'not me');
+      prefs.set('osuProof', null);
       prefs.set('osuMe', null);
       prefs.set('me', null);
       // Re-render the current page so its highlights and "This is me" button drop the old choice.
