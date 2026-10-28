@@ -608,6 +608,30 @@ tr.target:not(.me) { background: var(--surface-2); }
 /* The play's stats under a player's name on phones: no desktop column widths, so they pack onto one or two lines. */
 .cell-sub .score-line > * { min-width: 0; text-align: left; }
 
+/* Star kings: the same table object, with honours in gold and room for shared titles. */
+.kings-note { max-width: 75ch; font-size: var(--fs-sm); }
+.kings-boards { margin-top: var(--sp-8); gap: var(--sp-6); }
+.kings-boards h2 { font-size: var(--fs-xl); }
+.kings-table { table-layout: fixed; }
+.kings-table th:first-child { width: 31%; }
+.kings-table th:last-child { width: 20%; }
+.kings-table tbody th { background: transparent; text-transform: none; letter-spacing: normal; font-size: var(--fs-md); font-weight: 500; }
+.kings-table thead th { font-size: var(--fs-xs); white-space: normal; }
+.kings-table tr:last-child th { border-bottom: 0; }
+.king-title { color: var(--gold); white-space: nowrap; }
+.king-tie { display: block; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 400; }
+.king-players { display: flex; flex-direction: column; gap: var(--sp-2); }
+.king-players .player { min-height: 24px; }
+.king-players .player span { white-space: normal; overflow-wrap: anywhere; }
+.king-count { font-size: var(--fs-lg); font-weight: 700; }
+@media (max-width: 760px) {
+  .kings-boards { grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
+}
+@media (max-width: 480px) {
+  .kings-table th, .kings-table td { padding: var(--sp-3) var(--sp-2); }
+  .king-title { white-space: normal; }
+}
+
 /* ---- Lists of rows (score lists, events): one bordered list with dividers ---------------------------- */
 
 .rows { display: grid; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); overflow: hidden; }

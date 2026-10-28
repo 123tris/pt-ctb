@@ -1,5 +1,6 @@
 import { html } from '../core/html.js';
-import { players, modRankings, topPlays, meta } from '../core/data.js';
+import { players, modRankings, topPlays, meta, records } from '../core/data.js';
+import { starKingsBoards } from './star-kings.js';
 import { S, parseModFilter, topPlaysView } from '../core/model.js';
 import {
   setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, prefs, SLUG_CAT, CAT_LABEL, pageHead,
@@ -15,14 +16,16 @@ const BOARDS = [
   { slug: 'ranked', label: 'Ranked', title: 'Ranked (official)' },
   { slug: 'mods', label: 'Mods', title: 'By mods' },
   { slug: 'plays', label: 'Top plays', title: 'Top plays' },
+  { slug: 'kings', label: 'Star kings', title: 'Star kings' },
 ];
 
 const INTRO = {
   converts: html`osu!standard maps played in catch mode, weighted the way osu! does it. <a class="help-link" href="#/glossary">What’s pp?</a>`,
   loved: 'Loved, pending and graveyarded maps, with pp the bot works out from the current formula.',
   ranked: 'The official leaderboard, from each player’s osu! profile. Players inactive on osu! keep their last known pp.',
-  mods: 'Weighted pp from the plays that include the chosen mod. An HDDT play counts for HD, DT and HDDT.',
-  plays: 'Portugal’s best single plays, most pp first.',
+  mods: 'Weighted pp from plays that include the chosen mod. HDDT counts for HD, DT and HDDT. NF is ignored when filtering: NF counts as NM, HRNF as HR.',
+  plays: 'Portugal’s best single plays, most pp first. Mod filters include NF: NF counts as NM, HRNF as HR.',
+  kings: 'The players holding the most #1s in PT in each star range.',
 };
 
 const SOURCES = [['r', 'Ranked'], ['c', 'Converts'], ['u', 'Loved & Unranked']];
@@ -124,13 +127,26 @@ function playsList(rows, maps, index, me, source) {
 export default async function rankings(root, { params, query, isCurrent }) {
   const board = BOARDS.find(b => b.slug === params.board) ?? BOARDS[0];
   const slug = board.slug;
-  const [list, m, mods, plays] = await Promise.all([
+  const [list, m, mods, plays, recs] = await Promise.all([
     players(), meta(), slug === 'mods' ? modRankings() : null, slug === 'plays' ? topPlays() : null,
+    slug === 'kings' ? records() : null,
   ]);
   if (!isCurrent()) return;
   setTitle(slug === 'plays' ? board.title : `${board.title} leaderboard`);
   const index = new Map(list.map(p => [p.id, p]));
   const me = prefs.get('me', null);
+
+  if (slug === 'kings') {
+    root.innerHTML = String(html`
+      ${pageHead({ title: 'Leaderboards', extra: html`<p class="page-links"><a href="#/players">All players</a><a href="#/compare">Compare two players</a></p>` })}
+      ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), 'Leaderboard type')}
+      <p class="muted">${INTRO.kings}</p>
+      ${starKingsBoards(recs?.kings, index, me)}
+    `);
+    const titles = recs?.kings ? Object.values(recs.kings).reduce((n, rows) => n + rows.length, 0) : 0;
+    announce(`${fmt.plural(titles, 'star title')} across catch maps and converts.`);
+    return;
+  }
 
   let source = SOURCES.some(([k]) => k === query.src) ? query.src : 'r';
   // Mods ranks players by one mod (HD unless asked); the top plays can also take any mods, and start there.

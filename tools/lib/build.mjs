@@ -9,6 +9,7 @@ import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
 import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js';
 import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
 import { completion, homeGoal } from './completion.mjs';
+import { starKings } from './star-kings.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -273,7 +274,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   const hidden = restrictedIds(bot.players);
   // Taiko and mania maps can't be played in catch: a score on one (filed off a wrong cached mode) is never shown. Plays
   // only need the map not to be known as another mode: they prove it's catch-playable, flagged by the dump or not.
-  const playable = s => !!s && !isOtherMode(beatmaps.get(s.beatmap_id));
+  // Failed plays cannot hold a leaderboard position, even if an old store accidentally retained one.
+  const playable = s => !!s && s.rank !== 'F' && !isOtherMode(beatmaps.get(s.beatmap_id));
   const tuple = s => {
     const t = toTuple(s);
     if (banned.has(s.beatmap_id)) t[S.PP] = 0;
@@ -628,6 +630,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   const oldestFirst = contested.reduce((old, [id, b]) => (!old || b.entries[0][S.TIME + 1] < old.entries[0][S.TIME + 1] ? { id, ...b } : old), null);
 
   const records = {
+    kings: starKings(boards, beatmaps),
     topPlay: Object.fromEntries(CATS.map(cat => [cat, asRow(best(allScores.filter(x => x.cat === cat), x => x.t[S.PP]))])),
     topCombo: asRow(best(allScores, x => x.t[S.COMBO])),
     hardest: Object.fromEntries(CATS.map(cat => [cat, asRow(best(allScores.filter(x => x.cat === cat && fairMods(x.t) && meta(x.t[S.MAP])),
