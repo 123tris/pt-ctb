@@ -624,6 +624,11 @@ tr.target:not(.me) { background: var(--surface-2); }
 .king-players .player { min-height: 24px; }
 .king-players .player span { white-space: normal; overflow-wrap: anywhere; }
 .king-count { font-size: var(--fs-lg); font-weight: 700; }
+.king-link { display: block; width: fit-content; margin-top: var(--sp-1); font-size: var(--fs-sm); font-weight: 400; }
+td.king-rank { color: var(--gold); }
+@media (pointer: coarse) {
+  .king-link { display: flex; align-items: center; min-height: 44px; margin-top: 0; }
+}
 @media (max-width: 760px) {
   .kings-boards { grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); }
 }

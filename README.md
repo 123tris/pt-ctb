@@ -43,7 +43,7 @@ and is imported by both the exporter and the pages, so the two can't drift apart
 | `#/calculator` | Catch pp calculator and "what if" pp gain |
 | `#/compare/{a}/{b}` | Head to head |
 | `#/records` | Records and community stats |
-| `#/rankings/kings` | King of each whole-star range (10★ and above combined), with separate catch and convert boards; tied totals share the title |
+| `#/rankings/kings` | King of each whole-star range (10★ and above combined), with separate catch and convert boards; tied totals share the title. `?stars=6&src=converts` is one range's full board: everyone with a #1 there, ties sharing a rank |
 | `#/recap/{id}/{year}` | A player's year in review |
 | `#/commands`, `#/verify`, `#/team` | Bot commands, how `/verify` works, Team Portugal |
 

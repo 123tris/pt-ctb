@@ -5,6 +5,8 @@ import { MODE } from '../../assets/js/core/model.js';
  * Split by native mode (including loved/unranked in each), using unrounded nomod catch stars.
  * 10★ and above share one range. Equal totals share the title; empty ranges have no king.
  * Unknown convert difficulty is omitted.
+ * Each range's `board` is everyone with a #1 there, [[playerId, count]], most first (then by id); the page ranks ties
+ * together (model.js sharedRanks).
  */
 export function starKings(boards, beatmaps) {
   const counts = { catch: new Map(), converts: new Map() };
@@ -23,8 +25,9 @@ export function starKings(boards, beatmaps) {
   }
   return Object.fromEntries(Object.entries(counts).map(([source, bands]) => [source,
     [...bands].sort(([a], [b]) => a - b).map(([stars, counts]) => {
-      const count = Math.max(...counts.values());
-      return { stars, count, players: [...counts].filter(([, n]) => n === count).map(([id]) => id).sort((a, b) => a - b) };
+      const board = [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+      const count = board[0][1];
+      return { stars, count, players: board.filter(([, n]) => n === count).map(([id]) => id), board };
     }),
   ]));
 }

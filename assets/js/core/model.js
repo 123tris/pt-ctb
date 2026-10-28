@@ -138,6 +138,11 @@ export function boardComparator(cat) {
     : (a, b) => (b[score] - a[score]) || (b[pp] - a[pp]);
 }
 
+/** Ranks for values sorted best first, with equal values sharing a rank and the next one skipping it: 1, 1, 3. */
+export function sharedRanks(values) {
+  return values.map((v, i) => values.indexOf(v) + 1);
+}
+
 /** Grades that count as SS. */
 export const isSS = grade => grade === 'X' || grade === 'XH';
 

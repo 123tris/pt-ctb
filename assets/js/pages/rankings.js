@@ -1,6 +1,6 @@
 import { html } from '../core/html.js';
 import { players, modRankings, topPlays, meta, records } from '../core/data.js';
-import { starKingsBoards } from './star-kings.js';
+import { kingsPage } from './star-kings.js';
 import { S, parseModFilter, topPlaysView } from '../core/model.js';
 import {
   setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, prefs, SLUG_CAT, CAT_LABEL, pageHead,
@@ -137,14 +137,10 @@ export default async function rankings(root, { params, query, isCurrent }) {
   const me = prefs.get('me', null);
 
   if (slug === 'kings') {
-    root.innerHTML = String(html`
+    const head = html`
       ${pageHead({ title: 'Leaderboards', extra: html`<p class="page-links"><a href="#/players">All players</a><a href="#/compare">Compare two players</a></p>` })}
-      ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), 'Leaderboard type')}
-      <p class="muted">${INTRO.kings}</p>
-      ${starKingsBoards(recs?.kings, index, me)}
-    `);
-    const titles = recs?.kings ? Object.values(recs.kings).reduce((n, rows) => n + rows.length, 0) : 0;
-    announce(`${fmt.plural(titles, 'star title')} across catch maps and converts.`);
+      ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), 'Leaderboard type')}`;
+    kingsPage(root, { kings: recs?.kings, index, me, query, head, intro: INTRO.kings });
     return;
   }
 
