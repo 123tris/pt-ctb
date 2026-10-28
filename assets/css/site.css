@@ -726,8 +726,9 @@ a.row.card-link:last-child { border-bottom: 0; }
 .stat-link:focus-visible { outline: none; }
 .stat:has(.stat-link:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-xs); }
 /* The link's hit area is the whole value line, padded to 45px tall (DESIGN.md §11) with the padding taken back by the
-   margins, so nothing moves. The line is a size container, so it's also what the ::after is placed in. */
-.stat-value:has(.stat-link) { padding-block: 7px; margin-block: -3px -7px; }
+   margins, so nothing moves. The ::after is placed in the line, which must be positioned for that: a size container
+   is not a containing block, and without it each ::after spread over the whole page, the last tile's on top. */
+.stat-value:has(.stat-link) { position: relative; padding-block: 7px; margin-block: -3px -7px; }
 .stat-link::after { content: ''; position: absolute; inset: 0; }
 /* Grade counts as compact chips ("SS 281  S 2,379  A 354"); they wrap between chips, never inside one. */
 .grade-counts { display: flex; flex-wrap: wrap; gap: 2px var(--sp-2); }
