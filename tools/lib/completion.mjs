@@ -113,8 +113,9 @@ function setTitles(maps) {
  *   sole                  [[userId, maps]]: the most maps only that player has cleared
  *   maps                  { mapId: beatmap tuple } for `recent` (filled in by build.mjs)
  *   sets                  { setId: [artist, title] } for `left`
- *   left                  [[mapId, setId, version, stars, rankedDay, osu! plays]]: the maps nobody has cleared, most
- *                         played on osu! first; rankedDay is days since 1970 (null when unknown)
+ *   left                  [[mapId, setId, version, stars, rankedDay, osu! plays, length]]: the maps nobody has cleared,
+ *                         most played on osu! first; rankedDay is days since 1970 and length the drain time in seconds
+ *                         (osu!'s hit_length, the Length the map page shows), each null when unknown
  */
 export function completion({ bot, beatmaps, homeCountry, previous = {}, extraTitles = [] }) {
   const hidden = restrictedIds(bot.players);
@@ -176,7 +177,7 @@ export function completion({ bot, beatmaps, homeCountry, previous = {}, extraTit
     left: left.map(raw => {
       const ranked = rankedAt(raw);
       return [raw.beatmap_id, raw.beatmapset_id || 0, raw.version || '', Math.round((raw.difficultyrating || 0) * 100) / 100,
-        ranked === null ? null : Math.floor(ranked / DAY), raw.playcount || 0];
+        ranked === null ? null : Math.floor(ranked / DAY), raw.playcount || 0, raw.hit_length || null];
     }),
   };
   return { file, firsts, left: left.map(raw => raw.beatmap_id), titles };

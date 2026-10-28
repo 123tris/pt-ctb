@@ -123,7 +123,7 @@ test('the first clear is the earliest pass, and an earlier one recorded before i
 });
 
 test('the export writes the goal, a page for every uncleared map and the headline in meta.json', () => {
-  const untitled = map(3, { beatmapset_id: 77, title: null, artist: null, creator: null, playcount: 5000 });
+  const untitled = map(3, { beatmapset_id: 77, title: null, artist: null, creator: null, playcount: 5000, hit_length: 134 });
   const sibling = map(8, { beatmapset_id: 77, playmode: '0', title: 'Set title', artist: 'Set artist', creator: 'Mapper' });
   const beatmaps = new Map([map(1), map(2), untitled, sibling].map(m => [m.beatmap_id, m]));
   const data = { ...bot({ players: [player(10, { RankedSpecificScores: [play(1)] })] }), weekly: { weeks: [], current: null } };
@@ -138,6 +138,7 @@ test('the export writes the goal, a page for every uncleared map and the headlin
   assert.deepEqual(home.latest, [1, 10, now - 30 * day]);
   assert.deepEqual(home.maps, { 1: file.maps[1] });
   assert.deepEqual(file.left.map(r => r[0]), [3, 2]); // most played on osu! first
+  assert.deepEqual(file.left.map(r => r[6]), [134, null]); // drain length in seconds, null when the cache has none
   assert.deepEqual(file.sets[77], ['Set artist', 'Set title']);
   assert.ok(file.maps[1]);
   assert.deepEqual(Object.keys(state.cleared), ['1']);

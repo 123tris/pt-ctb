@@ -51,7 +51,7 @@ const FALLBACK = [
   ]],
   ['Moderation', 'Only our lord and saviour has access to these commands.', [
     ['/ban · /showbanned', 'Removes a map from the leaderboards / shows removed maps.'],
-    ['/loadrecentscores', 'Imports everyone’s recent plays now (the bot also does this by itself every 30 minutes).'],
+    ['/loadrecentscores', 'Imports everyone’s recent plays now (the bot also does this by itself every 15 minutes, and the site catches up within a few minutes).'],
     ['/clear', 'Deletes recent messages in the channel.'],
   ]],
 ];
