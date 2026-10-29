@@ -543,12 +543,33 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const since = now - ACTIVITY_DAYS * DAY;
   const derived = [];
-  // A #1 set after the current runner-up's score must have taken the spot from them: their score already stood
-  // and was the best of everyone else's (nobody's best ever goes down), so no history is needed to see snipes.
+  // A #1 is a snipe only if someone else held the spot before it. The board alone can't tell that from the holder
+  // beating their own #1: either way the #1 is newer than the runner-up's score. The bot's play log can: it took each
+  // play in against the player's previous one, and lists in `sniped` only the players it passed that the previous one
+  // hadn't, best first. So a #1 that passed nobody was the player's already, and one that passed someone took the spot
+  // from the best of them (whoever held it among the players shown here; the bot's own `held` also counts players from
+  // elsewhere). A play the log can't speak for falls back to the board: a #1
+  // set after the runner-up's score took the spot from them. Those are plays set before the log, plays only a dump
+  // has, and loved/unranked plays that came in without pp: loved boards go by pp, and the bot only works it out after
+  // its snipe check, which saw a 0pp play that passed nobody.
+  const playLog = bot.plays || { from: null, lines: [] };
+  const logged = new Map(); // "user:map" -> the log's lines for that player's plays on that map
+  for (const line of playLog.lines) {
+    if (playLog.from === null || line.t < playLog.from || (line.c === 'u' && line.pp === undefined)) continue;
+    const key = `${line.u}:${line.m}`;
+    if (!logged.has(key)) logged.set(key, []);
+    logged.get(key).push(line);
+  }
   for (const [id, board] of boards) {
     const [top, second] = board.entries;
-    if (!second || top[S.TIME + 1] < since || top[S.TIME + 1] <= second[S.TIME + 1]) continue;
-    derived.push({ t: top[S.TIME + 1], k: 'snipe', u: top[0], v: second[0], c: board.cat, s: top.slice(1) });
+    const time = top[S.TIME + 1];
+    if (!second || time < since) continue;
+    // The same play can be in the log twice (taken in by !rs and by the tracker); only the first one changed anything.
+    const lines = (logged.get(`${top[0]}:${id}`) || []).filter(l => Math.abs(l.t - time) <= 1);
+    const passed = lines.find(l => l.sniped?.length)?.sniped[0];
+    const victim = lines.length ? passed : time > second[S.TIME + 1] ? second[0] : undefined;
+    if (victim === undefined || victim === top[0] || !people.has(victim)) continue;
+    derived.push({ t: time, k: 'snipe', u: top[0], v: victim, c: board.cat, s: top.slice(1) });
   }
   for (const p of people.values()) {
     for (const [index, t] of p.dan) {

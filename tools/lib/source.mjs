@@ -31,7 +31,48 @@ export function loadBotData(root) {
     ptCatchState: readJsonOr(path.join(root, 'PtCatch', 'state.json'), {}),
     banned: new Set(readJsonOr(path.join(root, 'BannedMaps.json'), [])),
     weekly: loadWeekly(root),
+    plays: loadPlays(root),
   };
+}
+
+/**
+ * The bot's play log (Plays/<week>.jsonl, older weeks gzipped): a line per play it took in, with `sniped` (the
+ * community players the play passed on its map that the player's previous play there hadn't, best first) and `held`
+ * (only when the first of them held the map's #1), keeping just the fields the export reads; a line that won't parse
+ * is skipped.
+ *
+ * `from` is when the lines start to speak for snipes (unix seconds; null when they never do). The bot's first import
+ * with the log took in the day before it too (WeeklyService.RecentWindow), plays it mostly had already: logged as
+ * repeats, without `sniped`, whatever they did when they came in. Only plays set after that day were logged as they
+ * came in. Weekly/state.json has the start of that day (coveredFrom).
+ */
+export function loadPlays(root) {
+  const covered = readJsonOr(path.join(root, 'Weekly', 'state.json'), {}).coveredFrom;
+  const from = covered ? Math.floor(Date.parse(covered) / 1000) + 86400 : null;
+  const dir = path.join(root, 'Plays');
+  if (!fs.existsSync(dir)) return { from: null, lines: [] };
+  const plays = [];
+  for (const file of fs.readdirSync(dir)) {
+    if (!/^\d{4}-W\d\d\.jsonl(\.gz)?$/.test(file)) continue;
+    let text;
+    try {
+      const bytes = fs.readFileSync(path.join(dir, file));
+      text = (file.endsWith('.gz') ? zlib.gunzipSync(bytes) : bytes).toString('utf8');
+    } catch (e) {
+      console.warn(`  skipped Plays/${file}: ${e.message}`);
+      continue;
+    }
+    for (const line of text.split('\n')) {
+      if (!line.trim()) continue;
+      try {
+        const { u, m, t, c, pp, sniped, held } = JSON.parse(line.replace(/^﻿/, ''));
+        if (u) plays.push({ u, m, t, c, ...(pp != null ? { pp } : {}), ...(sniped ? { sniped } : {}), ...(held !== undefined ? { held } : {}) }); // not a gap line
+      } catch {
+        // a line cut short mid-write; the rest of the file still reads
+      }
+    }
+  }
+  return { from: Number.isFinite(from) ? from : null, lines: plays };
 }
 
 /**
