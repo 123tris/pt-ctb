@@ -138,6 +138,16 @@ export function boardComparator(cat) {
     : (a, b) => (b[score] - a[score]) || (b[pp] - a[pp]);
 }
 
+/**
+ * The pp a player's file counts in a category, one value per map, best first. A convert map's best-pp play can be a
+ * play that isn't on its board (`file.pp.c`, beside a higher-scoring board play in `file.scores.c`); it counts instead.
+ */
+export function countedPp(file, cat) {
+  const byMap = new Map(file.scores[cat].map(s => [s[S.MAP], s[S.PP]]));
+  for (const s of file.pp?.[cat] ?? []) byMap.set(s[S.MAP], Math.max(byMap.get(s[S.MAP]) ?? 0, s[S.PP]));
+  return [...byMap.values()].sort((a, b) => b - a);
+}
+
 /** Ranks for values sorted best first, with equal values sharing a rank and the next one skipping it: 1, 1, 3. */
 export function sharedRanks(values) {
   return values.map((v, i) => values.indexOf(v) + 1);

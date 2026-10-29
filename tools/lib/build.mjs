@@ -152,7 +152,7 @@ function reconstructHistory(people, firstRecordedDay) {
 
   const timeline = p => {
     const dated = list => list.filter(t => t[S.TIME] > 0 && t[S.TIME] < end).sort((a, b) => a[S.TIME] - b[S.TIME]);
-    return { c: dated(p.lists.c), u: dated(p.lists.u), r: dated([...p.lists.r, ...p.lists.c, ...(p.dump_top || [])]) };
+    return { c: dated(p.ppLists.c), u: dated(p.lists.u), r: dated([...p.lists.r, ...p.ppLists.c, ...(p.dump_top || [])]) };
   };
   const timelines = new Map([...people.values()].map(p => [p.id, timeline(p)]));
   const earliest = Math.min(...[...timelines.values()].flatMap(t => [t.c[0], t.u[0], t.r[0]]).filter(Boolean).map(t => t[S.TIME]));
@@ -202,7 +202,25 @@ function reconstructHistory(people, firstRecordedDay) {
   return { days, series };
 }
 
-/** The best play per map (pp first, then score), sorted best-pp-first. */
+/**
+ * The best play per map by the order of the map's board (boardComparator): classic score first on ranked maps and
+ * converts, pp first on loved ones. That's the play the bot keeps for the board (CatchScoreRules.KeptOver), down to
+ * its one exception: a play with no classic score (0, some imported lazer plays) against one that has one goes by pp.
+ * Sorted best-pp-first.
+ */
+function bestOnBoard(tuples, cat) {
+  const byPp = (a, b) => a[S.PP] > b[S.PP] || (a[S.PP] === b[S.PP] && a[S.SCORE] > b[S.SCORE]);
+  const beats = cat === CAT.LOVED ? byPp
+    : (a, b) => (!a[S.SCORE] !== !b[S.SCORE] ? byPp(a, b) : a[S.SCORE] > b[S.SCORE] || (a[S.SCORE] === b[S.SCORE] && a[S.PP] > b[S.PP]));
+  const byMap = new Map();
+  for (const t of tuples) {
+    const old = byMap.get(t[S.MAP]);
+    if (!old || beats(t, old)) byMap.set(t[S.MAP], t);
+  }
+  return [...byMap.values()].sort((a, b) => b[S.PP] - a[S.PP] || a[S.MAP] - b[S.MAP]);
+}
+
+/** The best play per map by pp (then score), sorted best-pp-first: what pp totals count. */
 function bestPerMap(tuples) {
   const byMap = new Map();
   for (const t of tuples) {
@@ -290,7 +308,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const people = new Map();
   const person = (id, name) => {
-    if (!people.has(id)) people.set(id, { id, name, raw: null, dump: null, lists: { c: [], u: [], r: [] }, dump_top: [], pre: [], early: [] });
+    if (!people.has(id)) people.set(id, { id, name, raw: null, dump: null, lists: { c: [], u: [], r: [] }, ppOnly: [], dump_top: [], pre: [], early: [] });
     return people.get(id);
   };
   // A play from before its map was ranked counts toward nothing, wherever the bot filed it: it goes with the player's
@@ -308,6 +326,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     const p = person(raw.user_id, raw.username);
     p.raw = raw;
     p.lists.c.push(...filed(p, raw.TopConvertedScores, true));
+    // A convert map's best-pp play, where the bot keeps one beside the (higher-scoring) board play. Older bot data has
+    // none, which leaves every total as it was.
+    p.lists.c.push(...filed(p, raw.ConvertPpScores, true));
     p.lists.u.push(...filed(p, raw.TopUnrankedScores, false));
     p.lists.r.push(...filed(p, raw.RankedSpecificScores, true));
     // Plays from before their map was ranked: shown for the record, counted nowhere (they're 0pp in the bot too).
@@ -327,7 +348,13 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     }
   }
   for (const p of people.values()) {
-    for (const cat of CATS) p.lists[cat] = bestPerMap(p.lists[cat]);
+    // The lists hold the board plays, one per map. A convert map can also have a best-pp play that isn't the board
+    // play (a higher-pp, lower-score HDHR play beside an HD one): p.ppOnly. p.ppLists are what pp is counted from.
+    const converts = p.lists.c;
+    for (const cat of CATS) p.lists[cat] = bestOnBoard(p.lists[cat], cat);
+    const onBoard = new Map(p.lists.c.map(t => [t[S.MAP], t]));
+    p.ppOnly = bestPerMap(converts).filter(t => onBoard.get(t[S.MAP]) !== t && t[S.PP] > onBoard.get(t[S.MAP])[S.PP]);
+    p.ppLists = { c: bestPerMap([...p.lists.c, ...p.ppOnly]), u: p.lists.u, r: p.lists.r };
     // One pre-rank play per map, the best score, at 0pp.
     const pre = new Map();
     for (const t of p.early.map(toTuple)) {
@@ -362,7 +389,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   for (const p of people.values()) {
     const raw = p.raw || {}, dump = p.dump || {};
     p.name = raw.username || dump.username || p.name;
-    p.cv = round(weightedTotal(p.lists.c.map(t => t[S.PP])));
+    p.cv = round(weightedTotal(p.ppLists.c.map(t => t[S.PP])));
     p.ul = round(weightedTotal(p.lists.u.map(t => t[S.PP])));
     p.official = officialStats(p.raw, p.dump);
     p.pp = round(p.official.pp || 0);
@@ -377,7 +404,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     p.inactive = Boolean(raw.profile_updated) && !(p.pp > 0 && p.global);
     if (p.inactive) {
       const live = previous.official?.[p.id];
-      const estimate = round(estimatedOfficialPp([...p.lists.r, ...p.lists.c, ...(p.dump_top || [])]));
+      const estimate = round(estimatedOfficialPp([...p.lists.r, ...p.ppLists.c, ...(p.dump_top || [])]));
       if (live) [p.pp, p.ppSeen, p.ppSource] = [round(live[0]), live[1], 'last-known'];
       else if (estimate > 0) [p.pp, p.ppSource] = [estimate, 'estimated'];
       else if (pastOfficial[p.id]) [p.pp, p.ppSource] = [round(pastOfficial[p.id].pp), 'last-known'];
@@ -437,13 +464,15 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   for (const p of people.values()) {
     const withPos = t => Object.assign([...t], { [S.POS]: position.get(`${p.id}:${t[S.MAP]}`) || null });
     const lists = Object.fromEntries(CATS.map(cat => [cat, p.lists[cat].map(withPos)]));
-    const ids = [...CATS.flatMap(cat => p.lists[cat].map(t => t[S.MAP])), ...p.dan.map(([, t]) => t[S.MAP]),
+    const ids = [...CATS.flatMap(cat => p.ppLists[cat].map(t => t[S.MAP])), ...p.dan.map(([, t]) => t[S.MAP]),
       ...p.dump_top.map(t => t[S.MAP]), ...p.pre.map(t => t[S.MAP])];
     playerFiles[p.id] = {
       id: p.id, name: p.name,
       scores: lists,
       top: p.dump_top, // the dump's best ranked plays (official pp, converts included) for the "Ranked" view
       dan: p.dan,
+      // Convert plays that count for pp but aren't on their map's board (a higher-scoring play is); left out when none.
+      ...(p.ppOnly.length ? { pp: { c: p.ppOnly } } : {}),
       // Plays from before their map was ranked (no pp, no positions); left out when there are none.
       ...(p.pre.length ? { pre: p.pre } : {}),
       maps: playerMapsFor(ids),
@@ -488,7 +517,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // Ranked is the dump's plays, with osu!'s own pp. Players inactive on osu! aren't in the dump, so they fall back to
   // the ranked plays and converts the bot keeps (what their estimated pp comes from) and stay on these boards too.
   const pools = {
-    r: p => (p.dump_top.length ? p.dump_top : bestPerMap([...p.lists.r, ...p.lists.c])), c: p => p.lists.c, u: p => p.lists.u,
+    r: p => (p.dump_top.length ? p.dump_top : bestPerMap([...p.lists.r, ...p.ppLists.c])), c: p => p.ppLists.c, u: p => p.lists.u,
   };
   const modRankings = { filters: MOD_FILTERS, sources: {} };
   const modMaps = [];
@@ -513,8 +542,11 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // under the map's category). The site offers a top TOP_PLAYS per source and mod filter (any mods included); the file
   // holds the union of them all, which the site filters back into each view (topPlaysView in model.js). Banned maps'
   // plays are worth 0pp and left out.
+  // A player's best-pp play on a convert map stands in for their board play there when it isn't the same play.
+  const ppPlayOf = new Map([...people.values()].flatMap(p => p.ppOnly.map(t => [`${p.id}:${t[S.MAP]}`, t])));
   const allPlays = [...boards]
-    .flatMap(([, b]) => b.entries.filter(e => e[S.PP + 1] > 0).map(([uid, ...t]) => [uid, b.cat, ...t]))
+    .flatMap(([id, b]) => b.entries.map(([uid, ...t]) => [uid, b.cat, ...(ppPlayOf.get(`${uid}:${id}`) ?? t)]))
+    .filter(row => row[S.PP + 2] > 0)
     .sort((a, b) => b[S.PP + 2] - a[S.PP + 2] || a[S.TIME + 2] - b[S.TIME + 2] || a[0] - b[0]);
   const shownPlays = new Set();
   for (const source of Object.keys(PLAY_SOURCES)) {
@@ -576,7 +608,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       if (t[S.TIME] >= since) derived.push({ t: t[S.TIME], k: 'dan', u: p.id, d: index, s: t });
     }
     for (const cat of [CAT.CONVERT, CAT.LOVED]) {
-      p.lists[cat].slice(0, 5).forEach((t, i) => {
+      p.ppLists[cat].slice(0, 5).forEach((t, i) => {
         if (t[S.TIME] >= since) derived.push({ t: t[S.TIME], k: 'top', u: p.id, c: cat, i: i + 1, s: t });
       });
     }
@@ -652,7 +684,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const records = {
     kings: starKings(boards, beatmaps),
-    topPlay: Object.fromEntries(CATS.map(cat => [cat, asRow(best(allScores.filter(x => x.cat === cat), x => x.t[S.PP]))])),
+    topPlay: Object.fromEntries(CATS.map(cat => [cat, asRow(best([...people.values()].flatMap(p => p.ppLists[cat].map(t => ({ p, cat, t }))), x => x.t[S.PP]))])),
     topCombo: asRow(best(allScores, x => x.t[S.COMBO])),
     hardest: Object.fromEntries(CATS.map(cat => [cat, asRow(best(allScores.filter(x => x.cat === cat && fairMods(x.t) && meta(x.t[S.MAP])),
       x => meta(x.t[S.MAP]).difficultyrating))])),
