@@ -90,6 +90,13 @@ test('bot data without pp plays exports as before', () => {
   assert.deepEqual(board(files, MAP).map(e => e[0]), [ALICE, BOB]);
 });
 
+test('a play with no classic score is placed by pp against one that has one', () => {
+  const bot = botData();
+  bot.players[0].RankedSpecificScores = [play(ALICE, RANKED_MAP, 0, 400, 0)];
+  const entries = build({ bot, beatmaps, homeCountry: 'PT', now, state: {} }).files[`maps/${RANKED_MAP % 128}.json`][RANKED_MAP].s;
+  assert.equal(entries[0][S.PP + 1], 400); // over the dump's 15M/350pp play
+});
+
 test('a ranked board keeps the best score, even over a dump play worth more pp', () => {
   const entries = board(exportWith(), RANKED_MAP);
   assert.equal(entries[0][S.SCORE + 1], 20_000_000);

@@ -204,12 +204,14 @@ function reconstructHistory(people, firstRecordedDay) {
 
 /**
  * The best play per map by the order of the map's board (boardComparator): classic score first on ranked maps and
- * converts, pp first on loved ones. That's the play the bot keeps for the board; sorted best-pp-first.
+ * converts, pp first on loved ones. That's the play the bot keeps for the board (CatchScoreRules.KeptOver), down to
+ * its one exception: a play with no classic score (0, some imported lazer plays) against one that has one goes by pp.
+ * Sorted best-pp-first.
  */
 function bestOnBoard(tuples, cat) {
-  const beats = cat === CAT.LOVED
-    ? (a, b) => a[S.PP] > b[S.PP] || (a[S.PP] === b[S.PP] && a[S.SCORE] > b[S.SCORE])
-    : (a, b) => a[S.SCORE] > b[S.SCORE] || (a[S.SCORE] === b[S.SCORE] && a[S.PP] > b[S.PP]);
+  const byPp = (a, b) => a[S.PP] > b[S.PP] || (a[S.PP] === b[S.PP] && a[S.SCORE] > b[S.SCORE]);
+  const beats = cat === CAT.LOVED ? byPp
+    : (a, b) => (!a[S.SCORE] !== !b[S.SCORE] ? byPp(a, b) : a[S.SCORE] > b[S.SCORE] || (a[S.SCORE] === b[S.SCORE] && a[S.PP] > b[S.PP]));
   const byMap = new Map();
   for (const t of tuples) {
     const old = byMap.get(t[S.MAP]);
