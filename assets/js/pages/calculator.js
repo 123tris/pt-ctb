@@ -1,6 +1,6 @@
 import { html, raw } from '../core/html.js';
 import { players, playerFile, mapEntry } from '../core/data.js';
-import { S, M, MOD, catchPp, adjustedAr, weightedTotal } from '../core/model.js';
+import { S, M, MOD, catchPp, adjustedAr, weightedTotal, countedPp } from '../core/model.js';
 import { setTitle, playerPicker, pickedPlayer, prefs, mapLink, ppText } from '../core/ui.js';
 import { CALC_PRESETS } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
@@ -115,7 +115,7 @@ export default async function calculator(root, { query, isCurrent }) {
     const cat = $('board').value;
     const file = await playerFile(p.id);
     if (mine !== ticket || !isCurrent()) return;
-    const scores = file.scores[cat].map(s => s[S.PP]).sort((a, b) => b - a);
+    const scores = countedPp(file, cat);
     const key = cat === 'c' ? 'cv' : 'ul';
     const now = weightedTotal(scores);
     const extra = value('newpp');
