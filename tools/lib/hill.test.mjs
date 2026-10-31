@@ -13,10 +13,11 @@ import { MOD } from '../../assets/js/core/model.js';
 
 const play = (userId, hillScore, time, mods = []) => ({
   userId, username: `p${userId}`, scoreId: 9000 + userId, hillScore, acc: 98.5, combo: 700, miss: 0, mods, time,
+  url: `https://osu.ppy.sh/scores/fruits/${9000 + userId}`,
 });
 const slot = (s, tier, beatmapId, board = []) => ({
   slot: s, tier, beatmapId, beatmapsetId: beatmapId * 10, artist: 'A', title: `T${beatmapId}`, version: 'V', creator: 'C',
-  stars: 5.1, convert: s !== 'SP', holder: board[0] ?? null, board, snipes: board.map((e, i) => ({ time: e.time, fromUserId: board[i + 1]?.userId ?? null, toUserId: e.userId })),
+  stars: 5.1, convert: s !== 'SP', maxCombo: 700, holder: board[0] ?? null, board, snipes: board.map((e, i) => ({ time: e.time, fromUserId: board[i + 1]?.userId ?? null, toUserId: e.userId })),
 });
 const month = (id, status, slots) => ({ month: id, start: `${id}-01T00:00:00Z`, end: `${id}-28T00:00:00Z`, status, slots });
 const crownsOf = months => ({
@@ -46,16 +47,20 @@ test('the running month: its pool by slot and tier, empty slots open, the player
   assert.equal(file.current.start, Date.UTC(2026, 10, 1) / 1000);
   assert.deepEqual(file.current.pool.map(s => `${s.slot}/${s.tier}`), ['NM/open', 'NM/challenger', 'HR/open', 'FM/open']);
   const nm = file.current.pool[0];
-  assert.deepEqual(nm.holder, { u: 1, name: 'p1', score: 950000, acc: 98.5, combo: 700, miss: 0, mods: 0, time: Date.UTC(2026, 10, 3, 10) / 1000, id: 9001 });
+  assert.deepEqual(nm.holder, { u: 1, name: 'p1', score: 950000, acc: 98.5, combo: 700, miss: 0, mods: 0, time: Date.UTC(2026, 10, 3, 10) / 1000, url: 'https://osu.ppy.sh/scores/fruits/9001' });
   assert.equal(nm.players, 2);
+  assert.equal(nm.snipes, 1); // p2's first play took the slot from nobody, p1's took it from p2
   assert.equal(file.current.pool[1].holder, null);
   assert.equal(file.current.pool[3].holder.mods, MOD.HD | MOD.HR);
+  const unlinked = hillBlock({ current: month('2026-11', 'live', [slot('NM', 'open', 1, [{ ...play(1, 9, '2026-11-02T00:00:00Z'), url: null }])]) });
+  assert.equal('url' in unlinked.file.current.pool[0].holder, false); // the bot doesn't know the play's page
   assert.deepEqual(file.current.leaders, { players: [1], held: 2 });
   assert.deepEqual(file.months, []);
   assert.deepEqual(file.players, []); // holding isn't a crown yet
   assert.deepEqual(profiles.get(1).holding, [['NM', 'open', 1], ['HR', 'open', 3]]);
   assert.equal(profiles.get(1).total, 0);
   assert.deepEqual(file.maps[1].slice(0, 5), ['A', 'T1', 'V', 10, 5.1]);
+  assert.equal(file.maps[1][11], 700); // M.MAX_COMBO
 });
 
 test('a draft pool shows no maps; a closed current month means no running one', () => {

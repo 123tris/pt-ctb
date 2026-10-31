@@ -33,7 +33,7 @@ function slotRow(s, maps, index, closed) {
       <div>${h ? playerLink(who(h.u, h.name, index), null, 'avatar-sm') : html`<span class="muted small">${closed ? t('Nobody kept this crown') : t('Up for grabs')}</span>`}</div>
     </div>
     <div class="row-meta">
-      ${score ? (h.id ? html`<a href="https://osu.ppy.sh/scores/${h.id}" target="_blank" rel="noopener" title="${t('This play on osu!')}">${score}</a>` : score) : ''}
+      ${score ? (h.url ? html`<a href="${h.url}" target="_blank" rel="noopener" title="${t('This play on osu!')}">${score}</a>` : score) : ''}
       ${h?.acc !== undefined ? html`<span>${fmt.acc(h.acc)}</span>` : ''}
       ${h?.mods ? modsBadges(h.mods) : ''}
       ${h?.time ? html`<span class="faint" title="${fmt.dateTime(h.time)}">${closed ? fmt.date(h.time) : fmt.ago(h.time)}</span>` : ''}

@@ -32,10 +32,14 @@ const slotIndex = slot => HILL_SLOTS.indexOf(slot);
 const knownSlot = s => slotIndex(s?.slot) >= 0 && HILL_TIERS.includes(s?.tier);
 const bySlot = (a, b) => slotIndex(a.slot) - slotIndex(b.slot) || HILL_TIERS.indexOf(a.tier) - HILL_TIERS.indexOf(b.tier);
 
-/** A board entry as the site reads it; the score id links the play on osu! when it's there. */
+/**
+ * A board entry as the site reads it, with the play's osu! page when the bot knows it (`url`: the bot reads a stable
+ * play by its legacy id, whose page isn't /scores/<id>, so the site never builds one from `scoreId`).
+ */
 const entry = e => ({
   u: e.userId, name: e.username, score: e.hillScore, acc: e.acc, combo: e.combo, miss: e.miss,
-  mods: modMask((e.mods ?? []).join('')), time: unix(e.time), ...(e.scoreId > 0 ? { id: e.scoreId } : {}),
+  mods: modMask((e.mods ?? []).join('')), time: unix(e.time),
+  ...(/^https:\/\/osu\.ppy\.sh\//.test(e.url ?? '') ? { url: e.url } : {}),
 });
 
 /**
@@ -50,7 +54,8 @@ function pool(month, hidden) {
     return {
       slot: s.slot, tier: s.tier, map: s.beatmapId, convert: Boolean(s.convert),
       holder: holder ? entry(holder) : null, players: board.length,
-      snipes: (s.snipes ?? []).filter(x => !hidden.has(x.toUserId)).length,
+      // Taking the slot from someone; the first play on an empty slot (fromUserId null) took it from nobody.
+      snipes: (s.snipes ?? []).filter(x => x.fromUserId != null && !hidden.has(x.toUserId) && !hidden.has(x.fromUserId)).length,
     };
   });
 }
@@ -84,7 +89,7 @@ export function hillBlock(hill, hidden = new Set()) {
   const remember = m => {
     for (const s of (m.slots ?? []).filter(knownSlot)) {
       maps[s.beatmapId] = [s.artist ?? '', s.title ?? '', s.version ?? '', s.beatmapsetId ?? 0, s.stars ?? 0,
-        null, null, null, null, null, null, null, null, s.convert ? 0 : 2, s.creator ?? ''];
+        null, null, null, null, null, null, s.maxCombo ?? null, null, s.convert ? 0 : 2, s.creator ?? ''];
     }
   };
 
