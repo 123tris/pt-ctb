@@ -72,6 +72,10 @@ codeFiles.sort();
 const code = crypto.createHash('sha256');
 for (const file of codeFiles) code.update(path.relative(dist, file)).update(fs.readFileSync(file));
 const version = code.digest('hex').slice(0, 10);
+// The version again, where index.html's inline check compares them: a config.js without it, or with another, is code
+// from an older deploy cached under this one's addresses. Added after hashing, so it doesn't change the version.
+edit('assets/js/config.js', s => `${s}\nglobalThis.ptctbCode = '${version}';\n`);
+edit('index.html', s => s.replace(/<html /, `<html data-v="${version}" `));
 
 // Preload app.js's whole static import graph (and moved.js's) from index.html, so the modules come in parallel instead
 // of one import level at a time. Added before the versioning below, which gives these the same ?v= as the imports.

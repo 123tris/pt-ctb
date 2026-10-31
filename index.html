@@ -9,6 +9,22 @@
 <link rel="icon" href="assets/img/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/css/site.css">
 <link rel="stylesheet" href="assets/css/ambience.css">
+<script>
+// A deploy can go live a moment before its code reaches every Cloudflare edge, so a request in that gap gets the old
+// code under the new ?v= address, and both caches keep it as immutable. tools/build-site.mjs writes the version on
+// <html data-v> and in config.js (globalThis.ptctbCode): when they differ, fetch this page's code again past the
+// caches and reload, once per version.
+addEventListener('load', () => {
+  const want = document.documentElement.dataset.v;
+  if (!want || globalThis.ptctbCode === want) return;
+  try {
+    if (sessionStorage.getItem('ptctb:refetched') === want) return;
+    sessionStorage.setItem('ptctb:refetched', want);
+  } catch { return; }
+  const code = performance.getEntriesByType('resource').map(e => e.name).filter(u => u.includes('?v=' + want));
+  Promise.all(code.map(u => fetch(u, { cache: 'reload' }).catch(() => {}))).then(() => location.reload());
+});
+</script>
 <script type="module" src="assets/js/moved.js"></script>
 <script type="module" src="assets/js/app.js"></script>
 </head>
