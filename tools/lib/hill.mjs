@@ -71,10 +71,12 @@ function pool(month, hidden) {
  *   maps:    the pools' maps as map tuples, from what the bot says about them (the exporter swaps in the beatmap
  *            cache's tuple where it has the map).
  * `profiles` is each crowned or holding player's slice for their profile: { total, slots, titles, holding }.
+ * `events` are the Activity feed's crown events: each crown taken from someone ({ t, k: 'crown', u, v, m: map, h:
+ * [slot, tier] }) and each closed month's King of the hill ({ t: its end, k: 'crown', u, n: crowns, mo: month }).
  * Restricted players (`hidden`) hold nothing and their crowns don't count, as everywhere on the site.
  */
 export function hillBlock(hill, hidden = new Set()) {
-  if (!hill) return { file: null, profiles: new Map(), mapIds: [] };
+  if (!hill) return { file: null, profiles: new Map(), mapIds: [], events: [] };
   const byMonth = new Map();
   for (const m of hill.months ?? []) if (isMonthId(m?.month)) byMonth.set(m.month, m);
   // current.json is the bot's newest word on its month.
@@ -169,6 +171,19 @@ export function hillBlock(hill, hidden = new Set()) {
     return { month: m.month, start: unix(m.start), end: unix(m.end), kings, most: count, pool: shown };
   });
 
+  // Crowns taken from someone, in the running month and the closed ones (a draft has no plays yet).
+  const events = [];
+  for (const m of months.filter(x => x === open || x.status === 'closed')) {
+    if (m.status === 'draft') continue;
+    for (const s of (m.slots ?? []).filter(knownSlot)) {
+      for (const x of s.snipes ?? []) {
+        if (x.fromUserId == null || hidden.has(x.toUserId) || hidden.has(x.fromUserId) || !Number.isFinite(unix(x.time))) continue;
+        events.push({ t: unix(x.time), k: 'crown', u: x.toUserId, v: x.fromUserId, m: s.beatmapId, h: [s.slot, s.tier] });
+      }
+    }
+  }
+  for (const m of archive) for (const u of m.kings) events.push({ t: m.end, k: 'crown', u, n: m.most, mo: m.month });
+
   const ranked = [...people.values()].filter(p => p.total).sort((a, b) => b.total - a.total || a.id - b.id);
   const file = {
     current,
@@ -180,5 +195,19 @@ export function hillBlock(hill, hidden = new Set()) {
   const profiles = new Map([...people.values()].filter(p => p.total || p.holding.length).map(p => [p.id, {
     total: p.total, slots: p.slots, titles: p.titles.sort((a, b) => titleTime(b).localeCompare(titleTime(a)) || Boolean(b.season) - Boolean(a.season)), holding: p.holding,
   }]));
-  return { file, profiles, mapIds: Object.keys(maps).map(Number) };
+  return { file, profiles, mapIds: Object.keys(maps).map(Number), events };
+}
+
+/**
+ * The running month in brief, for meta.json: what the home page, Challenges' tab figure and map pages need without
+ * loading hill.json. { month, end, status, pool: [[slot, tier, map, holder id or null]], maps } or null.
+ */
+export function hillNow(file) {
+  const current = file?.current;
+  if (!current) return null;
+  return {
+    month: current.month, end: current.end, status: current.status,
+    pool: current.pool.map(s => [s.slot, s.tier, s.map, s.holder?.u ?? null]),
+    maps: Object.fromEntries(current.pool.map(s => [s.map, file.maps[s.map]])),
+  };
 }

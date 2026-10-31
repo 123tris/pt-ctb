@@ -1,10 +1,11 @@
 import { html } from '../core/html.js';
-import { mapEntry, mapSet, playerIndex, challenges, bounties, dan } from '../core/data.js';
+import { mapEntry, mapSet, playerIndex, challenges, bounties, dan, meta as siteMeta } from '../core/data.js';
 import { S, M, CAT, STATUS, DAN_MAPS } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { mapTags } from '../core/badges.js';
 import { mapLore } from '../core/lore.js';
 import { goalLine, prizeTags } from '../core/bounty.js';
+import { runningNow, challengeChips } from '../core/challenge-chips.js';
 import {
   setTitle, playerLink, scoreStats, ppText, posBadge, bannerArt, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip, scoreWhen,
   funChips, setPressed,
@@ -62,17 +63,20 @@ const boardTable = rows => html`<div class="table-wrap"><table>
   <tbody>${rows}</tbody>
 </table></div>`;
 
-async function otherMeta(id, bountyData) {
-  const [ch, d] = await Promise.all([challenges(), dan()]);
-  return ch.maps[id] ?? bountyData?.maps[id] ?? d.stages.find(stage => stage.map === id)?.meta ?? null;
+async function otherMeta(id, { ch, site, bountyData }) {
+  return ch?.maps[id] ?? bountyData?.maps[id] ?? site.hill?.maps[id] ?? (await dan()).stages.find(stage => stage.map === id)?.meta ?? null;
 }
 
 export default async function mapPage(root, { params, isCurrent }) {
   const id = Number(params.id);
-  // bounties.json is small and cached; a missing or broken one only means no WANTED chip.
-  const [entry, index, bountyData] = await Promise.all([mapEntry(id), playerIndex(), bounties().catch(() => null)]);
-  // Maps nobody here has played (challenge suggestions, bounties, unplayed Dan stages) still have details elsewhere.
-  const meta = entry?.m ?? await otherMeta(id, bountyData);
+  // The challenges running now, for the chips under the title: challenges.json (the map of the week) and bounties.json
+  // are small and cached, and meta.json has King of the hill's month. A missing or broken one only means fewer chips.
+  const [entry, index, ch, bountyData, site] = await Promise.all([
+    mapEntry(id), playerIndex(), challenges().catch(() => null), bounties().catch(() => null), siteMeta(),
+  ]);
+  // Maps nobody here has played (challenge suggestions, bounties, pool maps, unplayed Dan stages) still have details
+  // elsewhere.
+  const meta = entry?.m ?? await otherMeta(id, { ch, site, bountyData });
   // The set's difficulties, when the data has them (sets/ came after the map files) and they include this one.
   const set = meta?.[M.SET] ? await mapSet(meta[M.SET]).catch(() => null) : null;
   const diffs = set?.some(d => d[0] === id) ? set : null;
@@ -95,6 +99,7 @@ export default async function mapPage(root, { params, isCurrent }) {
   // Open bounties on this map ([mapId, cat, goal, posted, players, closestMiss, target, pledges]): a WANTED chip, and
   // each one's dare and prizes under the title.
   const wanted = (bountyData?.open ?? []).filter(r => r[0] === id);
+  const chips = challengeChips(id, runningNow({ challenges: ch, meta: site, bounties: bountyData }));
 
   root.innerHTML = String(html`
     <section class="banner">
@@ -105,7 +110,7 @@ export default async function mapPage(root, { params, isCurrent }) {
           ${meta ? starsBadge(meta[M.STARS]) : ''}
           ${danStage >= 0 ? html`<span class="badge badge-gold">${t('Dan course: {stage}', { stage: danName(danStage) })}</span>` : ''}
           ${entry?.banned ? html`<span class="badge badge-red" title="${t('Scores on this map are kept but give no pp')}">${t('Banned — no pp')}</span>` : ''}
-          ${wanted.length ? html`<a class="badge badge-gold" href="#/challenges/bounties" title="${t('This map has a bounty on it')}">${t('WANTED')}</a>` : ''}
+          ${chips}
         </div>
         <h1><a class="title-link" href="${osuMap(id)}" target="_blank" rel="noopener" title="${t('{name} on osu!', { name: title })}">${title}</a></h1>
         <div class="sub">${sub}</div>

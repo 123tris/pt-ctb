@@ -1,7 +1,6 @@
 import { html } from '../core/html.js';
-import { players, modRankings, topPlays, meta, records, hill } from '../core/data.js';
+import { players, modRankings, topPlays, meta, records } from '../core/data.js';
 import { kingsPage } from './star-kings.js';
-import { hillPage } from './hill.js';
 import { S, parseModFilter, topPlaysView } from '../core/model.js';
 import {
   setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, prefs, SLUG_CAT, CAT_LABEL, pageHead,
@@ -19,8 +18,6 @@ const BOARDS = [
   { slug: 'mods', label: t('Mods'), title: t('By mods'), board: t('By mods leaderboard') },
   { slug: 'plays', label: t('Top plays'), title: t('Top plays'), board: t('Top plays') },
   { slug: 'kings', label: t('Star kings'), title: t('Star kings'), board: t('Star kings leaderboard') },
-  // Only once the export has it (the bot started King of the hill): see `boards` below.
-  { slug: 'hill', label: t('King of the hill'), title: t('King of the hill'), board: t('King of the hill') },
 ];
 
 const INTRO = {
@@ -30,7 +27,6 @@ const INTRO = {
   mods: t('Weighted pp from plays that include the chosen mod. HDDT counts for HD, DT and HDDT. NF is ignored when filtering: NF counts as NM, HRNF as HR.'),
   plays: t('Portugal’s best single plays, most pp first. Mod filters include NF: NF counts as NM, HRNF as HR.'),
   kings: t('The players holding the most #1s in PT in each star range.'),
-  hill: t('Every month has one map per slot, in an Open and a Challenger tier. The best play there this month holds the crown, and whoever holds it when the month ends keeps it. SP is catch-specific maps; HT, EZ and speed changes never count.'),
 };
 
 const SOURCES = [['r', t('Ranked')], ['c', t('Converts')], ['u', t('Loved & Unranked')]];
@@ -130,26 +126,22 @@ function playsList(rows, maps, index, me, source) {
 }
 
 export default async function rankings(root, { params, query, isCurrent }) {
-  const asked = params.board;
-  const [list, m, mods, plays, recs, crowns] = await Promise.all([
-    players(), meta(), asked === 'mods' ? modRankings() : null, asked === 'plays' ? topPlays() : null,
-    asked === 'kings' ? records() : null, asked === 'hill' ? hill() : null,
+  const board = BOARDS.find(b => b.slug === params.board) ?? BOARDS[0];
+  const slug = board.slug;
+  const [list, m, mods, plays, recs] = await Promise.all([
+    players(), meta(), slug === 'mods' ? modRankings() : null, slug === 'plays' ? topPlays() : null,
+    slug === 'kings' ? records() : null,
   ]);
   if (!isCurrent()) return;
-  // King of the hill only has a tab once the export has it.
-  const boards = BOARDS.filter(b => b.slug !== 'hill' || m.files?.['hill.json']);
-  const board = boards.find(b => b.slug === asked) ?? boards[0];
-  const slug = board.slug;
   setTitle(board.board);
   const index = new Map(list.map(p => [p.id, p]));
   const me = prefs.get('me', null);
 
-  if (slug === 'kings' || slug === 'hill') {
+  if (slug === 'kings') {
     const head = html`
       ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="#/players">${t('All players')}</a><a href="#/compare">${t('Compare two players')}</a></p>` })}
-      ${tabs(boards.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}`;
-    if (slug === 'kings') kingsPage(root, { kings: recs?.kings, index, me, query, head, intro: INTRO.kings });
-    else hillPage(root, { hill: crowns, index, me, query, head, intro: INTRO.hill });
+      ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}`;
+    kingsPage(root, { kings: recs?.kings, index, me, query, head, intro: INTRO.kings });
     return;
   }
 
@@ -162,7 +154,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
 
   root.innerHTML = String(html`
     ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="#/players">${t('All players')}</a><a href="#/compare">${t('Compare two players')}</a></p>` })}
-    ${tabs(boards.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}
+    ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}
     <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">${t('Players and plays imported from the osu! data dump of {date}.', { date: m.dump.replaceAll('_', '-') })}</span>` : ''}</p>
     <div class="toolbar">
       <input class="input" type="search" id="filter" placeholder="${t('Search players…')}" aria-label="${t('Search this leaderboard')}" value="${query.q || ''}">

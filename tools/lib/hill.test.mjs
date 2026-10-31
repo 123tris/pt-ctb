@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { hillBlock, seasonOf, seasonMonths } from './hill.mjs';
+import { hillBlock, hillNow, seasonOf, seasonMonths } from './hill.mjs';
 import { loadHill } from './source.mjs';
 import { MOD } from '../../assets/js/core/model.js';
 
@@ -31,7 +31,7 @@ test('months and seasons in Lisbon terms', () => {
 });
 
 test('no Hill folder: no file, no profiles', () => {
-  assert.deepEqual(hillBlock(null), { file: null, profiles: new Map(), mapIds: [] });
+  assert.deepEqual(hillBlock(null), { file: null, profiles: new Map(), mapIds: [], events: [] });
 });
 
 test('the running month: its pool by slot and tier, empty slots open, the players holding most', () => {
@@ -137,4 +137,29 @@ test('loadHill reads the month files, current.json and crowns.json, and null wit
   fs.writeFileSync(path.join(dir, 'Hill', 'current.json'), JSON.stringify(oct));
   fs.writeFileSync(path.join(dir, 'Hill', 'crowns.json'), JSON.stringify({ months: [] }));
   assert.deepEqual(loadHill(dir), { months: [oct], current: oct, crowns: { months: [] } });
+});
+
+test('crowns taken and each closed month’s King are Activity events; first claims and restricted players aren’t', () => {
+  const oct = month('2026-10', 'closed', [slot('NM', 'open', 1, [play(1, 9, '2026-10-03T00:00:00Z'), play(2, 8, '2026-10-02T00:00:00Z')])]);
+  const nov = month('2026-11', 'live', [
+    slot('HD', 'open', 2, [play(2, 9, '2026-11-03T00:00:00Z'), play(1, 8, '2026-11-02T00:00:00Z')]),
+    slot('HR', 'open', 3, [play(3, 9, '2026-11-04T00:00:00Z'), play(1, 8, '2026-11-02T00:00:00Z')]),
+  ]);
+  const { events } = hillBlock({ months: [oct, nov], current: nov, crowns: crownsOf([oct]) }, new Set([3]));
+  assert.deepEqual(events, [
+    { t: Date.UTC(2026, 10, 3) / 1000, k: 'crown', u: 2, v: 1, m: 2, h: ['HD', 'open'] },
+    { t: Date.UTC(2026, 9, 3) / 1000, k: 'crown', u: 1, v: 2, m: 1, h: ['NM', 'open'] },
+    { t: Date.UTC(2026, 9, 28) / 1000, k: 'crown', u: 1, n: 1, mo: '2026-10' },
+  ]);
+});
+
+test('hillNow: the running month in brief for meta.json', () => {
+  const live = month('2026-11', 'live', [slot('NM', 'open', 1, [play(1, 9, '2026-11-02T00:00:00Z')]), slot('HR', 'challenger', 2, [])]);
+  const { file } = hillBlock({ months: [], current: live, crowns: null });
+  const now = hillNow(file);
+  assert.deepEqual({ ...now, maps: Object.keys(now.maps) }, {
+    month: '2026-11', end: Date.UTC(2026, 10, 28) / 1000, status: 'live', pool: [['NM', 'open', 1, 1], ['HR', 'challenger', 2, null]], maps: ['1', '2'],
+  });
+  assert.equal(hillNow(null), null);
+  assert.equal(hillNow(hillBlock({ months: [], current: month('2026-12', 'draft', []), crowns: null }).file).pool.length, 0);
 });

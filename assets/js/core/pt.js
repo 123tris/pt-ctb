@@ -99,8 +99,6 @@ export const PT = {
   'The Wall': 'A Muralha',
   '{n} #1s that have stood for more than two years: one of the three biggest walls in Portugal.': '{n} #1s que resistem há mais de dois anos: uma das três maiores muralhas de Portugal.',
   'Bounty hunter': 'Caçador de recompensas',
-  'Claimed {n} bounty.': ['Conquistou {n} recompensa.', 'Conquistou {n} recompensas.'],
-  'Claimed {n} bounties.': 'Conquistou {n} recompensas.', // the plural above, which the exporter writes
   '{digits}-digit club': 'Clube dos {digits} dígitos',
   'Global rank {rank}. "{less} digits when?"': 'Posição global {rank}. "{less} dígitos quando?"',
   'Blessed by the 1-miss gods': 'Bênção dos deuses da falha única',
@@ -531,7 +529,7 @@ export const PT = {
   'Today': 'Hoje',
   'Yesterday': 'Ontem',
   'Nothing of this kind in recent months.': 'Nada deste tipo nos últimos meses.',
-  'Snipes, new top plays, Dan passes and leaderboard climbs from the last four months.': 'Snipes, novas melhores jogadas, passagens no Dan e subidas nas classificações dos últimos quatro meses.',
+  'Snipes, crowns, bounties, new top plays, Dan passes and leaderboard climbs from the last four months.': 'Snipes, coroas, recompensas, novas melhores jogadas, passagens no Dan e subidas nas classificações dos últimos quatro meses.',
   'Events': 'Eventos',
   'Recent plays': 'Jogadas recentes',
   'This week': 'Esta semana',
@@ -708,8 +706,6 @@ export const PT = {
   'offer ended': 'oferta acabada',
 
   // ---- pages/map.js -----------------------------------------------------------------------------------------
-  'This map has a bounty on it': 'Há uma recompensa por este mapa',
-  'WANTED': 'PROCURA-SE',
   'Last updated': 'Última atualização',
   'Difficulties': 'Dificuldades',
   '{version}, {stars} stars, {players}': '{version}, {stars} estrelas, {players}',
@@ -1092,7 +1088,6 @@ export const PT = {
   'Titles': 'Títulos',
   'crown': ['coroa', 'coroas'],
   'snipe': ['snipe', 'snipes'],
-  'Crowns by slot: {tally}': 'Coroas por slot: {tally}',
   'Holding this month: {slots}.': 'Segura este mês: {slots}.',
   'See the pool': 'Ver a pool',
   'ended': 'terminou',
@@ -1120,4 +1115,27 @@ export const PT = {
 
   'All|categories': 'Todas',
   'All|time': 'Tudo',
+
+  // ---- The challenges together: chips, home, trophies, activity (core/challenge-chips.js, pages/home.js, player.js) --
+  'WANTED: FC': 'PROCURA-SE: FC',
+  'WANTED: first pass': 'PROCURA-SE: primeira passagem',
+  'WANTED: #1': 'PROCURA-SE: #1',
+  'King of the hill: {slot} · {tier}': 'Rei da colina: {slot} · {tier}',
+  'Crown': 'Coroa',
+  'Bounty claimed': 'Recompensa conquistada',
+  '{who} is King of the hill for {month}, with {crowns}': '{who} é Rei da colina de {month}, com {crowns}',
+  '{who} took the {slot} crown from {other}': '{who} tirou a coroa {slot} a {other}',
+  '{who} claimed the FC bounty': '{who} conquistou a recompensa do FC',
+  '{who} claimed the first-pass bounty': '{who} conquistou a recompensa da primeira passagem',
+  '{who} claimed the snipe bounty': '{who} conquistou a recompensa do snipe',
+  'Challenges · a crown per slot each month': 'Desafios · uma coroa por slot todos os meses',
+  'A pool of maps each month, one per slot (NM, HD, HR, DT, FM and SP, catch-specific maps) in an Open and a Challenger tier. The best play on a map holds its crown; whoever holds it when the month ends keeps it. The most crowns in a month makes you King of the hill.': 'Um conjunto de mapas por mês, um por slot (NM, HD, HR, DT, FM e SP, mapas específicos de catch), num nível Aberto e num Desafiante. A melhor jogada num mapa segura a coroa, e quem a tiver quando o mês acabar fica com ela. Quem tiver mais coroas num mês é o Rei da colina.',
+  'Prizes the community puts on hard maps, for the first FC, the first pass or taking the #1. A moderator posts one with the bot’s !bounty, anyone can add a prize, and the bot spots the claim by itself. Claiming one makes you a Bounty hunter.': 'Prémios que a comunidade põe em mapas difíceis, para o primeiro FC, a primeira passagem ou para tirar o #1. Um moderador publica-a com o !bounty do bot, qualquer pessoa pode juntar um prémio, e o bot deteta sozinho quem a conquista. Quem conquista uma fica Caçador de recompensas.',
+  '{month}: {held} of {total} crowns taken, {left}.': '{month}: {held} de {total} coroas conquistadas, {left}.',
+  '{prize} and {n} more': '{prize} e mais {n}',
+  'Trophies': 'Troféus',
+  '{crowns} on King of the hill: {tally}': '{crowns} no Rei da colina: {tally}',
+  'Bounty claimed: {goal} on {map}': 'Recompensa conquistada: {goal} em {map}',
+  '{n} more in the hall of fame': 'mais {n} na galeria da fama',
+  'bounty': ['recompensa', 'recompensas'],
 };

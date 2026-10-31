@@ -23,7 +23,7 @@ function pledgeRow(p, now) {
 }
 
 /**
- * bounties.json, and the players with claimed bounties for the Bounty hunter badge.
+ * bounties.json.
  *  - open: [mapId, cat, goal, posted, players, closestMiss, target, pledges], newest first. `players` and `closestMiss`
  *    (the fewest misses on the board) are 0 and null for a map nobody here has played; `target` is the snipe holder.
  *  - hall: [mapId, cat, goal, status, uid, at, mods, acc, combo, pp, prizes], newest claim first. `done` is a goal a play
@@ -56,11 +56,5 @@ export function bountyBoard({ bounties, boards, wanted, catOf, known, now }) {
   open.sort((a, b) => (b[3] ?? 0) - (a[3] ?? 0) || a[0] - b[0]);
   hall.sort((a, b) => (b[5] ?? 0) - (a[5] ?? 0) || a[0] - b[0]);
   const posted = new Set(open.map(r => r[0]));
-  const hunters = new Map();
-  for (const r of hall) if (r[3] === 'claimed') hunters.set(r[4], (hunters.get(r[4]) || 0) + 1);
-  return {
-    file: { open, hall, wanted: wanted.filter(r => !posted.has(r[0])) },
-    // [uid, claimed bounties], most first: records.json carries it for the badge.
-    hunters: [...hunters].sort((a, b) => b[1] - a[1] || a[0] - b[0]),
-  };
+  return { file: { open, hall, wanted: wanted.filter(r => !posted.has(r[0])) } };
 }

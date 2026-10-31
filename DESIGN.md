@@ -363,8 +363,9 @@ Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout)
 ### Tabs (`tabs()`)
 
 - Tabs switch between sibling views of one thing. They are real links with `aria-current` and an optional `.count`.
-- The `.count` is a number, or a short live figure where the views are challenges: Challenges shows "5d left", "10th
-  Dan", "30" (#1s up for grabs) and "79.3%", so each tab says where it stands before you open it.
+- The `.count` is a number, or a short live figure where the views are challenges: Challenges shows "5d left", "29d
+  left" (King of the hill's month), "10th Dan", "30" (#1s up for grabs), "5" (open bounties) and "79.3%", so each tab
+  says where it stands before you open it.
 - One or two words, at most about six tabs, and no heading repeating the tab name.
 - Tabs are spaced by a gap, not padding, so a strip that wraps on a phone starts every line at the left edge.
 - If the views need comparing side by side, use columns instead.
@@ -433,7 +434,8 @@ hero, then sections that step down.
 3. **Portugal's best:** the three top 5s.
 4. **Two columns:** what to play on the left (map of the week, "This week so far", then "Still to clear": the three
    easiest uncleared ranked maps and the latest first clear, `goalNext()`); what's happening on the right (recent
-   activity).
+   activity, then King of the hill's month and the open bounties, in the shape of "This week so far", from meta.json's
+   `hill` and bounties.json, never hill.json).
 5. **Since 2018**, then **How to join**.
 
 Completion appears twice and never more: the figure in the hero, and the nudge beside the map of the week. Neither
@@ -450,6 +452,9 @@ loads `completion.json` (about 90 KB compressed); both read `meta.json`'s `compl
 
 Prefer status as words in the line under a name (`.profile-line`): Foundations doesn't box static status.
 - **`.badge`** is a status outline: gold for honours, accent for "you", red for problems.
+- **Challenge chips** (`challengeChips()`, `core/challenge-chips.js`): a map that's in a running challenge gets a gold
+  badge linking to its tab ("Map of the week", "King of the hill: HR · Open", "WANTED: FC"). The map page shows them all;
+  a Challenges tab shows only the others, so a map in two challenges links both ways.
 - **`.legend-tag`** is the "legend" or "inactive" tag: faint text in a thin `--border-strong` outline (the user's
   choice; the one boxed status), middle-aligned so it's centred on the name. It must explain itself visibly (see
   Tooltips).

@@ -1,10 +1,12 @@
 import { html } from '../core/html.js';
-import { meta, players, activity, challenges, records } from '../core/data.js';
+import { meta, players, activity, challenges, records, bounties } from '../core/data.js';
 import { M, DAN_STAGES } from '../core/model.js';
 import { eventItem, danName } from '../core/events.js';
 import { THRONE_PLAYER, HISTORY } from '../core/lore.js';
 import { ladderBand, passCounts, highestDan, topStage } from '../core/ladder.js';
 import { weeklySummary } from '../core/weekly.js';
+import { SLOT_NAME, TIER_NAME, monthLabel, timeLeft } from '../core/hill.js';
+import { WANTED } from '../core/challenge-chips.js';
 import { season } from '../core/fun.js';
 import {
   setTitle, avatar, mapText, cover, setCover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
@@ -82,6 +84,50 @@ function goalNext(goal, index) {
   </section>`;
 }
 
+// ---- This month ------------------------------------------------------------------------------------------------------
+// Under the recent activity, what's on beyond the week: King of the hill's month and the open bounties, in the shape of
+// "This week so far". meta.json's `hill` (tools/lib/hill.mjs hillNow) and bounties.json (small); the home page never
+// loads hill.json. Each part hides on its own when there's nothing running.
+
+/** The month's pool: how many crowns are taken, then up to three slots nobody holds, or who holds the most. */
+function hillSummary(month, index) {
+  if (month?.status !== 'live') return '';
+  const free = month.pool.filter(r => r[3] === null);
+  const held = new Map();
+  for (const r of month.pool) if (r[3] !== null) held.set(r[3], (held.get(r[3]) ?? 0) + 1);
+  const most = Math.max(0, ...held.values());
+  const leaders = [...held].filter(([, n]) => n === most).map(([id]) => id);
+  return html`<section class="week-summary">
+    <div class="section-head"><h2>${t('King of the hill')}</h2><a href="#/challenges/hill">${t('See the pool')}</a></div>
+    <p class="muted small">${t('{month}: {held} of {total} crowns taken, {left}.', {
+      month: monthLabel(month.month), held: fmt.num(month.pool.length - free.length), total: fmt.num(month.pool.length), left: timeLeft(month.end),
+    })}</p>
+    ${free.slice(0, 3).map(([slot, tier, id]) => html`<div class="week-top"><span class="faint small">${SLOT_NAME[slot]} · ${TIER_NAME[tier]}</span>
+      <span class="muted">${t('Up for grabs')}</span> <a class="dim-link" href="#/map/${id}">${mapLabel(id, month.maps[id])}</a></div>`)}
+    ${!free.length && leaders.length ? html`<div class="week-top">${th('Holding the most crowns right now: {players} with {crowns}', {
+      players: html`${leaders.map((id, i) => html`${i ? ', ' : ''}${playerLink(id, index, 'avatar-sm')}`)}`, crowns: fmt.plural(most, 'crown'),
+    })}</div>` : ''}
+  </section>`;
+}
+
+/** The open bounties with the most on offer (newest first among equals), at most three. */
+function bountySummary(board) {
+  const open = board?.open ?? [];
+  if (!open.length) return '';
+  const live = r => r[7].filter(p => !p[4]);
+  const top = [...open].sort((a, b) => live(b).length - live(a).length || (b[3] ?? 0) - (a[3] ?? 0)).slice(0, 3);
+  return html`<section class="week-summary">
+    <div class="section-head"><h2>${t('Open bounties')}</h2><a href="#/challenges/bounties">${t('See all {n}', { n: fmt.num(open.length) })}</a></div>
+    ${top.map(r => {
+      const [first, ...more] = live(r);
+      const prize = first ? (first[1] ? t('{prize} · from {by}', { prize: first[0], by: first[1] }) : first[0]) : '';
+      return html`<div class="week-top"><span class="faint small">${WANTED[r[2]]}</span>
+        ${prize ? html`<span class="muted">${more.length ? t('{prize} and {n} more', { prize, n: fmt.num(more.length) }) : prize}</span>` : ''}
+        <a class="dim-link" href="#/map/${r[0]}">${mapLabel(r[0], board.maps[r[0]])}</a></div>`;
+    })}
+  </section>`;
+}
+
 function miniBoard(list, key, cat) {
   const rows = list.filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 5);
   const me = prefs.get('me', null);
@@ -104,7 +150,9 @@ function miniBoard(list, key, cat) {
 }
 
 export default async function home(root, { isCurrent }) {
-  const [m, list, act, ch, rec] = await Promise.all([meta(), players(), activity(), challenges(), records().catch(() => null)]);
+  const [m, list, act, ch, rec, board] = await Promise.all([
+    meta(), players(), activity(), challenges(), records().catch(() => null), bounties().catch(() => null),
+  ]);
   if (!isCurrent()) return;
   setTitle('');
   const index = new Map(list.map(p => [p.id, p]));
@@ -174,6 +222,8 @@ export default async function home(root, { isCurrent }) {
       <div>
         <div class="section-head"><h2>${t('Recent activity')}</h2><a href="#/activity">${t('See all')}</a></div>
         <div class="feed">${act.events.slice(0, 5).map(e => eventItem(e, index, act.maps))}</div>
+        ${hillSummary(m.hill, index)}
+        ${bountySummary(board)}
       </div>
     </section>
 

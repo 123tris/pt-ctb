@@ -1,10 +1,11 @@
-// The King of the hill tab of Leaderboards (hill.json, tools/lib/hill.mjs): this month's pool and who holds each
-// crown, the crown table (all time or one season) and the past months.
+// The King of the hill tab of Challenges (hill.json, tools/lib/hill.mjs): this month's pool and who holds each crown,
+// the crown table (all time or one season) and the past months.
 
 import { html, raw } from '../core/html.js';
 import { HILL_SLOTS, HILL_TIERS, sharedRanks } from '../core/model.js';
 import { playerLink, mapLink, modsBadges, empty, announce, writeQuery, isInactive, statusTag } from '../core/ui.js';
-import { SLOT_NAME, TIER_NAME, monthLabel, seasonLabel, titleName, slotTally } from '../core/hill.js';
+import { SLOT_NAME, TIER_NAME, monthLabel, seasonLabel, titleName, slotTally, timeLeft } from '../core/hill.js';
+import { challengeChips } from '../core/challenge-chips.js';
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
 
@@ -12,18 +13,13 @@ import { t, th } from '../core/i18n.js';
 const who = (id, name, index) => index.get(id) ?? { id, name: name || `#${id}` };
 const names = (ids, index) => html`${ids.map((id, i) => html`${i ? ', ' : ''}${playerLink(who(id, '', index), null, 'avatar-sm')}`)}`;
 
-/** "5d left" / "7h left" / "ended", as Challenges counts down the week. */
-function timeLeft(end) {
-  const left = end - Date.now() / 1000;
-  if (left <= 0) return t('ended');
-  return left >= 86400 ? t('{n}d left', { n: Math.floor(left / 86400) }) : t('{n}h left', { n: Math.max(1, Math.floor(left / 3600)) });
-}
-
 /**
  * One slot of a pool as a row: the slot, its map, who holds (or kept) the crown, and the play: mods, accuracy, its hill
  * score (linked to the play on osu! when known) and when it was set. A closed month says "kept" and dates the play.
+ * A running slot's map also gets the chips of the other challenges it's in (`now`: challenge-chips.js).
  */
-function slotRow(s, maps, index, closed) {
+function slotRow(s, maps, index, closed, now) {
+  const chips = now ? challengeChips(s.map, now, 'hill') : [];
   const h = s.holder;
   const score = h?.score !== undefined ? html`<span class="pp hill-score">${fmt.num(h.score)}</span>` : '';
   return html`<div class="row row-1col">
@@ -38,23 +34,24 @@ function slotRow(s, maps, index, closed) {
       ${h?.mods ? modsBadges(h.mods) : ''}
       ${h?.time ? html`<span class="faint" title="${fmt.dateTime(h.time)}">${closed ? fmt.date(h.time) : fmt.ago(h.time)}</span>` : ''}
       <span class="faint">${t('{players} · {snipes}', { players: fmt.plural(s.players, 'player'), snipes: fmt.plural(s.snipes, 'snipe') })}</span>
+      ${chips}
     </div>
   </div>`;
 }
 
 /** A pool as two lists side by side, Open and Challenger (one under the other on phones). */
-function poolGrid(pool, maps, index, { closed = false, level = 'h3' } = {}) {
+function poolGrid(pool, maps, index, { closed = false, level = 'h3', now = null } = {}) {
   return html`<div class="grid grid-2 hill-pool">${HILL_TIERS.map(tier => {
     const slots = pool.filter(s => s.tier === tier);
     return html`<div>
       ${raw(`<${level} class="hill-tier">`)}${TIER_NAME[tier]}${raw(`</${level}>`)}
-      ${slots.length ? html`<div class="rows">${slots.map(s => slotRow(s, maps, index, closed))}</div>` : empty(t('No maps in this tier.'))}
+      ${slots.length ? html`<div class="rows">${slots.map(s => slotRow(s, maps, index, closed, now))}</div>` : empty(t('No maps in this tier.'))}
     </div>`;
   })}</div>`;
 }
 
 /** This month: its pool and who holds what, or a word on why there's none to show. */
-function currentSection(current, maps, index) {
+function currentSection(current, maps, index, now) {
   if (!current) return html`<section class="section"><div class="section-head"><h2>${t('This month')}</h2></div>
     ${empty(t('The next pool appears here when the month starts.'))}</section>`;
   const ended = current.end <= Date.now() / 1000;
@@ -69,7 +66,7 @@ function currentSection(current, maps, index) {
         players: names(leaders.players, index),
         crowns: leaders.players.length > 1 ? t('{crowns} each', { crowns: fmt.plural(leaders.held, 'crown') }) : fmt.plural(leaders.held, 'crown'),
       })}</p>` : ''}
-      ${poolGrid(current.pool, maps, index)}`}
+      ${poolGrid(current.pool, maps, index, { now })}`}
   </section>`;
 }
 
@@ -123,17 +120,16 @@ const pastMonth = (m, maps, index, open) => html`<details class="card history hi
 </details>`;
 
 /**
- * The tab, which Leaderboards only shows when the export has hill.json. `head` is the page head and tabs, `intro` the
- * line under them. ?season=2026-Q4 opens the crown table on that season.
+ * The tab's panel, which Challenges only shows when the export has hill.json. `now` is what else is running
+ * (challenge-chips.js runningNow). ?season=2026-Q4 opens the crown table on that season.
  */
-export function hillPage(root, { hill, index, me, query, head, intro }) {
+export function renderHill(root, { hill, index, me, query, now }) {
   const { current, months, seasons, players, maps } = hill;
   const scopes = [['all', t('All time')], ...seasons.map(s => [s.id, s.final ? seasonLabel(s.id) : t('{season}, so far', { season: seasonLabel(s.id) })])];
   let scope = scopes.some(([id]) => id === query.season) ? query.season : 'all';
 
-  root.innerHTML = String(html`${head}
-    <p class="muted hill-intro">${intro}</p>
-    ${currentSection(current, maps, index)}
+  root.innerHTML = String(html`
+    ${currentSection(current, maps, index, now)}
     <section class="section">
       <div class="section-head"><h2>${t('Crown table')}</h2><span class="muted small">${t('A crown is kept by whoever holds the slot when its month ends.')}</span></div>
       ${scopes.length > 1 ? html`<div class="toolbar"><select class="select" id="hill-scope" aria-label="${t('Crowns from')}">

@@ -1,8 +1,7 @@
-// King of the hill's words, shared by its Leaderboards tab (pages/hill.js) and the crowns on a profile: slot, tier,
-// month, season and title names, and the profile's crowns section (players/{id}.json `crowns`, tools/lib/hill.mjs).
+// King of the hill's words, shared by its Challenges tab (pages/hill.js), the home page, map chips and a profile's
+// trophies: slot, tier, month, season and title names, and the time left in a month.
 
-import { html } from './html.js';
-import { HILL_SLOTS, HILL_TIERS } from './model.js';
+import { HILL_SLOTS } from './model.js';
 import * as fmt from './fmt.js';
 import { t, locale } from './i18n.js';
 
@@ -30,22 +29,12 @@ export function titleName(title) {
 export const titleWhen = title => (title.month ? monthLabel(title.month)
   : title.final ? seasonLabel(title.season) : t('{season}, so far', { season: seasonLabel(title.season) }));
 
+/** "5d left" / "7h left" / "ended", as Challenges counts down the week. */
+export function timeLeft(end) {
+  const left = end - Date.now() / 1000;
+  if (left <= 0) return t('ended');
+  return left >= 86400 ? t('{n}d left', { n: Math.floor(left / 86400) }) : t('{n}h left', { n: Math.max(1, Math.floor(left / 3600)) });
+}
+
 /** "NM 1 · HR 4 · SP 3": a tally per slot, leaving out the slots with none. */
 export const slotTally = counts => HILL_SLOTS.map((slot, i) => (counts[i] ? `${slot} ${fmt.num(counts[i])}` : '')).filter(Boolean).join(' · ');
-
-/**
- * A profile's King of the hill section: the crowns kept, by slot, the titles they won as chips (gold once settled),
- * and the crowns held in the month running now. Nothing for a player who has neither.
- */
-export function crownsSection(crowns) {
-  if (!crowns || (!crowns.total && !crowns.holding.length)) return '';
-  const holding = [...crowns.holding].sort((a, b) => HILL_SLOTS.indexOf(a[0]) - HILL_SLOTS.indexOf(b[0]) || HILL_TIERS.indexOf(a[1]) - HILL_TIERS.indexOf(b[1]));
-  return html`<section class="section card hill-crowns">
-    <h2 class="card-h">${t('King of the hill')}${crowns.total ? html` <span class="faint">· ${fmt.plural(crowns.total, 'crown')}</span>` : ''}</h2>
-    ${crowns.titles.length ? html`<ul class="hill-chips" aria-label="${t('Titles')}">${crowns.titles.map(title => html`<li class="badge ${title.final ? 'badge-gold' : ''}">
-      ${titleName(title)} <span class="hill-chip-when">· ${titleWhen(title)}</span></li>`)}</ul>` : ''}
-    ${crowns.total ? html`<p class="small muted">${t('Crowns by slot: {tally}', { tally: slotTally(crowns.slots) })}</p>` : ''}
-    ${holding.length ? html`<p class="small muted">${t('Holding this month: {slots}.', { slots: holding.map(([slot, tier]) => `${SLOT_NAME[slot]} (${TIER_NAME[tier]})`).join(', ') })}
-      <a href="#/rankings/hill">${t('See the pool')}</a></p>` : ''}
-  </section>`;
-}

@@ -1,12 +1,11 @@
 // node --test tools/lib/bounties.test.mjs
 // The bounty board (bounties.json): open bounties with their pledges (lapsed ones flagged), the hall of fame newest
 // first, the wanted list without the maps that have an open bounty, removed bounties dropped, and none of the bot's
-// Discord ids in the output. Claimed bounties feed the Bounty hunter badge through records.json.
+// Discord ids in the output. Claimed bounties are Activity events (a profile lists its own from the hall).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { build } from './build.mjs';
-import { playerBadges } from '../../assets/js/core/badges.js';
 
 const map = (id, stars, extra = {}) => ({
   beatmap_id: id, beatmapset_id: id, approved: '1', playmode: '2', title: `Map ${id}`, artist: 'A', version: 'V',
@@ -100,14 +99,12 @@ test('no Discord id reaches the output', () => {
   assert.ok(!/postedBy|byDiscord|"channel"|"message"|"note"/.test(JSON.stringify(files['bounties.json'])));
 });
 
-test('claimed bounties earn the Bounty hunter badge; a done one does not', () => {
+test('a claimed bounty is an Activity event; a done one is not', () => {
   const { files } = run(JSON.parse(bountiesJson).bounties);
-  assert.deepEqual(files['records.json'].hunters, [[1, 1]]);
-  assert.deepEqual(files['players/1-head.json'].extras.badges.find(b => b.name === 'Bounty hunter'), { name: 'Bounty hunter', tip: 'Claimed 1 bounty.' });
-  assert.ok(!files['players/2-head.json'].extras.badges.some(b => b.name === 'Bounty hunter'));
-  const p = { id: 1, danScore: 0 };
-  const file = { scores: { c: [], u: [], r: [] }, maps: {} };
-  assert.equal(playerBadges(p, file, { hunters: [[1, 3]] }).find(b => b.name === 'Bounty hunter').tip, 'Claimed 3 bounties.');
+  const claims = files['activity.json'].events.filter(e => e.k === 'bounty');
+  assert.deepEqual(claims, [{ t: Date.parse('2026-10-05T12:00:00Z') / 1000, k: 'bounty', u: 1, m: 12, c: 'r', g: 'pass' }]);
+  assert.ok(files['activity.json'].maps[12], 'the claimed map has its meta');
+  assert.ok(!files['players/1-head.json'].extras.badges.some(b => b.name === 'Bounty hunter'));
 });
 
 test('no Bounties.json means an empty board, with the wanted list intact', () => {
@@ -115,5 +112,4 @@ test('no Bounties.json means an empty board, with the wanted list intact', () =>
   const board = files['bounties.json'];
   assert.deepEqual([board.open, board.hall], [[], []]);
   assert.deepEqual(board.wanted.map(r => r[0]).sort(), [10, 14, 15]);
-  assert.deepEqual(files['records.json'].hunters, []);
 });

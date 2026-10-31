@@ -61,7 +61,7 @@ export default async function activityPage(root, { query, isCurrent }) {
   root.innerHTML = String(html`
     <header class="page-head">
       <h1>${t('Activity')}</h1>
-      <p>${t('Snipes, new top plays, Dan passes and leaderboard climbs from the last four months.')}</p>
+      <p>${t('Snipes, crowns, bounties, new top plays, Dan passes and leaderboard climbs from the last four months.')}</p>
     </header>
     ${tabs([
       { href: '#/activity', label: t('Events'), active: view === 'events' },

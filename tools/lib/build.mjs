@@ -10,7 +10,7 @@ import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js'
 import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
 import { completion, homeGoal } from './completion.mjs';
 import { starKings } from './star-kings.mjs';
-import { hillBlock } from './hill.mjs';
+import { hillBlock, hillNow } from './hill.mjs';
 import { bountyBoard } from './bounties.mjs';
 
 const DAY = 86400;
@@ -485,8 +485,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   }
 
   // ---- King of the hill ----------------------------------------------------------------------------------------------
-  // The monthly crowns (tools/lib/hill.mjs): hill.json for the Leaderboards tab, and each crowned player's tally and
-  // titles on their profile. Nothing until the bot writes a Hill/ folder.
+  // The monthly crowns (tools/lib/hill.mjs): hill.json for Challenges' King of the hill tab, each crowned player's tally
+  // and titles on their profile, and the crowns taken for the Activity feed. Nothing until the bot writes a Hill/ folder.
 
   const hill = hillBlock(bot.hill, hidden);
   if (hill.file) for (const id of hill.mapIds) hill.file.maps[id] = mapTuple(id) ?? hill.file.maps[id];
@@ -584,6 +584,28 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       .sort((a, b) => b[1] - a[1] || b[2] - a[2] || a[0] - b[0]),
   };
 
+  // ---- Bounties ----------------------------------------------------------------------------------------------------
+
+  const meta = id => beatmaps.get(id);
+  // Boss maps nobody in Portugal has full-combo'd: several players, 6.5★ and up, and every play has a miss. They're the
+  // bounty board's "wanted" list, for a moderator to post with the bot's !bounty add.
+  const wanted = [...boards]
+    .filter(([id, b]) => b.entries.length >= 3 && !banned.has(id) && hasTitle(meta(id)) && meta(id).difficultyrating >= 6.5 &&
+      !(b.cat === CAT.LOVED && meta(id).difficultyrating >= 10) && b.entries.every(e => e[S.MISS + 1] > 0))
+    .sort((a, b) => b[1].entries.length - a[1].entries.length || meta(b[0]).difficultyrating - meta(a[0]).difficultyrating || a[0] - b[0])
+    .slice(0, 20)
+    .map(([id, b]) => [id, b.cat, b.entries.length, Math.min(...b.entries.map(e => e[S.MISS + 1]))]);
+
+  // The bounty board: the bot's bounties (Bounties.json, through bounties.mjs, which keeps its Discord ids out) and the
+  // wanted list. Its claims are Activity events; a profile reads its own from the hall.
+  const board = bountyBoard({
+    bounties: bot.bounties, boards, wanted, now, catOf: id => catOf(id, null), known: uid => uid !== null && people.has(uid),
+  });
+  const bounties = {
+    ...board.file,
+    maps: mapsFor([...board.file.open, ...board.file.hall, ...board.file.wanted].map(r => r[0])),
+  };
+
   // ---- Activity --------------------------------------------------------------------------------------------------
 
   const since = now - ACTIVITY_DAYS * DAY;
@@ -625,6 +647,13 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
         if (t[S.TIME] >= since) derived.push({ t: t[S.TIME], k: 'top', u: p.id, c: cat, i: i + 1, s: t });
       });
     }
+  }
+
+  // The competitive layer's moments: crowns taken on King of the hill and its months' Kings (hill.mjs), and bounties
+  // claimed after they were posted. They name a map (`m`) rather than carry a play.
+  for (const e of hill.events) if (e.t >= since) derived.push(e);
+  for (const [map, cat, goal, status, uid, at] of board.file.hall) {
+    if (status === 'claimed' && at >= since) derived.push({ t: at, k: 'bounty', u: uid, m: map, c: cat, g: goal });
   }
 
   // State-based events: who overtook whom on the pp boards, pp milestones and newly tracked players, found by
@@ -669,7 +698,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   const activity = {
     events,
     recent,
-    maps: mapsFor([...events.flatMap(e => (e.s ? [e.s[S.MAP]] : [])), ...recent.map(r => r[S.MAP + 2])]),
+    maps: mapsFor([...events.flatMap(e => (e.s ? [e.s[S.MAP]] : e.m ? [e.m] : [])), ...recent.map(r => r[S.MAP + 2])]),
   };
 
   // ---- Records -----------------------------------------------------------------------------------------------------
@@ -679,7 +708,6 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   const asRow = x => (x ? [x.p.id, x.cat, ...x.t] : null);
   const leaders = (value, n = 5) => [...people.values()].map(p => [p.id, value(p)]).filter(r => r[1] > 0)
     .sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, n);
-  const meta = id => beatmaps.get(id);
   const fairMods = t => !(t[S.MODS] & (2 | 256)); // no EZ/HT: a record shouldn't come from making the map easier
   // A play on a hard map: HARD_STARS and up in catch stars (a convert the caches have no catch rating for doesn't
   // count), not on a banned map, and without EZ/HT. DT and HR plays count at the map's nomod stars, as shown.
@@ -794,15 +822,6 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     .slice(0, 40)
     .map(raw => [raw.beatmap_id, raw.playcount || 0, raw.favourite_count || 0]);
 
-  // Boss maps nobody in Portugal has full-combo'd: several players, 6.5★ and up, and every play has a miss. They're the
-  // bounty board's "wanted" list, for a moderator to post with the bot's !bounty add.
-  const wanted = [...boards]
-    .filter(([id, b]) => b.entries.length >= 3 && !banned.has(id) && hasTitle(meta(id)) && meta(id).difficultyrating >= 6.5 &&
-      !(b.cat === CAT.LOVED && meta(id).difficultyrating >= 10) && b.entries.every(e => e[S.MISS + 1] > 0))
-    .sort((a, b) => b[1].entries.length - a[1].entries.length || meta(b[0]).difficultyrating - meta(a[0]).difficultyrating || a[0] - b[0])
-    .slice(0, 20)
-    .map(([id, b]) => [id, b.cat, b.entries.length, Math.min(...b.entries.map(e => e[S.MISS + 1]))]);
-
   const challenges = {
     week: weekBoard ? {
       id: week.id, start: week.start, end: week.end, map: weekMap, cat: weekBoard.cat,
@@ -815,17 +834,6 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     maps: mapsFor([weekMap, ...beatable.map(r => r[0]), ...lonely.map(r => r[0]), ...unclaimed.map(r => r[0]),
       ...weekly.mapIds].filter(Boolean)),
   };
-
-  // The bounty board: the bot's bounties (Bounties.json, through bounties.mjs, which keeps its Discord ids out) and the
-  // wanted list. The players who claimed one get the Bounty hunter badge, through records.json.
-  const board = bountyBoard({
-    bounties: bot.bounties, boards, wanted, now, catOf: id => catOf(id, null), known: uid => uid !== null && people.has(uid),
-  });
-  const bounties = {
-    ...board.file,
-    maps: mapsFor([...board.file.open, ...board.file.hall, ...board.file.wanted].map(r => r[0])),
-  };
-  records.hunters = board.hunters;
 
   // ---- Mapsets ------------------------------------------------------------------------------------------------------
   // sets/{setId % 128}.json: the difficulties of each mapset a page here shows, { setId: [[mapId, version, stars,
@@ -972,6 +980,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     // The completion goal's slice for the home page (completion.mjs homeGoal): the headline, the easiest maps still to
     // clear and the newest first clear. Older data has only { cleared, total }.
     completion: homeGoal(goal.file),
+    // King of the hill's running month in brief (hill.mjs hillNow), or null.
+    hill: hillNow(hill.file),
   };
 
   const state = {

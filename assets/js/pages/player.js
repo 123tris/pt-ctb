@@ -1,19 +1,49 @@
 import { html, raw } from '../core/html.js';
-import { playerFile, playerHead, playerIndex, history, records } from '../core/data.js';
-import { S, CATS, DAN_STAGES, DAN_MAPS, danRole } from '../core/model.js';
+import { playerFile, playerHead, playerIndex, history, records, bounties } from '../core/data.js';
+import { S, CATS, DAN_STAGES, DAN_MAPS, HILL_SLOTS, HILL_TIERS, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { lineChart, chartHover } from '../core/charts.js';
 import { playerBadges, era, signatureMap, localBadge, localEra } from '../core/badges.js';
 import { THRONE_PLAYER } from '../core/lore.js';
 import { jersey } from '../core/ladder.js';
-import { crownsSection } from '../core/hill.js';
+import { SLOT_NAME, TIER_NAME, titleName, titleWhen, slotTally } from '../core/hill.js';
+import { GOAL_LABEL } from '../core/bounty.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
-  isLegend, legendTag, gradeBadge, chipGroup, setPressed, placeholderRows,
+  isLegend, legendTag, gradeBadge, chipGroup, setPressed, placeholderRows, mapLabel,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { t, th, tn } from '../core/i18n.js';
+
+/** How many claimed bounties the trophies list by name before linking to the rest. */
+const CLAIMS_SHOWN = 3;
+
+/**
+ * Trophies: what the player has won in the challenges. King of the hill's titles (gold once settled) and Bounty hunter
+ * as chips, then their crowns by slot, the slots they hold this month and the bounties they claimed. Nothing for a
+ * player with none of it. `crowns` is the profile's slice (players/{id}.json `crowns`, tools/lib/hill.mjs); `claims`
+ * their claimed rows of bounties.json's hall, newest first, with its `maps`.
+ */
+function trophies(crowns, claims, maps) {
+  const titles = crowns?.titles ?? [];
+  const holding = [...(crowns?.holding ?? [])].sort((a, b) => HILL_SLOTS.indexOf(a[0]) - HILL_SLOTS.indexOf(b[0]) || HILL_TIERS.indexOf(a[1]) - HILL_TIERS.indexOf(b[1]));
+  if (!crowns?.total && !holding.length && !claims.length) return '';
+  return html`<section class="section card trophies">
+    <h2 class="card-h">${t('Trophies')}</h2>
+    ${titles.length || claims.length ? html`<ul class="trophy-chips" aria-label="${t('Titles')}">
+      ${titles.map(title => html`<li class="badge ${title.final ? 'badge-gold' : ''}">${titleName(title)} <span class="trophy-when">· ${titleWhen(title)}</span></li>`)}
+      ${claims.length ? html`<li class="badge badge-gold">${t('Bounty hunter')} <span class="trophy-when">· ${fmt.plural(claims.length, 'bounty', 'bounties')}</span></li>` : ''}
+    </ul>` : ''}
+    ${crowns?.total ? html`<p class="small muted">${t('{crowns} on King of the hill: {tally}', { crowns: fmt.plural(crowns.total, 'crown'), tally: slotTally(crowns.slots) })}</p>` : ''}
+    ${holding.length ? html`<p class="small muted">${t('Holding this month: {slots}.', { slots: holding.map(([slot, tier]) => `${SLOT_NAME[slot]} (${TIER_NAME[tier]})`).join(', ') })}
+      <a href="#/challenges/hill">${t('See the pool')}</a></p>` : ''}
+    ${claims.slice(0, CLAIMS_SHOWN).map(([id, , goal, , , at]) => html`<p class="small muted">${th('Bounty claimed: {goal} on {map}', {
+      goal: GOAL_LABEL[goal], map: html`<a href="#/map/${id}">${mapLabel(id, maps[id])}</a>`,
+    })}${at ? html` <span class="faint">· ${fmt.date(at)}</span>` : ''}</p>`)}
+    ${claims.length > CLAIMS_SHOWN ? html`<p class="small"><a href="#/challenges/bounties">${t('{n} more in the hall of fame', { n: fmt.num(claims.length - CLAIMS_SHOWN) })}</a></p>` : ''}
+  </section>`;
+}
 
 const SORTS = {
   pp: [t('Most pp'), (a, b) => b[S.PP] - a[S.PP]],
@@ -187,7 +217,8 @@ export default async function player(root, { params, query, isCurrent }) {
   const filePromise = loaded ? Promise.resolve(loaded) : head ? head.then(h => h ?? playerFile(id)) : playerFile(id);
   // Records only feed the badges, which a head file brings already worked out.
   const recsPromise = (head ?? Promise.resolve(null)).then(h => (h ? null : records().catch(() => null)));
-  let [file, index, hist, recs] = await Promise.all([filePromise, playerIndex(), history(), recsPromise]);
+  // bounties.json is small and cached: the trophies list the bounties this player claimed.
+  let [file, index, hist, recs, board] = await Promise.all([filePromise, playerIndex(), history(), recsPromise, bounties().catch(() => null)]);
   if (!isCurrent()) return;
   if (!file.head) lastFull = file;
   const p = index.get(id);
@@ -264,7 +295,7 @@ export default async function player(root, { params, query, isCurrent }) {
       <div class="mt-2 score-line">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
     </section>` : ''}
 
-    ${crownsSection(file.crowns)}
+    ${trophies(file.crowns, (board?.hall ?? []).filter(r => r[4] === id && r[3] === 'claimed'), board?.maps ?? {})}
 
     ${historySection(points, rebuilt)}
 

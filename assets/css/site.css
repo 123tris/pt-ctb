@@ -667,7 +667,6 @@ td.king-rank { color: var(--gold); }
 
 /* King of the hill (pages/hill.js, core/hill.js): the month's pool as two row lists side by side, Open and
    Challenger; the crown table, where a season's slot king is gold; past months folded like the pp chart. */
-.hill-intro { max-width: 75ch; }
 .hill-leaders { margin: 0 0 var(--sp-4); color: var(--text-dim); }
 .hill-leaders .player { vertical-align: middle; }
 .hill-pool { gap: var(--sp-4) var(--sp-6); }
@@ -688,10 +687,12 @@ td.hill-king { color: var(--gold); font-weight: 700; }
 /* Phones: the month and Show/Hide on one line, its King of the hill under them. */
 @media (max-width: 600px) { .hill-month-king { order: 1; flex-basis: 100%; } }
 .hill-month .history-body { margin-top: var(--sp-4); }
-.hill-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin: 0 0 var(--sp-3); padding: 0; list-style: none; }
-.hill-chips .badge { white-space: normal; }
-.hill-chip-when { color: var(--text-dim); font-weight: 400; }
-.hill-crowns p { margin: 0 0 var(--sp-1); }
+/* A profile's trophies (pages/player.js): King of the hill's titles and Bounty hunter as chips, then a line each for
+   the crowns, the slots held now and the bounties claimed. */
+.trophy-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin: 0 0 var(--sp-3); padding: 0; list-style: none; }
+.trophy-chips .badge { white-space: normal; }
+.trophy-when { color: var(--text-dim); font-weight: 400; }
+.trophies p { margin: 0 0 var(--sp-1); }
 
 /* ---- Lists of rows (score lists, events): one bordered list with dividers ---------------------------- */
 
@@ -1142,6 +1143,8 @@ a.dan-stage:hover { text-decoration: none; }
 .event .where { color: var(--text-dim); font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event-play { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); font-size: var(--fs-sm); }
 .ev-snipe { --k: var(--text-faint); }
+.ev-crown { --k: var(--gold); }
+.ev-bounty { --k: var(--gold); }
 .ev-top { --k: var(--gold); }
 .ev-dan { --k: var(--gold); }
 .ev-pass { --k: var(--text-faint); }

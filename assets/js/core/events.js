@@ -4,6 +4,7 @@ import { html } from './html.js';
 import { S, MOD, DAN_STAGES } from './model.js';
 import { catChip, CAT_LABEL, mapLabel, modsBadges, ppText, playerName } from './ui.js';
 import { QUIPS, THRONE_PLAYER, pick } from './lore.js';
+import { SLOT_NAME, TIER_NAME, monthLabel } from './hill.js';
 import * as fmt from './fmt.js';
 import { t, th } from './i18n.js';
 
@@ -12,6 +13,8 @@ export const danName = i => (i === 0 ? t('Zeroth Dan') : i <= 10 ? t('{nth} Dan'
 
 export const EVENT_KINDS = {
   snipe: { tag: t('#1 sniped'), label: t('Snipes') },
+  crown: { tag: t('Crown'), label: t('Crowns') },
+  bounty: { tag: t('Bounty claimed'), label: t('Bounties') },
   top: { tag: t('Top play'), label: t('Top plays') },
   dan: { tag: 'Dan', label: 'Dan' },
   pass: { tag: t('Overtake'), label: t('Overtakes') },
@@ -21,9 +24,23 @@ export const EVENT_KINDS = {
 
 const who = (index, id) => html`<a href="#/player/${id}"><b>${playerName(index, id)}</b></a>`;
 
+/** A bounty claim, by goal: whole sentences, as Portuguese words them differently. */
+const BOUNTY_CLAIMED = /* i18n */ {
+  fc: '{who} claimed the FC bounty', pass: '{who} claimed the first-pass bounty', snipe: '{who} claimed the snipe bounty',
+};
+
 function describe(e, index, maps) {
-  const map = e.s ? html`<a class="dim-link" href="#/map/${e.s[S.MAP]}">${mapLabel(e.s[S.MAP], maps[e.s[S.MAP]])}</a>` : '';
+  // A play's map, or the map a crown or bounty event names.
+  const mapId = e.s ? e.s[S.MAP] : e.m;
+  const map = mapId ? html`<a class="dim-link" href="#/map/${mapId}">${mapLabel(mapId, maps[mapId])}</a>` : '';
   switch (e.k) {
+    case 'crown':
+      // A crown taken on King of the hill, or a closed month's King.
+      return e.mo
+        ? { what: th('{who} is King of the hill for {month}, with {crowns}', { who: who(index, e.u), month: monthLabel(e.mo), crowns: fmt.plural(e.n, 'crown') }), where: '' }
+        : { what: th('{who} took the {slot} crown from {other}', { who: who(index, e.u), slot: `${SLOT_NAME[e.h[0]]} · ${TIER_NAME[e.h[1]]}`, other: who(index, e.v) }), where: map };
+    case 'bounty':
+      return { what: th(BOUNTY_CLAIMED[e.g], { who: who(index, e.u) }), where: map };
     case 'snipe':
       return { what: th('{who} took the #1 from {other}', { who: who(index, e.u), other: who(index, e.v) }), where: map };
     case 'top':
