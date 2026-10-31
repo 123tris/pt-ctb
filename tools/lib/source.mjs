@@ -31,6 +31,7 @@ export function loadBotData(root) {
     ptCatchState: readJsonOr(path.join(root, 'PtCatch', 'state.json'), {}),
     banned: new Set(readJsonOr(path.join(root, 'BannedMaps.json'), [])),
     weekly: loadWeekly(root),
+    hill: loadHill(root),
     plays: loadPlays(root),
   };
 }
@@ -98,6 +99,26 @@ export function loadWeekly(root) {
     console.warn(`  skipped Weekly/current.json: ${e.message}`);
   }
   return { weeks, current };
+}
+
+/**
+ * King of the hill, as the bot keeps it in Hill/: every month's pool with its holders and boards (2026-11.json…), the
+ * month running now (current.json, same shape) and the crowns each closed month gave (crowns.json). Null when there's
+ * no Hill/ folder (the bot hasn't started one); a file that won't parse is skipped.
+ */
+export function loadHill(root) {
+  const dir = path.join(root, 'Hill');
+  if (!fs.existsSync(dir)) return null;
+  const read = file => {
+    try {
+      return readJsonOr(path.join(dir, file), null);
+    } catch (e) {
+      console.warn(`  skipped Hill/${file}: ${e.message}`);
+      return null;
+    }
+  };
+  const months = fs.readdirSync(dir).filter(file => /^\d{4}-\d\d\.json$/.test(file)).map(read).filter(Boolean);
+  return { months, current: read('current.json'), crowns: read('crowns.json') };
 }
 
 /**

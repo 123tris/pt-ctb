@@ -30,6 +30,10 @@ export const M = {
  */
 export const PLAYER_MAP_FIELDS = [M.ARTIST, M.TITLE, M.VERSION, M.SET, M.STARS, M.AR, M.MAX_COMBO, M.MODE, M.CREATOR];
 
+/** King of the hill's slots, in the order the site shows them (SP: catch-specific maps), and its two tiers. */
+export const HILL_SLOTS = ['NM', 'HD', 'HR', 'DT', 'FM', 'SP'];
+export const HILL_TIERS = ['open', 'challenger'];
+
 /** Tris: the player whose #1s the records page dares everyone to take (he keeps asking to be sniped). */
 export const THRONE_PLAYER = 3821475;
 

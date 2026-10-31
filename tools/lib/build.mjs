@@ -10,6 +10,7 @@ import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js'
 import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
 import { completion, homeGoal } from './completion.mjs';
 import { starKings } from './star-kings.mjs';
+import { hillBlock } from './hill.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -260,6 +261,7 @@ export function neededMapIds(bot, homeCountry) {
     if (p.country !== homeCountry || hidden.has(p.user_id)) continue;
     add(p.top_scores); add(p.community_scores);
   }
+  for (const m of [bot.hill?.current, ...(bot.hill?.months ?? [])]) for (const s of m?.slots ?? []) if (s?.beatmapId) ids.add(s.beatmapId);
   return ids;
 }
 
@@ -478,6 +480,14 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       maps: playerMapsFor(ids),
     };
   }
+
+  // ---- King of the hill ----------------------------------------------------------------------------------------------
+  // The monthly crowns (tools/lib/hill.mjs): hill.json for the Leaderboards tab, and each crowned player's tally and
+  // titles on their profile. Nothing until the bot writes a Hill/ folder.
+
+  const hill = hillBlock(bot.hill, hidden);
+  if (hill.file) for (const id of hill.mapIds) hill.file.maps[id] = mapTuple(id) ?? hill.file.maps[id];
+  for (const [id, crowns] of hill.profiles) if (playerFiles[id]) playerFiles[id].crowns = crowns;
 
   // ---- Map buckets + search index -------------------------------------------------------------------------------
 
@@ -926,6 +936,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       },
       scores, top, dan: file.dan,
       ...(pre ? { pre } : {}),
+      ...(file.crowns ? { crowns: file.crowns } : {}),
       maps: Object.fromEntries(shown.map(t => t[S.MAP]).sort((a, b) => a - b).map(m => [m, file.maps[m]])),
       extras: {
         badges: playerBadges(entry, file, records, now),
@@ -978,6 +989,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'challenges.json': challenges,
       'completion.json': goal.file,
       'quiz.json': quiz,
+      ...(hill.file ? { 'hill.json': hill.file } : {}),
       'history.json': history,
       'maps-top.json': { total: mapsIndex.length, rows: mapsIndex.slice(0, MAPS_TOP) },
       'maps-search.json': encodeMapsSearch(mapsIndex),
