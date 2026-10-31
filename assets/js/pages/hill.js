@@ -2,7 +2,7 @@
 // the crown table (all time or one season) and the past months.
 
 import { html, raw } from '../core/html.js';
-import { HILL_SLOTS, HILL_TIERS, sharedRanks } from '../core/model.js';
+import { HILL_SLOTS, HILL_TIERS, HILL_MOD_STARS, MOD, sharedRanks } from '../core/model.js';
 import { playerLink, mapLink, modsBadges, empty, announce, writeQuery, isInactive, statusTag } from '../core/ui.js';
 import { SLOT_NAME, TIER_NAME, monthLabel, seasonLabel, titleName, slotTally, timeLeft } from '../core/hill.js';
 import { challengeChips } from '../core/challenge-chips.js';
@@ -25,7 +25,7 @@ function slotRow(s, maps, index, closed, now) {
   return html`<div class="row row-1col">
     <div class="row-main">
       <span class="hill-slot">${SLOT_NAME[s.slot]}</span>
-      ${mapLink(s.map, maps[s.map])}
+      ${mapLink(s.map, maps[s.map], HILL_MOD_STARS.includes(s.slot) && s.stars ? { stars: s.stars, starsMods: MOD[s.slot] } : {})}
       <div>${h ? playerLink(who(h.u, h.name, index), null, 'avatar-sm') : html`<span class="muted small">${closed ? t('Nobody kept this crown') : t('Up for grabs')}</span>`}</div>
     </div>
     <div class="row-meta">

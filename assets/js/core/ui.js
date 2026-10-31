@@ -134,13 +134,14 @@ export const cover = (meta, kind = 'list', cls = 'map-cover') => setCover(meta?.
 export const bannerArt = set => html`<div class="banner-art"${set ? html` style="--art:url('${coverUrl(set, 'cover')}');--art-2x:url('${coverUrl(set, 'cover@2x')}')"` : ''}></div>`;
 
 /** A map with its cover, title and difficulty, linking to its page. */
-export function mapLink(id, meta, { showStars = true } = {}) {
+/** `starsMods`: the stars shown are the map's with these mods (a mask), marked by their badges after the stars. */
+export function mapLink(id, meta, { showStars = true, stars = meta?.[M.STARS], starsMods = 0 } = {}) {
   const { title, sub } = mapText(id, meta);
   return html`<a class="map" href="#/map/${id}">
     ${cover(meta)}
     <span class="map-text">
       <span class="map-title" title="${title}">${title}</span>
-      <span class="map-sub">${showStars && meta ? html`${starsBadge(meta[M.STARS])} ` : ''}${sub}</span>
+      <span class="map-sub">${showStars && meta ? html`${starsBadge(stars)}${starsMods ? html` ${modsBadges(starsMods)}` : ''} ` : ''}${sub}</span>
     </span>
   </a>`;
 }

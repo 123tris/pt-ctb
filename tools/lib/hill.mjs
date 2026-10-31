@@ -4,7 +4,7 @@
 // when the month closes keeps it. Seasons are calendar quarters. No DOM, no osu! calls.
 
 import { modMask } from './weekly.mjs';
-import { HILL_SLOTS, HILL_TIERS } from '../../assets/js/core/model.js';
+import { HILL_SLOTS, HILL_TIERS, HILL_MOD_STARS } from '../../assets/js/core/model.js';
 /** An All-rounder has crowns in this many different slots in one season. */
 const ALL_ROUNDER = 3;
 
@@ -53,6 +53,8 @@ function pool(month, hidden) {
     const holder = s.holder && !hidden.has(s.holder.userId) ? s.holder : month.status === 'closed' ? null : board[0] ?? null;
     return {
       slot: s.slot, tier: s.tier, map: s.beatmapId, convert: Boolean(s.convert),
+      // HR and DT slots show the map's stars with that mod, as the bot works them out (the beatmap cache has nomod's).
+      ...(HILL_MOD_STARS.includes(s.slot) && s.stars > 0 ? { stars: s.stars } : {}),
       holder: holder ? entry(holder) : null, players: board.length,
       // Taking the slot from someone; the first play on an empty slot (fromUserId null) took it from nobody.
       snipes: (s.snipes ?? []).filter(x => x.fromUserId != null && !hidden.has(x.toUserId) && !hidden.has(x.fromUserId)).length,

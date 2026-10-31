@@ -24,7 +24,7 @@ import { t, th, tn } from '../core/i18n.js';
 const TABS = [
   { slug: 'week', label: t('This week'), intro: th('A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on {activity}.', { activity: html`<a href="#/activity?view=week">${t('Activity')}</a>` }) },
   // Only once the export has hill.json (the bot started King of the hill): see `shown` below.
-  { slug: 'hill', label: t('King of the hill'), intro: t('Every month has one map per slot, in an Open and a Challenger tier. The best play there this month holds the crown, and whoever holds it when the month ends keeps it. SP is catch-specific maps; HT, EZ and speed changes never count.') },
+  { slug: 'hill', label: t('King of the hill'), intro: t('Every month has one map per slot, in an Open and a Challenger tier. NM, HD, HR, DT and FM are catch-specific maps; CV is a convert. The best play there this month holds the crown, and whoever holds it when the month ends keeps it. HT, EZ and speed changes never count.') },
   { slug: 'dan', label: t('Dan course'), intro: DAN_INTRO },
   { slug: 'targets', label: t('Snipe targets'), intro: t('#1s that are begging to be sniped, maps with a single Portuguese player, and maps nobody in Portugal has played yet.') },
   { slug: 'bounties', label: t('Bounties'), intro: t('Prizes the community puts up for hard maps: full combo one, pass it first or take its #1, and the bot announces the claim on Discord.') },

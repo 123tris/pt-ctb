@@ -29,7 +29,7 @@ const SECTIONS = [
   ]],
   [t('The community'), [
     [t('Dan course'), t('The community’s ladder of 19 challenge maps, from Zeroth Dan to Shin. Passing stages earns points and Discord roles. It lives under Challenges.')],
-    [t('King of the hill'), t('A pool of maps each month, one per slot (NM, HD, HR, DT, FM and SP, catch-specific maps) in an Open and a Challenger tier. The best play on a map holds its crown; whoever holds it when the month ends keeps it. The most crowns in a month makes you King of the hill.')],
+    [t('King of the hill'), t('A pool of maps each month, one per slot (NM, HD, HR, DT and FM on catch-specific maps, and CV on a convert) in an Open and a Challenger tier. The best play on a map holds its crown; whoever holds it when the month ends keeps it. The most crowns in a month makes you King of the hill.')],
     [t('Bounties'), t('Prizes the community puts on hard maps, for the first FC, the first pass or taking the #1. A moderator posts one with the bot’s !bounty, anyone can add a prize, and the bot spots the claim by itself. Claiming one makes you a Bounty hunter.')],
     [t('Verified'), t('The Discord role for Portuguese osu! accounts, given by the bot’s /verify command.')],
     [t('This is me'), t('A button on every player profile. Press it on yours and your rows are highlighted across the site. It’s saved in your browser only.')],

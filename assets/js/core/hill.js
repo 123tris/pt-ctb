@@ -5,8 +5,8 @@ import { HILL_SLOTS } from './model.js';
 import * as fmt from './fmt.js';
 import { t, locale } from './i18n.js';
 
-/** A slot's name: the mods as players say them, and SP (catch-specific maps) in words where there's room. */
-export const SLOT_NAME = { NM: 'NM', HD: 'HD', HR: 'HR', DT: 'DT', FM: 'FM', SP: t('Specifics') };
+/** A slot's name: the mods as players say them, and CV (a convert) in words where there's room. */
+export const SLOT_NAME = { NM: 'NM', HD: 'HD', HR: 'HR', DT: 'DT', FM: 'FM', CV: t('Convert') };
 export const TIER_NAME = { open: t('Open|tier'), challenger: t('Challenger') };
 
 const monthFormat = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -36,5 +36,5 @@ export function timeLeft(end) {
   return left >= 86400 ? t('{n}d left', { n: Math.floor(left / 86400) }) : t('{n}h left', { n: Math.max(1, Math.floor(left / 3600)) });
 }
 
-/** "NM 1 · HR 4 · SP 3": a tally per slot, leaving out the slots with none. */
+/** "NM 1 · HR 4 · CV 3": a tally per slot, leaving out the slots with none. */
 export const slotTally = counts => HILL_SLOTS.map((slot, i) => (counts[i] ? `${slot} ${fmt.num(counts[i])}` : '')).filter(Boolean).join(' · ');

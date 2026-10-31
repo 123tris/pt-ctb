@@ -17,7 +17,7 @@ const play = (userId, hillScore, time, mods = []) => ({
 });
 const slot = (s, tier, beatmapId, board = []) => ({
   slot: s, tier, beatmapId, beatmapsetId: beatmapId * 10, artist: 'A', title: `T${beatmapId}`, version: 'V', creator: 'C',
-  stars: 5.1, convert: s !== 'SP', maxCombo: 700, holder: board[0] ?? null, board, snipes: board.map((e, i) => ({ time: e.time, fromUserId: board[i + 1]?.userId ?? null, toUserId: e.userId })),
+  stars: 5.1, convert: s === 'CV', maxCombo: 700, holder: board[0] ?? null, board, snipes: board.map((e, i) => ({ time: e.time, fromUserId: board[i + 1]?.userId ?? null, toUserId: e.userId })),
 });
 const month = (id, status, slots) => ({ month: id, start: `${id}-01T00:00:00Z`, end: `${id}-28T00:00:00Z`, status, slots });
 const crownsOf = months => ({
@@ -78,7 +78,7 @@ test('crowns add up by slot and season, and give the titles', () => {
   // Q3: p1 takes HR twice, NM and DT (All-rounder, HR king); p2 takes HR once and NM once. Q4 has only October.
   const jul = month('2026-07', 'closed', [
     slot('HR', 'open', 11, [play(1, 9, '2026-07-02T00:00:00Z')]), slot('HR', 'challenger', 12, [play(2, 9, '2026-07-02T00:00:00Z')]),
-    slot('NM', 'open', 13, [play(2, 9, '2026-07-03T00:00:00Z')]), slot('SP', 'open', 14, []),
+    slot('NM', 'open', 13, [play(2, 9, '2026-07-03T00:00:00Z')]), slot('CV', 'open', 14, []),
   ]);
   const aug = month('2026-08', 'closed', [slot('HR', 'open', 21, [play(1, 9, '2026-08-02T00:00:00Z')]), slot('NM', 'open', 22, [play(1, 9, '2026-08-02T00:00:00Z')])]);
   const sep = month('2026-09', 'closed', [slot('DT', 'open', 31, [play(1, 9, '2026-09-02T00:00:00Z')])]);
@@ -89,11 +89,11 @@ test('crowns add up by slot and season, and give the titles', () => {
 
   assert.deepEqual(file.players.map(([id, , total]) => [id, total]), [[1, 4], [2, 3]]);
   const [, , , slots, seasons] = file.players[0];
-  assert.deepEqual(slots, [1, 0, 2, 1, 0, 0]); // NM HD HR DT FM SP
+  assert.deepEqual(slots, [1, 0, 2, 1, 0, 0]); // NM HD HR DT FM CV
   assert.deepEqual(seasons, { '2026-Q3': [1, 0, 2, 1, 0, 0] });
 
   assert.deepEqual(file.months.map(m => [m.month, m.kings, m.most]), [['2026-10', [2], 1], ['2026-09', [1], 1], ['2026-08', [1], 2], ['2026-07', [2], 2]]);
-  assert.equal(file.months[3].pool.find(s => s.slot === 'SP').holder, null);
+  assert.equal(file.months[3].pool.find(s => s.slot === 'CV').holder, null);
 
   const [q4, q3] = file.seasons;
   assert.deepEqual(q3, { id: '2026-Q3', final: true, kings: { NM: [1, 2], HR: [1], DT: [1] }, allRounders: [1] });
@@ -162,4 +162,14 @@ test('hillNow: the running month in brief for meta.json', () => {
   });
   assert.equal(hillNow(null), null);
   assert.equal(hillNow(hillBlock({ months: [], current: month('2026-12', 'draft', []), crowns: null }).file).pool.length, 0);
+});
+
+test('HR and DT slots carry the bot\'s stars with the mod; the others and unknown slots don\'t', () => {
+  const live = month('2026-11', 'live', [
+    { ...slot('HR', 'open', 1), stars: 5.6 }, { ...slot('DT', 'open', 2), stars: 6.2 }, slot('NM', 'open', 3), slot('CV', 'open', 4),
+    slot('SP', 'open', 5), // the slot CV replaced
+  ]);
+  const { pool } = hillBlock({ months: [], current: live, crowns: null }).file.current;
+  assert.deepEqual(pool.map(s => [s.slot, s.stars]), [['NM', undefined], ['HR', 5.6], ['DT', 6.2], ['CV', undefined]]);
+  assert.equal(pool[3].convert, true);
 });
