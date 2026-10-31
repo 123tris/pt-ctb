@@ -6,6 +6,7 @@ import { lineChart, chartHover } from '../core/charts.js';
 import { playerBadges, era, signatureMap, localBadge, localEra } from '../core/badges.js';
 import { THRONE_PLAYER } from '../core/lore.js';
 import { jersey } from '../core/ladder.js';
+import { crownsSection } from '../core/hill.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
@@ -263,6 +264,7 @@ export default async function player(root, { params, query, isCurrent }) {
       <div class="mt-2 score-line">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
     </section>` : ''}
 
+    ${crownsSection(file.crowns)}
 
     ${historySection(points, rebuilt)}
 

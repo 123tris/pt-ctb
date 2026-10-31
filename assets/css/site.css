@@ -393,7 +393,7 @@ main#content { min-height: 100vh; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: var(--sp-4); min-width: 0; }
 .card > h2 { margin-bottom: var(--sp-3); }
 /* .card-h: a card title that has to be an h2 for the outline (WCAG 1.3.1) but looks like the small h3 titles. */
-.card > h3, .card > h2.card-h, .history > summary > h2.card-h {
+.card > h3, .card > h2.card-h, .history > summary > h2.card-h, .history > summary > h3.card-h {
   display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3);
   font: 600 var(--fs-md)/1.3 var(--font); color: var(--text);
 }
@@ -664,6 +664,34 @@ td.king-rank { color: var(--gold); }
   .kings-table th, .kings-table td { padding: var(--sp-3) var(--sp-2); }
   .king-title { white-space: normal; }
 }
+
+/* King of the hill (pages/hill.js, core/hill.js): the month's pool as two row lists side by side, Open and
+   Challenger; the crown table, where a season's slot king is gold; past months folded like the pp chart. */
+.hill-intro { max-width: 75ch; }
+.hill-leaders { margin: 0 0 var(--sp-4); color: var(--text-dim); }
+.hill-leaders .player { vertical-align: middle; }
+.hill-pool { gap: var(--sp-4) var(--sp-6); }
+.hill-tier { margin: 0 0 var(--sp-2); font: 600 var(--fs-md)/1.3 var(--font); color: var(--text); }
+.hill-slot { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 600; }
+/* The play under its holder, lined up with the map's text as the holder is. */
+.hill-pool .row-meta { justify-content: flex-start; padding-left: 72px; }
+.hill-pool .row-meta .pp { min-width: 0; text-align: left; }
+@media (max-width: 760px) { .hill-pool .row-meta { padding-left: 0; } }
+.row-meta a:hover .hill-score { color: var(--accent); }
+td.hill-king { color: var(--gold); font-weight: 700; }
+.hill-titles { margin-bottom: var(--sp-6); }
+.hill-titles li { display: grid; gap: 2px; }
+.hill-titles .player { vertical-align: middle; }
+.hill-months { display: grid; gap: var(--sp-4); }
+.hill-month > summary { flex-wrap: wrap; }
+.hill-month-king { flex: 1 1 auto; min-width: 0; }
+/* Phones: the month and Show/Hide on one line, its King of the hill under them. */
+@media (max-width: 600px) { .hill-month-king { order: 1; flex-basis: 100%; } }
+.hill-month .history-body { margin-top: var(--sp-4); }
+.hill-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin: 0 0 var(--sp-3); padding: 0; list-style: none; }
+.hill-chips .badge { white-space: normal; }
+.hill-chip-when { color: var(--text-dim); font-weight: 400; }
+.hill-crowns p { margin: 0 0 var(--sp-1); }
 
 /* ---- Lists of rows (score lists, events): one bordered list with dividers ---------------------------- */
 
@@ -1143,7 +1171,7 @@ a.dan-stage:hover { text-decoration: none; }
 /* The profile's pp chart is a disclosure, closed by default: "PP OVER TIME ... Show". */
 .history > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); list-style: none; cursor: pointer; margin: -4px -8px; padding: var(--sp-1) var(--sp-2); border-radius: var(--r-sm); }
 .history > summary::-webkit-details-marker { display: none; }
-.history > summary > h2.card-h { margin: 0; }
+.history > summary > h2.card-h, .history > summary > h3.card-h { margin: 0; }
 .history > summary:hover .history-toggle { color: var(--accent); }
 .history > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .history-toggle { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
