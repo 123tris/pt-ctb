@@ -992,6 +992,7 @@ export const PT = {
   'pp what-ifs': 'E se… de pp',
   'Dan': 'Dan',
   'Account': 'Conta',
+  'The bounty board: hard maps up for an FC, a first pass or a snipe; `!bounty pledge` puts a prize on one': 'O quadro de recompensas: mapas difíceis à espera de um FC, de uma primeira passagem ou de um snipe; `!bounty pledge` põe um prémio num deles',
   'A player\'s latest play; passes or converts only as options (nf = passes, c = converts)': 'A última jogada de um jogador; só passagens ou só converts como opções (nf = passagens, c = converts)',
   'Your (or a player\'s) best play on the last map shown, or on the post you reply to': 'A tua melhor jogada (ou a de um jogador) no último mapa mostrado, ou na mensagem a que respondes',
   'The community\'s scores on a map, or one of them as a card': 'As pontuações da comunidade num mapa, ou uma delas em cartão',
