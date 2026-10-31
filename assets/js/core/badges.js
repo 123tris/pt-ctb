@@ -25,6 +25,7 @@ const GENIUS_MIN = 10;
 const BADGES = /* i18n */ {
   chokeDor: ['Choke d’Or', 'More plays with exactly one miss than anyone in Portugal ({n}).'],
   wall: ['The Wall', '{n} #1s that have stood for more than two years: one of the three biggest walls in Portugal.'],
+  bountyHunter: ['Bounty hunter', 'Claimed {n} bounty.', 'Claimed {n} bounties.'],
   digits: ['{digits}-digit club', 'Global rank {rank}. "{less} digits when?"'],
   blessed: ['Blessed by the 1-miss gods', '{n} play with exactly one miss on 6★ and up.', '{n} plays with exactly one miss on 6★ and up.'],
   reverse: ['Almost a reverse choke', '{n} plays with one miss and 97%+ of the combo: so close to the end (or the start).'],
@@ -56,6 +57,9 @@ export function playerBadges(p, file, records, now = Date.now() / 1000) {
   if (records?.oneMiss?.[0]?.[0] === p.id) add('chokeDor', { n: records.oneMiss[0][1] });
   const wall = records?.wall?.find(([id]) => id === p.id);
   if (wall) add('wall', { n: wall[1] });
+  // Bounties claimed after they were posted (bounties.json's hall, `claimed`), as records.json counts them.
+  const hunter = records?.hunters?.find(([id]) => id === p.id);
+  if (hunter) add('bountyHunter', { n: hunter[1] });
   if (p.global && p.global < 1000) {
     const digits = String(p.global).length;
     add('digits', { digits, rank: p.global.toLocaleString('en-GB'), less: digits - 1 });

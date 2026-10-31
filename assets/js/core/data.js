@@ -81,6 +81,11 @@ export const dan = () => load('dan.json');
 export const activity = () => load('activity.json');
 export const records = () => load('records.json');
 export const challenges = () => load('challenges.json');
+/**
+ * The bounty board (tools/lib/bounties.mjs): { open, hall, wanted, maps }, or null for data from before it (which keeps
+ * the wanted list in challenges.json as `bounties`).
+ */
+export const bounties = () => load('bounties.json').catch(e => (e instanceof NotFound ? null : Promise.reject(e)));
 /** The completion goal (tools/lib/completion.mjs), or null for data from before it. */
 export const completion = () => load('completion.json').catch(e => (e instanceof NotFound ? null : Promise.reject(e)));
 /**

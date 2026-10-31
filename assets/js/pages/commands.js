@@ -58,6 +58,9 @@ const FALLBACK = [
   ]],
 ];
 
+/** A description with its `code` spans (command words, like `!bounty pledge`) as code. */
+const withCode = text => text.split('`').map((part, i) => (i % 2 ? html`<code>${part}</code>` : part));
+
 /**
  * commands.json → the same [title, note, [[name, text]]] groups as FALLBACK. The bot writes its group names and
  * descriptions in English; core/pt.js translates the ones it knows, and a new one shows in English until it's added.
@@ -67,9 +70,10 @@ function fromBot(file) {
     const moderators = group.commands.every(c => c.access !== 'everyone');
     const list = group.commands.map(c => {
       const options = (c.options ?? []).map(o => `[${o.name}]`).join(' ');
-      const aliases = (c.prefix ?? []).join(' · ');
+      // A prefix-only command (no slash) goes by its first prefix, so the aliases are the rest.
+      const aliases = (c.prefix ?? []).slice(c.slash ? 0 : 1).join(' · ');
       return [[c.slash ?? c.prefix?.[0], options].filter(Boolean).join(' '),
-        html`${t(c.description)}${aliases ? html` <span class="faint">${t('Also {aliases}.', { aliases })}</span>` : ''}${!moderators && c.access !== 'everyone' ? html` <span class="faint">(${t('moderators')})</span>` : ''}`];
+        html`${withCode(t(c.description))}${aliases ? html` <span class="faint">${t('Also {aliases}.', { aliases })}</span>` : ''}${!moderators && c.access !== 'everyone' ? html` <span class="faint">(${t('moderators')})</span>` : ''}`];
     });
     return moderators ? [t(group.name), t('Only our lord and saviour has access to these commands.'), list] : [t(group.name), list];
   });

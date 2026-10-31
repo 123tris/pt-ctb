@@ -11,6 +11,7 @@ import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
 import { completion, homeGoal } from './completion.mjs';
 import { starKings } from './star-kings.mjs';
 import { hillBlock } from './hill.mjs';
+import { bountyBoard } from './bounties.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -262,6 +263,8 @@ export function neededMapIds(bot, homeCountry) {
     add(p.top_scores); add(p.community_scores);
   }
   for (const m of [bot.hill?.current, ...(bot.hill?.months ?? [])]) for (const s of m?.slots ?? []) if (s?.beatmapId) ids.add(s.beatmapId);
+  // Bounties can be on maps nobody here has played (a first pass).
+  for (const b of bot.bounties || []) if (Number.isSafeInteger(b?.map)) ids.add(b.map);
   return ids;
 }
 
@@ -791,8 +794,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     .slice(0, 40)
     .map(raw => [raw.beatmap_id, raw.playcount || 0, raw.favourite_count || 0]);
 
-  // Boss maps nobody in Portugal has full-combo'd: several players, 6.5★ and up, and every play has a miss.
-  const bounties = [...boards]
+  // Boss maps nobody in Portugal has full-combo'd: several players, 6.5★ and up, and every play has a miss. They're the
+  // bounty board's "wanted" list, for a moderator to post with the bot's !bounty add.
+  const wanted = [...boards]
     .filter(([id, b]) => b.entries.length >= 3 && !banned.has(id) && hasTitle(meta(id)) && meta(id).difficultyrating >= 6.5 &&
       !(b.cat === CAT.LOVED && meta(id).difficultyrating >= 10) && b.entries.every(e => e[S.MISS + 1] > 0))
     .sort((a, b) => b[1].entries.length - a[1].entries.length || meta(b[0]).difficultyrating - meta(a[0]).difficultyrating || a[0] - b[0])
@@ -804,13 +808,24 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       id: week.id, start: week.start, end: week.end, map: weekMap, cat: weekBoard.cat,
       board: weekBoard.entries, weekly: weekBoard.entries.filter(e => e[S.TIME + 1] >= week.start),
     } : null,
-    beatable, lonely, unclaimed, bounties,
+    beatable, lonely, unclaimed,
     // Top pp play and most plays: this week so far, the open map vote and past weeks (null until the
     // bot has written any).
     weekly: weekly.block,
     maps: mapsFor([weekMap, ...beatable.map(r => r[0]), ...lonely.map(r => r[0]), ...unclaimed.map(r => r[0]),
-      ...bounties.map(r => r[0]), ...weekly.mapIds].filter(Boolean)),
+      ...weekly.mapIds].filter(Boolean)),
   };
+
+  // The bounty board: the bot's bounties (Bounties.json, through bounties.mjs, which keeps its Discord ids out) and the
+  // wanted list. The players who claimed one get the Bounty hunter badge, through records.json.
+  const board = bountyBoard({
+    bounties: bot.bounties, boards, wanted, now, catOf: id => catOf(id, null), known: uid => uid !== null && people.has(uid),
+  });
+  const bounties = {
+    ...board.file,
+    maps: mapsFor([...board.file.open, ...board.file.hall, ...board.file.wanted].map(r => r[0])),
+  };
+  records.hunters = board.hunters;
 
   // ---- Mapsets ------------------------------------------------------------------------------------------------------
   // sets/{setId % 128}.json: the difficulties of each mapset a page here shows, { setId: [[mapId, version, stars,
@@ -822,8 +837,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   for (const bucket of Object.values(mapBuckets)) {
     for (const [id, e] of Object.entries(bucket)) if (e.m?.[M.SET]) addRow(e.m[M.SET], [Number(id), e.m[M.VERSION], e.m[M.STARS], e.s.length]);
   }
-  // Dan stages and unclaimed maps have a page too (from dan.json and challenges.json).
-  for (const id of [...DAN_MAPS, ...unclaimed.map(r => r[0])]) {
+  // Dan stages, unclaimed maps and bounty maps have a page too (from dan.json, challenges.json and bounties.json).
+  for (const id of [...DAN_MAPS, ...unclaimed.map(r => r[0]), ...bounties.open.map(r => r[0])]) {
     const set = meta(id)?.beatmapset_id;
     if (set && !setRows.has(set)) setRows.set(set, new Map());
   }
@@ -987,6 +1002,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'activity.json': activity,
       'records.json': records,
       'challenges.json': challenges,
+      'bounties.json': bounties,
       'completion.json': goal.file,
       'quiz.json': quiz,
       ...(hill.file ? { 'hill.json': hill.file } : {}),

@@ -1405,6 +1405,22 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 .tip-pop.open { visibility: visible; }
 
 .bounty-tag { color: var(--gold); font-weight: 600; }
+/* "Take {holder}'s #1.": the holder's avatar and name sit on the sentence's line. */
+.bounty-tag .player { font-weight: 600; vertical-align: middle; }
+/* A bounty's dare and prizes run under the map and its numbers, the row's full width. */
+.bounty-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); }
+.prizes { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+/* A prize only shows a value, so it's a tag (gold: an honour on offer), not a chip. One that lapsed stays, struck. */
+.prize {
+  display: inline-flex; align-items: center; padding: 1px var(--sp-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm);
+  color: var(--gold); font-size: var(--fs-sm); font-weight: 500; overflow-wrap: anywhere;
+}
+.prize-lapsed { color: var(--text-faint); border-style: dashed; text-decoration: line-through; }
+/* A goal already met before the bounty went up: credited quietly, so the row steps back. */
+.bounty-done { color: var(--text-dim); }
+.bounty-done .map-title, .bounty-done .row-meta .pp { color: var(--text-dim); }
+.bounty-done .map-cover, .bounty-done .avatar-sm { opacity: .6; }
+.bounty-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); }
 
 .throne-head { display: flex; gap: var(--sp-4); align-items: center; }
 .cmp-aura .label { color: var(--gold); }

@@ -190,3 +190,20 @@ export function loadCommands(root) {
     return null;
   }
 }
+
+/**
+ * The bounties moderators post with the bot's !bounty (Bounties.json, written by the bot): its `bounties` list, Discord
+ * ids and all (tools/lib/bounties.mjs keeps those out of the site). Empty when the bot hasn't written one or it isn't
+ * that shape, so the export goes on without bounties.
+ */
+export function loadBounties(root) {
+  const file = path.join(root, 'Bounties.json');
+  if (!fs.existsSync(file)) return [];
+  try {
+    const bounties = readJson(file)?.bounties;
+    return Array.isArray(bounties) ? bounties : [];
+  } catch {
+    console.warn('  Bounties.json in the data folder won’t parse; skipped');
+    return [];
+  }
+}

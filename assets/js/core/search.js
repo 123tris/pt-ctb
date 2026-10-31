@@ -32,7 +32,8 @@ function rank(list, text) {
 const PAGES = [
   { name: t('Dan course'), href: '#/challenges/dan', detail: t('Challenges · 19 stages'), words: 'dan dans course stage stages zeroth aleph shin updatedan claimdanrole curso etapa etapas' },
   { name: t('Map of the week'), href: '#/challenges/week', detail: t('Challenges'), words: 'week weekly challenge challenges semana semanal desafio desafios' },
-  { name: t('Snipe targets'), href: '#/challenges/targets', detail: t('Challenges'), words: 'snipe snipes sniping targets vulnerable bounty bounties unclaimed alvos recompensa recompensas' },
+  { name: t('Snipe targets'), href: '#/challenges/targets', detail: t('Challenges'), words: 'snipe snipes sniping targets vulnerable unclaimed alvos' },
+  { name: t('Bounties'), href: '#/challenges/bounties', detail: t('Challenges · prizes for hard maps'), words: 'bounty bounties wanted prize prizes reward hunter hall fame recompensa recompensas prémio prémios procurado caçador' },
   { name: t('Completion'), href: '#/challenges/completion', detail: t('Challenges · ranked maps cleared'), words: 'completion complete cleared clear uncleared progress goal conclusão completar progresso objetivo' },
   { name: t('Glossary'), href: '#/glossary', detail: t('pp, FC, mods explained'), words: 'glossary help words meaning new glossário glossario ajuda palavras' },
   { name: t('Records'), href: '#/records', detail: t('Biggest combos, most #1s'), words: 'records record recordes recorde' },
