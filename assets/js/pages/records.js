@@ -5,36 +5,37 @@ import { barChart } from '../core/charts.js';
 import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar, posBadge } from '../core/ui.js';
 import { FIRST_10K } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
+import { t, tn } from '../core/i18n.js';
 
 /** Tris's #1s that still stand, and who's closest to taking them. */
-function throneSection(t, maps, index) {
-  const boss = index.get(t.u);
+function throneSection(throne, maps, index) {
+  const boss = index.get(throne.u);
   if (!boss) return '';
   return html`<section class="section" id="throne">
-    <div class="section-head"><h2>Dethrone ${boss.name}</h2><a href="#/player/${t.u}">${boss.name}’s profile</a></div>
+    <div class="section-head"><h2>${t('Dethrone {name}', { name: boss.name })}</h2><a href="#/player/${throne.u}">${t('{name}’s profile', { name: boss.name })}</a></div>
     <div class="throne-head card">
-      ${avatar(t.u, 'avatar-lg')}
+      ${avatar(throne.u, 'avatar-lg')}
       <div>
-        <div class="stat-value">${fmt.num(t.held)} #1s</div>
-        <p class="m-0 mt-1 muted">${boss.name} still holds ${fmt.num(t.held)} Portuguese #1s, ${fmt.num(t.contested)} of them on maps someone else has played too. He keeps asking to be sniped. Go on.</p>
+        <div class="stat-value">${t('{n} #1s', { n: fmt.num(throne.held) })}</div>
+        <p class="m-0 mt-1 muted">${t('{name} still holds {held} Portuguese #1s, {contested} of them on maps someone else has played too. He keeps asking to be sniped. Go on.', { name: boss.name, held: fmt.num(throne.held), contested: fmt.num(throne.contested) })}</p>
       </div>
     </div>
     <div class="mt-4 grid grid-2">
       <div>
-        <h3 class="small muted">His oldest #1s still standing</h3>
-        <div class="rows">${t.oldest.map(([cat, runner, ...s]) => html`<div class="row-1col row">
+        <h3 class="small muted">${t('His oldest #1s still standing')}</h3>
+        <div class="rows">${throne.oldest.map(([cat, runner, ...s]) => html`<div class="row-1col row">
           ${mapLink(s[S.MAP], maps[s[S.MAP]])}
-          <div class="justify-start row-meta">${catChip(cat)} <span class="faint">#1 since ${fmt.date(s[S.TIME])}</span><span class="sep"></span>
-            <span class="faint">next in line:</span> ${playerLink(runner, index, 'avatar-sm')}</div>
+          <div class="justify-start row-meta">${catChip(cat)} <span class="faint">${t('#1 since {date}', { date: fmt.date(s[S.TIME]) })}</span><span class="sep"></span>
+            <span class="faint">${t('next in line:')}</span> ${playerLink(runner, index, 'avatar-sm')}</div>
         </div>`)}</div>
       </div>
       <div class="card">
-        <h3>Closest challengers</h3>
-        <p class="small muted">Who sits at #2, right behind ${boss.name}, on the most maps.</p>
-        <div class="mini-board">${t.challengers.map(([uid, n], i) => html`<a class="line" href="#/compare/${uid}/${t.u}">
+        <h3>${t('Closest challengers')}</h3>
+        <p class="small muted">${t('Who sits at #2, right behind {name}, on the most maps.', { name: boss.name })}</p>
+        <div class="mini-board">${throne.challengers.map(([uid, n], i) => html`<a class="line" href="#/compare/${uid}/${throne.u}">
           <span class="n">${i + 1}<span class="sr-only">.</span></span>
           <span class="player">${avatar(uid, 'avatar-sm')}<span>${index.get(uid)?.name ?? uid}</span></span>
-          <span class="sr-only">, </span><span class="pp">${fmt.num(n)}<small><span class="sr-only"> </span>maps</small></span>
+          <span class="sr-only">, </span><span class="pp">${fmt.num(n)}<small><span class="sr-only"> </span>${t('maps')}</small></span>
         </a>`)}</div>
       </div>
     </div>
@@ -71,68 +72,68 @@ function leaders(title, rows, index, unit, { note, foot } = {}) {
 function hardFirsts(h, maps, index) {
   const [uid, cat, ...s] = h.fc || [];
   const foot = h.fc ? html`<div class="card-foot">
-    <div class="mb-2 muted">Hardest full combo</div>
+    <div class="mb-2 muted">${t('Hardest full combo')}</div>
     ${mapLink(s[S.MAP], maps[s[S.MAP]])}
     <div class="mt-2 score-line">${playerLink(uid, index, 'avatar-sm')} ${catChip(cat)} ${scoreStats(s)}</div>
   </div>` : '';
-  return leaders(`Most #1s on ${h.stars}★+ maps`, h.firsts, index, '', {
-    note: `The same count, but only on maps of ${h.stars}★ and up (nomod stars, no EZ or HT).`, foot,
+  return leaders(t('Most #1s on {stars}★+ maps', { stars: fmt.num(h.stars) }), h.firsts, index, '', {
+    note: t('The same count, but only on maps of {stars}★ and up (nomod stars, no EZ or HT).', { stars: fmt.num(h.stars) }), foot,
   });
 }
 
 export default async function recordsPage(root, { query, isCurrent }) {
   const [r, index] = await Promise.all([records(), playerIndex()]);
   if (!isCurrent()) return;
-  setTitle('Records');
+  setTitle(t('Records'));
   const maps = r.maps;
-  const hours = r.byHour.map((value, hour) => ({ label: `${hour}h`, value, title: `${hour}h–${hour + 1}h: ${fmt.num(value)} plays` }));
+  const hours = r.byHour.map((value, hour) => ({ label: `${hour}h`, value, title: t('{from}h–{to}h: {plays}', { from: hour, to: hour + 1, plays: fmt.plural(value, 'play') }) }));
   const peak = r.byHour.indexOf(Math.max(...r.byHour));
   // Most #1s across all three categories, from the player list (the records file has them per category only).
   const mostFirsts = [...index.values()].map(p => [p.id, p.firsts.c + p.firsts.u + p.firsts.r]).filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 5);
-  const jumps = [['legendary', 'Legendary plays'], r.throne && ['throne', 'Dethrone Tris'], r.oneMiss && ['choke', 'Choke d’Or'],
-    r.wysi?.length && ['wysi', 'WYSI'], ['first10k', 'First 10k'], ['collectors', 'Collectors'], ['when', 'When we play']].filter(Boolean);
+  const jumps = [['legendary', t('Legendary plays')], r.throne && ['throne', t('Dethrone Tris')], r.oneMiss && ['choke', 'Choke d’Or'],
+    r.wysi?.length && ['wysi', 'WYSI'], ['first10k', t('First 10k')], ['collectors', t('Collectors')], ['when', t('When we play')]].filter(Boolean);
 
   root.innerHTML = String(html`
     <header class="page-head">
-      <h1>Records</h1>
-      <p>The biggest marks across every score the bot keeps: each player’s best play on each map.</p>
+      <h1>${t('Records')}</h1>
+      <p>${t('The biggest marks across every score the bot keeps: each player’s best play on each map.')}</p>
     </header>
 
-    <nav class="jump-links" aria-label="On this page">${jumps.map(([id, label]) => html`<a class="chip" href="#/records?at=${id}">${label}</a>`)}</nav>
+    <nav class="jump-links" aria-label="${t('On this page')}">${jumps.map(([id, label]) => html`<a class="chip" href="#/records?at=${id}">${label}</a>`)}</nav>
 
     <div class="stats">
-      ${stat('Scores', fmt.num(r.totals.scores))}
-      ${stat('Different maps', fmt.num(r.totals.maps))}
+      ${stat(t('Scores'), fmt.num(r.totals.scores))}
+      ${stat(t('Different maps'), fmt.num(r.totals.maps))}
       ${stat('SS', fmt.num(r.totals.ss))}
     </div>
 
     <section class="section" id="legendary">
-      <h2>Legendary plays</h2>
+      <h2>${t('Legendary plays')}</h2>
       <div class="grid grid-3">
-        ${['c', 'u', 'r'].map(cat => playRecord(`Most pp in ${CAT_LABEL[cat]}`, r.topPlay[cat], maps, index, s => html`${fmt.pp(s[S.PP])} pp`))}
-        ${playRecord('Highest combo', r.topCombo, maps, index, s => `${fmt.num(s[S.COMBO])}x`)}
-        ${playRecord('Longest map passed', r.longest, maps, index, (s, meta) => (meta ? fmt.duration(meta[M.LENGTH]) : '—'))}
-        ${playRecord('Oldest #1', r.oldestFirst, maps, index, s => `since ${fmt.date(s[S.TIME])}`)}
-        ${['c', 'u', 'r'].map(cat => playRecord(`Hardest map (${CAT_LABEL[cat]})`, r.hardest[cat], maps, index, (s, meta) => (meta ? `★ ${fmt.num(meta[M.STARS], 2)}` : '—')))}
+        ${['c', 'u', 'r'].map(cat => playRecord(t('Most pp in {category}', { category: CAT_LABEL[cat] }), r.topPlay[cat], maps, index, s => html`${fmt.pp(s[S.PP])} pp`))}
+        ${playRecord(t('Highest combo'), r.topCombo, maps, index, s => `${fmt.num(s[S.COMBO])}x`)}
+        ${playRecord(t('Longest map passed'), r.longest, maps, index, (s, meta) => (meta ? fmt.duration(meta[M.LENGTH]) : '—'))}
+        ${playRecord(t('Oldest #1'), r.oldestFirst, maps, index, s => t('since {date}', { date: fmt.date(s[S.TIME]) }))}
+        ${['c', 'u', 'r'].map(cat => playRecord(t('Hardest map ({category})', { category: CAT_LABEL[cat] }), r.hardest[cat], maps, index, (s, meta) => (meta ? `★ ${fmt.num(meta[M.STARS], 2)}` : '—')))}
       </div>
-      <p class="mt-2 small faint">Plays with EZ or HT don’t count for the hardest and longest maps.</p>
+      <p class="mt-2 small faint">${t('Plays with EZ or HT don’t count for the hardest and longest maps.')}</p>
     </section>
 
     ${r.throne ? throneSection(r.throne, maps, index) : ''}
 
     ${r.oneMiss ? html`<section class="section" id="choke">
-      <h2>The Choke d’Or</h2>
-      <p class="muted">Plays with exactly one miss: the community’s favourite subject. The 1-miss gods bless some players more than others.</p>
+      <h2>${t('The Choke d’Or')}</h2>
+      <p class="muted">${t('Plays with exactly one miss: the community’s favourite subject. The 1-miss gods bless some players more than others.')}</p>
       <div class="grid grid-2">
-        ${leaders('Most 1-miss plays', r.oneMiss, index)}
-        ${playRecord('The highest choke', r.highestChoke, maps, index, s => html`${fmt.pp(s[S.PP])} pp, 1 miss`)}
+        ${leaders(t('Most 1-miss plays'), r.oneMiss, index)}
+        ${playRecord(t('The highest choke'), r.highestChoke, maps, index, s => t('{pp} pp, 1 miss', { pp: fmt.pp(s[S.PP]) }))}
       </div>
     </section>` : ''}
 
     ${r.wysi?.length ? html`<section class="section" id="wysi">
-      <h2>WYSI hall</h2>
-      <p class="muted">${fmt.plural(r.wysi.length, 'play')} ended on exactly 727 combo. When you see it…</p>
+      <h2>${t('WYSI hall')}</h2>
+      <p class="muted">${tn(r.wysi.length, '{n} play ended on exactly 727 combo. When you see it…', '{n} plays ended on exactly 727 combo. When you see it…')}</p>
       <div class="rows">${r.wysi.slice(0, 12).map(([uid, cat, ...s]) => html`<div class="row">
         <div class="row-main">${mapLink(s[S.MAP], maps[s[S.MAP]])}<div>${playerLink(uid, index, 'avatar-sm')}</div></div>
         <div class="row-meta">${catChip(cat)} ${scoreStats(s)}</div>
@@ -140,8 +141,8 @@ export default async function recordsPage(root, { query, isCurrent }) {
     </section>` : ''}
 
     <section class="section" id="first10k">
-      <h2>First past 10,000 pp</h2>
-      <p class="muted">The first Portuguese players to break 10k, and the play that took them there.</p>
+      <h2>${t('First past {pp} pp', { pp: fmt.num(10000) })}</h2>
+      <p class="muted">${t('The first Portuguese players to break 10k, and the play that took them there.')}</p>
       <div class="rows">${FIRST_10K.map(([day, name, uid, play], i) => html`<div class="row">
         <div class="score-line">${posBadge(i + 1)} ${uid && index.get(uid) ? playerLink(uid, index, 'avatar-sm') : html`<b>${name}</b>`} <span class="muted">${play}</span></div>
         <div class="row-meta"><span class="faint">${fmt.date(Date.parse(`${day}T12:00:00Z`) / 1000)}</span></div>
@@ -149,21 +150,21 @@ export default async function recordsPage(root, { query, isCurrent }) {
     </section>
 
     <section class="section" id="collectors">
-      <h2>The collectors</h2>
-      <p class="muted">Each category’s own #1 count is on the leaderboards.</p>
+      <h2>${t('The collectors')}</h2>
+      <p class="muted">${t('Each category’s own #1 count is on the leaderboards.')}</p>
       <div class="grid grid-2">
-        ${leaders('Most #1s', mostFirsts, index)}
+        ${leaders(t('Most #1s'), mostFirsts, index)}
         ${r.hard?.firsts.length ? hardFirsts(r.hard, maps, index) : ''}
-        ${r.wall?.length ? leaders('The biggest walls (#1s standing 2+ years)', r.wall, index) : ''}
-        ${leaders('Most SSs', r.mostSS, index)}
-        ${leaders('Most full combos', r.mostFC, index)}
+        ${r.wall?.length ? leaders(t('The biggest walls (#1s standing 2+ years)'), r.wall, index) : ''}
+        ${leaders(t('Most SSs'), r.mostSS, index)}
+        ${leaders(t('Most full combos'), r.mostFC, index)}
       </div>
     </section>
 
     <section class="section card" id="when">
-      <h2 class="card-h">When does Portugal play?</h2>
+      <h2 class="card-h">${t('When does Portugal play?')}</h2>
       ${barChart(hours, { every: 3 })}
-      <p class="m-0 mt-2 small muted">Lisbon time when each score was set. Peak time is between ${peak}h and ${peak + 1}h.</p>
+      <p class="m-0 mt-2 small muted">${t('Lisbon time when each score was set. Peak time is between {from}h and {to}h.', { from: peak, to: peak + 1 })}</p>
     </section>
   `);
   if (query.at) root.querySelector(`#${CSS.escape(query.at)}`)?.scrollIntoView({ block: 'start' });

@@ -5,6 +5,7 @@ import { eventItem, EVENT_KINDS } from '../core/events.js';
 import { weeklyRecap, hasWeekly } from '../core/weekly.js';
 import { setTitle, tabs, scoreRow, empty, chipGroup, setPressed, writeQuery, announce, resultCount } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
+import { t, tn } from '../core/i18n.js';
 
 // The feed shows this many events at first and adds as many again per "Show more": all 400 at once made the page
 // about 6,000 elements, which took phones seconds to lay out.
@@ -16,7 +17,7 @@ function feedItems(events, index, maps, lastDay = null) {
   const yesterday = new Date(Date.now() - 86400000).toDateString();
   return html`${events.map(e => {
     const d = new Date(e.t * 1000).toDateString();
-    const heading = d === lastDay ? '' : html`<div class="feed-day">${d === today ? 'Today' : d === yesterday ? 'Yesterday' : fmt.day(e.t)}</div>`;
+    const heading = d === lastDay ? '' : html`<div class="feed-day">${d === today ? t('Today') : d === yesterday ? t('Yesterday') : fmt.day(e.t)}</div>`;
     lastDay = d;
     return html`${heading}${eventItem(e, index, maps)}`;
   })}`;
@@ -24,7 +25,7 @@ function feedItems(events, index, maps, lastDay = null) {
 
 /** The feed's first events, and a "Show more" button under it that appends the next ones in place. */
 function feed(list, events, index, maps) {
-  if (!events.length) { list.innerHTML = String(empty('Nothing of this kind in recent months.')); return; }
+  if (!events.length) { list.innerHTML = String(empty(t('Nothing of this kind in recent months.'))); return; }
   let shown = Math.min(FEED_STEP, events.length);
   list.innerHTML = String(html`<div class="feed">${feedItems(events.slice(0, shown), index, maps)}</div>
     <div class="feed-more"><button class="btn" type="button"></button></div>`);
@@ -33,7 +34,7 @@ function feed(list, events, index, maps) {
   const button = more.querySelector('button');
   const label = () => {
     more.hidden = shown >= events.length;
-    button.textContent = `Show ${fmt.plural(Math.min(FEED_STEP, events.length - shown), 'more event')}`;
+    button.textContent = tn(Math.min(FEED_STEP, events.length - shown), 'Show {n} more event', 'Show {n} more events');
   };
   button.addEventListener('click', () => {
     const next = events.slice(shown, shown + FEED_STEP);
@@ -50,7 +51,7 @@ function feed(list, events, index, maps) {
 export default async function activityPage(root, { query, isCurrent }) {
   const [data, index, ch] = await Promise.all([activity(), playerIndex(), challenges().catch(() => null)]);
   if (!isCurrent()) return;
-  setTitle('Activity');
+  setTitle(t('Activity'));
   // "This week" (the bot's Monday recap) only appears once the bot has written something for it.
   const weekly = hasWeekly(ch?.weekly) ? ch.weekly : null;
   const view = query.view === 'plays' ? 'plays' : query.view === 'week' && weekly ? 'week' : 'events';
@@ -59,16 +60,16 @@ export default async function activityPage(root, { query, isCurrent }) {
 
   root.innerHTML = String(html`
     <header class="page-head">
-      <h1>Activity</h1>
-      <p>Snipes, new top plays, Dan passes and leaderboard climbs from the last four months.</p>
+      <h1>${t('Activity')}</h1>
+      <p>${t('Snipes, new top plays, Dan passes and leaderboard climbs from the last four months.')}</p>
     </header>
     ${tabs([
-      { href: '#/activity', label: 'Events', active: view === 'events' },
-      { href: '#/activity?view=plays', label: 'Recent plays', active: view === 'plays' },
-      ...(weekly ? [{ href: '#/activity?view=week', label: 'This week', active: view === 'week' }] : []),
-    ], 'Activity views')}
-    ${view === 'events' ? html`<div id="kinds" class="mb-3">${chipGroup('Show', 'kind', [
-      ['', 'All'], ...kinds.map(([k, { label }]) => [k, html`<span class="event-kind ev-${k}">${label}</span>`]),
+      { href: '#/activity', label: t('Events'), active: view === 'events' },
+      { href: '#/activity?view=plays', label: t('Recent plays'), active: view === 'plays' },
+      ...(weekly ? [{ href: '#/activity?view=week', label: t('This week'), active: view === 'week' }] : []),
+    ], t('Activity views'))}
+    ${view === 'events' ? html`<div id="kinds" class="mb-3">${chipGroup(t('Show'), 'kind', [
+      ['', t('All')], ...kinds.map(([k, { label }]) => [k, html`<span class="event-kind ev-${k}">${label}</span>`]),
     ], kind)}</div>
     <p class="result-count" id="count"></p>` : ''}
     <div id="list"></div>

@@ -4,7 +4,8 @@
 built from the data the [PT-CTB Discord bot](https://github.com/123tris/PT-CTB-Discord-Bot) collects.
 
 It is a static site (plain HTML/CSS/ES modules, no bundler) served by Cloudflare Pages at <https://ptcatch.com>, which
-builds it from this repo on every push. The old GitHub Pages address forwards there. All pages are in English.
+builds it from this repo on every push. The old GitHub Pages address forwards there. Pages are in English, or in
+European Portuguese for visitors who pick PT in the header (`assets/js/core/i18n.js`; the strings are in `core/pt.js`).
 
 ## How it works
 
@@ -57,6 +58,7 @@ npm run export            # node --max-old-space-size=4096 tools/export.mjs
 npm run serve             # http://localhost:8080/ (live data; add -- --local-data for data/)
 npm run build             # dist/: what Cloudflare Pages publishes (tools/build-site.mjs)
 npm test                  # all tests
+node tools/i18n-check.mjs   # Portuguese strings that are missing or no longer used
 .\publish.ps1             # on main only: export (with --fetch-titles), upload what changed to R2
 .\install-publish-task.ps1   # run publish.ps1 every 15 minutes
 node tools/r2-sync.mjs status   # R2 usage against the free-tier caps

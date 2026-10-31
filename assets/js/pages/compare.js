@@ -6,22 +6,23 @@ import {
 } from '../core/ui.js';
 import { RIVALRIES } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
+import { t } from '../core/i18n.js';
 
 /** The joke row: full combos on 7★ and up, from the player's own file. Data-backed, but still silly. */
 const aura = file => CATS.reduce((n, cat) => n + file.scores[cat].filter(s => s[S.MISS] === 0 && file.maps[s[S.MAP]]?.[M.STARS] >= 7).length, 0);
 
 /** Stat rows: label, value, how to show it, and whether lower wins (ranks). */
 const ROWS = [
-  ['Converts pp', p => p.cv, v => `${fmt.pp(v)} pp`],
-  ['Loved pp', p => p.ul, v => `${fmt.pp(v)} pp`],
-  ['Official pp', p => p.pp, v => `${fmt.pp(v)} pp`],
-  ['Global rank', p => p.global || null, v => fmt.rank(v), true],
-  ['Accuracy', p => p.acc, v => fmt.acc(v)],
-  ['#1s in Portugal', p => p.firsts.c + p.firsts.u + p.firsts.r, v => fmt.num(v)],
-  ['Scores', p => p.count.c + p.count.u + p.count.r, v => fmt.num(v)],
+  [t('Converts pp'), p => p.cv, v => `${fmt.pp(v)} pp`],
+  [t('Loved pp'), p => p.ul, v => `${fmt.pp(v)} pp`],
+  [t('Official pp'), p => p.pp, v => `${fmt.pp(v)} pp`],
+  [t('Global rank'), p => p.global || null, v => fmt.rank(v), true],
+  [t('Accuracy'), p => p.acc, v => fmt.acc(v)],
+  [t('#1s in Portugal'), p => p.firsts.c + p.firsts.u + p.firsts.r, v => fmt.num(v)],
+  [t('Scores'), p => p.count.c + p.count.u + p.count.r, v => fmt.num(v)],
   ['SS', p => p.grades[0], v => fmt.num(v)],
-  ['Dan points', p => p.danScore, v => fmt.num(v)],
-  ['Play count', p => p.plays, v => fmt.num(v)],
+  [t('Dan points'), p => p.danScore, v => fmt.num(v)],
+  [t('Play count'), p => p.plays, v => fmt.num(v)],
 ];
 
 function statRows(a, b) {
@@ -62,22 +63,22 @@ export default async function compare(root, { params, query, isCurrent }) {
   const byId = new Map(list.map(p => [p.id, p]));
   const a = byId.get(Number(params.a)) ?? byId.get(prefs.get('me', null)) ?? null;
   const b = byId.get(Number(params.b)) ?? null;
-  setTitle(a && b ? `${a.name} vs ${b.name}` : 'Compare');
+  setTitle(a && b ? `${a.name} vs ${b.name}` : t('Compare'));
 
   const pickers = html`<div class="toolbar">
-    ${playerPicker('pick-a', list, a, 'First player…')}
+    ${playerPicker('pick-a', list, a, t('First player…'))}
     <span class="faint">vs</span>
-    ${playerPicker('pick-b', list, b, 'Second player…')}
+    ${playerPicker('pick-b', list, b, t('Second player…'))}
   </div>`;
 
   if (!a || !b) {
     const rivals = a ? list.filter(p => p.id !== a.id && p.cv > 0).sort((x, y) => Math.abs(x.cv - a.cv) - Math.abs(y.cv - a.cv)).slice(0, 6) : [];
     const presets = RIVALRIES.filter(([x, y]) => byId.has(x) && byId.has(y));
     root.innerHTML = String(html`
-      <header class="page-head"><h1>Compare two players</h1>
-        <p>Pick two players to compare their stats and see who wins on the maps they’ve both played.</p></header>
+      <header class="page-head"><h1>${t('Compare two players')}</h1>
+        <p>${t('Pick two players to compare their stats and see who wins on the maps they’ve both played.')}</p></header>
       ${pickers}
-      ${!a && presets.length ? html`<section class="section"><h2>Classic rivalries</h2>
+      ${!a && presets.length ? html`<section class="section"><h2>${t('Classic rivalries')}</h2>
         <div class="grid grid-3">${presets.map(([x, y, label]) => html`<a class="card card-link" href="#/compare/${x}/${y}">
           <span class="eyebrow">${label}</span>
           <div class="mt-1 versus">
@@ -86,8 +87,8 @@ export default async function compare(root, { params, query, isCurrent }) {
             <span class="side right"><b>${byId.get(y).name}</b>${avatar(y, 'avatar-sm')}</span>
           </div>
         </a>`)}</div></section>` : ''}
-      ${rivals.length ? html`<section class="section"><h2>Rivals for ${a.name}</h2>
-        <p class="muted small">The players closest in Converts pp.</p>
+      ${rivals.length ? html`<section class="section"><h2>${t('Rivals for {name}', { name: a.name })}</h2>
+        <p class="muted small">${t('The players closest in Converts pp.')}</p>
         <div class="grid grid-3">${rivals.map(r => html`<a class="card card-link" href="#/compare/${a.id}/${r.id}">
           <span class="player">${avatar(r.id, 'avatar-md')}<span><b>${r.name}</b><br><span class="small muted">${fmt.pp(r.cv)} pp (${r.cv >= a.cv ? '+' : ''}${fmt.num(r.cv - a.cv)})</span></span></span>
         </a>`)}</div></section>` : ''}
@@ -104,7 +105,7 @@ export default async function compare(root, { params, query, isCurrent }) {
   const winsB = both.filter(x => x.winner === 'b').length;
 
   root.innerHTML = String(html`
-    <header class="page-head"><span class="eyebrow">Compare</span><h1>${a.name} vs ${b.name}</h1></header>
+    <header class="page-head"><span class="eyebrow">${t('Compare')}</span><h1>${a.name} vs ${b.name}</h1></header>
     ${pickers}
     <section class="card">
       <div class="mb-3 versus">
@@ -115,23 +116,23 @@ export default async function compare(root, { params, query, isCurrent }) {
       ${statRows(a, b)}
       ${(() => {
         const [xa, xb] = [aura(fa), aura(fb)];
-        return html`<div class="cmp-row cmp-aura" title="Full combos on 7★ and up. Purely scientific.">
+        return html`<div class="cmp-row cmp-aura" title="${t('Full combos on 7★ and up. Purely scientific.')}">
           <span class="a ${xa > xb ? 'win' : ''}">${fmt.num(xa)}</span><span class="label">Aura</span><span class="${xb > xa ? 'win' : ''}">${fmt.num(xb)}</span>
         </div>`;
       })()}
     </section>
 
     <section class="section">
-      <h2>Maps in common</h2>
+      <h2>${t('Maps in common')}</h2>
       ${tabs(CATS.map(c => ({ href: `#/compare/${a.id}/${b.id}?cat=${c}`, label: CAT_LABEL[c], count: shared(fa, fb, c).length, active: c === cat })))}
       ${both.length ? html`
         <div class="mb-2 versus">
           <b class="side">${a.name}: ${fmt.num(winsA)}</b>
-          <span class="faint small">${cat === CAT.LOVED ? 'by pp' : 'by score'}</span>
+          <span class="faint small">${cat === CAT.LOVED ? t('by pp') : t('by score')}</span>
           <b class="side right">${fmt.num(winsB)}: ${b.name}</b>
         </div>
         <div class="mb-4 split"><div class="a" style="flex:${winsA || 0.0001}"></div><div class="b" style="flex:${winsB || 0.0001}"></div></div>
-        <div id="shared"></div>` : empty(`There are no ${CAT_LABEL[cat]} maps they’ve both played.`)}
+        <div id="shared"></div>` : empty(t('There are no {category} maps they’ve both played.', { category: CAT_LABEL[cat] }))}
     </section>
   `);
   wirePickers(root, list, a, b);

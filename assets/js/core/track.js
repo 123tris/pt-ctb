@@ -15,6 +15,7 @@
 // (easter eggs, sign-in, game results, header search picks).
 
 import { CONFIG } from '../config.js';
+import { english } from './i18n.js';
 
 const ENDPOINT = '/api/hit';
 const FLUSH_MS = 15000;
@@ -244,15 +245,18 @@ function watchSections(key) {
       if (!entry.isIntersecting || seen.has(entry.target)) continue;
       seen.add(entry.target);
       sectionWatcher.unobserve(entry.target);
-      track('seen', key, entry.target.textContent.replace(/\d+/g, '#'));
+      track('seen', key, english(entry.target.textContent).replace(/\d+/g, '#'));
     }
   });
   document.querySelectorAll('#content h2').forEach(h => sectionWatcher.observe(h));
 }
 
-/** Labels a pressed button by its visible text (digits become #, so pages and counts group together). */
+/**
+ * Labels a pressed button by its visible text, in English whichever language the page is in (digits become #, so pages
+ * and counts group together).
+ */
 function buttonLabel(el) {
-  return String(el.getAttribute('data-track') || el.getAttribute('aria-label') || el.textContent || '').replace(/\d+/g, '#');
+  return english(String(el.getAttribute('data-track') || el.getAttribute('aria-label') || el.textContent || '')).replace(/\d+/g, '#');
 }
 
 // Errors: the message without addresses or numbers (so the same bug groups together), and the file and line.

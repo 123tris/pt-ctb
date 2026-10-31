@@ -11,16 +11,20 @@ import {
   playerLink, mapLabel,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
+import { t, th } from '../core/i18n.js';
 import { CONFIG } from '../config.js';
 
 /** Under the ladder: how far up Portugal has got, and what's left. */
 function ladderCaption(counts) {
   const top = topStage(counts);
-  if (top < 0) return html`Nobody has passed a stage yet. Zeroth Dan is right there.`;
+  if (top < 0) return t('Nobody has passed a stage yet. Zeroth Dan is right there.');
   const next = DAN_STAGES[top + 1]?.key;
-  const left = !next ? '' : next === 'Shin' ? '; Shin is still waiting' : `; ${next} to Shin are still waiting`;
-  return html`<b>The Dan course, since 2018.</b> Portugal has climbed to the ${danName(top)}${left}.
-    <span lang="pt-PT" title="Still plenty of soup to eat: lots of growing to do">Ainda há muita sopa para comer.</span>`;
+  const stage = danName(top);
+  const climbed = !next ? t('Portugal has climbed to the {stage}.', { stage })
+    : next === 'Shin' ? t('Portugal has climbed to the {stage}; Shin is still waiting.', { stage })
+    : t('Portugal has climbed to the {stage}; {next} to Shin are still waiting.', { stage, next });
+  return html`<b>${t('The Dan course, since 2018.')}</b> ${climbed}
+    <span lang="pt-PT" title="${t('Still plenty of soup to eat: lots of growing to do')}">Ainda há muita sopa para comer.</span>`;
 }
 
 // ---- The completion goal ---------------------------------------------------------------------------------------------
@@ -36,15 +40,17 @@ function goalBand(goal) {
   if (!goal?.total) return '';
   const pct = (goal.cleared / goal.total) * 100;
   const left = goal.total - goal.cleared;
-  const label = `${fmt.num(pct, 1)}% of ranked osu!catch maps cleared in Portugal: ${fmt.num(goal.cleared)} of ${fmt.num(goal.total)}`;
+  const counts = { cleared: fmt.num(goal.cleared), total: fmt.num(goal.total) };
+  const label = t('{pct}% of ranked osu!catch maps cleared in Portugal: {cleared} of {total}', { pct: fmt.num(pct, 1), ...counts });
   return html`<div class="hero-goal">
     <a class="goal-line" href="#/challenges/completion" aria-label="${label}">
       <span class="goal-pct">${fmt.num(pct, 1)}%</span>
       <span class="goal-bar" aria-hidden="true" style="--done:${pct.toFixed(2)}%"><span></span></span>
     </a>
-    <p class="hero-caption"><b>Every ranked map, together.</b> ${fmt.num(goal.cleared)} of ${fmt.num(goal.total)} ranked osu!catch maps
-      cleared${goal.players ? ` by ${fmt.plural(goal.players, 'player')}` : ''}; ${left ? `${fmt.num(left)} to go.` : 'nothing left.'}
-      <a href="#/challenges/completion">See what’s left</a></p>
+    <p class="hero-caption"><b>${t('Every ranked map, together.')}</b> ${goal.players
+      ? t('{cleared} of {total} ranked osu!catch maps cleared by {players};', { ...counts, players: fmt.plural(goal.players, 'player') })
+      : t('{cleared} of {total} ranked osu!catch maps cleared;', counts)} ${left ? t('{n} to go.', { n: fmt.num(left) }) : t('nothing left.')}
+      <a href="#/challenges/completion">${t('See what’s left')}</a></p>
   </div>`;
 }
 
@@ -57,11 +63,11 @@ function goalNext(goal, index) {
   const left = goal.total - goal.cleared;
   const latest = goal.latest;
   return html`<section class="goal-next">
-    <div class="section-head"><h2>Still to clear</h2><a href="#/challenges/completion?sort=easy">See all ${fmt.num(left)}</a></div>
-    <p class="muted small">The easiest ranked maps nobody in Portugal has passed yet.</p>
+    <div class="section-head"><h2>${t('Still to clear')}</h2><a href="#/challenges/completion?sort=easy">${t('See all {n}', { n: fmt.num(left) })}</a></div>
+    <p class="muted small">${t('The easiest ranked maps nobody in Portugal has passed yet.')}</p>
     ${goal.next.map(([id, set, version, stars]) => {
       const named = goal.sets?.[set];
-      const title = named ? `${named[0]} - ${named[1]}` : `Map #${id}`;
+      const title = named ? `${named[0]} - ${named[1]}` : t('Map #{id}', { id });
       return html`<a class="map goal-map" href="#/map/${id}">
         ${setCover(set)}
         <span class="map-text">
@@ -70,7 +76,7 @@ function goalNext(goal, index) {
         </span>
       </a>`;
     })}
-    ${latest ? html`<div class="week-top"><span class="faint small">Latest clear</span> ${playerLink(latest[1], index, 'avatar-sm')}
+    ${latest ? html`<div class="week-top"><span class="faint small">${t('Latest clear')}</span> ${playerLink(latest[1], index, 'avatar-sm')}
       ${latest[2] ? html`<span class="muted small" title="${fmt.date(latest[2])}">${fmt.ago(latest[2])}</span>` : ''}
       <a class="dim-link" href="#/map/${latest[0]}">${mapLabel(latest[0], goal.maps?.[latest[0]])}</a></div>` : ''}
   </section>`;
@@ -93,7 +99,7 @@ function miniBoard(list, key, cat) {
         </a>`;
       })}
     </div>
-    <p class="card-foot"><a href="#/rankings/${{ c: 'converts', u: 'loved', r: 'ranked' }[cat]}">Full leaderboard</a></p>
+    <p class="card-foot"><a href="#/rankings/${{ c: 'converts', u: 'loved', r: 'ranked' }[cat]}">${t('Full leaderboard')}</a></p>
   </div>`;
 }
 
@@ -113,37 +119,37 @@ export default async function home(root, { isCurrent }) {
   root.innerHTML = String(html`
     <section class="hero">
       <div>
-        <h1>Portugal’s <em>osu!catch</em> community</h1>
-        <p>Leaderboards, the Dan course and weekly challenges, from everything the PT-CTB Discord’s bot tracks.</p>
+        <h1>${th('Portugal’s {catch} community', { catch: html`<em>osu!catch</em>` })}</h1>
+        <p>${t('Leaderboards, the Dan course and weekly challenges, from everything the PT-CTB Discord’s bot tracks.')}</p>
         <div class="hero-actions">
-          ${CONFIG.discordInvite ? html`<a class="btn btn-primary" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>` : ''}
-          <a href="#/rankings">See the leaderboards</a>
-          ${mine ? html`<a href="#/player/${mine.id}">Your profile</a>` : html`<button type="button" class="link-button" data-find>Find yourself</button>`}
+          ${CONFIG.discordInvite ? html`<a class="btn btn-primary" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">${t('Join the Discord')}</a>` : ''}
+          <a href="#/rankings">${t('See the leaderboards')}</a>
+          ${mine ? html`<a href="#/player/${mine.id}">${t('Your profile')}</a>` : html`<button type="button" class="link-button" data-find>${t('Find yourself')}</button>`}
         </div>
       </div>
       <dl class="hero-stats">
-        <div><dt>Players tracked</dt><dd>${fmt.num(m.totals.players)}</dd></div>
-        <div><dt>Scores</dt><dd>${fmt.num(m.totals.scores)}</dd></div>
-        <div><dt>Maps played</dt><dd>${fmt.num(m.totals.maps)}</dd></div>
-        <div><dt>Fruits caught</dt><dd>${fmt.num(m.totals.fruits)}</dd></div>
+        <div><dt>${t('Players tracked')}</dt><dd>${fmt.num(m.totals.players)}</dd></div>
+        <div><dt>${t('Scores')}</dt><dd>${fmt.num(m.totals.scores)}</dd></div>
+        <div><dt>${t('Maps played')}</dt><dd>${fmt.num(m.totals.maps)}</dd></div>
+        <div><dt>${t('Fruits caught')}</dt><dd>${fmt.num(m.totals.fruits)}</dd></div>
       </dl>
       <div class="hero-ladder">
         ${ladderBand(counts, { mine: highestDan(mine) })}
-        <p class="hero-caption">${ladderCaption(counts)} <a href="#/challenges/dan">Open the Dan course</a></p>
+        <p class="hero-caption">${ladderCaption(counts)} <a href="#/challenges/dan">${t('Open the Dan course')}</a></p>
         ${goalBand(m.completion)}
       </div>
     </section>
 
-    ${season() === 'xmas' ? html`<p class="mt-4 notice">Feliz Natal, you lot. Play less, eat more. 🎅</p>` : ''}
+    ${season() === 'xmas' ? html`<p class="mt-4 notice">${th('{greeting}, you lot. Play less, eat more. 🎅', { greeting: html`<span lang="pt-PT">Feliz Natal</span>` })}</p>` : ''}
 
     ${boss && bossHeld ? html`<a class="throne-strip card-link" href="#/records?at=throne">
       ${avatar(boss.id, 'avatar-md')}
-      <span><b>${boss.name} still holds ${fmt.num(bossHeld)} #1s.</b> <span class="muted">Snipe him. He keeps asking.</span></span>
-      <span class="throne-go">Dethrone Tris</span>
+      <span><b>${t('{name} still holds {n} #1s.', { name: boss.name, n: fmt.num(bossHeld) })}</b> <span class="muted">${t('Snipe him. He keeps asking.')}</span></span>
+      <span class="throne-go">${t('Dethrone Tris')}</span>
     </a>` : ''}
 
     <section class="section">
-      <div class="section-head"><h2>Portugal’s best</h2><a href="#/rankings">All leaderboards</a></div>
+      <div class="section-head"><h2>${t('Portugal’s best')}</h2><a href="#/rankings">${t('All leaderboards')}</a></div>
       <div class="grid grid-3">
         ${miniBoard(list, 'cv', 'c')}
         ${miniBoard(list, 'ul', 'u')}
@@ -153,35 +159,35 @@ export default async function home(root, { isCurrent }) {
 
     <section class="section grid grid-2">
       <div>
-        <div class="section-head"><h2>Map of the week</h2><a href="#/challenges/week">Challenges</a></div>
+        <div class="section-head"><h2>${t('Map of the week')}</h2><a href="#/challenges/week">${t('Challenges')}</a></div>
         ${week ? html`<a class="card-flush card card-link" href="#/map/${week.map}">
           ${cover(weekMeta, 'cover', 'week-cover')}
           <div class="card-body">
             <div class="text-lg map-title">${weekText.title}</div>
             <div class="map-sub">${starsBadge(weekMeta?.[M.STARS])} ${weekText.sub}</div>
-            <p class="m-0 mt-2 small muted">${fmt.plural(week.weekly.length, 'play')} this week · ${fmt.plural(week.board.length, 'player')} in total. Ends ${fmt.ago(week.end)}.</p>
+            <p class="m-0 mt-2 small muted">${t('{plays} this week · {players} in total. Ends {when}.', { plays: fmt.plural(week.weekly.length, 'play'), players: fmt.plural(week.board.length, 'player'), when: fmt.ago(week.end) })}</p>
           </div>
-        </a>` : html`<div class="empty">No map of the week yet.</div>`}
+        </a>` : html`<div class="empty">${t('No map of the week yet.')}</div>`}
         ${weeklySummary(ch.weekly, ch.maps, index)}
         ${goalNext(m.completion, index)}
       </div>
       <div>
-        <div class="section-head"><h2>Recent activity</h2><a href="#/activity">See all</a></div>
+        <div class="section-head"><h2>${t('Recent activity')}</h2><a href="#/activity">${t('See all')}</a></div>
         <div class="feed">${act.events.slice(0, 5).map(e => eventItem(e, index, act.maps))}</div>
       </div>
     </section>
 
     <section class="section">
-      <div class="section-head"><h2>Since 2018</h2><a href="#/team">Team Portugal</a></div>
+      <div class="section-head"><h2>${t('Since 2018')}</h2><a href="#/team">${t('Team Portugal')}</a></div>
       <ol class="since">${HISTORY.map(([year, text]) => html`<li><span class="since-year">${year}</span><p>${text}</p></li>`)}</ol>
     </section>
 
     <section class="section">
-      <div class="section-head"><h2>How to join</h2><a href="#/join">The full guide</a></div>
+      <div class="section-head"><h2>${t('How to join')}</h2><a href="#/join">${t('The full guide')}</a></div>
       <div class="steps steps-row">
-          <div class="step"><div><b>Join the Discord server</b><p>That’s where the bot lives and where the community chats, shares plays and sets up matches.</p></div></div>
-          <div class="step"><div><b>Verify your account with <span class="kbd">/verify</span></b><p>You sign in to osu! and, if your account is Portuguese, you get the verified role straight away. </p></div></div>
-          <div class="step"><div><b>Play!</b><p>The bot fetches recent plays for everyone it tracks every 15 minutes, and new plays show up here within a few minutes after that. You can also use <span class="kbd">/rs</span> to show your latest one.</p></div></div>
+          <div class="step"><div><b>${t('Join the Discord server')}</b><p>${t('That’s where the bot lives and where the community chats, shares plays and sets up matches.')}</p></div></div>
+          <div class="step"><div><b>${th('Verify your account with {command}', { command: html`<span class="kbd">/verify</span>` })}</b><p>${t('You sign in to osu! and, if your account is Portuguese, you get the verified role straight away.')}</p></div></div>
+          <div class="step"><div><b>${t('Play!')}</b><p>${th('The bot fetches recent plays for everyone it tracks every 15 minutes, and new plays show up here within a few minutes after that. You can also use {command} to show your latest one.', { command: html`<span class="kbd">/rs</span>` })}</p></div></div>
         </div>
     </section>
   `);

@@ -7,15 +7,16 @@ import {
 import { ANY_STARS, parseStars, formatStars, starsLabel, inStars, isAnyStars } from '../core/star-range.js';
 import { starSlider, bindStarSlider } from '../core/star-slider.js';
 import * as fmt from '../core/fmt.js';
+import { t } from '../core/i18n.js';
 
 // Map rows (core/data.js mapsIndex/mapsTop): [id, setId, artist, title, version, stars, category, players, topPlayerId]
 const SORTS = {
-  players: ['Most players', (a, b) => b[7] - a[7] || a[0] - b[0]],
-  stars: ['Most stars', (a, b) => b[5] - a[5]],
-  easy: ['Fewest stars', (a, b) => (a[5] || 99) - (b[5] || 99)],
-  new: ['Newest (by id)', (a, b) => b[0] - a[0]],
+  players: [t('Most players'), (a, b) => b[7] - a[7] || a[0] - b[0]],
+  stars: [t('Most stars'), (a, b) => b[5] - a[5]],
+  easy: [t('Fewest stars'), (a, b) => (a[5] || 99) - (b[5] || 99)],
+  new: [t('Newest (by id)'), (a, b) => b[0] - a[0]],
 };
-const CATS = [['', 'All'], ['c', 'Converts'], ['u', 'Loved & Unranked'], ['r', 'Ranked']];
+const CATS = [['', t('All|categories')], ['c', t('Converts')], ['u', t('Loved & Unranked')], ['r', t('Ranked')]];
 const PAGE = 50;
 
 const row = (r, index) => {
@@ -24,8 +25,8 @@ const row = (r, index) => {
     <span class="map">
       ${setCover(r[1])}
       <span class="map-text">
-        <span class="map-title">${titled ? `${r[2]} - ${r[3]}` : `Map #${r[0]}`}</span>
-        <span class="map-sub">${starsBadge(r[5])} ${titled ? `[${r[4]}]` : 'No map details'}</span>
+        <span class="map-title">${titled ? `${r[2]} - ${r[3]}` : t('Map #{id}', { id: r[0] })}</span>
+        <span class="map-sub">${starsBadge(r[5])} ${titled ? `[${r[4]}]` : t('No map details')}</span>
       </span>
     </span>
     <span class="row-meta">
@@ -52,15 +53,15 @@ export default async function maps(root, { query, isCurrent }) {
   let list = needsAll ? await mapsIndex() : top.rows;
   let full = needsAll || list.length >= top.total;
   if (!isCurrent()) return;
-  setTitle('Maps');
+  setTitle(t('Maps'));
 
   root.innerHTML = String(html`
-    ${pageHead({ title: 'Maps', intro: `${fmt.num(top.total)} maps with Portuguese plays. Search by artist, title, difficulty or map id; every map has its own Portuguese leaderboard.` })}
+    ${pageHead({ title: t('Maps'), intro: t('{n} maps with Portuguese plays. Search by artist, title, difficulty or map id; every map has its own Portuguese leaderboard.', { n: fmt.num(top.total) }) })}
     <div class="toolbar">
-      <input class="input" type="search" id="q" placeholder="Artist, title, difficulty or id…" value="${query.q || ''}" aria-label="Search maps">
-      <select class="select" id="sort" aria-label="Sort">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>
+      <input class="input" type="search" id="q" placeholder="${t('Artist, title, difficulty or id…')}" value="${query.q || ''}" aria-label="${t('Search maps')}">
+      <select class="select" id="sort" aria-label="${t('Sort')}">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>
     </div>
-    <div id="cats" class="mb-2">${chipGroup('Category', 'cat', CATS, cat)}</div>
+    <div id="cats" class="mb-2">${chipGroup(t('Category'), 'cat', CATS, cat)}</div>
     ${starSlider(stars)}
     <p class="result-count" id="count"></p>
     <div id="list"></div>
@@ -94,7 +95,7 @@ export default async function maps(root, { query, isCurrent }) {
   const redraw = paginate(root.querySelector('#list'), items, slice => html`<div class="rows">${slice.map(r => row(r, index))}</div>`, PAGE, {
     page,
     onPage: p => { page = p; save(); },
-    empty: () => emptyFiltered(`No maps match ${describe() || 'these filters'}.`),
+    empty: () => emptyFiltered(describe() ? t('No maps match {filters}.', { filters: describe() }) : t('No maps match these filters.')),
   });
   showCount(false);
 

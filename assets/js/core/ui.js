@@ -5,9 +5,10 @@ import { S, M, modString, DAN_STAGES } from './model.js';
 import { LEGENDS } from './lore.js';
 import * as fmt from './fmt.js';
 import { avatarThumbs } from './data.js';
+import { t } from './i18n.js';
 
-export const CAT_LABEL = { c: 'Converts', u: 'Loved & Unranked', r: 'Ranked' };
-export const CAT_SHORT = { c: 'Converts', u: 'Loved', r: 'Ranked' };
+export const CAT_LABEL = { c: t('Converts'), u: t('Loved & Unranked'), r: t('Ranked') };
+export const CAT_SHORT = { c: t('Converts'), u: t('Loved'), r: t('Ranked') };
 export const CAT_SLUG = { c: 'converts', u: 'loved', r: 'ranked' };
 export const SLUG_CAT = { converts: 'c', loved: 'u', ranked: 'r' };
 
@@ -21,13 +22,13 @@ export const scoreUrl = s => (s[S.ID] > 0 ? `https://osu.ppy.sh/scores/${s[S.ID]
 /** When a play was set (`text`), linked to its page on osu! when that's known. */
 export const scoreWhen = (s, text) => {
   const url = scoreUrl(s);
-  return url ? html`<a class="dim-link" href="${url}" target="_blank" rel="noopener" title="${fmt.dateTime(s[S.TIME])}: this play on osu!">${text}</a>` : text;
+  return url ? html`<a class="dim-link" href="${url}" target="_blank" rel="noopener" title="${t('{date}: this play on osu!', { date: fmt.dateTime(s[S.TIME]) })}">${text}</a>` : text;
 };
 export const avatarUrl = id => `https://a.ppy.sh/${id}`;
 export const coverUrl = (set, kind = 'list') => (set ? `https://assets.ppy.sh/beatmaps/${set}/covers/${kind}.jpg` : '');
 
 export function setTitle(title) {
-  document.title = title ? `${title} · PT Catch` : 'PT Catch · osu!catch in Portugal';
+  document.title = title ? `${title} · PT Catch` : `PT Catch · ${t('osu!catch in Portugal')}`;
 }
 
 // ---- Players ------------------------------------------------------------------------------------------
@@ -66,7 +67,7 @@ export const playerName = (index, id) => index.get(id)?.name ?? `#${id}`;
 
 /** { title, sub } for a map; maps the bot only knows by id get a placeholder title. */
 export function mapText(id, meta) {
-  if (!meta || !meta[M.TITLE] || meta[M.TITLE] === 'Unknown') return { title: `Map #${id}`, sub: 'No map details' };
+  if (!meta || !meta[M.TITLE] || meta[M.TITLE] === 'Unknown') return { title: t('Map #{id}', { id }), sub: t('No map details') };
   return { title: `${meta[M.ARTIST]} - ${meta[M.TITLE]}`, sub: `[${meta[M.VERSION]}] · ${meta[M.CREATOR]}` };
 }
 
@@ -161,7 +162,7 @@ export function modsBadges(mask) {
 const GRADE_TEXT = { X: 'SS', XH: 'SS', S: 'S', SH: 'S' };
 export const gradeBadge = g => html`<span class="grade grade-${g}">${GRADE_TEXT[g] ?? g}</span>`;
 export const catChip = cat => html`<span class="cat cat-${cat}">${CAT_SHORT[cat]}</span>`;
-export const posBadge = (n, label = 'Position in Portugal') => (n ? html`<span class="pos pos-${n <= 3 ? n : 'n'}" title="${label}"><span class="sr-only">${label}: </span>#${n}</span>` : '');
+export const posBadge = (n, label = t('Position in Portugal')) => (n ? html`<span class="pos pos-${n <= 3 ? n : 'n'}" title="${label}"><span class="sr-only">${label}: </span>#${n}</span>` : '');
 export const ppText = n => html`<span class="pp">${fmt.pp(n)}<small>pp</small></span>`;
 
 // Players inactive on osu! (players.json `inactive`, only on them): osu! shows them at 0 pp, the site keeps their
@@ -170,7 +171,7 @@ export const ppText = n => html`<span class="pp">${fmt.pp(n)}<small>pp</small></
 // means 0 pp and no place on the board. Older data has none of these fields.
 export const isInactiveOnOsu = p => Boolean(p?.inactive);
 const isEstimated = p => isInactiveOnOsu(p) && p.ppSource === 'estimated';
-const ESTIMATE_TIP = 'Estimated from their stored plays, so probably a little low.';
+const ESTIMATE_TIP = t('Estimated from their stored plays, so probably a little low.');
 
 /**
  * A tag that explains itself (a toggletip, DESIGN.md §9): tapping it shows `tip` in a small bubble beside it, read out
@@ -182,7 +183,7 @@ export const tipTag = (text, tip, { cls = 'legend-tag', plain = false } = {}) =>
   : html`<button type="button" class="${cls}" data-tip="${tip}" aria-expanded="false" aria-controls="tip-pop">${text}</button>`);
 
 /** The "inactive" tag for players inactive on osu!, with when osu! last showed their pp if we know it. */
-export const inactiveTag = (p, opts) => tipTag('inactive', `Inactive on osu!, which shows them at 0 pp.${p?.ppSeen ? ` Last seen there ${fmt.date(p.ppSeen)}.` : ''}`, opts);
+export const inactiveTag = (p, opts) => tipTag(t('inactive'), `${t('Inactive on osu!, which shows them at 0 pp.')}${p?.ppSeen ? ` ${t('Last seen there {date}.', { date: fmt.date(p.ppSeen) })}` : ''}`, opts);
 
 /** Inactive: inactive on osu!, or no play stored in over a year. They stay on the leaderboards, greyed out. */
 const INACTIVE_AFTER = 365 * 86400;
@@ -190,13 +191,13 @@ export const isInactive = p => isInactiveOnOsu(p) || !p.last || p.last < Date.no
 
 /** A legend is a former Portuguese top-5 player (lore.js LEGENDS) who is now inactive. */
 export const isLegend = p => LEGENDS.has(p?.id) && isInactive(p);
-export const legendTag = opts => tipTag('legend', 'A former Portuguese top 5 player, now inactive.', opts);
+export const legendTag = opts => tipTag(t('legend'), t('A former Portuguese top 5 player, now inactive.'), opts);
 
 /** The tag after an inactive player's name: "legend" for legends, otherwise "inactive" saying why. */
 export function statusTag(p) {
   if (isLegend(p)) return legendTag();
   if (isInactiveOnOsu(p)) return inactiveTag(p);
-  if (isInactive(p)) return tipTag('inactive', 'No new plays stored in over a year.');
+  if (isInactive(p)) return tipTag(t('inactive'), t('No new plays stored in over a year.'));
   return '';
 }
 
@@ -208,16 +209,16 @@ export function statusTag(p) {
 export function officialPp(p, { compact = false } = {}) {
   if (isEstimated(p)) {
     return html`<span class="pp"><span aria-hidden="true">≈ </span>${fmt.pp(p.pp)}<small>pp</small></span>${compact
-      ? html`<span class="sr-only"> (estimated)</span>`
-      : html`<span class="est">${tipTag('estimated', ESTIMATE_TIP, { cls: 'est-tip' })}</span>`}`;
+      ? html`<span class="sr-only"> (${t('estimated')})</span>`
+      : html`<span class="est">${tipTag(t('estimated'), ESTIMATE_TIP, { cls: 'est-tip' })}</span>`}`;
   }
   return ppText(p.pp);
 }
 
 /** Where an inactive player's official pp comes from: "estimated from their plays", "last seen 3 Mar 2026", "last known". */
 export function officialPpNote(p) {
-  if (isEstimated(p)) return 'estimated from their plays';
-  return p.ppSeen ? `last seen on osu! ${fmt.date(p.ppSeen)}` : 'last known';
+  if (isEstimated(p)) return t('estimated from their plays');
+  return p.ppSeen ? t('last seen on osu! {date}', { date: fmt.date(p.ppSeen) }) : t('last known');
 }
 
 /** The stats of a play: mods (none shown for nomod), grade, accuracy, combo, misses. */
@@ -226,7 +227,7 @@ export function scoreStats(s, { combo = true } = {}) {
     ${gradeBadge(s[S.GRADE])}
     <span class="acc">${fmt.acc(s[S.ACC])}</span>
     ${combo ? html`<span class="combo">${fmt.num(s[S.COMBO])}x</span>` : ''}
-    <span class="miss ${s[S.MISS] ? 'miss-n' : 'miss-fc'}" title="${s[S.MISS] ? 'Misses' : 'Full combo'}">${s[S.MISS] ? html`${fmt.num(s[S.MISS])} ✕<span class="sr-only"> misses</span>` : 'FC'}</span>`;
+    <span class="miss ${s[S.MISS] ? 'miss-n' : 'miss-fc'}" title="${s[S.MISS] ? t('Misses') : t('Full combo')}">${s[S.MISS] ? html`${fmt.num(s[S.MISS])} ✕<span class="sr-only"> ${t('misses')}</span>` : 'FC'}</span>`;
 }
 
 /**
@@ -267,7 +268,7 @@ export const stat = (label, value, sub = '', cls = '') =>
  * `count` is a number, or a short text figure ("2d left", "79.3%"); a hidden comma keeps it apart from the name when
  * read out ("Snipe targets, 30", not "Snipe targets30").
  */
-export const tabs = (items, label = 'Sections') => html`<nav class="tabs" aria-label="${label}">${items.map(t =>
+export const tabs = (items, label = t('Sections')) => html`<nav class="tabs" aria-label="${label}">${items.map(t =>
   html`<a href="${t.href}" class="${t.active ? 'active' : ''}" ${t.active ? raw('aria-current="page"') : ''}>${t.label}${t.count !== undefined ? html`<span class="count"><span class="sr-only">, </span>${typeof t.count === 'number' ? fmt.num(t.count) : t.count}</span>` : ''}</a>`)}</nav>`;
 
 /**
@@ -291,11 +292,11 @@ export function setPressed(scope, attr, value) {
 export const empty = text => html`<div class="empty">${text}</div>`;
 
 /** An empty result after filtering, with a way back. Pages handle clicks on [data-clear]. */
-export const emptyFiltered = text => html`<div class="empty"><p>${text}</p><button class="btn btn-small" type="button" data-clear>Clear filters</button></div>`;
+export const emptyFiltered = text => html`<div class="empty"><p>${text}</p><button class="btn btn-small" type="button" data-clear>${t('Clear filters')}</button></div>`;
 
 /** "12 of 53,734 maps", or "53,734 maps" when nothing is filtered out. */
 export const resultCount = (shown, total, one, many = `${one}s`) =>
-  (shown === total ? fmt.plural(total, one, many) : `${fmt.num(shown)} of ${fmt.plural(total, one, many)}`);
+  (shown === total ? fmt.plural(total, one, many) : t('{shown} of {total}', { shown: fmt.num(shown), total: fmt.plural(total, one, many) }));
 
 /** Says `text` through the page's polite live region (#status in index.html), e.g. a new result count. */
 export function announce(text) {
@@ -334,7 +335,7 @@ export const placeholderRows = (n = 6) => html`<div class="rows rows-placeholder
 export const climber = () => html`<span class="climb" aria-hidden="true"><span class="climb-strip">${DAN_STAGES.map(s => html`<span>${s.glyph}</span>`)}</span></span>`;
 
 /** The loading state: the Dan climber and a plain "Loading…" (no joke: DESIGN.md §12), over rows the height of real ones. */
-export const loading = () => html`<div class="loading"><div class="center">${climber()}<div>Loading…</div></div>${placeholderRows()}</div>`;
+export const loading = () => html`<div class="loading"><div class="center">${climber()}<div>${t('Loading…')}</div></div>${placeholderRows()}</div>`;
 
 /**
  * In-joke badges or map tags ({ name, tip }). Each is a toggle button: tapping it shows its explanation in the line
@@ -344,7 +345,7 @@ export const loading = () => html`<div class="loading"><div class="center">${cli
 export const funChips = (list, cls = '', { show = Infinity } = {}) => (list.length
   ? html`<div class="fun-chips-wrap ${cls}">
       <div class="fun-chips">${list.map((b, i) => html`<button class="fun-chip" type="button" aria-pressed="false" data-tip="${b.tip}" ${i >= show ? 'hidden' : ''}>${b.name}</button>`)}${list.length > show
-        ? html`<button class="fun-chip fun-more" type="button" data-track="more badges">+${list.length - show} more</button>` : ''}</div>
+        ? html`<button class="fun-chip fun-more" type="button" data-track="more badges">${t('+{n} more', { n: list.length - show })}</button>` : ''}</div>
       <p class="fun-tip" role="status" hidden></p>
     </div>`
   : '');
@@ -428,14 +429,15 @@ addEventListener('hashchange', () => closeTip());
 export function paginate(container, items, render, size = 50, { page: start = 0, onPage, empty: emptyView } = {}) {
   let page = Math.max(0, start);
   const pages = () => Math.max(1, Math.ceil(items.length / size));
+  const pageOf = () => t('Page {page} of {pages}', { page: fmt.num(page + 1), pages: fmt.num(pages()) });
   const draw = () => {
     page = Math.min(page, pages() - 1);
     const slice = items.slice(page * size, page * size + size);
-    container.innerHTML = String(html`${slice.length ? render(slice, page * size) : emptyView?.() ?? empty('Nothing to show.')}
-      ${pages() > 1 ? html`<nav class="pager" aria-label="Pages">
-        <button class="btn btn-small" type="button" data-page="prev" ${page === 0 ? raw('disabled') : ''}>← Previous</button>
-        <span>Page ${page + 1} of ${pages()}</span>
-        <button class="btn btn-small" type="button" data-page="next" ${page >= pages() - 1 ? raw('disabled') : ''}>Next</button>
+    container.innerHTML = String(html`${slice.length ? render(slice, page * size) : emptyView?.() ?? empty(t('Nothing to show.'))}
+      ${pages() > 1 ? html`<nav class="pager" aria-label="${t('Pages')}">
+        <button class="btn btn-small" type="button" data-page="prev" ${page === 0 ? raw('disabled') : ''}>← ${t('Previous')}</button>
+        <span>${pageOf()}</span>
+        <button class="btn btn-small" type="button" data-page="next" ${page >= pages() - 1 ? raw('disabled') : ''}>${t('Next')}</button>
       </nav>` : ''}`);
   };
   container.addEventListener('click', e => {
@@ -448,7 +450,7 @@ export function paginate(container, items, render, size = 50, { page: start = 0,
     container.tabIndex = -1;
     container.focus({ preventScroll: true });
     container.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
-    announce(`Page ${page + 1} of ${pages()}`);
+    announce(pageOf());
   });
   draw();
   // keepPage: the same list in the same order, only longer (e.g. the full set arriving after a first slice).
@@ -468,7 +470,7 @@ export function enhanceTables(scope) {
   scope.querySelectorAll('.table-wrap:not([data-ok])').forEach(wrap => {
     wrap.dataset.ok = '';
     const table = wrap.querySelector('table');
-    const label = wrap.dataset.label || headingBefore(wrap) || 'Table';
+    const label = wrap.dataset.label || headingBefore(wrap) || t('Table');
     wrap.setAttribute('role', 'region');
     wrap.setAttribute('aria-label', label);
     wrap.tabIndex = 0;
@@ -493,7 +495,7 @@ function headingBefore(el) {
 }
 
 /** A name box with every player as a suggestion; read it back with pickedPlayer(). */
-export function playerPicker(id, list, selected, placeholder = 'Player name…') {
+export function playerPicker(id, list, selected, placeholder = t('Player name…')) {
   return html`<input class="input" id="${id}" list="${id}-names" placeholder="${placeholder}" autocomplete="off"
       value="${selected ? selected.name : ''}" aria-label="${placeholder}">
     <datalist id="${id}-names">${list.map(p => html`<option value="${p.name}"></option>`)}</datalist>`;

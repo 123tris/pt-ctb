@@ -13,7 +13,7 @@ Tokens and classes named here are the real ones, in `assets/css/site.css`, `asse
 `assets/js/core/ui.js`.
 
 **Already decided by the user.** The guide builds on these and never overrides them:
-- English only.
+- English, with European Portuguese (pt-PT) as the visitor's choice (EN / PT at the end of the nav).
 - Dark, flat and sleek, with small radii.
 - The Rosa accent (`--accent: #ff6b89`), with one job per colour.
 - The Dan ladder glyphs are the mark, with faint gold for the named stages.
@@ -524,7 +524,7 @@ quantities).*
 | Motion | `prefers-reduced-motion` everywhere; nothing flashes |
 
 **Before committing UI:**
-- Check at 375px and at 1440px.
+- Check at 375px and at 1440px, in both languages (Portuguese runs longer).
 - Use the page with the keyboard only.
 - Turn on reduced motion.
 - Check each new colour pair's contrast from its hex values.
@@ -546,15 +546,24 @@ Messaging, Label, Tooltip, Accessibility (link text).*
 - **Explain once**, where it's needed, and link to `#/glossary` instead of repeating the explanation above every table.
 - **Use players' own terms:** pp, FC, SS, nomod, HDDT, converts, loved, snipe, Dan. New terms go in the glossary.
 
+**Languages:**
+- Every string the site shows goes through `t()`, `th()` (with markup) or `tn()` (plurals) from `core/i18n.js`, written
+  in English, and gets its Portuguese in `core/pt.js`. `node tools/i18n-check.mjs` lists what's missing.
+- Write whole sentences with `{placeholders}`, never English pieces glued together: Portuguese word order differs.
+- The Portuguese is European ("ecrã", "utilizador", "equipa", "a jogar"), says "tu", and keeps players' own terms
+  (above) as they say them. The terms used for each thing are at the top of `core/pt.js`.
+- Never translated: player names, map titles, Discord role and Dan stage names, route slugs, `data-track` values.
+- Switching language reloads the page, so a module may translate its text once, when it loads.
+
 **Numbers:**
-- Always format through `core/fmt.js` (en-GB): `num` (12,345), `pp` (1,062 / 812.34), `acc` (99.74%), `rank`
+- Always format through `core/fmt.js` (en-GB, or pt-PT on the Portuguese site: 12 345, 812,34): `num` (12,345), `pp` (1,062 / 812.34), `acc` (99.74%), `rank`
   (#1,563), `plural`.
 - A missing value is "—".
 - Units: `1,062pp` in rows (`ppText()`) and "8,366 pp" in running text; `1,419x`; `3 ✕`.
 - Ranks carry `#` and a scope: "#1 PT", "#288 global".
 
 **Dates:**
-- Use `fmt.date` (7 Oct 2025), `fmt.ago` (3 days ago) and `fmt.monthYear` (Mar 2019).
+- Use `fmt.date` (7 Oct 2025, or 7 out. 2025), `fmt.ago` (3 days ago) and `fmt.monthYear` (Mar 2019).
 - Use relative time for recent activity, with the full date in `title`. Use absolute dates for records and history.
 - Weeks are in Europe/Lisbon time.
 
@@ -565,7 +574,7 @@ Messaging, Label, Tooltip, Accessibility (link text).*
    Never in loaders, empty states, errors, labels, buttons or headings.
 3. **A joke sits beside the information, never instead of it.**
 4. **Easter eggs stay opt-in** and respect reduced motion.
-5. **Portuguese only as quoted lore** (`lang="pt-PT"`).
+5. **On the English site, Portuguese only as quoted lore** (`lang="pt-PT"`), which stays as it is on both.
 
 **Errors:** problem, cause, fix (§8). Polite and blameless. Never "invalid", "illegal" or a bare "Something went
 wrong".
@@ -582,12 +591,13 @@ wrong".
 - [ ] Keep the accent to links, actions, current or selected things, "you" and focus; gold to #1, Hebrew Dan and
       honours.
 - [ ] Format numbers and dates with `fmt.js`, and right-align number columns.
+- [ ] Put new copy through `t()` and add its Portuguese to `core/pt.js` (`node tools/i18n-check.mjs`).
 - [ ] Give every control a visible focus, a keyboard path, and a 24px hit area (44px for primary touch controls).
 - [ ] Reserve space while loading, and say "Loading…".
 - [ ] Make empty states say what's empty, with at most one action.
 - [ ] Write errors as problem, cause, fix.
 - [ ] Put a reduced-motion rule next to every animation.
-- [ ] Check at 375px and 1440px.
+- [ ] Check at 375px and 1440px, in English and Portuguese.
 
 **Don't:**
 - [ ] Hex values in components, or `style=""` in page JS.
@@ -666,4 +676,4 @@ Menus and Breadcrumbs are marked work in progress and have no pages.
 | Empty states; problem, cause, fix; choosing the message form by scope | OS dialogs and button order, console logs, window banners |
 | Tooltip length and naming; no icons in buttons | The PNG icon pipeline and the icon palette |
 | The slider as one linear value with keyboard steps | Overlays, docking, window types, toolbars, Contextual Tooling, Selection History |
-| Contrast, 44px targets, keyboarding, no flashing, the right loader | Localisation (the site is English-only) |
+| Contrast, 44px targets, keyboarding, no flashing, the right loader | Unity's localisation tooling (the site has its own two-language `core/i18n.js`) |

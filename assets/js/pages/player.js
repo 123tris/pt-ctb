@@ -3,7 +3,7 @@ import { playerFile, playerHead, playerIndex, history, records } from '../core/d
 import { S, CATS, DAN_STAGES, DAN_MAPS, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { lineChart, chartHover } from '../core/charts.js';
-import { playerBadges, era, signatureMap } from '../core/badges.js';
+import { playerBadges, era, signatureMap, localBadge, localEra } from '../core/badges.js';
 import { THRONE_PLAYER } from '../core/lore.js';
 import { jersey } from '../core/ladder.js';
 import {
@@ -12,22 +12,23 @@ import {
   isLegend, legendTag, gradeBadge, chipGroup, setPressed, placeholderRows,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
+import { t, th, tn } from '../core/i18n.js';
 
 const SORTS = {
-  pp: ['Most pp', (a, b) => b[S.PP] - a[S.PP]],
-  recent: ['Most recent', (a, b) => b[S.TIME] - a[S.TIME]],
-  pos: ['Best position in PT', (a, b) => (a[S.POS] || 1e9) - (b[S.POS] || 1e9) || b[S.PP] - a[S.PP]],
-  acc: ['Best accuracy', (a, b) => b[S.ACC] - a[S.ACC]],
-  combo: ['Highest combo', (a, b) => b[S.COMBO] - a[S.COMBO]],
+  pp: [t('Most pp'), (a, b) => b[S.PP] - a[S.PP]],
+  recent: [t('Most recent'), (a, b) => b[S.TIME] - a[S.TIME]],
+  pos: [t('Best position in PT'), (a, b) => (a[S.POS] || 1e9) - (b[S.POS] || 1e9) || b[S.PP] - a[S.PP]],
+  acc: [t('Best accuracy'), (a, b) => b[S.ACC] - a[S.ACC]],
+  combo: [t('Highest combo'), (a, b) => b[S.COMBO] - a[S.COMBO]],
 };
 
 const TAB_LIST = [
-  { slug: 'converts', label: 'Converts', list: f => f.scores.c },
-  { slug: 'loved', label: 'Loved', list: f => f.scores.u },
-  { slug: 'ranked', label: 'Ranked', list: f => f.scores.r },
+  { slug: 'converts', label: t('Converts'), list: f => f.scores.c },
+  { slug: 'loved', label: t('Loved'), list: f => f.scores.u },
+  { slug: 'ranked', label: t('Ranked'), list: f => f.scores.r },
   { slug: 'top', label: 'Top pp', list: f => f.top },
   { slug: 'dan', label: 'Dan', list: f => f.dan },
-  { slug: 'pre', label: 'Pre-rank', list: f => f.pre || [] },
+  { slug: 'pre', label: t('Pre-rank'), list: f => f.pre || [] },
 ];
 
 /**
@@ -37,9 +38,9 @@ const TAB_LIST = [
  */
 function rankStat(label, rank, where, pp, { sub = '', noRank, cls, board, id }) {
   const ppText = `${fmt.pp(pp)} pp`;
-  const boardName = `${board === 'ranked' ? 'Ranked' : label} leaderboard`; // as the Leaderboards page names it
+  const boardName = t('{board} leaderboard', { board: board === 'ranked' ? t('Ranked') : label }); // as the Leaderboards page names it
   return rank
-    ? stat(label, html`<a class="stat-link" href="#/rankings/${board}?at=${id}" aria-label="${boardName}, ${fmt.rank(rank)} ${where}" title="See the ${boardName}">${fmt.rank(rank)} <span class="stat-unit">${where}</span></a>`, sub ? html`<span class="keep">${ppText}</span> · <span class="keep">${sub}</span>` : ppText, cls)
+    ? stat(label, html`<a class="stat-link" href="#/rankings/${board}?at=${id}" aria-label="${boardName}, ${fmt.rank(rank)} ${where}" title="${t('See the {board}', { board: boardName })}">${fmt.rank(rank)} <span class="stat-unit">${where}</span></a>`, sub ? html`<span class="keep">${ppText}</span> · <span class="keep">${sub}</span>` : ppText, cls)
     : stat(label, ppText, noRank, cls);
 }
 
@@ -56,7 +57,7 @@ const badgePeek = badges => html`<span class="peek">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1.5l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.3l-3.8 2 .7-4.3-3.1-3 4.3-.6z"/></svg>
     ${fmt.plural(badges.length, 'badge')}
   </button>
-  <span class="peek-pop" id="badge-pop" role="group" aria-label="Badges">
+  <span class="peek-pop" id="badge-pop" role="group" aria-label="${t('Badges')}">
     <ul class="badge-list">${badges.map(b => html`<li><b>${b.name}</b><span>${b.tip}</span></li>`)}</ul>
   </span>
 </span>`;
@@ -69,23 +70,22 @@ function danGrid(file) {
       <span class="points">${stage.points} pts</span>
       <div class="dan-glyph">${stage.glyph}</div>
       <b>${danName(stage.index)}</b>
-      <div class="small ${s ? 'dan-pass' : 'faint'}">${s ? `${fmt.acc(s[S.ACC])} · ${fmt.date(s[S.TIME])}` : `Needs ${stage.passAcc}%`}</div>
+      <div class="small ${s ? 'dan-pass' : 'faint'}">${s ? `${fmt.acc(s[S.ACC])} · ${fmt.date(s[S.TIME])}` : t('Needs {acc}', { acc: `${fmt.num(stage.passAcc)}%` })}</div>
     </a>`;
   })}</div>`;
 }
 
-const HISTORY_LINES = [['Converts', 'var(--cat-c)', 1], ['Loved', 'var(--cat-u)', 2], ['Official', 'var(--cat-r)', 3]];
-const REBUILT_TIP = 'Rebuilt month by month from the dates of this player’s stored scores. Only their best play on each map is '
-  + 'kept, and past totals use today’s pp values, so the real numbers back then were different.';
+const HISTORY_LINES = [[t('Converts'), 'var(--cat-c)', 1], [t('Loved'), 'var(--cat-u)', 2], [t('Official'), 'var(--cat-r)', 3]];
+const REBUILT_TIP = t('Rebuilt month by month from the dates of this player’s stored scores. Only their best play on each map is kept, and past totals use today’s pp values, so the real numbers back then were different.');
 
 /** The ranges the chart offers: everything, the last 12 months, or only the days the site recorded itself. */
 function historyRanges(recorded, rebuilt) {
   const all = [...rebuilt, ...recorded];
   if (all.length < 2) return [];
   const end = all[all.length - 1][0];
-  const ranges = [['all', 'All', -Infinity]];
-  if (end - all[0][0] > 400 * 86400) ranges.push(['year', 'Last 12 months', end - 365 * 86400]);
-  if (rebuilt.length && recorded.length >= 2) ranges.push(['tracked', 'Since tracking', recorded[0][0]]);
+  const ranges = [['all', t('All|time'), -Infinity]];
+  if (end - all[0][0] > 400 * 86400) ranges.push(['year', t('Last 12 months'), end - 365 * 86400]);
+  if (rebuilt.length && recorded.length >= 2) ranges.push(['tracked', t('Since tracking'), recorded[0][0]]);
   return ranges;
 }
 
@@ -119,18 +119,22 @@ function historyLines(recorded, rebuilt, from) {
 
 function historyChart(lines) {
   const shown = lines.flatMap(l => [...l.dashed, ...l.solid]);
-  if (shown.length < 2) return html`<p class="muted small">Not enough points in this range.</p>`;
+  if (shown.length < 2) return html`<p class="muted small">${t('Not enough points in this range.')}</p>`;
   const span = shown.map(p => p[0]);
-  const summary = `pp over time, ${fmt.date(Math.min(...span))} to ${fmt.date(Math.max(...span))}: ${lines
-    .map(l => [...l.dashed, ...l.solid]).map((pts, i) => pts.length && `${HISTORY_LINES[i][0]} ${fmt.num(pts[0][1])} to ${fmt.num(pts[pts.length - 1][1])}`)
-    .filter(Boolean).join(', ')}.`;
+  const summary = t('pp over time, {from} to {to}: {lines}.', {
+    from: fmt.date(Math.min(...span)),
+    to: fmt.date(Math.max(...span)),
+    lines: lines.map(l => [...l.dashed, ...l.solid])
+      .map((pts, i) => pts.length && t('{line} {from} to {to}', { line: HISTORY_LINES[i][0], from: fmt.num(pts[0][1]), to: fmt.num(pts[pts.length - 1][1]) }))
+      .filter(Boolean).join(', '),
+  });
   const anyDashed = lines.some(l => l.dashed.length);
   return html`${lineChart(lines.flatMap(l => [
-    { label: `${l.label} (reconstructed)`, color: l.color, points: l.dashed, dashed: true, step: true },
+    { label: t('{line} (reconstructed)', { line: l.label }), color: l.color, points: l.dashed, dashed: true, step: true },
     { label: l.label, color: l.color, points: l.solid },
-  ]), { format: v => fmt.num(v), label: anyDashed ? `${summary} Dashed parts are reconstructed from score dates and approximate.` : summary })}
+  ]), { format: v => fmt.num(v), label: anyDashed ? `${summary} ${t('Dashed parts are reconstructed from score dates and approximate.')}` : summary })}
     <div class="legend">${lines.filter(l => l.dashed.length || l.solid.length).map(l => html`<span><i style="background:${l.color}"></i>${l.label}</span>`)}
-      ${anyDashed ? html`<span class="legend-dashed" title="${REBUILT_TIP}"><i aria-hidden="true"></i>dashed = reconstructed from score dates (approximate)<span class="sr-only">. ${REBUILT_TIP}</span></span>` : ''}</div>`;
+      ${anyDashed ? html`<span class="legend-dashed" title="${REBUILT_TIP}"><i aria-hidden="true"></i>${t('dashed = reconstructed from score dates (approximate)')}<span class="sr-only">. ${REBUILT_TIP}</span></span>` : ''}</div>`;
 }
 
 /** The value a line has at `t`: its last point at or before `t`. */
@@ -161,9 +165,9 @@ function historySection(recorded, rebuilt) {
   const ranges = historyRanges(recorded, rebuilt);
   if (!ranges.length) return '';
   return html`<details class="section card history" id="history" ${prefs.get('ppchart', false) ? raw('open') : ''}>
-    <summary><h2 class="card-h">pp over time</h2><span class="history-toggle" aria-hidden="true"></span></summary>
+    <summary><h2 class="card-h">${t('pp over time')}</h2><span class="history-toggle" aria-hidden="true"></span></summary>
     <div class="history-body">
-      ${ranges.length > 1 ? chipGroup('Range', 'range', ranges, 'all') : ''}
+      ${ranges.length > 1 ? chipGroup(t('Range'), 'range', ranges, 'all') : ''}
       <div class="chart-wrap" id="history-chart"></div>
     </div>
   </details>`;
@@ -188,17 +192,17 @@ export default async function player(root, { params, query, isCurrent }) {
   const p = index.get(id);
   setTitle(p.name);
   const extras = file.extras;
-  const badges = extras ? extras.badges : playerBadges(p, file, recs);
-  const playerEra = extras ? extras.era : era(p, file);
+  const badges = (extras ? extras.badges : playerBadges(p, file, recs)).map(localBadge);
+  const playerEra = localEra(extras ? extras.era : era(p, file));
   const signature = extras ? extras.signature : signatureMap(file);
 
   const counts = file.counts ? { ...file.counts, converts: file.counts.c, loved: file.counts.u, ranked: file.counts.r } : {
     converts: file.scores.c.length, loved: file.scores.u.length, ranked: file.scores.r.length, top: file.top.length, dan: file.dan.length,
     pre: file.pre?.length ?? 0,
   };
-  const tab = TAB_LIST.find(t => t.slug === params.tab) ?? TAB_LIST.find(t => !['dan', 'pre'].includes(t.slug) && counts[t.slug]) ?? TAB_LIST[0];
+  const tab = TAB_LIST.find(item => item.slug === params.tab) ?? TAB_LIST.find(item => !['dan', 'pre'].includes(item.slug) && counts[item.slug]) ?? TAB_LIST[0];
   // Only lists with something in them get a tab (so they fit on a phone), plus whichever one is open.
-  const shownTabs = TAB_LIST.filter(t => counts[t.slug] || t === tab);
+  const shownTabs = TAB_LIST.filter(item => counts[item.slug] || item === tab);
   const role = danRole(p.danScore);
   const firsts = p.firsts.c + p.firsts.u + p.firsts.r;
   const dayTime = d => Date.parse(`${d}T12:00:00Z`) / 1000;
@@ -212,19 +216,19 @@ export default async function player(root, { params, query, isCurrent }) {
 
   root.innerHTML = String(html`
     <header class="profile-head">
-      <a class="avatar-link" href="${osuUser(id)}" target="_blank" rel="noopener" aria-label="${p.name} on osu!" title="${p.name} on osu!">${avatar(id, 'avatar-lg')}</a>
+      <a class="avatar-link" href="${osuUser(id)}" target="_blank" rel="noopener" aria-label="${t('{name} on osu!', { name: p.name })}" title="${t('{name} on osu!', { name: p.name })}">${avatar(id, 'avatar-lg')}</a>
       <div class="profile-info">
-        <h1><a class="title-link" href="${osuUser(id)}" target="_blank" rel="noopener" title="${p.name} on osu!">${p.name}</a>${isLegend(p) ? legendTag() : ''}</h1>
+        <h1><a class="title-link" href="${osuUser(id)}" target="_blank" rel="noopener" title="${t('{name} on osu!', { name: p.name })}">${p.name}</a>${isLegend(p) ? legendTag() : ''}</h1>
         <p class="profile-line">${[
           role && html`<span class="profile-role">${role}</span>`,
-          firsts && `${fmt.plural(firsts, '#1', '#1s')} in Portugal`,
-          p.last && `last played ${fmt.ago(p.last)}`,
-          playerEra && `era: ${playerEra}`,
+          firsts && tn(firsts, '{n} #1 in Portugal', '{n} #1s in Portugal'),
+          p.last && t('last played {ago}', { ago: fmt.ago(p.last) }),
+          playerEra && t('era: {era}', { era: playerEra }),
         ].filter(Boolean).map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>
         <div class="links">
-          <button class="btn btn-small" id="me" type="button" aria-pressed="false" title="Highlights your rows on every leaderboard (saved in this browser)">This is me</button>
-          <a class="not-you" id="not-you" href="#/player/${id}" hidden>Not you?</a>
-          <a class="btn btn-small btn-icon" href="#/compare/${id}" aria-label="Compare ${p.name} with another player" title="Compare with another player">${COMPARE_ICON}</a>
+          <button class="btn btn-small" id="me" type="button" aria-pressed="false" title="${t('Highlights your rows on every leaderboard (saved in this browser)')}">${t('This is me')}</button>
+          <a class="not-you" id="not-you" href="#/player/${id}" hidden>${t('Not you?')}</a>
+          <a class="btn btn-small btn-icon" href="#/compare/${id}" aria-label="${t('Compare {name} with another player', { name: p.name })}" title="${t('Compare with another player')}">${COMPARE_ICON}</a>
           ${badges.length ? badgePeek(badges) : ''}
         </div>
       </div>
@@ -232,29 +236,29 @@ export default async function player(root, { params, query, isCurrent }) {
     </header>
 
     <div class="stats">
-      ${rankStat('Converts', p.rank.c, 'PT', p.cv, { noRank: 'Unranked', cls: 'stat-c', board: 'converts', id })}
-      ${rankStat('Loved & Unranked', p.rank.u, 'PT', p.ul, { noRank: 'Unranked', cls: 'stat-u', board: 'loved', id })}
+      ${rankStat(t('Converts'), p.rank.c, 'PT', p.cv, { noRank: t('Unranked'), cls: 'stat-c', board: 'converts', id })}
+      ${rankStat(t('Loved & Unranked'), p.rank.u, 'PT', p.ul, { noRank: t('Unranked'), cls: 'stat-u', board: 'loved', id })}
       ${!isInactiveOnOsu(p)
         // osu!'s own country rank leads, like the two tiles before it; the global rank goes under the pp.
         ? p.country
-          ? rankStat('Official pp', p.country, 'PT', p.pp, { sub: p.global ? `${fmt.rank(p.global)} global` : '', cls: 'stat-r', board: 'ranked', id })
-          : rankStat('Official pp', p.global, 'global', p.pp, { noRank: 'No official rank', cls: 'stat-r', board: 'ranked', id })
+          ? rankStat(t('Official pp'), p.country, 'PT', p.pp, { sub: p.global ? `${fmt.rank(p.global)} global` : '', cls: 'stat-r', board: 'ranked', id })
+          : rankStat(t('Official pp'), p.global, 'global', p.pp, { noRank: t('No official rank'), cls: 'stat-r', board: 'ranked', id })
         : p.pp > 0
-          ? stat('Official pp', p.ppSource === 'estimated'
+          ? stat(t('Official pp'), p.ppSource === 'estimated'
             // "(estimated)" is only for screen readers here: the subtitle already says it, and the value stays one line.
-            ? html`<span title="Estimated from their stored plays, so probably a little low"><span aria-hidden="true">≈ </span>${fmt.pp(p.pp)} pp</span><span class="sr-only"> (estimated)</span>`
+            ? html`<span title="${t('Estimated from their stored plays, so probably a little low')}"><span aria-hidden="true">≈ </span>${fmt.pp(p.pp)} pp</span><span class="sr-only"> (${t('estimated')})</span>`
             : html`${fmt.pp(p.pp)} pp`,
             html`${inactiveTag(p)} ${officialPpNote(p)}`, 'stat-r')
           // Inactive with nothing to go on (no last-known value, no plays to estimate from).
-          : stat('Official pp', '—', html`${inactiveTag(p)} no official pp known`, 'stat-r')}
-      ${stat('Accuracy', fmt.acc(p.acc), `Level ${fmt.num(p.level, 0)}`)}
-      ${stat('Play count', fmt.num(p.plays), html`<span class="grade-counts">${['X', 'S', 'A'].map((g, i) => html`<span>${gradeBadge(g)}${fmt.num(p.grades[i])}</span>`)}</span>`)}
-      ${stat('Dan points', fmt.num(p.danScore), `${p.dan.length} of ${DAN_STAGES.length} stages`)}    </div>
+          : stat(t('Official pp'), '—', html`${inactiveTag(p)} ${t('no official pp known')}`, 'stat-r')}
+      ${stat(t('Accuracy'), fmt.acc(p.acc), t('Level {level}', { level: fmt.num(p.level, 0) }))}
+      ${stat(t('Play count'), fmt.num(p.plays), html`<span class="grade-counts">${['X', 'S', 'A'].map((g, i) => html`<span>${gradeBadge(g)}${fmt.num(p.grades[i])}</span>`)}</span>`)}
+      ${stat(t('Dan points'), fmt.num(p.danScore), t('{done} of {total} stages', { done: fmt.num(p.dan.length), total: fmt.num(DAN_STAGES.length) }))}    </div>
 
-    ${id === THRONE_PLAYER ? html`<p class="mt-4 notice">Every #1 on this profile is up for grabs. <a href="#/records?at=throne">Dethrone Tris</a></p>` : ''}
+    ${id === THRONE_PLAYER ? html`<p class="mt-4 notice">${th('Every #1 on this profile is up for grabs. {link}', { link: html`<a href="#/records?at=throne">${t('Dethrone Tris')}</a>` })}</p>` : ''}
 
     ${signature ? html`<section class="section card signature">
-      <h2 class="card-h">Signature map <span class="faint">· ${signature.kind}</span></h2>
+      <h2 class="card-h">${t('Signature map')} <span class="faint">· ${t(signature.kind)}</span></h2>
       ${mapLink(signature.s[S.MAP], signature.meta)}
       <div class="mt-2 score-line">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>
     </section>` : ''}
@@ -263,15 +267,15 @@ export default async function player(root, { params, query, isCurrent }) {
     ${historySection(points, rebuilt)}
 
     <section class="section">
-      <h2 class="sr-only">Plays</h2>
-      ${tabs(shownTabs.map(t => ({ href: `#/player/${id}/${t.slug}`, label: t.label, count: counts[t.slug], active: t === tab })), 'Score lists')}
+      <h2 class="sr-only">${t('Plays')}</h2>
+      ${tabs(shownTabs.map(item => ({ href: `#/player/${id}/${item.slug}`, label: item.label, count: counts[item.slug], active: item === tab })), t('Score lists'))}
       ${tab.slug === 'dan' ? danGrid(file) : html`
-        ${tab.slug === 'top' ? html`<p class="muted small">The best ranked plays (converts included) with their official pp, taken from osu!’s monthly data dump.</p>` : ''}
-        ${tab.slug === 'pre' ? html`<p class="muted small">Plays set before their map was ranked. They’re kept for the record but count toward nothing: no pp, no leaderboard spot.</p>` : ''}
+        ${tab.slug === 'top' ? html`<p class="muted small">${t('The best ranked plays (converts included) with their official pp, taken from osu!’s monthly data dump.')}</p>` : ''}
+        ${tab.slug === 'pre' ? html`<p class="muted small">${t('Plays set before their map was ranked. They’re kept for the record but count toward nothing: no pp, no leaderboard spot.')}</p>` : ''}
         <div class="toolbar">
-          <input class="input" type="search" id="q" placeholder="Search maps…" aria-label="Search these plays" value="${query.q || ''}">
-          <select class="select" id="sort" aria-label="Sort">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === query.sort ? raw('selected') : ''}>${label}</option>`)}</select>
-          ${!['top', 'pre'].includes(tab.slug) ? html`<span class="checks"><label><input type="checkbox" id="firsts" ${query.firsts ? raw('checked') : ''}> Only #1s</label></span>` : ''}
+          <input class="input" type="search" id="q" placeholder="${t('Search maps…')}" aria-label="${t('Search these plays')}" value="${query.q || ''}">
+          <select class="select" id="sort" aria-label="${t('Sort')}">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === query.sort ? raw('selected') : ''}>${label}</option>`)}</select>
+          ${!['top', 'pre'].includes(tab.slug) ? html`<span class="checks"><label><input type="checkbox" id="firsts" ${query.firsts ? raw('checked') : ''}> ${t('Only #1s')}</label></span>` : ''}
         </div>
         <p class="result-count" id="count"></p>
         <div id="scores"></div>`}
@@ -356,8 +360,11 @@ export default async function player(root, { params, query, isCurrent }) {
   // page padded with nulls to the list's real length, so the pager and the count are right from the start.
   let partial = all.length < total;
   if (!total) {
-    const where = { top: 'imported from the osu! data dump', pre: 'from before their map was ranked' }[tab.slug] ?? `in ${CAT_LABEL[cat]}`;
-    root.querySelector('#scores').innerHTML = String(empty(`${p.name} has no plays ${where} yet.`));
+    const none = {
+      top: t('{name} has no plays imported from the osu! data dump yet.', { name: p.name }),
+      pre: t('{name} has no plays from before their map was ranked yet.', { name: p.name }),
+    }[tab.slug] ?? t('{name} has no plays in {category} yet.', { name: p.name, category: CAT_LABEL[cat] });
+    root.querySelector('#scores').innerHTML = String(empty(none));
     return;
   }
   const q = root.querySelector('#q');
@@ -389,7 +396,7 @@ export default async function player(root, { params, query, isCurrent }) {
     return true;
   }, e => {
     fullPromise = null;
-    count.textContent = `Couldn’t load all plays (${e.message}). Try again.`;
+    count.textContent = t('Couldn’t load all plays ({error}). Try again.', { error: e.message });
     return false;
   }));
   // Search, sort, "Only #1s" and page live in the URL, so Back from a map comes back to the same list.
@@ -411,12 +418,14 @@ export default async function player(root, { params, query, isCurrent }) {
       save();
       if (partial) loadAll().then(ok => { if (ok) { items = visible(); redraw(items, true); } });
     },
-    empty: () => emptyFiltered(q.value.trim() ? `No play matches “${q.value.trim()}”${onlyFirsts?.checked ? ' among the #1s' : ''}.` : 'No #1s in this list.'),
+    empty: () => emptyFiltered(q.value.trim()
+      ? (onlyFirsts?.checked ? t('No play matches “{q}” among the #1s.', { q: q.value.trim() }) : t('No play matches “{q}”.', { q: q.value.trim() }))
+      : t('No #1s in this list.')),
   });
   showCount(false);
   const refilter = () => {
     if (partial) {
-      count.textContent = 'Loading all plays…';
+      count.textContent = t('Loading all plays…');
       loadAll().then(ok => { if (ok) refilter(); });
       return;
     }

@@ -5,6 +5,7 @@ import { html } from './html.js';
 import { DAN_STAGES } from './model.js';
 import { danName } from './events.js';
 import * as fmt from './fmt.js';
+import { t } from './i18n.js';
 
 /** How many players have passed each stage, by stage index (players.json `dan` lists the stages a player passed). */
 export function passCounts(players) {
@@ -26,10 +27,12 @@ export const topStage = counts => counts.findLastIndex(n => n > 0);
 export function ladderBand(counts, { mine = -1 } = {}) {
   const top = topStage(counts);
   const passed = counts.filter(Boolean).length;
-  const label = `The Dan course: ${passed} of ${DAN_STAGES.length} stages passed in Portugal${top >= 0 ? `, the highest being the ${danName(top)}` : ''}`;
+  const vars = { passed: fmt.num(passed), total: fmt.num(DAN_STAGES.length), dan: top >= 0 ? danName(top) : '' };
+  const label = top >= 0 ? t('The Dan course: {passed} of {total} stages passed in Portugal, the highest being the {dan}', vars)
+    : t('The Dan course: {passed} of {total} stages passed in Portugal', vars);
   return html`<a class="ladder" href="#/challenges/dan" aria-label="${label}">
     <ol class="ladder-rungs">${DAN_STAGES.map(({ index: i, glyph }) => html`<li class="rung${i > 10 ? ' rung-he' : ''}${counts[i] ? ' lit' : ''}${i === top ? ' top' : ''}${i === mine ? ' mine' : ''}"
-      title="${danName(i)}: ${counts[i] ? `passed by ${fmt.plural(counts[i], 'player')}` : 'nobody yet'}${i === mine ? ' (your highest)' : ''}">
+      title="${danName(i)}: ${counts[i] ? t('passed by {players}', { players: fmt.plural(counts[i], 'player') }) : t('nobody yet')}${i === mine ? ` ${t('(your highest)')}` : ''}">
       <span class="rung-glyph">${glyph}</span>
       <span class="rung-n">${counts[i] || '·'}</span>
     </li>`)}</ol>
@@ -40,7 +43,7 @@ export function ladderBand(counts, { mine = -1 } = {}) {
 export function jersey(p) {
   const i = highestDan(p);
   if (i < 0) return '';
-  return html`<a class="jersey${i > 10 ? ' jersey-he' : ''}" href="#/challenges/dan?stage=${i}" title="Highest Dan passed: ${danName(i)}">
+  return html`<a class="jersey${i > 10 ? ' jersey-he' : ''}" href="#/challenges/dan?stage=${i}" title="${t('Highest Dan passed: {dan}', { dan: danName(i) })}">
     <span class="jersey-glyph" aria-hidden="true">${DAN_STAGES[i].glyph}</span>
     <span class="jersey-label">${danName(i)}</span>
   </a>`;

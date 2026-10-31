@@ -2,42 +2,44 @@ import { html, raw } from '../core/html.js';
 import { playerLink, empty, chipGroup, setPressed, writeQuery, announce, isInactive, statusTag, setTitle } from '../core/ui.js';
 import { sharedRanks } from '../core/model.js';
 import * as fmt from '../core/fmt.js';
+import { t } from '../core/i18n.js';
 
-const SOURCES = [['catch', 'Catch maps'], ['converts', 'Converts']];
-const NAME = { catch: 'catch maps', converts: 'converts' };
+const SOURCES = [['catch', t('Catch maps')], ['converts', t('Converts')]];
+const NAME = { catch: t('catch maps'), converts: t('converts') };
 const starLabel = stars => `${fmt.num(stars)}${stars === 10 ? '+' : ''}★`;
-const rangeText = stars => (stars === 10 ? 'from 10.00★ up' : `from ${stars}.00★ to below ${stars + 1}.00★`);
+const rangeText = stars => (stars === 10 ? t('from {from}★ up', { from: fmt.num(10, 2) })
+  : t('from {from}★ to below {to}★', { from: fmt.num(stars, 2), to: fmt.num(stars + 1, 2) }));
 /** A range's board link; catch is the default source, so it stays out of the URL (as writeQuery leaves it). */
 const boardHref = (stars, source) => `#/rankings/kings?stars=${stars}${source === 'catch' ? '' : `&src=${source}`}`;
 
 /** Two comparable boards; only the holders of each title appear, including joint kings. */
 export function starKingsBoards(kings, index, me) {
-  if (!kings) return empty('The star kings arrive with the next data update.');
+  if (!kings) return empty(t('The star kings arrive with the next data update.'));
   return html`
-    <p class="muted kings-note">Ranges use nomod catch stars: 6★ means 6.00★ to below 7.00★; 10+★ includes everything from 10.00★ up. Ranked, loved and unranked maps count. Tied totals share the title.</p>
+    <p class="muted kings-note">${t('Ranges use nomod catch stars: 6★ means 6.00★ to below 7.00★; 10+★ includes everything from 10.00★ up. Ranked, loved and unranked maps count. Tied totals share the title.')}</p>
     <div class="grid grid-2 kings-boards">${SOURCES.map(([source, title]) => html`
       <section aria-labelledby="kings-${source}">
         <div class="section-head"><h2 id="kings-${source}">${title}</h2></div>
-        ${kings[source].length ? html`<div class="table-wrap" data-label="${title}: kings by star rating"><table class="kings-table">
-          <thead><tr><th scope="col">Title</th><th scope="col">Player</th><th scope="col" class="num">#1s in PT</th></tr></thead>
+        ${kings[source].length ? html`<div class="table-wrap" data-label="${t('{title}: kings by star rating', { title })}"><table class="kings-table">
+          <thead><tr><th scope="col">${t('Title')}</th><th scope="col">${t('Player')}</th><th scope="col" class="num">${t('#1s in PT')}</th></tr></thead>
           <tbody>${kings[source].map(({ stars, count, players, board }) => html`<tr class="${players.includes(me) ? 'me' : ''}">
-            <th scope="row"><span class="king-title">King of ${starLabel(stars)}</span>
-              ${players.length > 1 ? html`<span class="king-tie">Shared title</span>` : ''}
-              ${board ? html`<a class="king-link" href="${boardHref(stars, source)}">Full board<span class="sr-only"> of ${starLabel(stars)} ${NAME[source]}</span></a>` : ''}</th>
+            <th scope="row"><span class="king-title">${t('King of {stars}', { stars: starLabel(stars) })}</span>
+              ${players.length > 1 ? html`<span class="king-tie">${t('Shared title')}</span>` : ''}
+              ${board ? html`<a class="king-link" href="${boardHref(stars, source)}">${t('Full board')}<span class="sr-only"> ${t('of {stars} {maps}', { stars: starLabel(stars), maps: NAME[source] })}</span></a>` : ''}</th>
             <td><div class="king-players">${players.map(id => playerLink(id, index, 'avatar-sm'))}</div></td>
-            <td class="num king-count">${fmt.num(count)}${players.length > 1 ? html`<span class="king-tie">each</span>` : ''}</td>
+            <td class="num king-count">${fmt.num(count)}${players.length > 1 ? html`<span class="king-tie">${t('each')}</span>` : ''}</td>
           </tr>`)}</tbody>
-        </table></div>` : empty(`No ${NAME[source]} with a known catch star rating have a PT #1 yet.`)}
+        </table></div>` : empty(t('No {maps} with a known catch star rating have a PT #1 yet.', { maps: NAME[source] }))}
       </section>`)}</div>
   `;
 }
 
 /** One range's full board: everyone with a #1 there, most first, with tied counts sharing a rank. */
 function boardTable(board, stars, source, index, me) {
-  if (!board?.length) return empty(`Nobody in PT holds a #1 on ${NAME[source]} ${rangeText(stars)} yet.`);
+  if (!board?.length) return empty(t('Nobody in PT holds a #1 on {maps} {range} yet.', { maps: NAME[source], range: rangeText(stars) }));
   const ranks = sharedRanks(board.map(([, n]) => n));
-  return html`<div class="table-wrap" data-label="${starLabel(stars)} ${NAME[source]}: #1s in PT"><table>
-    <thead><tr><th>#</th><th>Player</th><th class="num">#1s in PT</th></tr></thead>
+  return html`<div class="table-wrap" data-label="${t('{stars} {maps}: #1s in PT', { stars: starLabel(stars), maps: NAME[source] })}"><table>
+    <thead><tr><th>#</th><th>${t('Player')}</th><th class="num">${t('#1s in PT')}</th></tr></thead>
     <tbody>${board.map(([id, n], i) => {
       const p = index.get(id);
       const tag = p ? statusTag(p) : '';
@@ -72,10 +74,10 @@ export function kingsPage(root, { kings, index, me, query, head, intro }) {
   if (stars === null) {
     root.innerHTML = String(html`${head}
       <p class="muted">${intro}</p>
-      ${asked !== null ? html`<p class="muted small">The full board for each star range arrives with the next data update.</p>` : ''}
+      ${asked !== null ? html`<p class="muted small">${t('The full board for each star range arrives with the next data update.')}</p>` : ''}
       <div data-kings="all">${starKingsBoards(kings, index, me)}</div>`);
     const titles = kings ? Object.values(kings).reduce((n, rows) => n + rows.length, 0) : 0;
-    announce(`${fmt.plural(titles, 'star title')} across catch maps and converts.`);
+    announce(t('{titles} across catch maps and converts.', { titles: fmt.plural(titles, 'star title') }));
     // Back from a board: return to its link instead of wherever the shorter board left the scroll.
     const from = before && before !== 'all' ? root.querySelector(`a[href="${boardHref(...before.split(':'))}"]`) : null;
     if (from) {
@@ -90,14 +92,14 @@ export function kingsPage(root, { kings, index, me, query, head, intro }) {
   const ranges = [...new Set([...Object.values(kings).flatMap(rows => rows.map(r => r.stars)), stars])].sort((a, b) => a - b);
   const boardOf = () => kings[source].find(r => r.stars === stars)?.board ?? [];
   root.innerHTML = String(html`${head}
-    <p class="muted">Everyone holding a #1 in PT in one star range, most first. Ties share a rank.</p>
+    <p class="muted">${t('Everyone holding a #1 in PT in one star range, most first. Ties share a rank.')}</p>
     <div class="toolbar kings-toolbar" data-kings="">
-      <select class="select" id="kings-stars" aria-label="Star range">${ranges.map(s => html`<option value="${s}" ${s === stars ? raw('selected') : ''}>${starLabel(s)}</option>`)}</select>
-      ${chipGroup('Maps', 'src', SOURCES, source)}
+      <select class="select" id="kings-stars" aria-label="${t('Star range')}">${ranges.map(s => html`<option value="${s}" ${s === stars ? raw('selected') : ''}>${starLabel(s)}</option>`)}</select>
+      ${chipGroup(t('Maps'), 'src', SOURCES, source)}
     </div>
     <p class="result-count" id="kings-count"></p>
     <div id="kings-board"></div>
-    <p class="mt-3 small"><a href="#/rankings/kings">All star kings</a></p>`);
+    <p class="mt-3 small"><a href="#/rankings/kings">${t('All star kings')}</a></p>`);
 
   const view = root.querySelector('[data-kings]');
   const boardEl = root.querySelector('#kings-board');
@@ -106,11 +108,12 @@ export function kingsPage(root, { kings, index, me, query, head, intro }) {
     const board = boardOf();
     view.dataset.kings = viewKey(stars, source);
     setPressed(root, 'src', source);
-    setTitle(`${starLabel(stars)} ${NAME[source]} · Star kings`);
+    const range = { maps: NAME[source], range: rangeText(stars) };
+    setTitle(t('{stars} {maps} · Star kings', { stars: starLabel(stars), maps: NAME[source] }));
     boardEl.innerHTML = String(boardTable(board, stars, source, index, me));
-    count.textContent = board.length ? `${fmt.plural(board.length, 'player')} with a #1 on ${NAME[source]} ${rangeText(stars)}` : '';
+    count.textContent = board.length ? t('{players} with a #1 on {maps} {range}', { players: fmt.plural(board.length, 'player'), ...range }) : '';
     writeQuery({ stars, src: source }, { src: 'catch' });
-    if (speak) announce(count.textContent || `No #1s on ${NAME[source]} ${rangeText(stars)} yet.`);
+    if (speak) announce(count.textContent || t('No #1s on {maps} {range} yet.', range));
   };
   draw({ speak: true });
   root.querySelector('#kings-stars').addEventListener('change', e => { stars = Number(e.target.value); draw({ speak: true }); });

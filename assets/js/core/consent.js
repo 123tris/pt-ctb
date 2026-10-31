@@ -6,11 +6,12 @@
 import { html } from './html.js';
 import { trackingBlock, setConsent } from './track.js';
 import { prefs } from './ui.js';
+import { t } from './i18n.js';
 import { CONFIG } from '../config.js';
 
 const ASK = {
-  identity: 'Can we link how you use the site to your osu! player? It helps us see what players like you need.',
-  all: 'Can we record how you use the site? It helps us see what to improve. Nothing goes to anyone else.',
+  identity: t('Can we link how you use the site to your osu! player? It helps us see what players like you need.'),
+  all: t('Can we record how you use the site? It helps us see what to improve. Nothing goes to anyone else.'),
 };
 
 export function initConsent() {
@@ -24,9 +25,9 @@ export function initConsent() {
     const bar = document.createElement('div');
     bar.className = 'consent';
     bar.setAttribute('role', 'region');
-    bar.setAttribute('aria-label', 'Usage counting');
-    bar.innerHTML = String(html`<p>${ASK[mode]} <a href="#/privacy">What’s recorded</a></p>
-      <div class="btn-row"><button class="btn btn-small btn-primary" type="button" data-yes>Allow</button><button class="btn btn-small" type="button" data-no>No thanks</button></div>`);
+    bar.setAttribute('aria-label', t('Usage counting'));
+    bar.innerHTML = String(html`<p>${ASK[mode]} <a href="#/privacy">${t('What’s recorded')}</a></p>
+      <div class="btn-row"><button class="btn btn-small btn-primary" type="button" data-yes>${t('Allow')}</button><button class="btn btn-small" type="button" data-no>${t('No thanks')}</button></div>`);
     bar.addEventListener('click', e => {
       const yes = e.target.closest('[data-yes]'), no = e.target.closest('[data-no]');
       if (!yes && !no) return;
