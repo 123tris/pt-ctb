@@ -4,6 +4,7 @@
 import { html } from './html.js';
 import { FOOTER, pick } from './lore.js';
 import { track } from './track.js';
+import { t, th } from './i18n.js';
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -15,7 +16,7 @@ export function toast(body, { ms = 6000 } = {}) {
   const el = document.createElement('div');
   el.className = 'toast';
   el.setAttribute('role', 'status');
-  el.innerHTML = String(html`<div class="toast-body">${body}</div><button class="toast-close" type="button">Not now, Fie.</button>`);
+  el.innerHTML = String(html`<div class="toast-body">${body}</div><button class="toast-close" type="button">${t('Not now, Fie.')}</button>`);
   const close = () => el.remove();
   el.querySelector('.toast-close').addEventListener('click', close);
   toastBox.appendChild(el);
@@ -53,11 +54,13 @@ function emoteWall() {
 
 const RPS = ['rock', 'paper', 'scissors'];
 const BEATS = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+/** The words in the page's language; typing those works too ("pedra" as well as "rock"). */
+const RPS_WORD = { rock: t('rock'), paper: t('paper'), scissors: t('scissors') };
 
 function rockPaperScissors(you) {
   const me = pick(RPS);
-  const result = me === you ? 'A draw. Again?' : BEATS[you] === me ? 'You win. Enjoy it.' : 'I win. Skill issue.';
-  toast(html`<b>${you}</b> vs <b>${me}</b>. ${result}`);
+  const result = me === you ? t('A draw. Again?') : BEATS[you] === me ? t('You win. Enjoy it.') : t('I win. Skill issue.');
+  toast(html`<b>${RPS_WORD[you]}</b> vs <b>${RPS_WORD[me]}</b>. ${result}`);
 }
 
 const bacalhauOn = () => { try { return sessionStorage.getItem('ptctb:bacalhau') === '1'; } catch { return false; } };
@@ -70,10 +73,10 @@ function setBacalhau(on) {
 // Typed words that do something. Checked against the end of what was typed, so they work mid-sentence too.
 const TRIGGERS = [
   ['727', () => wysi()],
-  ['<rc', () => { location.hash = '#/activity?view=plays'; toast(html`Yes, we know you’ve typed <span class="kbd">&lt;rc</span> more often than “hello”.`); }],
-  ['aqui', () => toast(html`<b lang="pt-PT">Eu estou aqui</b>… <span lang="pt-PT">e tu?</span> <a href="#/map/2311555">Go and see the map</a>`)], // PT text (intentional)
-  ['bacalhau', () => { const on = !bacalhauOn(); setBacalhau(on); toast(on ? html`<b>BACALHAU!</b> 🐟 The catcher only catches cod now.` : html`Back to fruit. 🍎`); }],
-  ...RPS.map(word => [word, () => rockPaperScissors(word)]),
+  ['<rc', () => { location.hash = '#/activity?view=plays'; toast(th('Yes, we know you’ve typed {rc} more often than “hello”.', { rc: html`<span class="kbd">&lt;rc</span>` })); }],
+  ['aqui', () => toast(html`<b lang="pt-PT">Eu estou aqui</b>… <span lang="pt-PT">e tu?</span> <a href="#/map/2311555">${t('Go and see the map')}</a>`)], // PT text (intentional)
+  ['bacalhau', () => { const on = !bacalhauOn(); setBacalhau(on); toast(on ? html`<b>BACALHAU!</b> 🐟 ${t('The catcher only catches cod now.')}` : html`${t('Back to fruit.')} 🍎`); }],
+  ...RPS.flatMap(word => [...new Set([word, RPS_WORD[word]])].map(typed => [typed, () => rockPaperScissors(word)])),
 ];
 const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
@@ -89,7 +92,7 @@ function onKey(e) {
   if (e.key.length !== 1) return;
   typed = (typed + e.key.toLowerCase()).slice(-12);
   const hit = TRIGGERS.find(([word]) => typed.endsWith(word));
-  if (hit) { typed = ''; track('egg', RPS.includes(hit[0]) ? 'rock paper scissors' : hit[0]); hit[1](); }
+  if (hit) { typed = ''; track('egg', RPS.includes(hit[0]) || Object.values(RPS_WORD).includes(hit[0]) ? 'rock paper scissors' : hit[0]); hit[1](); }
 }
 
 /** December gets a Santa hat on the logo; 10 June (Portugal Day) gets a bacalhau. */

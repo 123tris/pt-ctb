@@ -5,17 +5,18 @@ import { S, MOD, DAN_STAGES } from './model.js';
 import { catChip, CAT_LABEL, mapLabel, modsBadges, ppText, playerName } from './ui.js';
 import { QUIPS, THRONE_PLAYER, pick } from './lore.js';
 import * as fmt from './fmt.js';
+import { t, th } from './i18n.js';
 
 /** "Zeroth Dan", "7th Dan", "Aleph". */
-export const danName = i => (i === 0 ? 'Zeroth Dan' : i <= 10 ? `${fmt.ordinal(i)} Dan` : DAN_STAGES[i].key);
+export const danName = i => (i === 0 ? t('Zeroth Dan') : i <= 10 ? t('{nth} Dan', { nth: fmt.ordinal(i) }) : DAN_STAGES[i].key);
 
 export const EVENT_KINDS = {
-  snipe: { tag: '#1 sniped', label: 'Snipes' },
-  top: { tag: 'Top play', label: 'Top plays' },
+  snipe: { tag: t('#1 sniped'), label: t('Snipes') },
+  top: { tag: t('Top play'), label: t('Top plays') },
   dan: { tag: 'Dan', label: 'Dan' },
-  pass: { tag: 'Overtake', label: 'Overtakes' },
-  mile: { tag: 'Milestone', label: 'Milestones' },
-  join: { tag: 'New player', label: 'New players' },
+  pass: { tag: t('Overtake'), label: t('Overtakes') },
+  mile: { tag: t('Milestone'), label: t('Milestones') },
+  join: { tag: t('New player'), label: t('New players') },
 };
 
 const who = (index, id) => html`<a href="#/player/${id}"><b>${playerName(index, id)}</b></a>`;
@@ -24,27 +25,27 @@ function describe(e, index, maps) {
   const map = e.s ? html`<a class="dim-link" href="#/map/${e.s[S.MAP]}">${mapLabel(e.s[S.MAP], maps[e.s[S.MAP]])}</a>` : '';
   switch (e.k) {
     case 'snipe':
-      return { what: html`${who(index, e.u)} took the #1 from ${who(index, e.v)}`, where: map };
+      return { what: th('{who} took the #1 from {other}', { who: who(index, e.u), other: who(index, e.v) }), where: map };
     case 'top':
       return {
         what: e.i === 1
-          ? html`${who(index, e.u)} set a new best play in ${CAT_LABEL[e.c]}`
-          : html`${who(index, e.u)} set a new ${fmt.ordinal(e.i)} best play in ${CAT_LABEL[e.c]}`,
+          ? th('{who} set a new best play in {cat}', { who: who(index, e.u), cat: CAT_LABEL[e.c] })
+          : th('{who} set a new {nth} best play in {cat}', { who: who(index, e.u), nth: fmt.ordinal(e.i, { feminine: true }), cat: CAT_LABEL[e.c] }),
         where: map,
       };
     case 'dan':
-      return { what: html`${who(index, e.u)} passed the ${danName(e.d)}`, where: html`${fmt.acc(e.s[S.ACC])} · ${map}` };
+      return { what: th('{who} passed the {dan}', { who: who(index, e.u), dan: danName(e.d) }), where: html`${fmt.acc(e.s[S.ACC])} · ${map}` };
     case 'pass': {
-      const others = e.v.length > 1 ? html` and ${e.v.length - 1} more` : '';
+      const vars = { who: who(index, e.u), other: who(index, e.v[0]), n: fmt.num(e.v.length - 1), cat: CAT_LABEL[e.c] };
       return {
-        what: html`${who(index, e.u)} overtook ${who(index, e.v[0])}${others} in ${CAT_LABEL[e.c]}`,
-        where: html`Now ${fmt.rank(e.r)} with ${fmt.pp(e.pp)} pp`,
+        what: e.v.length > 1 ? th('{who} overtook {other} and {n} more in {cat}', vars) : th('{who} overtook {other} in {cat}', vars),
+        where: t('Now {rank} with {pp} pp', { rank: fmt.rank(e.r), pp: fmt.pp(e.pp) }),
       };
     }
     case 'mile':
-      return { what: html`${who(index, e.u)} reached ${fmt.num(e.pp)} pp in ${CAT_LABEL[e.c]}`, where: '' };
+      return { what: th('{who} reached {pp} pp in {cat}', { who: who(index, e.u), pp: fmt.num(e.pp), cat: CAT_LABEL[e.c] }), where: '' };
     case 'join':
-      return { what: html`${who(index, e.u)} joined the leaderboards`, where: '' };
+      return { what: th('{who} joined the leaderboards', { who: who(index, e.u) }), where: '' };
     default:
       return { what: '', where: '' };
   }

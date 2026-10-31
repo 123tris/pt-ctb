@@ -5,19 +5,20 @@
 
 import { html } from './html.js';
 import { STAR_MAX, STAR_STEP, ANY_STARS, starsLabel, isAnyStars } from './star-range.js';
+import { t, locale } from './i18n.js';
 
 const snapStar = v => Math.round(Math.min(STAR_MAX, Math.max(0, v)) / STAR_STEP) / (1 / STAR_STEP);
 
 /** The slider's markup, set to [lo, hi]. */
 export const starSlider = ([lo, hi]) => html`<div class="star-filter" role="group" aria-labelledby="stars-label">
-  <span class="chips-label" id="stars-label">Stars</span>
+  <span class="chips-label" id="stars-label">${t('Stars')}</span>
   <div class="range" id="stars-range">
     <div class="range-track"><div class="range-fill"></div></div>
-    <input type="range" id="stars-min" min="0" max="${STAR_MAX}" step="${STAR_STEP}" value="${lo}" aria-label="Minimum stars">
-    <input type="range" id="stars-max" min="0" max="${STAR_MAX}" step="${STAR_STEP}" value="${hi}" aria-label="Maximum stars">
+    <input type="range" id="stars-min" min="0" max="${STAR_MAX}" step="${STAR_STEP}" value="${lo}" aria-label="${t('Minimum stars')}">
+    <input type="range" id="stars-max" min="0" max="${STAR_MAX}" step="${STAR_STEP}" value="${hi}" aria-label="${t('Maximum stars')}">
   </div>
   <span class="range-out" id="stars-out"></span>
-  <button class="range-reset" type="button" id="stars-reset">Reset</button>
+  <button class="range-reset" type="button" id="stars-reset">${t('Reset')}</button>
 </div>`;
 
 /**
@@ -37,8 +38,8 @@ export function bindStarSlider(root, initial, onChange) {
     max.value = hi;
     range.style.setProperty('--lo', `${lo / STAR_MAX * 100}%`);
     range.style.setProperty('--hi', `${hi / STAR_MAX * 100}%`);
-    min.setAttribute('aria-valuetext', lo > 0 ? `${lo} stars` : 'No minimum');
-    max.setAttribute('aria-valuetext', hi < STAR_MAX ? `${hi} stars` : 'No maximum');
+    min.setAttribute('aria-valuetext', lo > 0 ? t('{n} stars', { n: lo.toLocaleString(locale) }) : t('No minimum'));
+    max.setAttribute('aria-valuetext', hi < STAR_MAX ? t('{n} stars', { n: hi.toLocaleString(locale) }) : t('No maximum'));
     out.textContent = starsLabel(stars);
     out.classList.toggle('on', !isAnyStars(stars));
     reset.hidden = isAnyStars(stars);

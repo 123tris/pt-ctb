@@ -3,6 +3,8 @@
 // 7.7★, so a plain linear scale keeps every catch difficulty in reach and the numbers where the eye expects them.
 // It lives in the URL as `stars=4-7`, `stars=7-` (no maximum) or `stars=0-4` (no minimum); the full range adds nothing.
 
+import { t, locale } from './i18n.js';
+
 export const STAR_MAX = 10;
 export const STAR_STEP = 0.1;
 export const ANY_STARS = Object.freeze([0, STAR_MAX]);
@@ -10,6 +12,8 @@ export const ANY_STARS = Object.freeze([0, STAR_MAX]);
 const snap = v => Math.round(Math.min(STAR_MAX, Math.max(0, v)) / STAR_STEP) / (1 / STAR_STEP);
 /** 3.5, 7, 10: one decimal at most, without float noise. */
 const show = v => String(Math.round(v * 10) / 10);
+/** show() for reading: 3.5 in English, 3,5 in Portuguese. */
+const shown = v => (Math.round(v * 10) / 10).toLocaleString(locale);
 
 // Old links filtered by difficulty name (?diff=platter); each name becomes the star band osu!catch's ranking criteria
 // give it, and the -dose puns join Overdose.
@@ -41,10 +45,10 @@ export const formatStars = ([lo, hi]) => (isAnyStars([lo, hi]) ? '' : `${show(lo
 
 /** The readout beside the slider: Any, 7★+, Up to 4★ or 3.5★ – 7★. */
 export function starsLabel([lo, hi]) {
-  if (isAnyStars([lo, hi])) return 'Any';
-  if (hi >= STAR_MAX) return `${show(lo)}★+`;
-  if (lo <= 0) return `Up to ${show(hi)}★`;
-  return `${show(lo)}★ – ${show(hi)}★`;
+  if (isAnyStars([lo, hi])) return t('Any');
+  if (hi >= STAR_MAX) return `${shown(lo)}★+`;
+  if (lo <= 0) return t('Up to {stars}★', { stars: shown(hi) });
+  return `${shown(lo)}★ – ${shown(hi)}★`;
 }
 
 /** Whether a map's stars fall in the range. Maps with unknown stars (0) only show while the range is the full one. */

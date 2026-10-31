@@ -7,6 +7,7 @@ import { players } from './data.js';
 import { avatar } from './ui.js';
 import * as fmt from './fmt.js';
 import { track, shapeOf } from './track.js';
+import { t, tn } from './i18n.js';
 
 const LIMIT = 8;
 const ICON = '<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="7" cy="7" r="4.75" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5 14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
@@ -27,16 +28,16 @@ function rank(list, text) {
 }
 
 // Pages the search offers above the players, so "dan" finds the Dan course even though it lives under Challenges.
-// A page matches when its name contains the text or one of its words starts with it.
+// A page matches when its name contains the text or one of its words starts with it (English or Portuguese).
 const PAGES = [
-  { name: 'Dan course', href: '#/challenges/dan', detail: 'Challenges · 19 stages', words: 'dan dans course stage stages zeroth aleph shin updatedan claimdanrole' },
-  { name: 'Map of the week', href: '#/challenges/week', detail: 'Challenges', words: 'week weekly challenge challenges' },
-  { name: 'Snipe targets', href: '#/challenges/targets', detail: 'Challenges', words: 'snipe snipes sniping targets vulnerable bounty bounties unclaimed' },
-  { name: 'Completion', href: '#/challenges/completion', detail: 'Challenges · ranked maps cleared', words: 'completion complete cleared clear uncleared progress goal' },
-  { name: 'Glossary', href: '#/glossary', detail: 'pp, FC, mods explained', words: 'glossary help words meaning new' },
-  { name: 'Records', href: '#/records', detail: 'Biggest combos, most #1s', words: 'records record' },
-  { name: 'Calculator', href: '#/calculator', detail: 'How much pp is a play worth', words: 'calculator calc pp' },
-  { name: 'How to join', href: '#/join', detail: 'Discord, /verify and playing', words: 'join verify verification verified role discord new' },
+  { name: t('Dan course'), href: '#/challenges/dan', detail: t('Challenges · 19 stages'), words: 'dan dans course stage stages zeroth aleph shin updatedan claimdanrole curso etapa etapas' },
+  { name: t('Map of the week'), href: '#/challenges/week', detail: t('Challenges'), words: 'week weekly challenge challenges semana semanal desafio desafios' },
+  { name: t('Snipe targets'), href: '#/challenges/targets', detail: t('Challenges'), words: 'snipe snipes sniping targets vulnerable bounty bounties unclaimed alvos recompensa recompensas' },
+  { name: t('Completion'), href: '#/challenges/completion', detail: t('Challenges · ranked maps cleared'), words: 'completion complete cleared clear uncleared progress goal conclusão completar progresso objetivo' },
+  { name: t('Glossary'), href: '#/glossary', detail: t('pp, FC, mods explained'), words: 'glossary help words meaning new glossário glossario ajuda palavras' },
+  { name: t('Records'), href: '#/records', detail: t('Biggest combos, most #1s'), words: 'records record recordes recorde' },
+  { name: t('Calculator'), href: '#/calculator', detail: t('How much pp is a play worth'), words: 'calculator calc pp calculadora' },
+  { name: t('How to join'), href: '#/join', detail: t('Discord, /verify and playing'), words: 'join verify verification verified role discord new entrar verificar verificação' },
 ];
 
 function pageMatches(text) {
@@ -54,10 +55,10 @@ function highlight(name, text) {
 
 /** A quiet second line: converts pp when there is some, otherwise whichever pp the player has. */
 function detail(p) {
-  if (p.cv > 0) return `${fmt.pp(p.cv)} pp · Converts`;
-  if (p.pp > 0) return `${fmt.pp(p.pp)} pp · Ranked`;
-  if (p.ul > 0) return `${fmt.pp(p.ul)} pp · Loved`;
-  return 'No pp yet';
+  if (p.cv > 0) return `${fmt.pp(p.cv)} pp · ${t('Converts')}`;
+  if (p.pp > 0) return `${fmt.pp(p.pp)} pp · ${t('Ranked')}`;
+  if (p.ul > 0) return `${fmt.pp(p.ul)} pp · ${t('Loved')}`;
+  return t('No pp yet');
 }
 
 export function initSearch() {
@@ -65,18 +66,18 @@ export function initSearch() {
   const box = document.createElement('div');
   box.className = 'search';
   box.innerHTML = `
-    <button class="search-toggle" type="button" aria-label="Search players" aria-expanded="false" aria-controls="search-panel">${ICON}<span class="search-toggle-label" aria-hidden="true">Search</span></button>
+    <button class="search-toggle" type="button" aria-label="${t('Search players')}" aria-expanded="false" aria-controls="search-panel">${ICON}<span class="search-toggle-label" aria-hidden="true">${t('Search')}</span></button>
     <div class="search-panel" id="search-panel" role="search">
       <div class="search-field">
         ${ICON}
-        <input id="player-search" type="text" placeholder="Search players" autocomplete="off" spellcheck="false"
-          role="combobox" aria-label="Search players" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
+        <input id="player-search" type="text" placeholder="${t('Search players|placeholder')}" autocomplete="off" spellcheck="false"
+          role="combobox" aria-label="${t('Search players')}" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
         <kbd class="search-key" aria-hidden="true">/</kbd>
       </div>
       <div class="search-pop" hidden>
-        <ul class="search-results" id="search-results" role="listbox" aria-label="Players"></ul>
+        <ul class="search-results" id="search-results" role="listbox" aria-label="${t('Players')}"></ul>
         <p class="search-status" id="search-status" role="status"></p>
-        <a class="search-all" href="#/players">Search all players</a>
+        <a class="search-all" href="#/players">${t('Search all players')}</a>
       </div>
     </div>`;
   bar.insertBefore(box, bar.querySelector('.nav-toggle'));
@@ -126,10 +127,11 @@ export function initSearch() {
     // Outside the listbox, in a live region, so screen readers hear "No players found" or how many matched.
     const status = box.querySelector('.search-status');
     status.classList.toggle('sr-only', Boolean(results.length));
+    const and = ` ${t('and')} `;
     status.textContent = results.length
-      ? [pages.length && `${pages.map(p => p.name).join(' and ')} page${pages.length > 1 ? 's' : ''}`,
-        people.length && `${fmt.plural(people.length, 'player')}${people.length === LIMIT ? ' (the best 8)' : ''}`].filter(Boolean).join(' and ') + ' found'
-      : 'No players found';
+      ? t('{what} found', { what: [pages.length && tn(pages.length, '{names} page', '{names} pages', { names: pages.map(p => p.name).join(and) }),
+        people.length && `${fmt.plural(people.length, 'player')}${people.length === LIMIT ? ` ${t('(the best 8)')}` : ''}`].filter(Boolean).join(and) })
+      : t('No players found');
     all.href = `#/players?q=${encodeURIComponent(text)}`;
     showPop(true);
     setActive(results.length ? 0 : -1);

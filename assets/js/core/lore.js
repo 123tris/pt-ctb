@@ -1,7 +1,10 @@
 // The community's own voice: in-jokes, catchphrases and history from the PT-CTB Discord, used as copy around the
-// site. Everything here is hand-written; edit freely. Portuguese appears only where the joke needs it.
+// site. Everything here is hand-written; edit freely. Portuguese appears only where the joke needs it (and in core/pt.js,
+// which has the Portuguese site's version of every line).
 
 import { M } from './model.js';
+import { t } from './i18n.js';
+import * as fmt from './fmt.js';
 
 /** Tris: the player the records page dares everyone to snipe. Defined in model.js, which the exporter shares. */
 export { THRONE_PLAYER } from './model.js';
@@ -30,90 +33,90 @@ export function pick(list, seed) {
 }
 
 export const NOT_FOUND = [
-  'It’s probably been in qualified since 2018.',
-  'Reverse choke: everything was going fine and we died right at the end.',
-  'Like Shin, the last Dan: nobody has made it here.',
+  t('It’s probably been in qualified since 2018.'),
+  t('Reverse choke: everything was going fine and we died right at the end.'),
+  t('Like Shin, the last Dan: nobody has made it here.'),
 ];
 
 export const FOOTER = [
-  'Catching fruit since 2018.',
-  'trisKappa: everything on this site is a joke, except your misses.',
-  'No Alphonses were harmed in the making of this site.',
-  'Bad scores are most appreciated :)',
+  t('Catching fruit since 2018.'),
+  t('trisKappa: everything on this site is a joke, except your misses.'),
+  t('No Alphonses were harmed in the making of this site.'),
+  t('Bad scores are most appreciated :)'),
 ];
 
 /** The community's story in five years, for the home page (Team Portugal has the tournaments in full). */
 export const HISTORY = [
-  [2018, 'The server opens on 29 May. The Dan bot follows on 22 June.'],
-  [2021, 'Portugal gets its own leaderboards: converts in January, loved in February.'],
-  [2022, 'A round of 16 at the Catch World Cup, and the Dan course comes back to life.'],
-  [2025, '40th in the CWC qualifiers. Bulgaria was 41st. WE BEAT 41.'],
-  [2026, 'The first series win in Portugal’s CWC history. Alphonse wakes up again two weeks later.'],
+  [2018, t('The server opens on 29 May. The Dan bot follows on 22 June.')],
+  [2021, t('Portugal gets its own leaderboards: converts in January, loved in February.')],
+  [2022, t('A round of 16 at the Catch World Cup, and the Dan course comes back to life.')],
+  [2025, t('40th in the CWC qualifiers. Bulgaria was 41st. WE BEAT 41.')],
+  [2026, t('The first series win in Portugal’s CWC history. Alphonse wakes up again two weeks later.')],
 ];
 
 /** The few lines under activity events (core/events.js quip()): each tied to a real in-joke or a rare moment. */
 export const QUIPS = {
-  trisAcc: ['TrisAcc: an FC is an FC.'],
-  noRealSnipe: 'That’s not a real snipe (NF).',
-  christmas: 'An early Christmas present.',
-  throne: 'The throne wobbles.',
+  trisAcc: [t('TrisAcc: an FC is an FC.')],
+  noRealSnipe: t('That’s not a real snipe (NF).'),
+  christmas: t('An early Christmas present.'),
+  throne: t('The throne wobbles.'),
 };
 
 /** Dan role lore, shown under each role on the Dan page. `empty` replaces the text while nobody has the role. */
 export const DAN_ROLE_LORE = {
-  'Dan Skrub': { text: 'The bottom rung, as in “back to Skrub”.' },
-  'Dan Intermed': { text: 'Back in 2018, this one came with the right to add a custom emoji to the server.' },
-  'Dan Expert': { text: 'Where the Dan course stops being polite.' },
-  'Dan Beast': { text: 'For the beasts.', empty: 'Beast: still vacant.' },
-  'PT Best Player': { text: 'The top title.', empty: 'The joke top title nobody has reached. Yet.' },
+  'Dan Skrub': { text: t('The bottom rung, as in “back to Skrub”.') },
+  'Dan Intermed': { text: t('Back in 2018, this one came with the right to add a custom emoji to the server.') },
+  'Dan Expert': { text: t('Where the Dan course stops being polite.') },
+  'Dan Beast': { text: t('For the beasts.'), empty: t('Beast: still vacant.') },
+  'PT Best Player': { text: t('The top title.'), empty: t('The joke top title nobody has reached. Yet.') },
 };
 
 /** Maps with a story. `match` gets the map's meta tuple; the first hit wins. */
 export const MAP_LORE = [
   {
     match: m => /everything will freeze/i.test(m[M.TITLE]) && /undead corporation/i.test(m[M.ARTIST]),
-    title: 'The eternal grind',
-    text: n => `Everything Will Freeze: retry-spammed by every era of PT-CTB since 2018. ${n} Portuguese players on this diff alone.`,
+    title: t('The eternal grind'),
+    text: n => t('Everything Will Freeze: retry-spammed by every era of PT-CTB since 2018. {n} Portuguese players on this diff alone.', { n: fmt.num(n) }),
   },
   {
     match: m => /eu estou aqui/i.test(m[M.TITLE]) && /anjos/i.test(m[M.ARTIST]),
-    title: 'Eu estou aqui… are you?', // PT text (intentional): the song title
-    text: (n, top) => `A Portuguese pop song turned meme map, and ${n} Portuguese players have been here. ${top >= 100
-      ? `“Faz o 100pp do eu estou aqui”? Done: the best play on this diff is worth ${Math.round(top)} pp.`
-      : 'The 100pp play is still waiting.'}`,
+    title: t('Eu estou aqui… are you?'), // PT text (intentional): the song title
+    text: (n, top) => `${t('A Portuguese pop song turned meme map, and {n} Portuguese players have been here.', { n: fmt.num(n) })} ${top >= 100
+      ? t('“Faz o 100pp do eu estou aqui”? Done: the best play on this diff is worth {pp} pp.', { pp: fmt.num(Math.round(top)) })
+      : t('The 100pp play is still waiting.')}`,
     tuga: true,
   },
   {
     match: m => /quim barreiros/i.test(m[M.ARTIST]),
-    title: 'A Portuguese classic, in fruit form',
-    text: () => 'Quim Barreiros on osu!catch. Of course someone mapped it.',
+    title: t('A Portuguese classic, in fruit form'),
+    text: () => t('Quim Barreiros on osu!catch. Of course someone mapped it.'),
     tuga: true,
   },
   {
     match: m => /ronaldo/i.test(m[M.TITLE]),
-    title: 'Ronaldo, but catch',
-    text: () => 'A Portuguese meme map, with diffs named by the people who play it.',
+    title: t('Ronaldo, but catch'),
+    text: () => t('A Portuguese meme map, with diffs named by the people who play it.'),
     tuga: true,
   },
   {
     match: m => /the big black/i.test(m[M.TITLE]),
-    title: 'The benchmark',
-    text: () => 'If you FC the Big Black, you can call it a farm map.',
+    title: t('The benchmark'),
+    text: () => t('If you FC the Big Black, you can call it a farm map.'),
   },
   {
     match: m => /image -material-/i.test(m[M.TITLE]),
-    title: 'The consistency exam',
-    text: () => 'Seven minutes long, one choke away from glory. Every era measures itself against this one.',
+    title: t('The consistency exam'),
+    text: () => t('Seven minutes long, one choke away from glory. Every era measures itself against this one.'),
   },
   {
     match: m => /inferno/i.test(m[M.TITLE]) && /9mm parabellum/i.test(m[M.ARTIST]),
-    title: 'Rocking out in hell',
-    text: () => 'The map behind the 2018 "FC INFERNO" retry diary. Retry #30: almost a clear.',
+    title: t('Rocking out in hell'),
+    text: () => t('The map behind the 2018 "FC INFERNO" retry diary. Retry #30: almost a clear.'),
   },
   {
     match: m => /der wald/i.test(m[M.TITLE]),
-    title: 'Devastating, as advertised',
-    text: () => 'Good luck getting a B.',
+    title: t('Devastating, as advertised'),
+    text: () => t('Good luck getting a B.'),
   },
 ];
 
@@ -133,9 +136,9 @@ export const CALC_PRESETS = [
 
 /** Compare presets: rivalries the Discord has argued about for years. */
 export const RIVALRIES = [
-  [3821475, 3006672, 'The spinner war'],
-  [6205809, 7385703, 'Who’s the better HD player?'],
-  [4095868, 6205809, 'The official Yoxide snipe'],
+  [3821475, 3006672, t('The spinner war')],
+  [6205809, 7385703, t('Who’s the better HD player?')],
+  [4095868, 6205809, t('The official Yoxide snipe')],
 ];
 
 /**
@@ -143,25 +146,25 @@ export const RIVALRIES = [
  * together from chat: check results against the official brackets before relying on them.
  */
 export const TEAM_TIMELINE = [
-  [2018, 'CWC 2018', 'Portugal’s first World Cup. A group with the Netherlands, the USA and Argentina: 0-4, 1-4, 1-4. "We do it for fun."'],
-  [2019, 'AxS 2019', 'A Portuguese team in the AxS tournament, kept forever in its own channel "for history purposes".'],
-  [2020, 'Sightread 2020', 'Team RonaldoSoccer64. 37th on weighted pp, five places short of the 32-team cut.'],
-  [2021, '3 Digit World Cup', 'Unseeded and getting FCs anyway. Took games off Brazil and played Belgium in the losers’ bracket.'],
-  [2022, 'CWC 2022', 'A round of 16 against Finland.'],
-  [2022, '4CWC 2022', 'Top 16, beating the 25–32 prediction. A tiebreaker against Malaysia and a win over Australia.'],
-  [2024, '4CWC 2024', 'Beat Poland in a tiebreaker, then lost one to Chile.'],
-  [2025, 'CWC 2025', '40th in the qualifiers. Bulgaria was 41st. WE BEAT 41.'],
-  [2025, '4CWC 2025', 'Tryouts held, team announced, and then the organisers cancelled the tournament (18 October).'],
-  [2026, 'CWC 2026', 'Seeded 25th. On 14 June, the first series win in Portugal’s CWC history. Out in the losers’ bracket quarter-final against South Korea.'],
-  [2026, '4CWC 2026', 'Top of the qualifier averages on NM1, NM2, NM3 and HD1, then a round of 32 against the United Kingdom.'],
+  [2018, 'CWC 2018', t('Portugal’s first World Cup. A group with the Netherlands, the USA and Argentina: 0-4, 1-4, 1-4. "We do it for fun."')],
+  [2019, 'AxS 2019', t('A Portuguese team in the AxS tournament, kept forever in its own channel "for history purposes".')],
+  [2020, 'Sightread 2020', t('Team RonaldoSoccer64. 37th on weighted pp, five places short of the 32-team cut.')],
+  [2021, '3 Digit World Cup', t('Unseeded and getting FCs anyway. Took games off Brazil and played Belgium in the losers’ bracket.')],
+  [2022, 'CWC 2022', t('A round of 16 against Finland.')],
+  [2022, '4CWC 2022', t('Top 16, beating the 25–32 prediction. A tiebreaker against Malaysia and a win over Australia.')],
+  [2024, '4CWC 2024', t('Beat Poland in a tiebreaker, then lost one to Chile.')],
+  [2025, 'CWC 2025', t('40th in the qualifiers. Bulgaria was 41st. WE BEAT 41.')],
+  [2025, '4CWC 2025', t('Tryouts held, team announced, and then the organisers cancelled the tournament (18 October).')],
+  [2026, 'CWC 2026', t('Seeded 25th. On 14 June, the first series win in Portugal’s CWC history. Out in the losers’ bracket quarter-final against South Korea.')],
+  [2026, '4CWC 2026', t('Top of the qualifier averages on NM1, NM2, NM3 and HD1, then a round of 32 against the United Kingdom.')],
 ];
 
 /** The first Portuguese players past 10,000 pp, and the play that took them there (a 2023 community post). */
 export const FIRST_10K = [
-  ['2018-09-02', 'Buffow', 4427038, 'Oriental Blossom [Oriental] with HDHR'],
+  ['2018-09-02', 'Buffow', 4427038, t('Oriental Blossom [Oriental] with HDHR')],
   ['2019-09-17', 'gold801', 3006672, 'Chroma - I [LACRIMA’S MAXIMUM]'],
-  ['2020-04-16', 'Tris', 3821475, 'iLLness LiLin [NELLY’S GRAVITY], nomod with one miss'],
-  ['2021-11-24', 'Airdown', 2788013, 'night birds [Starry Night] with HR'],
+  ['2020-04-16', 'Tris', 3821475, t('iLLness LiLin [NELLY’S GRAVITY], nomod with one miss')],
+  ['2021-11-24', 'Airdown', 2788013, t('night birds [Starry Night] with HR')],
   ['2023-06-12', 'Hiroto', null, 'XIII Charlotte [Resonance]'],
 ];
 

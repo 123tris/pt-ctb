@@ -2,6 +2,7 @@
 
 import { raw, escape } from './html.js';
 import * as fmt from './fmt.js';
+import { t } from './i18n.js';
 
 const W = 600;
 const PAD = { l: 56, r: 16, t: 14, b: 28 }; // line charts
@@ -52,7 +53,7 @@ export function lineChart(series, { height = 240, format = v => fmt.num(v), labe
 
   // The chart's text alternative: the caller's summary, or where each line starts and ends.
   const alt = label ?? series.filter(s => s.points.length).map(s =>
-    `${s.label}: ${format(s.points[0][1])} to ${format(s.points[s.points.length - 1][1])}`).join('; ');
+    `${s.label}: ${t('{from} to {to}', { from: format(s.points[0][1]), to: format(s.points[s.points.length - 1][1]) })}`).join('; ');
   // The scales go along as data-*, so chartHover() can place its guide and dots on the same axes.
   let svg = `<svg class="chart" viewBox="0 0 ${W} ${height}" role="img" aria-label="${escape(alt)}" data-x0="${x0}" data-x1="${x1}" data-y0="${y0}" data-y1="${y1}">`;
   for (let v = y0; v <= y1 + 1e-9; v += step) {
@@ -97,7 +98,7 @@ export function chartHover(wrap, rows, { format = v => fmt.num(v), onKey } = {})
   tip.hidden = true;
   wrap.append(tip);
   svg.setAttribute('tabindex', '0');
-  svg.setAttribute('aria-label', `${svg.getAttribute('aria-label')} Use the arrow keys to read the values over time.`);
+  svg.setAttribute('aria-label', `${svg.getAttribute('aria-label')} ${t('Use the arrow keys to read the values over time.')}`);
 
   let current = -1;
   const show = i => {
@@ -139,7 +140,7 @@ export function chartHover(wrap, rows, { format = v => fmt.num(v), onKey } = {})
     e.preventDefault();
     show(i);
     const row = rows[i];
-    onKey?.(`${row.title}: ${row.items.map(item => `${item.name} ${item.approx ? 'about ' : ''}${format(item.value)}`).join(', ')}.`);
+    onKey?.(`${row.title}: ${row.items.map(item => `${item.name} ${item.approx ? `${t('about')} ` : ''}${format(item.value)}`).join(', ')}.`);
   });
 }
 

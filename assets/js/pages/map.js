@@ -9,7 +9,9 @@ import {
   funChips, setPressed,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
+import { t, tn } from '../core/i18n.js';
 
+// osu!'s own status names, which players use as they are.
 const STATUS_LABEL = {
   [STATUS.GRAVEYARD]: 'Graveyard', [STATUS.WIP]: 'WIP', [STATUS.PENDING]: 'Pending', [STATUS.RANKED]: 'Ranked',
   [STATUS.APPROVED]: 'Approved', [STATUS.QUALIFIED]: 'Qualified', [STATUS.LOVED]: 'Loved',
@@ -27,13 +29,13 @@ function statusDate(meta) {
     return at ? [STATUS_LABEL[meta[M.STATUS]], at] : null;
   }
   const at = meta[M.UPDATED_AT] ?? null;
-  return at ? ['Last updated', at] : null;
+  return at ? [t('Last updated'), at] : null;
 }
 
 /** The set's difficulties as links, easiest first, this one marked. */
 function diffSwitcher(id, diffs) {
-  return html`<nav class="diffs" aria-label="Difficulties">${diffs.map(([mapId, version, stars, players]) => {
-    const label = `${version}, ${fmt.num(stars, 2)} stars, ${players ? fmt.plural(players, 'Portuguese player') : 'no Portuguese scores yet'}`;
+  return html`<nav class="diffs" aria-label="${t('Difficulties')}">${diffs.map(([mapId, version, stars, players]) => {
+    const label = t('{version}, {stars} stars, {players}', { version, stars: fmt.num(stars, 2), players: players ? fmt.plural(players, 'Portuguese player') : t('no Portuguese scores yet') });
     return html`<a class="diff ${players ? '' : 'diff-new'}" href="#/map/${mapId}" style="--s:${starColor(stars)}" title="${label}"
       aria-label="${label}" aria-current="${mapId === id ? 'page' : 'false'}"><span>${version}</span><small>${fmt.num(stars, 2)}</small></a>`;
   })}</nav>`;
@@ -49,13 +51,13 @@ function boardRows(entries, me, index, pre = false) {
     <td class="cell-player">${playerLink(uid, index)}<span class="cell-sub"><span class="score-line">${scoreStats(s)}</span> ${fmt.num(s[S.SCORE])} · <time datetime="${new Date(s[S.TIME] * 1000).toISOString()}">${fmt.date(s[S.TIME])}</time></span></td>
     <td class="num col-opt">${fmt.num(s[S.SCORE])}</td>
     <td class="col-opt"><span class="score-line">${scoreStats(s)}</span></td>
-    <td class="num">${pre ? html`<span class="faint" title="Set before the map was ranked: counts toward nothing">—</span>` : ppText(s[S.PP])}</td>
+    <td class="num">${pre ? html`<span class="faint" title="${t('Set before the map was ranked: counts toward nothing')}">—</span>` : ppText(s[S.PP])}</td>
     <td class="num faint col-opt" title="${fmt.dateTime(s[S.TIME])}">${scoreWhen(s, fmt.date(s[S.TIME]))}</td>
   </tr>`);
 }
 
 const boardTable = rows => html`<div class="table-wrap"><table>
-  <thead><tr><th>#</th><th>Player</th><th class="num col-opt">Score</th><th class="col-opt">Play</th><th class="num">pp</th><th class="num col-opt">Date</th></tr></thead>
+  <thead><tr><th>#</th><th>${t('Player')}</th><th class="num col-opt">${t('Score')}</th><th class="col-opt">${t('Play')}</th><th class="num">pp</th><th class="num col-opt">${t('Date')}</th></tr></thead>
   <tbody>${rows}</tbody>
 </table></div>`;
 
@@ -82,7 +84,7 @@ export default async function mapPage(root, { params, isCurrent }) {
   const pre = entry?.pre ?? [];
   const lore = mapLore(meta);
   const tags = [
-    ...(lore?.tuga ? [{ name: 'tuga certified 🇵🇹', tip: 'A Portuguese song or meme map.' }] : []), // PT text (intentional): "tuga"
+    ...(lore?.tuga ? [{ name: 'tuga certified 🇵🇹', tip: t('A Portuguese song or meme map.') }] : []), // PT text (intentional): "tuga"
     ...mapTags(meta, board, entry?.c),
   ];
   const fcs = board.filter(e => e[S.MISS + 1] === 0).length;
@@ -96,51 +98,51 @@ export default async function mapPage(root, { params, isCurrent }) {
         <div class="links">
           ${entry ? catChip(entry.c) : ''}
           ${meta ? starsBadge(meta[M.STARS]) : ''}
-          ${danStage >= 0 ? html`<span class="badge badge-gold">Dan course: ${danName(danStage)}</span>` : ''}
-          ${entry?.banned ? html`<span class="badge badge-red" title="Scores on this map are kept but give no pp">Banned — no pp</span>` : ''}
+          ${danStage >= 0 ? html`<span class="badge badge-gold">${t('Dan course: {stage}', { stage: danName(danStage) })}</span>` : ''}
+          ${entry?.banned ? html`<span class="badge badge-red" title="${t('Scores on this map are kept but give no pp')}">${t('Banned — no pp')}</span>` : ''}
         </div>
-        <h1><a class="title-link" href="${osuMap(id)}" target="_blank" rel="noopener" title="${title} on osu!">${title}</a></h1>
+        <h1><a class="title-link" href="${osuMap(id)}" target="_blank" rel="noopener" title="${t('{name} on osu!', { name: title })}">${title}</a></h1>
         <div class="sub">${sub}</div>
         ${diffs ? diffSwitcher(id, diffs) : ''}
         ${funChips(tags, 'map-tags')}
-        ${unrankedForever ? html`<p class="m-0 mt-2 small faint">Still waiting to be ranked. Since 2018, probably.</p>` : ''}
+        ${unrankedForever ? html`<p class="m-0 mt-2 small faint">${t('Still waiting to be ranked. Since 2018, probably.')}</p>` : ''}
       </div>
     </section>
 
     ${lore ? html`<div class="lore-card">
       <span class="eyebrow">${lore.title}</span>
       <p>${lore.text(board.length, board.reduce((max, e) => Math.max(max, e[S.PP + 1]), 0))}</p>
-      ${board.length ? html`<p class="m-0 small muted">FC watch: ${fmt.num(fcs)} of ${fmt.plural(board.length, 'Portuguese player')} ${fcs === 1 ? 'has' : 'have'} a full combo on this diff.</p>` : ''}
+      ${board.length ? html`<p class="m-0 small muted">${tn(fcs, 'FC watch: {n} of {total} has a full combo on this diff.', 'FC watch: {n} of {total} have a full combo on this diff.', { total: fmt.plural(board.length, 'Portuguese player') })}</p>` : ''}
     </div>` : ''}
 
     ${meta ? html`<dl class="kv kv-strip">
-      <div><dt>Status</dt><dd>${STATUS_LABEL[meta[M.STATUS]] ?? '—'}${dated ? html`<span class="status-date">${dated[0] === STATUS_LABEL[meta[M.STATUS]] ? ' ' : html`<span class="sep-dot"> · </span>${dated[0]} `}<time datetime="${new Date(dated[1] * 1000).toISOString()}">${fmt.date(dated[1])}</time></span>` : ''}</dd></div>
-      <div><dt>Length</dt><dd>${fmt.duration(meta[M.LENGTH])}</dd></div>
+      <div><dt>${t('Status')}</dt><dd>${STATUS_LABEL[meta[M.STATUS]] ?? '—'}${dated ? html`<span class="status-date">${dated[0] === STATUS_LABEL[meta[M.STATUS]] ? ' ' : html`<span class="sep-dot"> · </span>${dated[0]} `}<time datetime="${new Date(dated[1] * 1000).toISOString()}">${fmt.date(dated[1])}</time></span>` : ''}</dd></div>
+      <div><dt>${t('Length')}</dt><dd>${fmt.duration(meta[M.LENGTH])}</dd></div>
       <div><dt>BPM</dt><dd>${fmt.num(meta[M.BPM])}</dd></div>
-      <div><dt>Max combo</dt><dd>${meta[M.MAX_COMBO] ? `${fmt.num(meta[M.MAX_COMBO])}x` : '—'}</dd></div>
+      <div><dt>${t('Max combo')}</dt><dd>${meta[M.MAX_COMBO] ? `${fmt.num(meta[M.MAX_COMBO])}x` : '—'}</dd></div>
       <div><dt>CS</dt><dd>${fmt.num(meta[M.CS], 1)}</dd></div>
       <div><dt>AR</dt><dd>${fmt.num(meta[M.AR], 1)}</dd></div>
       <div><dt>HP</dt><dd>${fmt.num(meta[M.HP], 1)}</dd></div>
     </dl>` : ''}
 
     <div class="mt-4 btn-row">
-      <a class="btn btn-small" href="${osuGame(id)}" title="Opens this difficulty in the osu! game (on stable, downloading it through osu!direct needs supporter)">Open in osu!</a>
-      ${meta?.[M.MAX_COMBO] ? html`<a class="btn btn-small" href="#/calculator?map=${id}">Calculate pp</a>` : ''}
+      <a class="btn btn-small" href="${osuGame(id)}" title="${t('Opens this difficulty in the osu! game (on stable, downloading it through osu!direct needs supporter)')}">${t('Open in osu!')}</a>
+      ${meta?.[M.MAX_COMBO] ? html`<a class="btn btn-small" href="#/calculator?map=${id}">${t('Calculate pp')}</a>` : ''}
     </div>
 
     <section class="section map-board">
       <div class="section-head">
-        <h2>Portuguese leaderboard</h2>
-        <span class="muted small" data-view="now">${entry?.c === CAT.LOVED && !entry.banned ? 'Sorted by pp, as in the bot.' : 'Sorted by classic score, as on osu!.'}</span>
-        ${pre.length ? html`<span class="muted small" data-view="pre" hidden>Set before the map was ranked. Kept for the record; they count toward nothing.</span>` : ''}
+        <h2>${t('Portuguese leaderboard')}</h2>
+        <span class="muted small" data-view="now">${entry?.c === CAT.LOVED && !entry.banned ? t('Sorted by pp, as in the bot.') : t('Sorted by classic score, as on osu!.')}</span>
+        ${pre.length ? html`<span class="muted small" data-view="pre" hidden>${t('Set before the map was ranked. Kept for the record; they count toward nothing.')}</span>` : ''}
       </div>
-      ${pre.length ? html`<div class="chips board-views" role="group" aria-label="Plays shown">
-        <button class="chip active" type="button" data-board="now" aria-pressed="true">${STATUS_LABEL[meta?.[M.STATUS]] ?? 'Ranked'} <span class="faint">${fmt.num(board.length)}</span></button>
-        <button class="chip" type="button" data-board="pre" aria-pressed="false">Before ranking <span class="faint">${fmt.num(pre.length)}</span></button>
+      ${pre.length ? html`<div class="chips board-views" role="group" aria-label="${t('Plays shown')}">
+        <button class="chip active" type="button" data-board="now" aria-pressed="true">${STATUS_LABEL[meta?.[M.STATUS]] ?? t('Ranked')} <span class="faint">${fmt.num(board.length)}</span></button>
+        <button class="chip" type="button" data-board="pre" aria-pressed="false">${t('Before ranking')} <span class="faint">${fmt.num(pre.length)}</span></button>
       </div>` : ''}
       <div data-view="now">
         ${board.length ? boardTable(boardRows(board, me, index))
-          : html`<div class="empty">No Portuguese player has a score on ${pre.length ? 'the ranked version of this map' : 'this map'} yet. Why not be the first?</div>`}
+          : html`<div class="empty">${pre.length ? t('No Portuguese player has a score on the ranked version of this map yet. Why not be the first?') : t('No Portuguese player has a score on this map yet. Why not be the first?')}</div>`}
       </div>
       ${pre.length ? html`<div data-view="pre" hidden>${boardTable(boardRows(pre, me, index, true))}</div>` : ''}
     </section>

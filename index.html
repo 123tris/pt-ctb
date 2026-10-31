@@ -13,63 +13,68 @@
 <script type="module" src="assets/js/app.js"></script>
 </head>
 <body>
-<a class="skip" href="#content">Skip to content</a>
+<a class="skip" href="#content" data-t>Skip to content</a>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="#/" aria-label="PT Catch, home page">
+    <a class="brand" href="#/" aria-label="PT Catch, home page" data-t-label>
       <img src="assets/img/logo.svg" alt="" width="32" height="32">
       <span>PT Catch</span>
     </a>
-    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Open menu">
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav" aria-label="Open menu" data-t-label>
       <span></span><span></span><span></span>
     </button>
     <nav id="nav" class="nav" aria-label="Main">
       <!-- Categories, as on osu.ppy.sh: the name opens the page people use most; hovering (or tabbing in) shows the rest.
            A category whose page already lists all its sub-pages (tabs or cards) has no menu. -->
       <div class="nav-cat">
-        <a class="nav-top" href="#/rankings" data-section="rankings players player recap compare">Leaderboards</a>
+        <a class="nav-top" href="#/rankings" data-section="rankings players player recap compare" data-t>Leaderboards</a>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/maps" data-section="maps map calculator">Maps</a>
+        <a class="nav-top" href="#/maps" data-section="maps map calculator" data-t>Maps</a>
         <div class="nav-menu">
-          <a href="#/maps">Search maps</a>
-          <a href="#/calculator">pp calculator</a>
+          <a href="#/maps" data-t>Search maps</a>
+          <a href="#/calculator" data-t>pp calculator</a>
         </div>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/challenges" data-section="challenges">Challenges</a>
+        <a class="nav-top" href="#/challenges" data-section="challenges" data-t>Challenges</a>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/activity" data-section="activity records team">Community</a>
+        <a class="nav-top" href="#/activity" data-section="activity records team" data-t>Community</a>
         <div class="nav-menu">
-          <a href="#/activity">Activity</a>
-          <a href="#/records">Records</a>
-          <a href="#/team">Team Portugal</a>
+          <a href="#/activity" data-t>Activity</a>
+          <a href="#/records" data-t>Records</a>
+          <a href="#/team" data-t>Team Portugal</a>
         </div>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/games" data-section="games">Games</a>
+        <a class="nav-top" href="#/games" data-section="games" data-t>Games</a>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/join" data-section="join glossary commands">Help</a>
+        <a class="nav-top" href="#/join" data-section="join glossary commands" data-t>Help</a>
         <div class="nav-menu">
-          <a href="#/join">How to join</a>
-          <a href="#/glossary">Glossary</a>
-          <a href="#/commands">Bot commands</a>
+          <a href="#/join" data-t>How to join</a>
+          <a href="#/glossary" data-t>Glossary</a>
+          <a href="#/commands" data-t>Bot commands</a>
         </div>
+      </div>
+      <!-- The site's language (app.js): each button names its language in that language. -->
+      <div class="lang" role="group" aria-label="Language" data-t-label>
+        <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+        <button type="button" data-lang="pt" lang="pt-PT" aria-label="Português" aria-pressed="false">PT</button>
       </div>
     </nav>
   </div>
 </header>
 <main id="content" class="page" tabindex="-1">
-  <noscript><p class="notice">This site needs JavaScript to show its data.</p></noscript>
+  <noscript><p class="notice">This site needs JavaScript to show its data. <span lang="pt-PT">Este site precisa de JavaScript para mostrar os dados.</span></p></noscript>
 </main>
 <div id="status" class="sr-only" role="status" aria-live="polite"></div>
 <footer class="footer">
   <div class="footer-inner">
-    <p class="footer-links" id="footer-links"><a href="#/glossary">New here? Read the glossary</a></p>
-    <p>Made by the <b>PT Catch</b> community with data from the server's bot. <span id="quip"></span> <span id="freshness"></span></p>
-    <p class="footer-dim">osu! is a trademark of ppy Pty Ltd. This site is not official. We record how the site is used, to make it better. <a class="dim-link" href="#/privacy">Privacy and opt-out</a></p>
+    <p class="footer-links" id="footer-links"><a href="#/glossary" data-t>New here? Read the glossary</a></p>
+    <p><span data-t-html>Made by the <b>PT Catch</b> community with data from the server's bot.</span> <span id="quip"></span> <span id="freshness"></span></p>
+    <p class="footer-dim"><span data-t>osu! is a trademark of ppy Pty Ltd. This site is not official. We record how the site is used, to make it better.</span> <a class="dim-link" href="#/privacy" data-t>Privacy and opt-out</a></p>
   </div>
 </footer>
 </body>

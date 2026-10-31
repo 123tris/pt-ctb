@@ -12,6 +12,7 @@ import { initReveal } from './core/reveal.js';
 import { startTracking, trackView, trackError } from './core/track.js';
 import { initConsent } from './core/consent.js';
 import * as fmt from './core/fmt.js';
+import { t, lang, setLang } from './core/i18n.js';
 import { CONFIG } from './config.js';
 
 const ROUTES = [
@@ -106,7 +107,7 @@ async function route({ newPage = false } = {}) {
 
   const found = match(path);
   if (!found) trackView('not-found');
-  if (!found) return showError('Page not found', `${pick(NOT_FOUND)} Try the search, or go back to the home page.`, { newPage, glyph: 'ש' });
+  if (!found) return showError(t('Page not found'), `${pick(NOT_FOUND)} ${t('Try the search, or go back to the home page.')}`, { newPage, glyph: 'ש' });
 
   const spinner = setTimeout(() => { if (ticket === current) root.innerHTML = String(loading()); }, 150);
   root.setAttribute('aria-busy', 'true');
@@ -121,12 +122,12 @@ async function route({ newPage = false } = {}) {
     if (ticket !== current) return;
     console.error(e);
     if (e instanceof NotFound) {
-      if (section === 'player' || section === 'recap') showError('Never heard of them!', 'There’s no Portuguese player with this id. They may not be tracked yet, or the link has a typo.', { newPage, players: true });
-      else showError('Not found', 'There’s no data for this. The map may not be tracked yet.', { newPage });
+      if (section === 'player' || section === 'recap') showError(t('Never heard of them!'), t('There’s no Portuguese player with this id. They may not be tracked yet, or the link has a typo.'), { newPage, players: true });
+      else showError(t('Not found'), t('There’s no data for this. The map may not be tracked yet.'), { newPage });
     }
     else {
       trackError(e, pageKey(found, path, query));
-      showError('This page didn’t load', 'The site couldn’t get its data: the connection may have dropped, or the data was being updated. Reload the page in a minute.', { newPage, detail: e.message });
+      showError(t('This page didn’t load'), t('The site couldn’t get its data: the connection may have dropped, or the data was being updated. Reload the page in a minute.'), { newPage, detail: e.message });
     }
   } finally {
     clearTimeout(spinner);
@@ -149,9 +150,9 @@ function showError(title, text, { newPage = false, players = false, glyph = '', 
   setTitle(title);
   root.innerHTML = String(html`<div class="empty">${glyph ? html`<div class="lost-glyph" aria-hidden="true">${glyph}</div>` : ''}<h1>${title}</h1><p>${text}</p>${detail ? html`<p class="small faint">${detail}</p>` : ''}
     <div class="btn-row justify-center">
-      <button class="btn btn-primary" type="button" data-open-search>Search players</button>
-      ${players ? html`<a class="btn" href="#/players">Browse all players</a>` : ''}
-      <a class="btn" href="#/">Go to the home page</a>
+      <button class="btn btn-primary" type="button" data-open-search>${t('Search players')}</button>
+      ${players ? html`<a class="btn" href="#/players">${t('Browse all players')}</a>` : ''}
+      <a class="btn" href="#/">${t('Go to the home page')}</a>
     </div></div>`);
   root.querySelector('[data-open-search]').addEventListener('click', openSearch);
   if (newPage) focusHeading();
@@ -177,6 +178,21 @@ function markNav(section) {
     links.forEach(a => a.classList.toggle('current', a === current));
   });
 }
+
+// ---- Language ----------------------------------------------------------------------------------------------
+
+// index.html is written in English. data-t marks an element whose text to translate, data-t-html one whose markup
+// (ours, so trusted) to translate, and data-t-label one whose aria-label to translate.
+document.querySelectorAll('[data-t]').forEach(el => { el.textContent = t(el.textContent.trim()); });
+document.querySelectorAll('[data-t-html]').forEach(el => { el.innerHTML = t(el.innerHTML.trim()); });
+document.querySelectorAll('[data-t-label]').forEach(el => el.setAttribute('aria-label', t(el.getAttribute('aria-label'))));
+document.querySelector('meta[name="description"]')?.setAttribute('content', t('Portugal’s osu!catch community: leaderboards, player profiles, the Dan course, weekly challenges and games.'));
+
+// The EN / PT switch at the end of the nav: the current language is pressed, and the other reloads the page in it.
+document.querySelectorAll('[data-lang]').forEach(button => {
+  button.setAttribute('aria-pressed', String(button.dataset.lang === lang));
+  button.addEventListener('click', () => setLang(button.dataset.lang));
+});
 
 // ---- Navigation menus ------------------------------------------------------------------------------------
 
@@ -239,12 +255,12 @@ initConsent();
 
 if (CONFIG.discordInvite) {
   document.getElementById('footer-links')?.insertAdjacentHTML('afterbegin',
-    String(html`<a class="btn btn-small" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">Join the Discord</a>`));
+    String(html`<a class="btn btn-small" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">${t('Join the Discord')}</a>`));
 }
 
 meta().then(m => {
   const footer = document.getElementById('freshness');
-  footer.textContent = `Data updated ${fmt.ago(m.generatedAt)}.`;
+  footer.textContent = t('Data updated {ago}.', { ago: fmt.ago(m.generatedAt) });
   footer.title = fmt.dateTime(m.generatedAt);
-  if (CONFIG.repository) footer.insertAdjacentHTML('afterend', String(html` <a class="dim-link" href="${CONFIG.repository}">Source on GitHub</a>.`));
+  if (CONFIG.repository) footer.insertAdjacentHTML('afterend', String(html` <a class="dim-link" href="${CONFIG.repository}">${t('Source on GitHub')}</a>.`));
 }).catch(() => {});

@@ -11,6 +11,7 @@ import { playerIndex } from './data.js';
 import { avatar, prefs } from './ui.js';
 import { toast } from './fun.js';
 import { track, identify } from './track.js';
+import { t, th } from './i18n.js';
 import { CONFIG } from '../config.js';
 
 const SIGN_IN_TTL = 15 * 60 * 1000;
@@ -42,9 +43,9 @@ const signInResult = (() => {
 })();
 
 const SIGN_IN_ERRORS = {
-  denied: 'Sign-in cancelled. Nothing was changed.',
-  stale: 'That sign-in had expired or was started in another browser. Try again.',
-  osu: 'osu! didn’t confirm who you are. Try again in a moment.',
+  denied: t('Sign-in cancelled. Nothing was changed.'),
+  stale: t('That sign-in had expired or was started in another browser. Try again.'),
+  osu: t('osu! didn’t confirm who you are. Try again in a moment.'),
 };
 
 async function finishSignIn({ id, name, proof, error }) {
@@ -55,7 +56,7 @@ async function finishSignIn({ id, name, proof, error }) {
   const p = (await playerIndex().catch(() => null))?.get(id);
   if (!p) {
     track('auth', 'not listed');
-    return toast(html`Signed in as <b>${name}</b>, but you’re not on the Portuguese leaderboards yet, so there’s nothing to show as yours.`);
+    return toast(th('Signed in as {name}, but you’re not on the Portuguese leaderboards yet, so there’s nothing to show as yours.', { name: html`<b>${name}</b>` }));
   }
   track('auth', 'ok');
   // Lets the usage counts tell an osu! sign-in from a hand-picked "This is me" (signin/proof.js).
@@ -63,7 +64,7 @@ async function finishSignIn({ id, name, proof, error }) {
   prefs.set('osuMe', id);
   prefs.set('me', id);
   window.dispatchEvent(new HashChangeEvent('hashchange')); // re-render the page with your rows highlighted
-  toast(html`Signed in as <b>${p.name}</b>.`);
+  toast(th('Signed in as {name}.', { name: html`<b>${p.name}</b>` }));
 }
 
 export function initYou() {
@@ -93,19 +94,19 @@ export function initYou() {
     if (!state) { box.innerHTML = ''; return; }
     if (p) identify(p.name);
     if (!p) {
-      box.innerHTML = String(html`<button class="you-signin" type="button" aria-label="Sign in with osu!"
-        title="Sign in with your osu! account to see your rows highlighted on any device">Sign in</button>`);
+      box.innerHTML = String(html`<button class="you-signin" type="button" aria-label="${t('Sign in with osu!')}"
+        title="${t('Sign in with your osu! account to see your rows highlighted on any device')}">${t('Sign in')}</button>`);
       return;
     }
     box.innerHTML = String(html`
       <button class="you-btn" type="button" aria-expanded="false" aria-controls="you-menu"
-        aria-label="You: ${p.name}" title="You: ${p.name}">${avatar(id, 'avatar-sm')}</button>
+        aria-label="${t('You: {name}', { name: p.name })}" title="${t('You: {name}', { name: p.name })}">${avatar(id, 'avatar-sm')}</button>
       <div class="you-menu" id="you-menu" hidden>
-        <a class="you-head" href="#/player/${id}" aria-label="Your profile: ${p.name}">${avatar(id, 'avatar-md')}<div><span class="you-label">You</span><b>${p.name}</b></div></a>
-        <a href="#/player/${id}">Your profile</a>
-        <a href="#/compare/${id}">Compare with someone</a>
-        <button class="you-forget" type="button">${viaOsu ? 'Sign out' : 'This isn’t me'}</button>
-        <p class="you-note">${viaOsu ? 'Signed in with osu! in this browser.' : 'Remembered in this browser.'}</p>
+        <a class="you-head" href="#/player/${id}" aria-label="${t('Your profile: {name}', { name: p.name })}">${avatar(id, 'avatar-md')}<div><span class="you-label">${t('You')}</span><b>${p.name}</b></div></a>
+        <a href="#/player/${id}">${t('Your profile')}</a>
+        <a href="#/compare/${id}">${t('Compare with someone')}</a>
+        <button class="you-forget" type="button">${viaOsu ? t('Sign out') : t('This isn’t me')}</button>
+        <p class="you-note">${viaOsu ? t('Signed in with osu! in this browser.') : t('Remembered in this browser.')}</p>
       </div>`);
   };
 

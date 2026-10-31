@@ -8,35 +8,36 @@ import {
   statusTag, officialPp, scoreStats, posBadge, catChip,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
+import { t } from '../core/i18n.js';
 
-// `label` is the short tab text; `title` names the page.
+// `label` is the short tab text; `title` names the page and `board` its leaderboard.
 const BOARDS = [
-  { slug: 'converts', label: 'Converts', title: 'Converts' },
-  { slug: 'loved', label: 'Loved', title: 'Loved & Unranked' },
-  { slug: 'ranked', label: 'Ranked', title: 'Ranked (official)' },
-  { slug: 'mods', label: 'Mods', title: 'By mods' },
-  { slug: 'plays', label: 'Top plays', title: 'Top plays' },
-  { slug: 'kings', label: 'Star kings', title: 'Star kings' },
+  { slug: 'converts', label: t('Converts'), title: t('Converts'), board: t('Converts leaderboard') },
+  { slug: 'loved', label: t('Loved'), title: t('Loved & Unranked'), board: t('Loved & Unranked leaderboard') },
+  { slug: 'ranked', label: t('Ranked'), title: t('Ranked (official)'), board: t('Ranked (official) leaderboard') },
+  { slug: 'mods', label: t('Mods'), title: t('By mods'), board: t('By mods leaderboard') },
+  { slug: 'plays', label: t('Top plays'), title: t('Top plays'), board: t('Top plays') },
+  { slug: 'kings', label: t('Star kings'), title: t('Star kings'), board: t('Star kings leaderboard') },
 ];
 
 const INTRO = {
-  converts: html`osu!standard maps played in catch mode, weighted the way osu! does it. <a class="help-link" href="#/glossary">What’s pp?</a>`,
-  loved: 'Loved, pending and graveyarded maps, with pp the bot works out from the current formula.',
-  ranked: 'The official leaderboard, from each player’s osu! profile. Players inactive on osu! keep their last known pp.',
-  mods: 'Weighted pp from plays that include the chosen mod. HDDT counts for HD, DT and HDDT. NF is ignored when filtering: NF counts as NM, HRNF as HR.',
-  plays: 'Portugal’s best single plays, most pp first. Mod filters include NF: NF counts as NM, HRNF as HR.',
-  kings: 'The players holding the most #1s in PT in each star range.',
+  converts: html`${t('osu!standard maps played in catch mode, weighted the way osu! does it.')} <a class="help-link" href="#/glossary">${t('What’s pp?')}</a>`,
+  loved: t('Loved, pending and graveyarded maps, with pp the bot works out from the current formula.'),
+  ranked: t('The official leaderboard, from each player’s osu! profile. Players inactive on osu! keep their last known pp.'),
+  mods: t('Weighted pp from plays that include the chosen mod. HDDT counts for HD, DT and HDDT. NF is ignored when filtering: NF counts as NM, HRNF as HR.'),
+  plays: t('Portugal’s best single plays, most pp first. Mod filters include NF: NF counts as NM, HRNF as HR.'),
+  kings: t('The players holding the most #1s in PT in each star range.'),
 };
 
-const SOURCES = [['r', 'Ranked'], ['c', 'Converts'], ['u', 'Loved & Unranked']];
+const SOURCES = [['r', t('Ranked')], ['c', t('Converts')], ['u', t('Loved & Unranked')]];
 /** The top plays' mod choice for no filter at all. */
 const ANY = 'Any';
 const KEY = { c: 'cv', u: 'ul', r: 'pp' };
 
 // Footnotes in the community's words, per board.
 const FOOTNOTE = {
-  converts: 'Converts or specifics? Pick a side (and brace for the argument).',
-  loved: 'The higher the star rating, the better the #1. NF snipes aren’t real snipes.',
+  converts: t('Converts or specifics? Pick a side (and brace for the argument).'),
+  loved: t('The higher the star rating, the better the #1. NF snipes aren’t real snipes.'),
 };
 
 /**
@@ -56,23 +57,23 @@ function inactiveMark(p, official) {
 function boardTable(list, cat, me, title, at) {
   const key = KEY[cat];
   const ranked = cat === 'r';
-  return html`<div class="table-wrap" data-label="${title} leaderboard"><table>
+  return html`<div class="table-wrap" data-label="${title}"><table>
     <thead><tr>
-      <th>#</th><th>Player</th><th class="num">pp</th>
+      <th>#</th><th>${t('Player')}</th><th class="num">pp</th>
       ${ranked
-        ? html`<th class="num col-opt">Global</th><th class="num col-opt">Country</th><th class="num col-opt">Accuracy</th><th class="num col-opt">Level</th>`
-        : html`<th class="num col-opt">Scores</th><th class="num col-opt">#1s in PT</th><th class="num col-opt">Last played</th>`}
+        ? html`<th class="num col-opt">${t('Global')}</th><th class="num col-opt">${t('Country')}</th><th class="num col-opt">${t('Accuracy')}</th><th class="num col-opt">${t('Level')}</th>`
+        : html`<th class="num col-opt">${t('Scores')}</th><th class="num col-opt">${t('#1s in PT')}</th><th class="num col-opt">${t('Last played')}</th>`}
     </tr></thead>
     <tbody>${list.map((p, i) => {
       // Inactive players stay on the board, greyed out (Ranked: those inactive on osu!, kept with their official pp).
       const offOsu = ranked && isInactiveOnOsu(p);
       const { greyed, tag } = inactiveMark(p, ranked);
-      const noRank = html`<span class="faint" title="Inactive on osu!, so no global or country rank">—</span>`;
+      const noRank = html`<span class="faint" title="${t('Inactive on osu!, so no global or country rank')}">—</span>`;
       return html`<tr class="${p.id === me ? 'me' : ''} ${p.id === at ? 'target' : ''} ${greyed ? 'inactive' : ''}" data-name="${p.name.toLowerCase()}">
         <td class="rank">${ranked ? i + 1 : p.rank[cat]}</td>
         <td class="cell-player">${playerLink(p)}${tag ? html` ${tag}` : ''}
           <span class="cell-sub">${ranked
-            ? (offOsu ? `Inactive on osu! · ${p.ppSource === 'estimated' ? 'pp estimated from their plays' : p.ppSeen ? `pp last seen ${fmt.date(p.ppSeen)}` : 'last known pp'}` : `${fmt.rank(p.global)} global · ${fmt.acc(p.acc)}`)
+            ? (offOsu ? `${t('Inactive on osu!')} · ${p.ppSource === 'estimated' ? t('pp estimated from their plays') : p.ppSeen ? t('pp last seen {date}', { date: fmt.date(p.ppSeen) }) : t('last known pp')}` : `${t('{rank} global', { rank: fmt.rank(p.global) })} · ${fmt.acc(p.acc)}`)
             : `${fmt.plural(p.count[cat], 'score')} · ${fmt.plural(p.firsts[cat], '#1', '#1s')}`}</span></td>
         <td class="num">${ranked ? officialPp(p) : ppText(p[key])}</td>
         ${ranked
@@ -84,14 +85,14 @@ function boardTable(list, cat, me, title, at) {
 }
 
 function modsTable(rows, maps, index, me, mod, official) {
-  if (!rows.length) return empty('Nobody has plays with this mod combination.');
-  return html`<div class="table-wrap" data-label="${mod} leaderboard"><table>
-    <thead><tr><th>#</th><th>Player</th><th class="num">Weighted pp</th><th class="num col-opt">Plays</th><th class="col-opt">Best play</th><th class="num col-opt">pp</th></tr></thead>
+  if (!rows.length) return empty(t('Nobody has plays with this mod combination.'));
+  return html`<div class="table-wrap" data-label="${t('{mod} leaderboard', { mod })}"><table>
+    <thead><tr><th>#</th><th>${t('Player')}</th><th class="num">${t('Weighted pp')}</th><th class="num col-opt">${t('Plays')}</th><th class="col-opt">${t('Best play')}</th><th class="num col-opt">pp</th></tr></thead>
     <tbody>${rows.map(([id, pp, count, top], i) => {
       const { greyed, tag } = inactiveMark(index.get(id), official);
       return html`<tr class="${id === me ? 'me' : ''} ${greyed ? 'inactive' : ''}" data-name="${(index.get(id)?.name || '').toLowerCase()}">
       <td class="rank">${i + 1}</td>
-      <td class="cell-player">${playerLink(id, index)}${tag ? html` ${tag}` : ''}<span class="cell-sub">${fmt.plural(count, 'play')} · best ${fmt.pp(top[S.PP])} pp</span></td>
+      <td class="cell-player">${playerLink(id, index)}${tag ? html` ${tag}` : ''}<span class="cell-sub">${fmt.plural(count, 'play')} · ${t('best {pp} pp', { pp: fmt.pp(top[S.PP]) })}</span></td>
       <td class="num">${ppText(pp)}</td>
       <td class="num col-opt">${fmt.num(count)}</td>
       <td class="wide col-opt">${mapLink(top[S.MAP], maps[top[S.MAP]])}</td>
@@ -103,7 +104,7 @@ function modsTable(rows, maps, index, me, mod, official) {
 
 /** The top plays: [userId, category, ...score] rows, best first. Ranked mixes ranked maps and converts, so it says which. */
 function playsList(rows, maps, index, me, source) {
-  if (!rows.length) return empty('Nobody has plays with this mod combination.');
+  if (!rows.length) return empty(t('Nobody has plays with this mod combination.'));
   return html`<div class="rows">${rows.map(([uid, cat, ...s], i) => {
     const p = index.get(uid);
     const { greyed, tag } = inactiveMark(p, source === 'r');
@@ -116,7 +117,7 @@ function playsList(rows, maps, index, me, source) {
         ${source === 'r' ? catChip(cat) : ''}
         ${scoreStats(s)}
         <span class="sep"></span>
-        ${posBadge(i + 1, 'Place in these top plays')}
+        ${posBadge(i + 1, t('Place in these top plays'))}
         ${ppText(s[S.PP])}
         <span class="faint" title="${fmt.dateTime(s[S.TIME])}">${fmt.date(s[S.TIME])}</span>
       </div>
@@ -132,14 +133,14 @@ export default async function rankings(root, { params, query, isCurrent }) {
     slug === 'kings' ? records() : null,
   ]);
   if (!isCurrent()) return;
-  setTitle(slug === 'plays' ? board.title : `${board.title} leaderboard`);
+  setTitle(board.board);
   const index = new Map(list.map(p => [p.id, p]));
   const me = prefs.get('me', null);
 
   if (slug === 'kings') {
     const head = html`
-      ${pageHead({ title: 'Leaderboards', extra: html`<p class="page-links"><a href="#/players">All players</a><a href="#/compare">Compare two players</a></p>` })}
-      ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), 'Leaderboard type')}`;
+      ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="#/players">${t('All players')}</a><a href="#/compare">${t('Compare two players')}</a></p>` })}
+      ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}`;
     kingsPage(root, { kings: recs?.kings, index, me, query, head, intro: INTRO.kings });
     return;
   }
@@ -152,21 +153,21 @@ export default async function rankings(root, { params, query, isCurrent }) {
   let mod = modChoices.includes(query.mod) ? query.mod : defaultMod;
 
   root.innerHTML = String(html`
-    ${pageHead({ title: 'Leaderboards', extra: html`<p class="page-links"><a href="#/players">All players</a><a href="#/compare">Compare two players</a></p>` })}
-    ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), 'Leaderboard type')}
-    <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">Players and plays imported from the osu! data dump of ${m.dump.replaceAll('_', '-')}.</span>` : ''}</p>
+    ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="#/players">${t('All players')}</a><a href="#/compare">${t('Compare two players')}</a></p>` })}
+    ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}
+    <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">${t('Players and plays imported from the osu! data dump of {date}.', { date: m.dump.replaceAll('_', '-') })}</span>` : ''}</p>
     <div class="toolbar">
-      <input class="input" type="search" id="filter" placeholder="Search players…" aria-label="Search this leaderboard" value="${query.q || ''}">
-      ${slug === 'converts' || slug === 'loved' || filtered ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show inactive players</label></span>` : ''}
-      ${slug === 'ranked' && list.some(p => isInactiveOnOsu(p) && p.pp > 0) ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> Show players inactive on osu!</label></span>` : ''}
+      <input class="input" type="search" id="filter" placeholder="${t('Search players…')}" aria-label="${t('Search this leaderboard')}" value="${query.q || ''}">
+      ${slug === 'converts' || slug === 'loved' || filtered ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> ${t('Show inactive players')}</label></span>` : ''}
+      ${slug === 'ranked' && list.some(p => isInactiveOnOsu(p) && p.pp > 0) ? html`<span class="checks"><label><input type="checkbox" id="legends" ${query.legends === '0' ? '' : 'checked'}> ${t('Show players inactive on osu!')}</label></span>` : ''}
     </div>
     ${filtered ? html`
-      <div id="sources" class="mb-2">${chipGroup('Plays from', 'src', SOURCES, source)}</div>
-      <div id="modchips" class="mb-4">${chipGroup('Mod', 'mod', modChoices.map(f => [f, f]), mod)}</div>` : ''}
+      <div id="sources" class="mb-2">${chipGroup(t('Plays from'), 'src', SOURCES, source)}</div>
+      <div id="modchips" class="mb-4">${chipGroup(t('Mod'), 'mod', modChoices.map(f => [f, f === ANY ? t('Any') : f]), mod)}</div>` : ''}
     <p class="result-count" id="count"></p>
     <div id="board"></div>
     <div id="board-empty"></div>
-    <p class="mt-3 small"><a href="#/players">Browse all ${fmt.num(list.length)} players</a></p>
+    <p class="mt-3 small"><a href="#/players">${t('Browse all {n} players', { n: fmt.num(list.length) })}</a></p>
     ${FOOTNOTE[slug] ? html`<p class="mt-2 small faint">${FOOTNOTE[slug]}</p>` : ''}
   `);
 
@@ -194,7 +195,9 @@ export default async function rankings(root, { params, query, isCurrent }) {
     count.textContent = text;
     // A filter that matches nobody says so (with the way back) instead of leaving a table of headers.
     boardEl.querySelector('.table-wrap, .rows')?.classList.toggle('hidden', rows.length > 0 && !shown);
-    emptyEl.innerHTML = rows.length && !shown ? String(emptyFiltered(q ? `No player ${slug === 'plays' ? 'in these top plays' : 'on this leaderboard'} matches “${filter.value.trim()}”.` : 'Nobody here is active right now.')) : '';
+    emptyEl.innerHTML = rows.length && !shown ? String(emptyFiltered(q
+      ? (slug === 'plays' ? t('No player in these top plays matches “{q}”.', { q: filter.value.trim() }) : t('No player on this leaderboard matches “{q}”.', { q: filter.value.trim() }))
+      : t('Nobody here is active right now.'))) : '';
     if (speak) announce(text);
   };
   let timer;
@@ -215,7 +218,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
 
   if (slug === 'plays' && !plays) {
     // Data exported before the top plays existed (the development site reads the release site's data).
-    boardEl.innerHTML = String(empty('The top plays arrive with the next data update.'));
+    boardEl.innerHTML = String(empty(t('The top plays arrive with the next data update.')));
     return;
   }
   if (!filtered) {
@@ -227,7 +230,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
       : list.filter(p => p.rank[cat]).sort((a, b) => a.rank[cat] - b.rank[cat]);
     // ?at=<player id> (a profile's rank links here): mark that player's row and bring it into view.
     const at = Number(query.at) || null;
-    boardEl.innerHTML = String(rows.length ? boardTable(rows, cat, me, board.title, at) : empty(`Nobody is on the ${CAT_LABEL[cat]} leaderboard yet.`));
+    boardEl.innerHTML = String(rows.length ? boardTable(rows, cat, me, board.board, at) : empty(t('Nobody is on the {board} leaderboard yet.', { board: CAT_LABEL[cat] })));
     applyFilter();
     boardEl.querySelector('tr.target:not(.hidden)')?.scrollIntoView({ block: 'center' });
     return;
