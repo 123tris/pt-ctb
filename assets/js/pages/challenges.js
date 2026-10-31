@@ -1,5 +1,5 @@
 import { html, raw } from '../core/html.js';
-import { challenges, playerIndex, dan, completion, meta } from '../core/data.js';
+import { challenges, bounties, playerIndex, dan, completion, meta } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
   setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, bannerArt, mapText, starsBadge, empty, osuMap, prefs,
@@ -10,26 +10,32 @@ import { danName } from '../core/events.js';
 import { ANY_STARS, parseStars, formatStars, starsLabel, inStars, isAnyStars } from '../core/star-range.js';
 import { starSlider, bindStarSlider } from '../core/star-slider.js';
 import { renderDan, DAN_INTRO } from './dan.js';
+import { GOAL_LABEL, goalLine, prizeTags, claimMods } from '../core/bounty.js';
 import * as fmt from '../core/fmt.js';
-import { t, th } from '../core/i18n.js';
+import { t, th, tn } from '../core/i18n.js';
 
-// Four sub-pages with their own URLs (#/challenges/week, /dan, /targets, /completion). "Dan" keeps the community's own
+// Five sub-pages with their own URLs (#/challenges/week, /dan, /targets, /bounties, /completion). "Dan" keeps the community's own
 // word. They're tabs, like the leaderboards', and each tab shows where that challenge stands right now.
 const TABS = [
   { slug: 'week', label: t('This week'), intro: th('A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on {activity}.', { activity: html`<a href="#/activity?view=week">${t('Activity')}</a>` }) },
   { slug: 'dan', label: t('Dan course'), intro: DAN_INTRO },
-  { slug: 'targets', label: t('Snipe targets'), intro: t('#1s that are begging to be sniped, boss maps nobody has FC’d, and maps nobody in Portugal has played yet.') },
+  { slug: 'targets', label: t('Snipe targets'), intro: t('#1s that are begging to be sniped, maps with a single Portuguese player, and maps nobody in Portugal has played yet.') },
+  { slug: 'bounties', label: t('Bounties'), intro: t('Prizes the community puts up for hard maps: full combo one, pass it first or take its #1, and the bot announces the claim on Discord.') },
   { slug: 'completion', label: t('Completion'), intro: t('A map counts once any Portuguese player passes it without NF. The goal is every ranked osu!catch-specific difficulty; converts are a separate count.') },
 ];
 
-/** Each tab's figure: the map of the week's time left, Portugal's highest Dan, #1s up for grabs, the share cleared. */
-function tabFigures(data, index, goal) {
+/**
+ * Each tab's figure: the map of the week's time left, Portugal's highest Dan, #1s up for grabs, open bounties, the share
+ * cleared.
+ */
+function tabFigures(data, board, index, goal) {
   const left = data.week ? Math.max(0, data.week.end - Date.now() / 1000) : 0;
   const top = topStage(passCounts(index.values()));
   return {
     week: data.week ? (left >= 86400 ? t('{n}d left', { n: Math.floor(left / 86400) }) : t('{n}h left', { n: Math.floor(left / 3600) })) : undefined,
     dan: top >= 0 ? danName(top) : undefined,
     targets: data.beatable.length,
+    bounties: board ? board.open.length : undefined,
     completion: goal?.total ? `${fmt.num((goal.cleared / goal.total) * 100, 1)}%` : undefined,
   };
 }
@@ -84,21 +90,23 @@ function weekSection(week, maps, index, me) {
 export default async function challengesPage(root, { params, query, isCurrent }) {
   const tab = TABS.find(x => x.slug === params.tab) ?? TABS[0];
   const goal = tab.slug === 'completion';
-  // challenges.json (about 12 KB, and cached) comes on every tab for the tabs' figures; meta.json is already loaded.
-  const [data, index, danData, goalData, m] = await Promise.all([
-    challenges(), playerIndex(), tab.slug === 'dan' ? dan() : null, goal ? completion() : null, meta(),
+  // challenges.json (about 12 KB) and bounties.json (smaller), both cached, come on every tab for the tabs' figures;
+  // meta.json is already loaded.
+  const [data, board, index, danData, goalData, m] = await Promise.all([
+    challenges(), bounties(), playerIndex(), tab.slug === 'dan' ? dan() : null, goal ? completion() : null, meta(),
   ]);
   if (!isCurrent()) return;
   setTitle(tab.slug === 'week' ? t('Challenges') : `${tab.label} · ${t('Challenges')}`);
   const me = prefs.get('me', null);
   const maps = data.maps;
-  const figures = tabFigures(data, index, m.completion);
+  const figures = tabFigures(data, board, index, m.completion);
 
   root.innerHTML = String(html`
     ${pageHead({ title: t('Challenges') })}
     ${tabs(TABS.map(x => ({ href: `#/challenges/${x.slug}`, label: x.label, count: figures[x.slug], active: x === tab })), t('Challenges'))}
     <p class="muted tabs-intro">${tab.intro}</p>
-    <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me) : tab.slug === 'targets' ? targetsPanel(data, maps, index) : ''}</div>
+    <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me) : tab.slug === 'targets' ? targetsPanel(data, maps, index)
+      : tab.slug === 'bounties' ? bountiesPanel(board, data, index) : ''}</div>
   `);
 
   if (tab.slug === 'dan') renderDan(root.querySelector('#panel'), danData, index, query);
@@ -131,15 +139,6 @@ function targetsPanel(data, maps, index) {
       </div>`)}</div>` : empty(t('Every #1 is well defended. For now.'))}
     </section>
 
-    ${data.bounties?.length ? html`<section class="section">
-      <div class="section-head"><h2>${t('Bounty board')}</h2><span class="muted small">${t('Boss maps (6.5★ and up) that several Portuguese players have passed but nobody has FC’d.')}</span></div>
-      <div class="rows">${data.bounties.map(([id, cat, n, fewest]) => html`<div class="row">
-        <div>${mapLink(id, maps[id])}</div>
-        <div class="row-meta">${catChip(cat)} <span>${fmt.plural(n, 'player')}</span><span class="sep"></span>
-          <span>${t('closest: {misses}', { misses: fmt.plural(fewest, 'miss', 'misses') })}</span><span class="bounty-tag">${t('Nobody’s FC’d this. Yet.')}</span></div>
-      </div>`)}</div>
-    </section>` : ''}
-
     <section class="section grid grid-2">
       <div>
         <div class="section-head"><h2>${t('One-player maps')}</h2></div>
@@ -157,6 +156,52 @@ function targetsPanel(data, maps, index) {
           <div class="justify-start row-meta">${t('{plays} plays on osu! · {favs} favourites', { plays: fmt.num(plays), favs: fmt.num(favs) })}</div>
         </div>`)}</div>` : empty(t('Nothing left to claim. Impressive.'))}
       </div>
+    </section>`;
+}
+
+// ---- Bounties --------------------------------------------------------------------------------------------------------
+// bounties.json (tools/lib/bounties.mjs): the bounties moderators post with the bot's !bounty add, the ones claimed, and
+// the automatic wanted list. Data from before it has only the wanted list, in challenges.json as `bounties`.
+
+function bountiesPanel(board, data, index) {
+  const maps = board?.maps ?? data.maps;
+  const open = board?.open ?? [];
+  const hall = board?.hall ?? [];
+  const wanted = board?.wanted ?? data.bounties ?? [];
+  return html`
+    <section>
+      <div class="section-head"><h2>${t('Open bounties')}</h2></div>
+      ${open.length ? html`<div class="rows">${open.map(([id, cat, goal, posted, n, misses, target, pledges]) => html`<div class="row bounty">
+        <div>${mapLink(id, maps[id])}</div>
+        <div class="row-meta">${catChip(cat)}
+          <span>${n ? tn(n, '{n} player tried', '{n} players tried') : t('nobody has tried')}</span>
+          ${goal === 'fc' && misses !== null ? html`<span>${t('closest: {misses}', { misses: fmt.plural(misses, 'miss', 'misses') })}</span>` : ''}
+          ${posted ? html`<span class="faint">${t('posted {ago}', { ago: fmt.ago(posted) })}</span>` : ''}</div>
+        <div class="bounty-foot">${goalLine(goal, target, index)}${prizeTags(pledges)}</div>
+      </div>`)}</div>` : empty(t('No open bounties right now.'))}
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>${t('Hall of fame')}</h2><span class="muted small">${t('Bounties claimed, newest first.')}</span></div>
+      ${hall.length ? html`<div class="rows">${hall.map(([id, cat, goal, status, uid, at, mods, acc, combo, pp, prizes]) => html`<div class="row bounty ${status === 'done' ? 'bounty-done' : ''}">
+        <div class="row-main">${mapLink(id, maps[id])}
+          <div class="justify-start row-meta">${playerLink(uid, index, 'avatar-sm')} <span>${GOAL_LABEL[goal]}</span>
+            ${at ? html`<time class="faint" datetime="${new Date(at * 1000).toISOString()}">${fmt.date(at)}</time>` : ''}</div></div>
+        <div class="row-meta">${claimMods(mods)} ${acc !== null ? html`<span class="acc">${fmt.acc(acc)}</span>` : ''}
+          ${combo !== null ? html`<span class="combo">${fmt.num(combo)}x</span>` : ''} ${pp !== null ? ppText(pp) : ''}</div>
+        ${status === 'done' ? html`<div class="bounty-foot"><span class="faint">${t('already done before it was posted')}</span></div>`
+          : prizes.length ? html`<div class="bounty-foot">${prizeTags(prizes)}</div>` : ''}
+      </div>`)}</div>` : empty(t('Nobody has claimed a bounty yet.'))}
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>${t('Wanted')}</h2><span class="muted small">${t('Boss maps (6.5★ and up) that several Portuguese players have passed but nobody has FC’d.')}</span></div>
+      <p class="muted small">${th('A moderator can post any of these with {command}.', { command: html`<code>!bounty add</code>` })}</p>
+      ${wanted.length ? html`<div class="rows">${wanted.map(([id, cat, n, fewest]) => html`<div class="row">
+        <div>${mapLink(id, maps[id])}</div>
+        <div class="row-meta">${catChip(cat)} <span>${fmt.plural(n, 'player')}</span><span class="sep"></span>
+          <span>${t('closest: {misses}', { misses: fmt.plural(fewest, 'miss', 'misses') })}</span><span class="bounty-tag">${t('Nobody’s FC’d this. Yet.')}</span></div>
+      </div>`)}</div>` : empty(t('Every boss map has an FC or a bounty on it.'))}
     </section>`;
 }
 
