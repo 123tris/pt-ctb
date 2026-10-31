@@ -83,6 +83,11 @@ export const records = () => load('records.json');
 export const challenges = () => load('challenges.json');
 /** The completion goal (tools/lib/completion.mjs), or null for data from before it. */
 export const completion = () => load('completion.json').catch(e => (e instanceof NotFound ? null : Promise.reject(e)));
+/**
+ * King of the hill (tools/lib/hill.mjs): the month's pool, past months, seasons and crowns; null when the export has
+ * none (the bot hasn't started it).
+ */
+export const hill = async () => ((await meta()).files?.['hill.json'] ? load('hill.json') : null);
 export const quiz = () => load('quiz.json');
 export const history = () => load('history.json');
 
