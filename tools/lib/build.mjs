@@ -13,6 +13,7 @@ import { starKings } from './star-kings.mjs';
 import { hillBlock, hillNow } from './hill.mjs';
 import { bountyBoard } from './bounties.mjs';
 import { economyBlock, unlocks } from './economy.mjs';
+import { adminFile } from './admin.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -656,6 +657,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   for (const [map, cat, goal, status, uid, at, , , , , , payout] of board.file.hall) {
     if (status === 'claimed' && at >= since) derived.push({ t: at, k: 'bounty', u: uid, m: map, c: cat, g: goal, ...(payout ? { a: payout } : {}) });
   }
+  const admin = adminFile(bot.adminPanel ?? null);
   // Bananas: bounties players posted, and tips (economy.mjs; none until the bot has an Economy/ folder).
   const economy = economyBlock({ economy: bot.economy ?? null, known: id => people.has(id), now });
   for (const e of [...board.posts, ...economy.events]) if (e.t >= since) derived.push(e);
@@ -1051,6 +1053,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'quiz.json': quiz,
       ...(hill.file ? { 'hill.json': hill.file } : {}),
       ...(economy.file ? { 'economy.json': economy.file } : {}),
+      // The admin panel's settings and log (admin.mjs), only once the bot writes Admin/panel.json.
+      ...(admin ? { 'admin.json': admin } : {}),
       'unlocks.json': unlocked.file,
       'history.json': history,
       // The Maps page's rows leave out the mapper, which only the header search uses.

@@ -235,3 +235,15 @@ export function loadEconomy(root) {
   }
   return { updated: wallets.updated ?? null, wallets: wallets.players, ledger };
 }
+
+/** The admin panel (the bot's Admin/panel.json, contract §8) as it is, or null when the bot has none. */
+export function loadAdminPanel(root) {
+  const file = path.join(root, 'Admin', 'panel.json');
+  if (!fs.existsSync(file)) return null;
+  try {
+    return readJson(file);
+  } catch {
+    console.warn('  Admin/panel.json in the data folder won’t parse; admin.json skipped');
+    return null;
+  }
+}

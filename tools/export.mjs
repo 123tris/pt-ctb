@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { loadBotData, loadBeatmaps, loadPastOfficial, loadCommands, loadBounties, loadEconomy } from './lib/source.mjs';
+import { loadBotData, loadBeatmaps, loadPastOfficial, loadCommands, loadBounties, loadEconomy, loadAdminPanel } from './lib/source.mjs';
 import { build, neededMapIds, isUnclaimedCandidate, isCatchPlayable } from './lib/build.mjs';
 import { isRankedSpecific } from './lib/completion.mjs';
 import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, fetchDates, hasCatchDifficulty } from './lib/osu-api.mjs';
@@ -83,8 +83,9 @@ function prune(folder, keep) {
 const started = Date.now();
 console.log(`Reading bot data from ${dataRoot}`);
 // Bounties go in with the rest (build.mjs writes bounties.json from them; a missing Bounties.json is no bounties), and
-// so does Bananas (economy.json; no Economy/wallets.json means the currency hasn't started, and there's no file).
-const bot = { ...loadBotData(dataRoot), bounties: loadBounties(dataRoot), economy: loadEconomy(dataRoot) };
+// so does Bananas (economy.json; no Economy/wallets.json means the currency hasn't started, and there's no file), and
+// the admin panel (admin.json, from Admin/panel.json when the bot writes one).
+const bot = { ...loadBotData(dataRoot), bounties: loadBounties(dataRoot), economy: loadEconomy(dataRoot), adminPanel: loadAdminPanel(dataRoot) };
 const needed = neededMapIds(bot, country);
 // isCatchPlayable keeps the rest of each shown map's set, for the map page's difficulty switcher.
 const beatmaps = loadBeatmaps(dataRoot, raw => needed.has(raw.beatmap_id) || isUnclaimedCandidate(raw) || isCatchPlayable(raw));

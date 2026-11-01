@@ -5,12 +5,13 @@
 // names the site asks for (data/players/1.<hash>.json) with the plain files (core/data-name.js).
 // --usage turns the usage counts on for this address and runs their Functions (POST /api/hit, GET /stats with the
 // password "local") over a SQLite file in the system's temp folder (tools/lib/d1-sqlite.mjs), to try them end to end.
-// --economy does the same for Bananas (the daily game, wallet requests, the bot's inbox: economy/api.js) and turns
-// "Sign in with osu!" on, with a local stand-in for osu! that asks which player to be.
+// --economy does the same for Bananas (the daily game, wallet and admin requests, the bot's inbox: economy/api.js) and
+// turns "Sign in with osu!" on, with a local stand-in for osu! that asks which player to be (the admins first). With
+// --local-data and no admin.json of its own, the data gets tools/admin-sample.json as admin.json, so #/admin has
+// settings and a log to show.
 //
 // Review aids, for requests to localhost only (tools/local-review.js, never deployed): a "Design: new / old" button
-// sits in the corner. "Old" sets a cookie, and then every site
-// file this branch has changed since it last took in dev is served as dev had it, straight from git, so the old CSS,
+// sits in the corner. "Old" sets a cookie, and then every site file this branch has changed since it last took in dev is served as dev had it, straight from git, so the old CSS,
 // markup and JS come back together. Drop this once the design pass is merged.
 
 import http from 'node:http';
@@ -42,17 +43,20 @@ async function economyFunctions() {
     'GET /api/daily': api.daily, 'POST /api/daily/guess': api.dailyGuess, 'GET /api/daily/cover': api.dailyCover,
     'POST /api/wallet/request': api.walletRequest, 'GET /api/wallet/requests': api.walletRequests,
     'GET /api/economy/inbox': api.economyInbox, 'POST /api/economy/ack': api.economyAck,
+    'POST /api/admin/request': api.adminRequest, 'GET /api/admin/requests': api.adminRequests,
   };
   /** /auth/login: a form picking the player; then back to the site the way /auth/callback sends it. */
   async function login(request) {
     const url = new URL(request.url);
     const state = url.searchParams.get('state') ?? '';
     const as = Number(url.searchParams.get('as'));
-    const names = JSON.parse(fs.readFileSync(path.join(root, 'data', 'players.json'), 'utf8'));
+    const all = JSON.parse(fs.readFileSync(path.join(root, 'data', 'players.json'), 'utf8'));
+    const admins = api.adminIds(env);
+    const names = [...all.filter(x => admins.includes(x.id)), ...all.filter(x => !admins.includes(x.id))];
     const p = names.find(x => x.id === as);
     if (!p) {
       const page = `<!doctype html><meta charset="utf-8"><title>Local sign-in</title><body style="font:16px system-ui;background:#1f191b;color:#f4ebee;padding:2rem">
-        <h1>Local sign-in (npm run serve -- --economy)</h1><p>Stands in for osu!: pick who to be. Only on localhost.</p>
+        <h1>Local sign-in (npm run serve -- --economy)</h1><p>Stands in for osu!: pick who to be. Only on localhost. The first ${admins.length} are admins (#/admin).</p>
         <form><input type="hidden" name="state" value="${state.replace(/"/g, '')}"><select name="as">${names.map(x => `<option value="${x.id}">${x.name.replace(/</g, '')} (${x.id})</option>`).join('')}</select>
         <button>Sign in</button></form>`;
       return new Response(page, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
@@ -69,6 +73,17 @@ async function usageFunctions() {
   const file = path.join(os.tmpdir(), 'ptctb-usage-local.sqlite');
   console.log(`Usage counts in ${file}; the dashboard is /stats (any user name, password "local").`);
   return { env: { USAGE: sqliteD1(file), STATS_PASSWORD: 'local' }, recordHit, stats };
+}
+
+// The sample admin.json's stand-in hash (10 characters, like a real one: core/data-name.js).
+const SAMPLE_HASH = 'adminLocal';
+
+/** meta.json, listing the sample admin.json when the export made none (--economy --local-data). */
+function serveMetaWithAdmin(res, file) {
+  const meta = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!meta.files?.['admin.json']) meta.files = { ...meta.files, 'admin.json': SAMPLE_HASH };
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
+  res.end(JSON.stringify(meta));
 }
 
 /** Runs a usage Function for a Node request and writes its Response back. */
@@ -141,6 +156,8 @@ http.createServer((req, res) => {
     return;
   }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
+  if (economy && localData && url.pathname === '/data/meta.json') return serveMetaWithAdmin(res, file);
+  if (economy && localData && url.pathname === `/data/admin.${SAMPLE_HASH}.json` && !fs.existsSync(path.join(root, 'data', 'admin.json'))) file = path.join(root, 'tools', 'admin-sample.json');
   if (localData && !fs.existsSync(file) && url.pathname.startsWith('/data/')) file = plainName(file);
   if (!fs.existsSync(file)) { res.writeHead(404).end('Not found'); return; }
   if ((localData || usage || economy) && url.pathname === '/assets/js/config.js') {
