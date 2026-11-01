@@ -7,15 +7,16 @@ import { SLOT_NAME, TIER_NAME } from './hill.js';
 import { t } from './i18n.js';
 
 /** A bounty's goal as its chip (and the home page) says it. */
-export const WANTED = { fc: t('WANTED: FC'), pass: t('WANTED: first pass'), snipe: t('WANTED: #1') };
+export const WANTED = { fc: t('Wanted: FC'), pass: t('Wanted: first pass'), snipe: t('Wanted: #1') };
 
 /**
  * What's running, from the files a page already has: challenges.json (the map of the week), meta.json (`hill`, the
- * King of the hill month in brief) and bounties.json (the open bounties). Any of them may be null.
+ * King of the hill month in brief, until its end: an ended month's pool is settled, not running) and bounties.json
+ * (the open bounties). Any of them may be null.
  */
 export const runningNow = ({ challenges, meta, bounties }) => ({
   week: challenges?.week?.map ?? null,
-  hill: meta?.hill?.status === 'live' ? meta.hill.pool : [],
+  hill: meta?.hill?.status === 'live' && meta.hill.end > Date.now() / 1000 ? meta.hill.pool : [],
   open: bounties?.open ?? [],
 });
 

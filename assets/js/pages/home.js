@@ -5,7 +5,7 @@ import { eventItem, danName } from '../core/events.js';
 import { THRONE_PLAYER, HISTORY } from '../core/lore.js';
 import { ladderBand, passCounts, highestDan, topStage } from '../core/ladder.js';
 import { weeklySummary } from '../core/weekly.js';
-import { SLOT_NAME, TIER_NAME, monthLabel, timeLeft } from '../core/hill.js';
+import { SLOT_NAME, TIER_NAME, monthLabel, timeLeft, andList } from '../core/hill.js';
 import { WANTED } from '../core/challenge-chips.js';
 import { season } from '../core/fun.js';
 import {
@@ -92,21 +92,24 @@ function goalNext(goal, index) {
 /** The month's pool: how many crowns are taken, then up to three slots nobody holds, or who holds the most. */
 function hillSummary(month, index) {
   if (month?.status !== 'live') return '';
+  const ended = month.end <= Date.now() / 1000;
   const free = month.pool.filter(r => r[3] === null);
   const held = new Map();
   for (const r of month.pool) if (r[3] !== null) held.set(r[3], (held.get(r[3]) ?? 0) + 1);
   const most = Math.max(0, ...held.values());
   const leaders = [...held].filter(([, n]) => n === most).map(([id]) => id);
+  const counts = { month: monthLabel(month.month), held: fmt.num(month.pool.length - free.length), total: fmt.num(month.pool.length) };
+  const lead = leaders.length ? th(ended ? 'Most crowns: {players} with {crowns}' : 'Holding the most crowns right now: {players} with {crowns}', {
+    players: andList(leaders.map(id => playerLink(id, index, 'avatar-sm'))), crowns: fmt.plural(most, 'crown'),
+  }) : '';
   return html`<section class="week-summary">
     <div class="section-head"><h2>${t('King of the hill')}</h2><a href="#/challenges/hill">${t('See the pool')}</a></div>
-    <p class="muted small">${t('{month}: {held} of {total} crowns taken, {left}.', {
-      month: monthLabel(month.month), held: fmt.num(month.pool.length - free.length), total: fmt.num(month.pool.length), left: timeLeft(month.end),
-    })}</p>
-    ${free.slice(0, 3).map(([slot, tier, id]) => html`<div class="week-top"><span class="faint small">${SLOT_NAME[slot]} · ${TIER_NAME[tier]}</span>
-      <span class="muted">${t('Up for grabs')}</span> <a class="dim-link" href="#/map/${id}">${mapLabel(id, month.maps[id])}</a></div>`)}
-    ${!free.length && leaders.length ? html`<div class="week-top">${th('Holding the most crowns right now: {players} with {crowns}', {
-      players: html`${leaders.map((id, i) => html`${i ? ', ' : ''}${playerLink(id, index, 'avatar-sm')}`)}`, crowns: fmt.plural(most, 'crown'),
-    })}</div>` : ''}
+    ${ended ? html`<p class="muted small">${t('{month} has ended: {held} of {total} crowns kept, final after the bot’s next update.', counts)}</p>
+      ${lead ? html`<div class="week-top">${lead}</div>` : ''}`
+    : html`<p class="muted small">${t('{month}: {held} of {total} crowns taken, {left}.', { ...counts, left: timeLeft(month.end) })}</p>
+      ${free.slice(0, 3).map(([slot, tier, id]) => html`<div class="week-top"><span class="faint small">${SLOT_NAME[slot]} · ${TIER_NAME[tier]}</span>
+        <span class="muted">${t('Up for grabs')}</span> <a class="dim-link" href="#/map/${id}">${mapLabel(id, month.maps[id])}</a></div>`)}
+      ${!free.length && lead ? html`<div class="week-top">${lead}</div>` : ''}`}
   </section>`;
 }
 

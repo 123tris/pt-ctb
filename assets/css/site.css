@@ -665,28 +665,47 @@ td.king-rank { color: var(--gold); }
   .king-title { white-space: normal; }
 }
 
-/* King of the hill (pages/hill.js, core/hill.js): the month's pool as two row lists side by side, Open and
-   Challenger; the crown table, where a season's slot king is gold; past months folded like the pp chart. */
-.hill-leaders { margin: 0 0 var(--sp-4); color: var(--text-dim); }
-.hill-leaders .player { vertical-align: middle; }
-.hill-pool { gap: var(--sp-4) var(--sp-6); }
-.hill-tier { margin: 0 0 var(--sp-2); font: 600 var(--fs-md)/1.3 var(--font); color: var(--text); }
-.hill-slot { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 600; }
-/* The play under its holder, lined up with the map's text as the holder is. */
-.hill-pool .row-meta { justify-content: flex-start; padding-left: 72px; }
-.hill-pool .row-meta .pp { min-width: 0; text-align: left; }
-@media (max-width: 760px) { .hill-pool .row-meta { padding-left: 0; } }
-.row-meta a:hover .hill-score { color: var(--accent); }
-td.hill-king { color: var(--gold); font-weight: 700; }
+/* King of the hill (pages/hill.js, core/hill.js): a line on where the month stands, then its pool as one list of
+   six rows, NM to Convert, with the Open and Challenger cells side by side (one tier at a time on phones, picked with
+   chips); the crown table, where only a sole #1 is gold; past months in brief, as a small slot by tier table. */
+.hill-lead { margin: 0; font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
+.hill-lead .player { vertical-align: middle; }
+.hill-lead-sub { margin: var(--sp-1) 0 var(--sp-4); color: var(--text-dim); font-size: var(--fs-sm); }
+.hill-lead-sub .player { vertical-align: middle; }
+.hill-pick { display: none; margin-bottom: var(--sp-3); }
+.hill-tiers, .row.hill-row { display: grid; grid-template-columns: 4rem repeat(2, minmax(0, 1fr)); gap: var(--sp-4); }
+.hill-tiers { padding: 0 var(--sp-4) var(--sp-2); color: var(--text-dim); font-size: var(--fs-sm); font-weight: 600; }
+.row.hill-row { align-items: start; contain-intrinsic-size: auto 80px; }
+.hill-slot { font: 700 var(--fs-md)/1.6 var(--font); color: var(--text); }
+.hill-cell { display: grid; gap: var(--sp-1); min-width: 0; }
+.hill-cell .map { gap: var(--sp-2); }
+.hill-cover { width: 40px; height: 28px; }
+.hill-cell .map-title { font-size: var(--fs-sm); }
+.hill-cell .map-title, .hill-cell .map-title .map-sub { white-space: nowrap; }
+.hill-cell .map-title .map-sub { display: inline; color: var(--text-dim); }
+.hill-holder { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); padding-left: 48px; font-size: var(--fs-sm); color: var(--text-dim); }
+.hill-holder .player { font-weight: 600; min-height: 24px; }
+.hill-score { font-size: var(--fs-md); color: var(--text-dim); }
+.hill-free { color: var(--text); }
+@media (max-width: 760px) {
+  .hill-pick { display: block; }
+  .hill-tiers, .row.hill-row { grid-template-columns: 4rem minmax(0, 1fr); }
+  .hill-pool[data-show='open'] [data-tier='challenger'], .hill-pool[data-show='challenger'] [data-tier='open'] { display: none; }
+  .hill-holder { padding-left: 0; }
+}
+td.hill-king { color: var(--text); font-weight: 700; }
 .hill-titles { margin-bottom: var(--sp-6); }
 .hill-titles li { display: grid; gap: 2px; }
 .hill-titles .player { vertical-align: middle; }
-.hill-months { display: grid; gap: var(--sp-4); }
-.hill-month > summary { flex-wrap: wrap; }
-.hill-month-king { flex: 1 1 auto; min-width: 0; }
-/* Phones: the month and Show/Hide on one line, its King of the hill under them. */
-@media (max-width: 600px) { .hill-month-king { order: 1; flex-basis: 100%; } }
-.hill-month .history-body { margin-top: var(--sp-4); }
+.hill-scope-label { align-self: center; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
+.hill-months { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: var(--sp-6); }
+.hill-month-h { margin: 0; font: 600 var(--fs-md)/1.3 var(--font); color: var(--text); }
+.hill-month p { margin: var(--sp-1) 0 var(--sp-2); }
+.hill-month p .player { vertical-align: middle; }
+.hill-kept th[scope='row'] { width: 4rem; color: var(--text); font-size: var(--fs-sm); font-weight: 700; text-transform: none; letter-spacing: 0; }
+.hill-kept td { max-width: 0; }
+/* Linked badges (challenge chips) and pool player links get a 24px hit area. */
+a.badge { min-height: 24px; }
 /* A profile's trophies (pages/player.js): King of the hill's titles and Bounty hunter as chips, then a line each for
    the crowns, the slots held now and the bounties claimed. */
 .trophy-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); margin: 0 0 var(--sp-3); padding: 0; list-style: none; }

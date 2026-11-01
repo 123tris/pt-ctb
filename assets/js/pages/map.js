@@ -96,7 +96,7 @@ export default async function mapPage(root, { params, isCurrent }) {
   const fcs = board.filter(e => e[S.MISS + 1] === 0).length;
   const unrankedForever = meta && [STATUS.GRAVEYARD, STATUS.WIP, STATUS.PENDING].includes(meta[M.STATUS]) && board.length >= 3;
   const dated = meta ? statusDate(meta) : null;
-  // Open bounties on this map ([mapId, cat, goal, posted, players, closestMiss, target, pledges]): a WANTED chip, and
+  // Open bounties on this map ([mapId, cat, goal, posted, players, closestMiss, target, pledges]): a Wanted chip, and
   // each one's dare and prizes under the title.
   const wanted = (bountyData?.open ?? []).filter(r => r[0] === id);
   const chips = challengeChips(id, runningNow({ challenges: ch, meta: site, bounties: bountyData }));
