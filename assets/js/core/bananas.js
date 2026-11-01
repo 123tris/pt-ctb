@@ -31,16 +31,18 @@ export const RULES = {
 export const fee = stake => Math.round(stake * RULES.feeRate);
 
 /**
- * The shop (CURRENCY-DESIGN.md §5), in two groups: `look` (cosmetics) and `community` (picks a moderator approves first,
- * `approval`, refunded if refused). `days` is how long a timed item lasts.
+ * The shop (CURRENCY-DESIGN.md §5; prices and gates as bananas-contract.md §6 lists them, which the bot's Bananas options
+ * must match: the bot doesn't export them), in two groups: `look` (cosmetics) and `community` (picks a moderator approves first,
+ * `approval`, refunded if refused). `days` is how long a timed item lasts; `gate` the earned bananas it needs, as
+ * for posting a bounty; `monthly` an item only one player in PT gets per Lisbon month (the first the bot accepts).
  */
 export const SHOP = [
-  { item: 'title', group: 'look', price: 150, name: t('Profile title'), about: t('Show one of your titles or badges next to your name.') },
-  { item: 'signature', group: 'look', price: 100, name: t('Signature play'), about: t('Pin one of your plays to the top of your profile.') },
-  { item: 'colour', group: 'look', price: 250, days: 30, name: t('Name colour, 30 days'), about: t('Your name in a colour you pick on the site’s leaderboards.') },
-  { item: 'role', group: 'look', price: 200, days: 7, name: t('Discord colour role, 7 days'), about: t('A colour role on the Discord.') },
-  { item: 'motw', group: 'community', price: 120, approval: true, name: t('Map of the week nomination'), about: t('Put a map forward for the map of the week.') },
-  { item: 'wildcard', group: 'community', price: 400, approval: true, name: t('King of the hill wildcard'), about: t('Pick next month’s Challenger convert map, within the pool’s rules.') },
+  { item: 'title', group: 'look', price: 500, name: t('Profile title'), about: t('Show one of your titles or badges next to your name.') },
+  { item: 'signature', group: 'look', price: 350, name: t('Signature play'), about: t('Pin one of your plays to the top of your profile.') },
+  { item: 'colour', group: 'look', price: 1000, days: 30, gate: 1000, name: t('Name colour, 30 days'), about: t('Your name in a colour you pick on the site’s leaderboards.') },
+  { item: 'role', group: 'look', price: 500, days: 7, gate: 1000, name: t('Discord colour role, 7 days'), about: t('A colour role on the Discord.') },
+  { item: 'motw', group: 'community', price: 400, approval: true, name: t('Map of the week nomination'), about: t('Put a map forward for the map of the week.') },
+  { item: 'wildcard', group: 'community', price: 1500, gate: 1000, monthly: true, approval: true, name: t('King of the hill wildcard'), about: t('Pick next month’s Challenger convert map, within the pool’s rules.') },
 ];
 
 /** "1,234 🍌": the currency's unit follows the number, as ★ does (DESIGN.md §6). */

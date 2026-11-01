@@ -62,10 +62,10 @@ function currentTimed(s, w, requests, now) {
 function effectOf(s, value, w, cur, now) {
   if (s.days) {
     if (cur && cur[0] === value) return { text: t('Adds {n} days: active until {date}.', { n: s.days, date: fmt.date(cur[1] + s.days * DAY) }) };
-    if (cur) return { text: t('Replaces {current} with {colour} and keeps the time left: active until {date}.', { current: colourName(cur[0]), colour: colourName(value), date: fmt.date(cur[1]) }) };
+    if (cur) return { text: t('Switches from {current} to {colour}, keeping the time left and adding {n} days: active until {date}.', { current: colourName(cur[0]), colour: colourName(value), n: s.days, date: fmt.date(cur[1] + s.days * DAY) }) };
     return { text: t('Active until {date}.', { date: fmt.date(now + s.days * DAY) }) };
   }
-  if (s.item === 'title' && w?.t) return value === w.t ? { text: t('Already yours.'), blocked: true } : { text: t('Replaces {current}.', { current: w.t }) };
+  if (s.item === 'title' && w?.t) return value.toLowerCase() === w.t.toLowerCase() ? { text: t('Already yours.'), blocked: true } : { text: t('Replaces {current}.', { current: w.t }) };
   if (s.item === 'signature' && w?.sg) return value === w.sg ? { text: t('That play is already pinned.'), blocked: true } : { text: t('Replaces the play you have pinned now.') };
   return { text: '' };
 }
@@ -92,6 +92,7 @@ function standing(s, { me, w, titles, requests }) {
   if (!w) return { tag: '', why: t('The bot has no wallet for you yet. It makes one at its next update after your first sign-in.'), owned };
   if (pending) return { tag: t('Waiting for the bot'), why: t('You asked for this {ago}. The bot answers within 15 minutes; it shows under “Your purchases”.', { ago: fmt.ago(Date.parse(pending.t) / 1000) }), owned };
   if (s.item === 'title' && !titles.length) return { tag: '', why: t('You have no titles or badges to show yet. Badges come from your plays; titles from King of the hill.'), owned };
+  if (s.gate && w.e < s.gate) return { tag: t('Needs {gate} earned', { gate: fmt.num(s.gate) }), why: t('This needs {gate} bananas earned, as posting a bounty does; you have {earned}. Tips, refunds and the launch grant don’t count.', { gate: fmt.num(s.gate), earned: fmt.num(w.e) }), owned };
   if (w.b < s.price) return { tag: t('{n} short', { n: bananas(s.price - w.b) }), why: t('You need {n} more: your wallet has {balance}.', { n: bananas(s.price - w.b), balance: bananas(w.b) }), owned };
   const tag = cur ? t('Active') : (s.item === 'title' && w.t) || (s.item === 'signature' && w.sg) ? t('Yours') : '';
   return { tag, why: null, owned, cur };
@@ -128,6 +129,7 @@ export default async function shop(root, { isCurrent }) {
     return html`
       ${st.owned ? html`<p class="shop-owned">${st.owned}</p>` : ''}
       ${s.approval ? html`<p class="small muted">${t('A moderator checks it fits first. If they say no, the bananas come back.')}</p>` : ''}
+      ${s.monthly ? html`<p class="small muted">${t('One a month for all of PT: the first one the bot accepts takes it. If it’s gone, the bot says so and nothing is charged.')}</p>` : ''}
       ${st.why ? html`<p class="small muted" id="why-${s.item}">${st.why}</p>${!me ? html`<div class="btn-row">${signInButton()}</div>` : ''}`
         : html`<div class="shop-step" data-step="pick">
           <div class="field"><label for="arg-${s.item}">${arg.label}</label>${arg.field}</div>

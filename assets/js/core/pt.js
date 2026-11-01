@@ -1352,7 +1352,6 @@ export const PT = {
   'See the play on osu!': 'Ver a jogada no osu!',
   'See the map on osu!': 'Ver o mapa no osu!',
   'Adds {n} days: active until {date}.': 'Junta {n} dias: ativa até {date}.',
-  'Replaces {current} with {colour} and keeps the time left: active until {date}.': 'Troca {current} por {colour} e mantém o tempo que falta: ativa até {date}.',
   'Active until {date}.': 'Ativa até {date}.',
   'Already yours.': 'Já é teu.',
   'Replaces {current}.': 'Substitui {current}.',
@@ -1368,4 +1367,8 @@ export const PT = {
   'No Portuguese plays on it yet': 'Ainda sem jogadas portuguesas',
   'No players found. Looking through the maps…': 'Nenhum jogador encontrado. A procurar nos mapas…',
   'No players or maps found': 'Nenhum jogador ou mapa encontrado',
+  'Switches from {current} to {colour}, keeping the time left and adding {n} days: active until {date}.': 'Muda de {current} para {colour}, mantém o tempo que falta e junta {n} dias: ativa até {date}.',
+  'Needs {gate} earned': 'Exige {gate} ganhas',
+  'This needs {gate} bananas earned, as posting a bounty does; you have {earned}. Tips, refunds and the launch grant don’t count.': 'Isto exige {gate} bananas ganhas, tal como publicar uma recompensa; tens {earned}. Gorjetas, devoluções e o bónus de lançamento não contam.',
+  'One a month for all of PT: the first one the bot accepts takes it. If it’s gone, the bot says so and nothing is charged.': 'Um por mês para todo o PT: fica com ele o primeiro que o bot aceitar. Se já tiver ido, o bot avisa e não se cobra nada.',
 };
