@@ -8,11 +8,14 @@
 //   GET  /api/daily/cover?day=…    that day's cover image, served from here so its address doesn't name the map
 //   POST /api/wallet/request       { type, payload } → { requestId }
 //   GET  /api/wallet/requests      the player's requests and what the bot said
+//   POST /api/admin/request        { type: 'admin.…', payload } → { requestId }, for admins only (contract §8)
+//   GET  /api/admin/requests       an admin's own admin requests and what the bot said
 //   GET  /api/economy/inbox?since  for the bot: sign-ins, finished daily games and requests since a cursor
-//   POST /api/economy/ack          for the bot: { cursor, results: [{ requestId, status, reason }] }
+//   POST /api/economy/ack          for the bot: { cursor, results: [{ requestId, status, reason, code }] }
 //
 // Needs the ECONOMY database binding and OSU_CLIENT_SECRET (sessions); the daily game also DAILY_SEED. Without them
-// these answer 503, and the site hides what needs them.
+// these answer 503, and the site hides what needs them. Admins are the osu! ids in ADMIN_OSU_IDS (comma-separated;
+// unset or empty means ADMIN_DEFAULT). The bot checks its own list again: this only keeps everyone else out early.
 
 import { sessionOf } from '../signin/session.js';
 import * as store from './store.js';
@@ -120,6 +123,37 @@ export async function walletRequests(request, env, now = nowSec()) {
   return json({ requests: await store.listRequests(who.db, who.osuId) });
 }
 
+// ---- Admin requests --------------------------------------------------------------------------------------------------
+
+export const ADMIN_DEFAULT = [3821475, 6205809];
+/** The admins' osu! ids, from ADMIN_OSU_IDS or the default. */
+export function adminIds(env) {
+  const ids = String(env.ADMIN_OSU_IDS ?? '').split(',').map(s => Number(s.trim())).filter(n => Number.isSafeInteger(n) && n > 0);
+  return ids.length ? ids : ADMIN_DEFAULT;
+}
+
+/** Like player(), and then 403 for anyone who isn't an admin. */
+async function admin(request, env, now) {
+  const who = await player(request, env, now);
+  if (who.response) return who;
+  return adminIds(env).includes(who.osuId) ? who : { response: problem('Admins only.', 403) };
+}
+
+export async function adminRequest(request, env, now = nowSec()) {
+  const who = await admin(request, env, now);
+  if (who.response) return who.response;
+  const parsed = store.parseAdminRequest(await readBody(request));
+  if (parsed.error) return problem(parsed.error, 400);
+  const queued = await store.queueRequest(who.db, who.osuId, parsed, now);
+  return queued.error ? problem(queued.error, queued.status) : json({ requestId: queued.requestId }, 202);
+}
+
+export async function adminRequests(request, env, now = nowSec()) {
+  const who = await admin(request, env, now);
+  if (who.response) return who.response;
+  return json({ requests: await store.listRequests(who.db, who.osuId, 50, { admin: true }) });
+}
+
 // ---- The bot's inbox ------------------------------------------------------------------------------------------------
 
 /** True when the request carries "Authorization: Bearer <ECONOMY_INBOX_KEY>", compared in constant time. */
@@ -152,7 +186,10 @@ export async function economyAck(request, env, now = nowSec()) {
   const results = Array.isArray(body?.results) ? body.results : null;
   if ((cursor !== null && !store.parseCursor(cursor)) || !results || results.length > 1000) return problem('The ack needs a cursor and a list of results.', 400);
   const clean = results.filter(r => typeof r?.requestId === 'string' && /^[0-9a-f]{24}$/.test(r.requestId) && ['accepted', 'rejected'].includes(r.status))
-    .map(r => ({ requestId: r.requestId, status: r.status, reason: typeof r.reason === 'string' ? r.reason.slice(0, 200) : null }));
+    .map(r => ({
+      requestId: r.requestId, status: r.status, reason: typeof r.reason === 'string' ? r.reason.slice(0, 200) : null,
+      code: r.status === 'rejected' && typeof r.code === 'string' && /^[a-z_]{1,40}$/.test(r.code) ? r.code : null,
+    }));
   const changed = await store.ack(env.ECONOMY, { cursor, results: clean }, now);
   return json({ ok: true, updated: changed });
 }

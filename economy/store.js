@@ -8,8 +8,9 @@
 //                 a secret seed (economy/daily.js) and kept, so a new export of the quiz pool can't move it mid-day.
 //   daily_game    one row per osu! id per Lisbon day (the primary key is the "one a day" rule): the guesses, and `seq`
 //                 once the game is over, which is when it goes into the inbox.
-//   requests      what players asked to spend (post or fund a bounty, tip, buy, shield), queued for the bot, with the
-//                 status it acked. The bot alone decides; this only checks the shape.
+//   requests      what players asked to spend (post or fund a bounty, tip, buy, shield), and admins' `admin.*` requests
+//                 (contract §8), queued for the bot, with the status it acked and, for a refusal, its `code`. The bot
+//                 alone decides; this only checks the shape.
 //   inbox_state   the cursor the bot last acked.
 //
 // No IP addresses, Discord ids or osu! tokens are stored. Free-plan cost: a sign-in writes 1–2 rows, a daily guess 1–2,
@@ -32,7 +33,7 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS requests (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, osu_id INTEGER NOT NULL, kind TEXT NOT NULL,
     payload TEXT NOT NULL, created INTEGER NOT NULL, day TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
-    reason TEXT, decided INTEGER)`,
+    reason TEXT, decided INTEGER, code TEXT)`,
   'CREATE INDEX IF NOT EXISTS requests_by_player ON requests (osu_id, seq)',
   'CREATE TABLE IF NOT EXISTS inbox_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)',
 ];
@@ -43,8 +44,14 @@ const ready = new WeakMap();
  * by hand when the database is made (SETUP-HOSTING.md); this is the safety net.
  */
 export function ensureSchema(db) {
-  if (!ready.has(db)) ready.set(db, db.batch(SCHEMA.map(sql => db.prepare(sql))).catch(e => { ready.delete(db); throw e; }));
+  if (!ready.has(db)) ready.set(db, db.batch(SCHEMA.map(sql => db.prepare(sql))).then(() => addCodeColumn(db)).catch(e => { ready.delete(db); throw e; }));
   return ready.get(db);
+}
+
+/** `requests.code` came after the first release (economy/migrations/0002_admin.sql); a database made before gets it here. */
+async function addCodeColumn(db) {
+  const { results } = await db.prepare('PRAGMA table_info(requests)').all();
+  if (!results.some(c => c.name === 'code')) await db.prepare('ALTER TABLE requests ADD COLUMN code TEXT').run();
 }
 
 const lisbon = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' });
@@ -177,33 +184,105 @@ export function parseRequest(body, osuId) {
   return typeof p.on === 'boolean' ? { type, payload: { on: p.on } } : { error: 'Shield needs on or off.' };
 }
 
+// ---- Admin requests (contract §8) -----------------------------------------------------------------------------------
+
+export const ADMIN_TYPES = [
+  'admin.set', 'admin.reset', 'admin.hill.approve', 'admin.hill.reroll', 'admin.hill.redraft', 'admin.bounty.cancel',
+  'admin.bananas.adjust', 'admin.map.ban', 'admin.map.unban',
+];
+export const isAdminType = type => typeof type === 'string' && type.startsWith('admin.');
+const HILL_SLOTS = ['NM', 'HD', 'HR', 'DT', 'FM', 'CV'];
+const HILL_TIERS = ['open', 'challenger'];
+const settingKey = v => (typeof v === 'string' && /^[A-Za-z][A-Za-z0-9]{0,40}(\.[A-Za-z][A-Za-z0-9]{0,40}){1,2}$/.test(v) ? v : null);
+/** A setting's value as the bot takes it: a number, true/false, a list of up to 10 whole numbers, or short text. */
+function settingValue(v) {
+  if (typeof v === 'number') return Number.isFinite(v) && Math.abs(v) <= 1e9 ? { ok: true, value: v } : { ok: false };
+  if (typeof v === 'boolean') return { ok: true, value: v };
+  if (Array.isArray(v)) return v.length >= 1 && v.length <= 10 && v.every(n => Number.isSafeInteger(n) && Math.abs(n) <= 1e9) ? { ok: true, value: v } : { ok: false };
+  const text = line(v, 40);
+  return text ? { ok: true, value: text } : { ok: false };
+}
+
+/**
+ * Checks an admin request's shape (§8) and rebuilds its payload. Loose on purpose: the bot knows the settings, their
+ * ranges and what exists, and refuses with a code. Returns { type, payload } or { error }.
+ */
+export function parseAdminRequest(body) {
+  const type = body?.type;
+  const p = body?.payload && typeof body.payload === 'object' && !Array.isArray(body.payload) ? body.payload : {};
+  if (!ADMIN_TYPES.includes(type)) return { error: 'That isn’t an admin request the bot takes.' };
+  switch (type) {
+    case 'admin.set': {
+      const key = settingKey(p.key);
+      const value = settingValue(p.value);
+      return key && value.ok ? { type, payload: { key, value: value.value } } : { error: 'A setting needs its key and a value.' };
+    }
+    case 'admin.reset': {
+      const key = settingKey(p.key);
+      return key ? { type, payload: { key } } : { error: 'A reset needs the setting’s key.' };
+    }
+    case 'admin.hill.reroll': {
+      const slot = String(p.slot ?? '').toUpperCase();
+      const tier = String(p.tier ?? '').toLowerCase();
+      return HILL_SLOTS.includes(slot) && HILL_TIERS.includes(tier) ? { type, payload: { slot, tier } } : { error: 'A reroll needs a slot (NM, HD, HR, DT, FM, CV) and a tier.' };
+    }
+    case 'admin.bounty.cancel': {
+      const bounty = id(p.id);
+      if (!bounty || (p.refund !== undefined && typeof p.refund !== 'boolean')) return { error: 'Cancelling needs the bounty’s id.' };
+      return { type, payload: { id: bounty, refund: p.refund !== false } };
+    }
+    case 'admin.bananas.adjust': {
+      const osuId = id(p.osuId);
+      const n = Number.isSafeInteger(p.amount) && p.amount !== 0 && Math.abs(p.amount) <= MAX_AMOUNT ? p.amount : null;
+      if (!osuId || !n) return { error: 'An adjustment needs a player and a whole amount other than 0.' };
+      const note = line(p.note, 100);
+      return { type, payload: { osuId, amount: n, ...(note ? { note } : {}) } };
+    }
+    case 'admin.map.ban':
+    case 'admin.map.unban': {
+      const beatmapId = id(p.beatmapId);
+      return beatmapId ? { type, payload: { beatmapId } } : { error: 'That needs a beatmap id.' };
+    }
+    default: // approve, redraft
+      return { type, payload: {} };
+  }
+}
+// An admin saving a page of settings sends one request per change, so their caps are wider than a player's.
+export const ADMIN_PENDING_CAP = 40;
+export const ADMIN_DAILY_CAP = 200;
+
 const hex = bytes => [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
 
 /**
  * Queues a request for the bot. Returns { requestId } or { error, status } when the player has PENDING_CAP waiting
- * already or sent DAILY_REQUEST_CAP today.
+ * already or sent DAILY_REQUEST_CAP today. Admin requests count apart, against the ADMIN_ caps.
  */
 export async function queueRequest(db, osuId, { type, payload }, now = nowSec()) {
   await ensureSchema(db);
   const day = lisbonDay(now);
-  const counts = await db.prepare("SELECT SUM(status = 'pending') AS pending, SUM(day = ?2) AS today FROM requests WHERE osu_id = ?1")
-    .bind(osuId, day).first();
-  if ((counts?.pending ?? 0) >= PENDING_CAP) return { status: 429, error: `You have ${PENDING_CAP} requests waiting for the bot. It takes them every 15 minutes; try again after.` };
-  if ((counts?.today ?? 0) >= DAILY_REQUEST_CAP) return { status: 429, error: `That’s ${DAILY_REQUEST_CAP} requests today. Try again tomorrow.` };
+  const admin = isAdminType(type);
+  const [pendingCap, dailyCap] = admin ? [ADMIN_PENDING_CAP, ADMIN_DAILY_CAP] : [PENDING_CAP, DAILY_REQUEST_CAP];
+  const counts = await db.prepare(`SELECT SUM(status = 'pending') AS pending, SUM(day = ?2) AS today FROM requests
+    WHERE osu_id = ?1 AND (kind LIKE 'admin.%') = ?3`).bind(osuId, day, admin ? 1 : 0).first();
+  if ((counts?.pending ?? 0) >= pendingCap) return { status: 429, error: `You have ${pendingCap} requests waiting for the bot. It takes them every 15 minutes; try again after.` };
+  if ((counts?.today ?? 0) >= dailyCap) return { status: 429, error: `That’s ${dailyCap} requests today. Try again tomorrow.` };
   const requestId = hex(crypto.getRandomValues(new Uint8Array(12)));
   await db.prepare('INSERT INTO requests (id, osu_id, kind, payload, created, day) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(requestId, osuId, type, JSON.stringify(payload), now, day).run();
   return { requestId };
 }
 
-/** A player's latest requests, newest first: { requestId, type, payload, t, status, reason, decided }. */
-export async function listRequests(db, osuId, limit = 30) {
+/**
+ * A player's latest requests, newest first: { requestId, type, payload, t, status, reason, code, decided }. Spending
+ * ones by default; `admin` lists their admin.* ones instead.
+ */
+export async function listRequests(db, osuId, limit = 30, { admin = false } = {}) {
   await ensureSchema(db);
-  const { results } = await db.prepare('SELECT id, kind, payload, created, status, reason, decided FROM requests WHERE osu_id = ? ORDER BY seq DESC LIMIT ?')
-    .bind(osuId, limit).all();
+  const { results } = await db.prepare(`SELECT id, kind, payload, created, status, reason, code, decided FROM requests
+    WHERE osu_id = ? AND (kind LIKE 'admin.%') = ? ORDER BY seq DESC LIMIT ?`).bind(osuId, admin ? 1 : 0, limit).all();
   return results.map(r => ({
     requestId: r.id, type: r.kind, payload: JSON.parse(r.payload), t: iso(r.created), status: r.status, reason: r.reason ?? null,
-    decided: r.decided ? iso(r.decided) : null,
+    code: r.code ?? null, decided: r.decided ? iso(r.decided) : null,
   }));
 }
 
@@ -247,8 +326,8 @@ export async function inbox(db, since) {
  */
 export async function ack(db, { cursor, results }, now = nowSec()) {
   await ensureSchema(db);
-  const updates = results.map(r => db.prepare("UPDATE requests SET status = ?, reason = ?, decided = ? WHERE id = ? AND status = 'pending'")
-    .bind(r.status, r.reason, now, r.requestId));
+  const updates = results.map(r => db.prepare("UPDATE requests SET status = ?, reason = ?, code = ?, decided = ? WHERE id = ? AND status = 'pending'")
+    .bind(r.status, r.reason, r.code ?? null, now, r.requestId));
   const cutoff = now - KEEP_DAYS * 86400;
   const out = await db.batch([
     ...updates,

@@ -12,6 +12,8 @@ import { onRequestGet as requestsRoute } from '../functions/api/wallet/requests.
 import { onRequestGet as inboxRoute } from '../functions/api/economy/inbox.js';
 import { onRequestPost as ackRoute } from '../functions/api/economy/ack.js';
 import { onRequestGet as callbackRoute } from '../functions/auth/callback.js';
+import { onRequestPost as adminRoute } from '../functions/api/admin/request.js';
+import { onRequestGet as adminListRoute } from '../functions/api/admin/requests.js';
 import { daily, dailyGuess, walletRequest } from './api.js';
 import { pickRound } from './daily.js';
 import { makeSession } from '../signin/session.js';
@@ -262,4 +264,67 @@ test('a timed shop item can be bought several periods at once; one is the defaul
   assert.equal((await send({ item: 'colour', arg: 'mint' })).status, 202);
   const list = (await call(requestsRoute, '/api/wallet/requests', { token }, env)).body.requests;
   assert.deepEqual(list.map(r => r.payload), [{ item: 'colour', arg: 'mint', periods: 1 }, { item: 'role', arg: 'sky', periods: 52 }]);
+});
+
+// ---- Admin requests (contract §8) ---------------------------------------------------------------------------------
+
+test('admin requests: only the admins’ sessions, ADMIN_OSU_IDS or the default two', async () => {
+  const env = envWith();
+  const set = { type: 'admin.set', payload: { key: 'Hill.OpenMinStars', value: 6.8 } };
+  assert.equal((await call(adminRoute, '/api/admin/request', { method: 'POST', body: set }, env)).status, 401);
+  assert.equal((await call(adminRoute, '/api/admin/request', { method: 'POST', token: await tokenFor(12), body: set }, env)).status, 403);
+  assert.equal((await call(adminListRoute, '/api/admin/requests', { token: await tokenFor(12) }, env)).status, 403);
+  assert.equal((await call(adminRoute, '/api/admin/request', { method: 'POST', token: await tokenFor(3821475), body: set }, env)).status, 202);
+  assert.equal((await call(adminRoute, '/api/admin/request', { method: 'POST', token: await tokenFor(6205809), body: set }, env)).status, 202);
+  const own = envWith({ ADMIN_OSU_IDS: ' 12, 13 ' });
+  assert.equal((await call(adminRoute, '/api/admin/request', { method: 'POST', token: await tokenFor(12), body: set }, own)).status, 202);
+  assert.equal((await call(adminRoute, '/api/admin/request', { method: 'POST', token: await tokenFor(3821475), body: set }, own)).status, 403, 'the list replaces the default');
+  // An admin type can't be slipped in as a spending request.
+  assert.equal((await call(requestRoute, '/api/wallet/request', { method: 'POST', token: await tokenFor(3821475), body: set }, env)).status, 400);
+});
+
+test('admin requests: shapes are rebuilt, listed apart from spending, and the bot’s refusal code is kept', async () => {
+  const env = envWith();
+  const token = await tokenFor(3821475);
+  const send = body => call(adminRoute, '/api/admin/request', { method: 'POST', token, body }, env);
+  for (const bad of [
+    { type: 'admin.nope', payload: {} }, { type: 'admin.set', payload: { key: 'Hill', value: 1 } }, { type: 'admin.set', payload: { key: 'Hill.X', value: [1.5] } },
+    { type: 'admin.hill.reroll', payload: { slot: 'EZ', tier: 'open' } }, { type: 'admin.bananas.adjust', payload: { osuId: 5, amount: 0 } },
+    { type: 'admin.map.ban', payload: { beatmapId: 'x' } }, { type: 'admin.bounty.cancel', payload: { id: 3, refund: 'no' } },
+  ]) assert.equal((await send(bad)).status, 400, JSON.stringify(bad));
+  const ok = [
+    [{ type: 'admin.set', payload: { key: 'Bananas.DailyGame', value: [30, 20, 10], extra: 1 } }, { key: 'Bananas.DailyGame', value: [30, 20, 10] }],
+    [{ type: 'admin.reset', payload: { key: 'Bananas.ShopEarnedGate.role' } }, { key: 'Bananas.ShopEarnedGate.role' }],
+    [{ type: 'admin.hill.reroll', payload: { slot: 'hr', tier: 'Open' } }, { slot: 'HR', tier: 'open' }],
+    [{ type: 'admin.hill.approve' }, {}],
+    [{ type: 'admin.bounty.cancel', payload: { id: 7 } }, { id: 7, refund: true }],
+    [{ type: 'admin.bananas.adjust', payload: { osuId: 5, amount: -40, note: ' <b>oops</b> ' } }, { osuId: 5, amount: -40, note: 'boops/b' }],
+    [{ type: 'admin.map.unban', payload: { beatmapId: 123 } }, { beatmapId: 123 }],
+  ];
+  for (const [body] of ok) assert.equal((await send(body)).status, 202, JSON.stringify(body));
+  const listed = (await call(adminListRoute, '/api/admin/requests', { token }, env)).body.requests;
+  assert.deepEqual(listed.map(r => r.payload).reverse(), ok.map(([, p]) => p));
+  await call(requestRoute, '/api/wallet/request', { method: 'POST', token, body: { type: 'shield', payload: { on: true } } }, env);
+  const spending = (await call(requestsRoute, '/api/wallet/requests', { token }, env)).body.requests;
+  assert.deepEqual(spending.map(r => r.type), ['shield'], 'the wallet list has no admin requests');
+  const pull = await call(inboxRoute, '/api/economy/inbox', { auth: bot }, env);
+  const first = pull.body.events.find(e => e.data.type === 'admin.set').data.requestId;
+  await call(ackRoute, '/api/economy/ack', { method: 'POST', auth: bot, body: { cursor: pull.body.cursor, results: [{ requestId: first, status: 'rejected', reason: 'Out of range.', code: 'out_of_range' }] } }, env);
+  const decided = (await call(adminListRoute, '/api/admin/requests', { token }, env)).body.requests.find(r => r.requestId === first);
+  assert.deepEqual([decided.status, decided.code], ['rejected', 'out_of_range']);
+});
+
+test('admin requests count against their own caps, not a player’s', async () => {
+  const env = envWith();
+  const token = await tokenFor(3821475);
+  for (let i = 0; i < PENDING_CAP + 3; i++) assert.equal((await call(adminRoute, '/api/admin/request', { method: 'POST', token, body: { type: 'admin.hill.approve' } }, env)).status, 202);
+  assert.equal((await call(requestRoute, '/api/wallet/request', { method: 'POST', token, body: { type: 'shield', payload: { on: true } } }, env)).status, 202);
+});
+
+test('a database made before the code column gets it on first use', async () => {
+  const env = envWith();
+  env.ECONOMY.sqlite.exec(`CREATE TABLE requests (seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE, osu_id INTEGER NOT NULL,
+    kind TEXT NOT NULL, payload TEXT NOT NULL, created INTEGER NOT NULL, day TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', reason TEXT, decided INTEGER)`);
+  assert.equal((await call(adminRoute, '/api/admin/request', { method: 'POST', token: await tokenFor(3821475), body: { type: 'admin.hill.redraft' } }, env)).status, 202);
+  assert.ok(env.ECONOMY.sqlite.prepare('PRAGMA table_info(requests)').all().some(c => c.name === 'code'));
 });
