@@ -29,7 +29,7 @@ const SECTIONS = [
   ]],
   [t('The community'), [
     [t('Dan course'), t('The community’s ladder of 19 challenge maps, from Zeroth Dan to Shin. Passing stages earns points and Discord roles. It lives under Challenges.')],
-    [t('King of the hill'), t('A pool of maps each month, one per slot (NM, HD, HR, DT and FM on catch-specific maps, and CV on a convert) in an Open and a Challenger tier. The best play on a map holds its crown; whoever holds it when the month ends keeps it. The most crowns in a month makes you King of the hill.')],
+    [t('King of the hill'), t('A pool of maps each month, one per slot (NM, HD, HR, DT and FM on catch-specific maps, and Convert on a convert) in two tiers: Open (6–9★) and the easier Challenger (4.5–6.5★). The best play on a map holds its crown; whoever holds it when the month ends keeps it. The most crowns in a month makes you King of the hill. HT, EZ and speed changes never count.')],
     [t('Bounties'), t('Prizes the community puts on hard maps, for the first FC, the first pass or taking the #1. A moderator posts one with the bot’s !bounty, anyone can add a prize, and the bot spots the claim by itself. Claiming one makes you a Bounty hunter.')],
     [t('Bananas 🍌'), t('The community’s play money, named after catch’s bonus fruit. You earn them by playing well: snipes, first FCs on 5★ maps and up, crowns, the map of the week, Dan stages, badges and the daily game. You spend them on bounties, tips and the shop. They’re never bought or sold. The bot keeps the books, and you sign in on this site with osu! to collect what you earned.')],
     [t('Pouch'), t('Where your bananas wait until you first sign in on this site with osu!. It holds 300; anything past that is lost, so sign in early.')],

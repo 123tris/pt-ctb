@@ -455,7 +455,7 @@ loads `completion.json` (about 90 KB compressed); both read `meta.json`'s `compl
 Prefer status as words in the line under a name (`.profile-line`): Foundations doesn't box static status.
 - **`.badge`** is a status outline: gold for honours, accent for "you", red for problems.
 - **Challenge chips** (`challengeChips()`, `core/challenge-chips.js`): a map that's in a running challenge gets a gold
-  badge linking to its tab ("Map of the week", "King of the hill: HR · Open", "WANTED: FC"). The map page shows them all;
+  badge linking to its tab ("Map of the week", "King of the hill: HR · Open", "Wanted: FC"). The map page shows them all;
   a Challenges tab shows only the others, so a map in two challenges links both ways.
 - **`.legend-tag`** is the "legend" or "inactive" tag: faint text in a thin `--border-strong` outline (the user's
   choice; the one boxed status), middle-aligned so it's centred on the name. It must explain itself visibly (see
