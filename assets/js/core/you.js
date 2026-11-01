@@ -12,6 +12,7 @@ import { toast } from './fun.js';
 import { track, identify } from './track.js';
 import { t, th } from './i18n.js';
 import { economy, bananas, signInHere } from './bananas.js';
+import { adminPanel, isAdmin } from './admin.js';
 
 const SIGN_IN_TTL = 15 * 60 * 1000;
 // The osu! app only knows CONFIG.home's callback, so pages.dev previews, the old github.io copy and localhost don't offer it.
@@ -98,7 +99,8 @@ export function initYou() {
         title="${t('Sign in with your osu! account to collect your bananas and see your rows highlighted on any device')}">${t('Sign in')}</button>`);
       return;
     }
-    const wallet = (await economy().catch(() => null))?.players?.[id] ?? null;
+    const [eco, panel] = await Promise.all([economy().catch(() => null), adminPanel().catch(() => null)]);
+    const wallet = eco?.players?.[id] ?? null;
     box.innerHTML = String(html`
       <button class="you-btn" type="button" aria-expanded="false" aria-controls="you-menu"
         aria-label="${t('You: {name}', { name: p.name })}" title="${t('You: {name}', { name: p.name })}">${avatar(id, 'avatar-sm')}</button>
@@ -107,6 +109,7 @@ export function initYou() {
         <a href="#/player/${id}">${t('Your profile')}</a>
         <a href="#/compare/${id}">${t('Compare with someone')}</a>
         ${wallet ? html`<a href="#/shop">${t('Shop')} <span class="faint">· ${bananas(wallet.b)}</span></a>` : ''}
+        ${isAdmin(id, panel) ? html`<a href="#/admin">${t('Admin')}</a>` : ''}
         <button class="you-forget" type="button">${t('Sign out')}</button>
         <p class="you-note">${t('Signed in with osu! in this browser.')}</p>
       </div>`);

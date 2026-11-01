@@ -1574,6 +1574,41 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 .shop-effect:empty { display: none; }
 .shop-effect.shop-blocked { color: var(--text); font-weight: 600; }
 .pinned-play .rows { margin-bottom: var(--sp-2); }
+
+/* The admin panel (pages/admin.js): settings as rows of text and a field, a card per group, each saving on its own. A
+   changed value is marked in words; a row edited and not sent yet gets the accent edge. */
+.admin-settings { display: grid; margin-bottom: var(--sp-4); }
+.admin-setting { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-4); align-items: center; padding: var(--sp-3) 0; border-top: 1px solid var(--border); }
+.admin-setting:first-child { border-top: 0; }
+.admin-setting.admin-dirty { box-shadow: inset 2px 0 0 var(--accent); padding-left: var(--sp-3); }
+.admin-setting-text { display: grid; gap: 2px; min-width: 0; }
+.admin-setting-text label { color: var(--text); }
+.admin-meta { color: var(--text-faint); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.admin-meta code, .admin-diff code, .admin-log code { font-family: var(--mono); font-size: var(--fs-sm); color: var(--text-dim); }
+.admin-changed { color: var(--text); font-size: var(--fs-sm); font-weight: 600; }
+.admin-changed .link-button { margin-left: var(--sp-2); font-weight: 500; }
+.admin-setting-field { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; justify-content: flex-end; }
+.admin-num { width: 110px; }
+.admin-text { width: 200px; }
+.admin-list { display: flex; gap: var(--sp-2); }
+.admin-list .admin-num { width: 80px; }
+.admin-toggle { display: inline-flex; gap: var(--sp-2); align-items: center; cursor: pointer; color: var(--text-dim); font-size: var(--fs-sm); min-height: 36px; }
+.admin-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+.admin-error { grid-column: 1 / -1; margin: 0; color: var(--red); font-size: var(--fs-sm); }
+.admin-error[hidden] { display: none; }
+.admin-input[aria-invalid='true'], .admin-setting input[aria-invalid='true'] { border-color: var(--red); }
+.admin-diff { margin: 0; padding-left: var(--sp-6); display: grid; gap: var(--sp-1); }
+.admin-action { padding: var(--sp-3) 0; border-top: 1px solid var(--border); }
+.admin-action:first-of-type { border-top: 0; }
+.admin-action .shop-step[hidden] { display: none; }
+.admin-log li { align-items: baseline; }
+.admin-pending { font-weight: 500; }
+/* On a phone a setting's field goes under its text. */
+@media (max-width: 600px) {
+  .admin-setting { grid-template-columns: minmax(0, 1fr); }
+  .admin-setting-field { justify-content: flex-start; }
+  .admin-list .admin-num { width: 72px; }
+}
 /* On a phone the price and its state go under the text, so the text keeps the width. */
 @media (max-width: 480px) {
   .shop-head { grid-template-columns: minmax(0, 1fr) 16px; grid-template-areas: 'name chev' 'about chev' 'side chev'; }

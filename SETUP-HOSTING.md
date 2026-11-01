@@ -337,6 +337,26 @@ per day from osu!'s CDN (no API calls).
 `npm run serve -- --local-data --economy` runs all of it locally over SQLite, with a stand-in for osu! that asks which
 player to sign in as (seed, inbox key and session secret are all `local`).
 
+### The admin panel (`#/admin`, bananas-contract.md §8)
+
+Admins change the bot's live settings and do admin work from the site. Like spending, every change is a request in the
+same D1 inbox (kinds `admin.*`), which the bot checks against its own admin list and applies or refuses within 15
+minutes; the site only queues them (`POST /api/admin/request`, `GET /api/admin/requests`). The page reads `admin.json`,
+which the export makes from the bot's `Admin/panel.json` (`tools/lib/admin.mjs`; no file, no settings on the page).
+
+1. **Add the `code` column** to the requests table, once (the code also adds it on its first request if you skip it):
+   ```
+   npx wrangler d1 execute ptctb-economy --remote --file=economy/migrations/0002_admin.sql
+   ```
+2. **Optional, Production:** **Settings → Variables and Secrets → Add → Text** `ADMIN_OSU_IDS`, comma-separated osu!
+   ids. Unset, it's Tris (3821475) and DemiGod Yoxide (6205809). Keep it the same as the bot's `Admin:OsuIds`: the bot
+   refuses anyone not on its own list with `not_admin` anyway. Retry the deployment after changing it.
+3. **Check:** signed in as an admin on ptcatch.com, the You menu has **Admin**; signed in as anyone else,
+   `#/admin` says "Admins only".
+
+Locally, `--economy` lists the admins first in the sign-in stand-in, and with `--local-data` and no `data/admin.json`
+of its own serves `tools/admin-sample.json` (made-up values for all 86 settings and a short log) as `admin.json`.
+
 ## Day to day
 
 **Local previews:**

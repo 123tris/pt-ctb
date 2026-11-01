@@ -498,6 +498,18 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
   list (`.checks-list`) before the button, which stays disabled, with the reason in visible text, until they're met.
   It opens in place (`aria-expanded`), never in a modal. The answer comes back as a toast and in "Your requests".
 
+### Admin panel (`#/admin`)
+- Only for admins: anyone else gets "Admins only" and no data, and only admins see it in the You menu.
+- **A setting** is a row: its description as the label (in the visitor's language), then the key in `--mono`, the
+  default and when it takes effect in `--text-faint`, and its typed field on the right (under the text on a phone):
+  a number with min/max/step, a checkbox for on/off, one box per value for a fixed-length list. "Changed from the
+  default" is in words with a Reset link; a row edited and not sent yet gets the accent edge, an invalid one a red line
+  under it saying the range.
+- **Each group's card saves on its own**, in two steps like the shop: "Review changes…" lists old → new, then Send. The
+  other actions (pool, bounty, bananas, maps) are the same two steps. Esc steps back.
+- **The log** puts your requests the bot hasn't answered first ("waiting for the bot, up to 15 minutes"), refusals as
+  the code in words.
+
 ### Notices, toasts and disclosures
 
 - **`.notice`** is a plain dim paragraph.
