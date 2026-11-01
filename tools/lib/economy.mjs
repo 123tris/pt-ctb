@@ -33,6 +33,7 @@ const top = (totals, n = BOARD) => [...totals].filter(([, v]) => v[0] > 0).sort(
  * economy.json and the Activity feed's tips. `economy` is { updated, wallets, ledger } or null (then no file);
  * `known(id)` whether a player is on the site.
  *  - players: { id: { b balance, p pouch, e earned, x escrow, s signed in, sh shield, t title, w repeatable this week,
+ *    sg 1 when a signature play is pinned, c and cu the name colour and when it ends (only while it lasts),
  *    r recent: [[t, amount, kind, pouch, note]] newest first } }
  *  - month (Lisbon, yyyy-MM), boards: earned this month [[id, n]], hunters [[id, bananas, claims]] and generous
  *    [[id, bananas]] (tips and bounty funding sent), all time; totals: supply (wallets + pouches + escrow), wallets,
@@ -48,7 +49,7 @@ export function economyBlock({ economy, known, now }) {
     if (!known(id) || !w || typeof w !== 'object') continue;
     players[id] = {
       b: int(w.balance), p: int(w.pouch), e: int(w.earned), x: int(w.escrow), s: w.signedIn ? 1 : 0, sh: w.shield ? 1 : 0,
-      t: note(w.title), w: int(w.weekRepeatable), r: [],
+      t: note(w.title), w: int(w.weekRepeatable), ...shopState(w, now), r: [],
     };
   }
 
@@ -96,6 +97,13 @@ export function economyBlock({ economy, known, now }) {
     },
   };
   return { file, events };
+}
+
+/** What the shop shows as already yours: a pinned signature play, and a name colour while it lasts. */
+function shopState(w, now) {
+  const until = time(w.colourUntil);
+  const colour = typeof w.colour === 'string' && /^[a-z]{1,12}$/.test(w.colour) && until > now ? w.colour : null;
+  return { sg: Number.isSafeInteger(w.signature) && w.signature > 0 ? 1 : 0, c: colour, cu: colour ? until : null };
 }
 
 const iso = t => new Date(t * 1000).toISOString().replace('.000Z', 'Z');

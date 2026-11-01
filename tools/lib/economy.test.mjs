@@ -32,8 +32,8 @@ const line = (id, t, user, amount, kind, ref, extra = {}) => ({ id, t, user, amo
 const ECONOMY = {
   updated: '2026-11-20T11:45:00Z',
   wallets: {
-    1: wallet(1400, 0, 1250, { signedIn: true, escrow: 600, title: 'Bounty hunter' }), // over the gate
-    2: wallet(700, 0, 420, { signedIn: true, shield: true }), // signed in, under the gate
+    1: wallet(1400, 0, 1250, { signedIn: true, escrow: 600, title: 'Bounty hunter', signature: 12345, colour: 'mint', colourUntil: '2026-12-01T00:00:00Z' }), // over the gate
+    2: wallet(700, 0, 420, { signedIn: true, shield: true, colour: 'gold', colourUntil: '2026-11-01T00:00:00Z' }), // signed in, under the gate; colour ran out
     3: wallet(0, 240, 240), // pouch only: never signed in
     99: wallet(5000, 0, 5000, { signedIn: true }), // not on the site: never shown
   },
@@ -77,9 +77,10 @@ test('economy.json: wallets of players on the site, recent lines, the boards and
   const { files } = run();
   const eco = files['economy.json'];
   assert.deepEqual(Object.keys(eco.players), ['1', '2', '3']);
-  assert.deepEqual({ ...eco.players[1], r: undefined }, { b: 1400, p: 0, e: 1250, x: 600, s: 1, sh: 0, t: 'Bounty hunter', w: 0, r: undefined });
-  assert.deepEqual({ ...eco.players[3], r: undefined }, { b: 0, p: 240, e: 240, x: 0, s: 0, sh: 0, t: null, w: 0, r: undefined });
+  assert.deepEqual({ ...eco.players[1], r: undefined }, { b: 1400, p: 0, e: 1250, x: 600, s: 1, sh: 0, t: 'Bounty hunter', w: 0, sg: 1, c: 'mint', cu: Date.parse('2026-12-01T00:00:00Z') / 1000, r: undefined });
+  assert.deepEqual({ ...eco.players[3], r: undefined }, { b: 0, p: 240, e: 240, x: 0, s: 0, sh: 0, t: null, w: 0, sg: 0, c: null, cu: null, r: undefined });
   assert.equal(eco.players[2].sh, 1);
+  assert.equal(eco.players[2].c, null, 'a colour that ran out isn’t shown');
   // Newest first; the pouch flag; a tip's reason, nothing else's.
   assert.deepEqual(eco.players[3].r.map(r => r.slice(1)), [[120, 'fc.first', 1, null], [120, 'snipe', 1, null]]);
   assert.deepEqual(eco.players[1].r[2].slice(1), [-20, 'tip.out', 0, 'nice FC']);
