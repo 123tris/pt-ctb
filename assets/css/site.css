@@ -1577,7 +1577,42 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 
 /* The admin panel (pages/admin.js): settings as rows of text and a field, a card per group, each saving on its own. A
    changed value is marked in words; a row edited and not sent yet gets the accent edge. */
+/* Work waiting for an admin (a drafted King of the hill pool) comes first, with the accent edge. */
+.section.card.admin-attention { box-shadow: inset 2px 0 0 var(--accent); padding-left: var(--sp-4); }
+.admin-card > p { margin: 0 0 var(--sp-2); }
+.admin-waiting { margin-bottom: var(--sp-3); }
+/* Folds: a settings group, or the tools nobody needs most days. The whole summary row is the control. */
+.admin-group { border-top: 1px solid var(--border); }
+.admin-group:last-of-type { border-bottom: 1px solid var(--border); }
+.admin-group-head, .admin-fold > summary {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); min-height: 44px; padding: var(--sp-3) 0;
+  cursor: pointer; list-style: none;
+}
+.admin-group-head::-webkit-details-marker, .admin-fold > summary::-webkit-details-marker { display: none; }
+.admin-group-head:hover .admin-group-name, .admin-fold > summary:hover { color: var(--accent); }
+.admin-group-name { font-weight: 600; color: var(--text); }
+.admin-group-meta { color: var(--text-dim); font-size: var(--fs-sm); }
+.admin-group-edits { color: var(--accent); font-size: var(--fs-sm); font-weight: 600; }
+.admin-group-edits:empty { display: none; }
+.admin-chevron { margin-left: auto; align-self: center; color: var(--text-dim); transition: transform .12s ease; }
+details[open] > summary .admin-chevron { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .admin-chevron { transition: none; } }
+.admin-fold > summary { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
+.admin-group-body { padding-bottom: var(--sp-4); }
 .admin-settings { display: grid; margin-bottom: var(--sp-4); }
+.admin-setting[hidden], .admin-group[hidden] { display: none; }
+.admin-settings-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); margin-bottom: var(--sp-3); }
+.admin-settings-head h2 { margin: 0; }
+.admin-filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2) var(--sp-4); margin-bottom: var(--sp-3); }
+.admin-filter .field { width: min(320px, 100%); }
+.admin-bounties { display: grid; margin: 0 0 var(--sp-2); padding: 0; list-style: none; }
+.admin-bounty { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-4); align-items: center; padding: var(--sp-2) 0; border-top: 1px solid var(--border); }
+.admin-bounty:first-child { border-top: 0; }
+.admin-bounty-what { display: grid; gap: 2px; min-width: 0; }
+.admin-bounty-what > span { display: block; }
+.admin-bounty .shop-step { justify-content: flex-end; }
+.admin-bounty .shop-confirm { grid-column: 1 / -1; }
+@media (max-width: 600px) { .admin-bounty { grid-template-columns: minmax(0, 1fr); } .admin-bounty .shop-step { justify-content: flex-start; } }
 .admin-setting { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-4); align-items: center; padding: var(--sp-3) 0; border-top: 1px solid var(--border); }
 .admin-setting:first-child { border-top: 0; }
 .admin-setting.admin-dirty { box-shadow: inset 2px 0 0 var(--accent); padding-left: var(--sp-3); }
@@ -1598,8 +1633,8 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 .admin-error[hidden] { display: none; }
 .admin-input[aria-invalid='true'], .admin-setting input[aria-invalid='true'] { border-color: var(--red); }
 .admin-diff { margin: 0; padding-left: var(--sp-6); display: grid; gap: var(--sp-1); }
-.admin-action { padding: var(--sp-3) 0; border-top: 1px solid var(--border); }
-.admin-action:first-of-type { border-top: 0; }
+.admin-card > .admin-action, .admin-fold > .admin-action { padding: var(--sp-3) 0; border-top: 1px solid var(--border); }
+.admin-card > .admin-action:first-of-type, .admin-fold > .admin-action:first-of-type { border-top: 0; }
 .admin-action .shop-step[hidden] { display: none; }
 .admin-log li { align-items: baseline; }
 .admin-pending { font-weight: 500; }

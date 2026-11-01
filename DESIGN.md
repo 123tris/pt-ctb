@@ -505,10 +505,17 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
   a number with min/max/step, a checkbox for on/off, one box per value for a fixed-length list. "Changed from the
   default" is in words with a Reset link; a row edited and not sent yet gets the accent edge, an invalid one a red line
   under it saying the range.
-- **Each group's card saves on its own**, in two steps like the shop: "Review changes…" lists old → new, then Send. The
-  other actions (pool, bounty, bananas, maps) are the same two steps. Esc steps back.
+- **Order: what waits on an admin first.** A drafted King of the hill pool is the first card, with the accent edge
+  and Approve as the page's one primary button; once live, its tools fold away. Then the open bounties, each with its own
+  Cancel, then players and maps, then the settings, then the log. Your requests the bot hasn't answered sit at the top
+  of their card.
+- **Settings fold by group** (`details`, closed to start): the summary row says how many settings, how many are changed
+  from the default, waiting for the bot, or edited and not sent. "Find a setting" matches word starts in the
+  description and key and opens the groups with a match; a checkbox narrows to the changed ones.
+- **Each group saves on its own**, in two steps like the shop: "Review changes…" lists old → new, then Send. The
+  other actions are the same two steps. Esc steps back.
 - **The log** puts your requests the bot hasn't answered first ("waiting for the bot, up to 15 minutes"), refusals as
-  the code in words.
+  the code in words, and shows 15 lines until "Show all".
 
 ### Notices, toasts and disclosures
 

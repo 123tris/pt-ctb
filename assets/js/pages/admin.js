@@ -14,11 +14,12 @@
 // Esc steps back from a confirmation, as in the shop.
 
 import { html, raw } from '../core/html.js';
-import { playerIndex, players } from '../core/data.js';
+import { playerIndex, players, hill, bounties } from '../core/data.js';
 import { HILL_SLOTS, HILL_TIERS } from '../core/model.js';
-import { SLOT_NAME, TIER_NAME } from '../core/hill.js';
-import { setTitle, pageHead, empty, announce, playerPicker, pickedPlayer } from '../core/ui.js';
-import { session, signInButton, mapIdFrom, closeOnEscape } from '../core/bananas.js';
+import { SLOT_NAME, TIER_NAME, monthLabel } from '../core/hill.js';
+import { GOAL_LABEL } from '../core/bounty.js';
+import { setTitle, pageHead, empty, announce, playerPicker, pickedPlayer, mapLabel } from '../core/ui.js';
+import { session, signInButton, mapIdFrom, closeOnEscape, bananas } from '../core/bananas.js';
 import {
   adminPanel, isAdmin, myAdminRequests, sendAdmin, sentToast, GROUPS, groupName, EFFECTS, describe, valueText, actionText, refusalText,
 } from '../core/admin.js';
@@ -26,6 +27,8 @@ import * as fmt from '../core/fmt.js';
 import { t, th, tn } from '../core/i18n.js';
 
 const LOG_LIMIT = 100;
+const LOG_SHOWN = 15; // log lines before "Show all"
+const CHEVRON = raw('<svg class="admin-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const keyId = key => key.replace(/[^A-Za-z0-9]/g, '-');
 
@@ -89,7 +92,9 @@ export default async function admin(root, { isCurrent }) {
   const me = session();
   const only = extra => { root.innerHTML = String(html`${head}${empty(html`<p>${t('Admins only.')}</p>${extra ?? ''}`)}`); };
   if (!me) return only(signInButton());
-  const [mine, panel, index, list] = await Promise.all([myAdminRequests(), adminPanel().catch(() => null), playerIndex(), players()]);
+  const [mine, panel, index, list, hillData, bountyData] = await Promise.all([
+    myAdminRequests(), adminPanel().catch(() => null), playerIndex(), players(), hill().catch(() => null), bounties().catch(() => null),
+  ]);
   if (!isCurrent()) return;
   if (mine.status === 403 || (!mine.ok && !isAdmin(me.id, panel))) return only();
   if (!mine.ok) {
@@ -120,11 +125,26 @@ export default async function admin(root, { isCurrent }) {
     </div>`;
   };
 
-  const groupCard = g => html`<section class="section card admin-group" data-group="${g}" aria-labelledby="g-${keyId(g)}">
-    <h2 class="card-h" id="g-${keyId(g)}">${groupName(g)}</h2>
-    <div class="admin-settings">${settings.filter(s => s.group === g).map(settingRow)}</div>
-    <div class="admin-save">${saveStep()}</div>
-  </section>`;
+  // Each group folds (closed to start), its summary saying what's changed, waiting or edited without being sent.
+  const groupSummary = g => {
+    const inGroup = settings.filter(s => s.group === g);
+    const changed = inGroup.filter(s => s.overridden).length;
+    const waiting = inGroup.filter(s => pendingFor(s.key)).length;
+    return html`<span class="admin-group-name">${groupName(g)}</span>
+      <span class="admin-group-meta">${[
+        tn(inGroup.length, '{n} setting', '{n} settings'),
+        changed && tn(changed, '{n} changed from the default', '{n} changed from the default'),
+        waiting && tn(waiting, '{n} waiting for the bot', '{n} waiting for the bot'),
+      ].filter(Boolean).join(' · ')}</span>
+      <span class="admin-group-edits" data-edits></span>${CHEVRON}`;
+  };
+  const groupCard = g => html`<details class="admin-group" data-group="${g}">
+    <summary class="admin-group-head" id="g-${keyId(g)}">${groupSummary(g)}</summary>
+    <div class="admin-group-body">
+      <div class="admin-settings">${settings.filter(s => s.group === g).map(settingRow)}</div>
+      <div class="admin-save">${saveStep()}</div>
+    </div>
+  </details>`;
   const saveStep = (n = 0) => html`<div class="shop-step" data-step="save">
     <button class="btn btn-small" type="button" data-review ${n ? '' : raw('disabled')}>${t('Review changes…')}</button>
     <span class="faint small" data-count>${n ? tn(n, '{n} change', '{n} changes') : t('No changes')}</span>
@@ -134,33 +154,78 @@ export default async function admin(root, { isCurrent }) {
   // The actions: each a small form whose Review button checks it and shows a confirmation.
   const slotOptions = HILL_SLOTS.map(s => html`<option value="${s}">${SLOT_NAME[s]}</option>`);
   const tierOptions = HILL_TIERS.map(s => html`<option value="${s}">${TIER_NAME[s]}</option>`);
-  const actionCard = (title, intro, forms) => html`<section class="section card admin-actions"><h2 class="card-h">${title}</h2>${intro ? html`<p class="muted small">${intro}</p>` : ''}${forms}</section>`;
   const actionForm = (name, fields, buttons) => html`<div class="admin-action" data-action="${name}">
     <div class="shop-step" data-step="form">${fields}${buttons}<p class="shop-error" role="alert" hidden></p></div>
   </div>`;
-  const review = (label, which = '') => html`<button class="btn btn-small" type="button" data-review="${which}">${label}</button>`;
+  const review = (label, which = '', primary = false) => html`<button class="btn btn-small ${primary ? 'btn-primary' : ''}" type="button" data-review="${which}">${label}</button>`;
 
-  const actions = html`
-    ${actionCard(t('King of the hill pool'), t('The same as !hill pool in Discord: approve this month’s draft, reroll one slot, or draft it again.'), html`
-      ${actionForm('approve', '', review(t('Approve the pool…')))}
-      ${actionForm('reroll', html`<div class="field"><label for="reroll-slot">${t('Slot')}</label><select class="select" id="reroll-slot">${slotOptions}</select></div>
-        <div class="field"><label for="reroll-tier">${t('Tier')}</label><select class="select" id="reroll-tier">${tierOptions}</select></div>`, review(t('Reroll…')))}
-      ${actionForm('redraft', '', review(t('Redraft the pool…')))}`)}
-    ${actionCard(t('Bounties, bananas and maps'), '', html`
-      ${actionForm('cancel', html`<div class="field"><label for="cancel-id">${t('Bounty #')}</label><input class="input admin-num" type="number" id="cancel-id" inputmode="numeric" min="1" step="1"></div>
-        <label class="admin-toggle"><input type="checkbox" id="cancel-refund" checked> <span>${t('Refund everyone, the fee included')}</span></label>`, review(t('Cancel the bounty…')))}
-      ${actionForm('adjust', html`<div class="field"><label for="adjust-who">${t('Player')}</label>${playerPicker('adjust-who', list)}</div>
-        <div class="field"><label for="adjust-amount">${t('Amount (− to take)')}</label><input class="input admin-num" type="number" id="adjust-amount" inputmode="numeric" step="1"></div>
-        <div class="field"><label for="adjust-note">${t('Note')}</label><input class="input" type="text" id="adjust-note" maxlength="100" placeholder="${t('admin correction')}"></div>`, review(t('Adjust…')))}
-      ${actionForm('map', html`<div class="field"><label for="map-id">${t('Beatmap id or link')}</label><input class="input" type="text" id="map-id" autocomplete="off"></div>`,
-        html`${review(t('Ban…'), 'ban')}${review(t('Unban…'), 'unban')}`)}`)}`;
-
-  // The log: your requests the bot hasn't logged yet, then the bot's log.
-  const logged = new Set((panel?.actions ?? []).map(a => a.requestId).filter(Boolean));
   const status = (st, code, reason) => (st === 'pending' ? html`<span class="req-status">${t('waiting for the bot, up to 15 minutes')}</span>`
     : st === 'accepted' ? html`<span class="req-status req-ok">✓ ${t('done')}</span>`
       : html`<span class="req-status req-no">✕ ${t('refused: {reason}', { reason: refusalText(code, reason) })}</span>`);
   const when = iso => { const s = Date.parse(iso) / 1000; return html`<span class="faint" title="${fmt.dateTime(s)}">${fmt.ago(s)}</span>`; };
+  /** Your requests of some kinds still waiting for the bot, as lines at the top of their card (a listed bounty says it in its row). */
+  const waitingList = prefix => {
+    const waiting = requests.filter(r => r.status === 'pending' && r.type.startsWith(prefix) && !(r.type === 'admin.bounty.cancel' && listed.has(r.payload.id)));
+    return waiting.length ? html`<ul class="req-list admin-waiting">${waiting.map(r => html`<li><span>${actionText(r.type, r.payload, index)}</span> ${status('pending')} ${when(r.t)}</li>`)}</ul>` : '';
+  };
+
+  const openBounties = (bountyData?.open ?? []).filter(r => Number.isSafeInteger(r[8]));
+  const listed = new Set(openBounties.map(r => r[8]));
+
+  // King of the hill's pool. A draft waits for an admin: then it's the first card, open, with Approve as the page's one
+  // primary action. Once live, approve and redraft would only be refused, so the tools fold away.
+  const month = hillData?.current ?? null;
+  const draft = month?.status === 'draft';
+  const poolTools = html`
+    ${actionForm('approve', '', review(t('Approve the pool…'), '', draft))}
+    ${actionForm('reroll', html`<div class="field"><label for="reroll-slot">${t('Slot')}</label><select class="select" id="reroll-slot">${slotOptions}</select></div>
+      <div class="field"><label for="reroll-tier">${t('Tier')}</label><select class="select" id="reroll-tier">${tierOptions}</select></div>`, review(t('Reroll…')))}
+    ${actionForm('redraft', '', review(t('Redraft the pool…')))}`;
+  const poolCard = () => html`<section class="section card admin-card ${draft ? 'admin-attention' : ''}" id="admin-pool" aria-labelledby="admin-pool-h">
+    <h2 class="card-h" id="admin-pool-h">${draft ? t('King of the hill pool: waiting for approval') : t('King of the hill pool')}</h2>
+    <div data-waiting="admin.hill.">${waitingList('admin.hill.')}</div>
+    ${draft ? html`<p>${t('{month}’s pool is drafted but not live. Look it over in Discord with !hill pool, then approve it, reroll a slot or draft it again.', { month: monthLabel(month.month) })}</p>${poolTools}`
+      : html`${month ? html`<p class="muted small">${t('{month}’s pool is live.', { month: monthLabel(month.month) })}</p>` : ''}
+        <details class="admin-fold"><summary>${t('Pool tools')}${CHEVRON}</summary>${poolTools}</details>`}
+  </section>`;
+
+  // Open bounties, each with its own Cancel; the ones with a cancel already waiting say so instead.
+  const cancelWaiting = id => requests.some(r => r.status === 'pending' && r.type === 'admin.bounty.cancel' && r.payload.id === id);
+  const bountyRow = r => {
+    const [mapId, , goal, , , , , , id, pot, , poster, expires] = r;
+    const what = html`<span class="admin-bounty-what"><span><b>#${id}</b> ${GOAL_LABEL[goal] ?? goal} · <a href="#/map/${mapId}">${mapLabel(mapId, bountyData.maps?.[mapId])}</a></span>
+      <span class="faint small">${[pot ? t('{amount} pot', { amount: bananas(pot) }) : '', poster ? index.get(poster)?.name ?? '' : t('house bounty'), expires ? t('ends {date}', { date: fmt.date(expires) }) : ''].filter(Boolean).join(' · ')}</span></span>`;
+    if (cancelWaiting(id)) return html`<li class="admin-bounty">${what}${status('pending')}</li>`;
+    return html`<li class="admin-bounty admin-action" data-action="cancel" data-id="${id}">${what}
+      <div class="shop-step" data-step="form">
+        <label class="admin-toggle"><input type="checkbox" class="cancel-refund" checked> <span>${t('Refund everyone')}</span></label>
+        ${review(t('Cancel…'))}<p class="shop-error" role="alert" hidden></p>
+      </div></li>`;
+  };
+  const bountyCard = () => html`<section class="section card admin-card" id="admin-bounties" aria-labelledby="admin-bounties-h">
+    <h2 class="card-h" id="admin-bounties-h">${t('Open bounties')} <span class="faint">${openBounties.length}</span></h2>
+    <div data-waiting="admin.bounty.">${waitingList('admin.bounty.')}</div>
+    ${openBounties.length ? html`<ul class="admin-bounties">${openBounties.map(bountyRow)}</ul>` : html`<p class="muted small">${t('No open bounties.')}</p>`}
+    <details class="admin-fold"><summary>${t('Cancel another bounty by number')}${CHEVRON}</summary>
+      ${actionForm('cancel', html`<div class="field"><label for="cancel-id">${t('Bounty #')}</label><input class="input admin-num cancel-id" type="number" id="cancel-id" inputmode="numeric" min="1" step="1"></div>
+        <label class="admin-toggle"><input type="checkbox" class="cancel-refund" checked> <span>${t('Refund everyone, the fee included')}</span></label>`, review(t('Cancel the bounty…')))}
+    </details>
+  </section>`;
+
+  const toolsCard = html`<section class="section card admin-card" id="admin-tools" aria-labelledby="admin-tools-h">
+    <h2 class="card-h" id="admin-tools-h">${t('Players and maps')}</h2>
+    <div data-waiting="admin.bananas.">${waitingList('admin.bananas.')}</div>
+    <div data-waiting="admin.map.">${waitingList('admin.map.')}</div>
+    ${actionForm('adjust', html`<div class="field"><label for="adjust-who">${t('Player')}</label>${playerPicker('adjust-who', list)}</div>
+      <div class="field"><label for="adjust-amount">${t('Bananas (− to take)')}</label><input class="input admin-num" type="number" id="adjust-amount" inputmode="numeric" step="1"></div>
+      <div class="field"><label for="adjust-note">${t('Note')}</label><input class="input" type="text" id="adjust-note" maxlength="100" placeholder="${t('admin correction')}"></div>`, review(t('Adjust…')))}
+    ${actionForm('map', html`<div class="field"><label for="map-id">${t('Beatmap id or link')}</label><input class="input" type="text" id="map-id" autocomplete="off"></div>`,
+      html`${review(t('Ban…'), 'ban')}${review(t('Unban…'), 'unban')}`)}
+  </section>`;
+
+  // The log: your requests the bot hasn't logged yet, then the bot's log; the first LOG_SHOWN until asked for more.
+  const logged = new Set((panel?.actions ?? []).map(a => a.requestId).filter(Boolean));
+  let logAll = false;
   const logList = () => {
     const own = requests.filter(r => r.status === 'pending' || !logged.has(r.requestId));
     const rows = [
@@ -169,21 +234,76 @@ export default async function admin(root, { isCurrent }) {
       ...(panel?.actions ?? []).slice(0, LOG_LIMIT).map(a => html`<li><span>${actionText(a.kind, a.args, index)}</span>
         ${status(a.status, a.code, a.reason)} <span class="faint">${a.name}${a.via === 'discord' ? ` · ${t('via Discord')}` : ''}</span> ${when(a.at)}</li>`),
     ];
-    return rows.length ? html`<ul class="req-list admin-log">${rows}</ul>` : empty(t('Nothing yet.'));
+    if (!rows.length) return empty(t('Nothing yet.'));
+    const shown = logAll ? rows : rows.slice(0, LOG_SHOWN);
+    return html`<ul class="req-list admin-log">${shown}</ul>${rows.length > shown.length
+      ? html`<button class="btn btn-small" type="button" data-log-all>${t('Show all {n}', { n: rows.length })}</button>` : ''}`;
   };
 
-  root.innerHTML = String(html`${head}
-    ${panel ? '' : html`<p class="notice">${t('The bot hasn’t published its settings yet, so only the actions are here.')}</p>`}
-    ${panel?.generatedAt ? html`<p class="muted small">${t('Settings as the bot last published them, {ago}.', { ago: fmt.ago(panel.generatedAt) })}</p>` : ''}
+  const settingsSection = html`<section class="section" id="admin-settings" aria-labelledby="admin-settings-h">
+    <div class="admin-settings-head">
+      <h2 id="admin-settings-h">${t('Settings')}</h2>
+      ${panel?.generatedAt ? html`<span class="muted small">${t('as the bot last published them, {ago}', { ago: fmt.ago(panel.generatedAt) })}</span>` : ''}
+    </div>
+    <div class="admin-filter">
+      <div class="field"><label for="admin-find">${t('Find a setting')}</label><input class="input" type="search" id="admin-find" autocomplete="off" placeholder="${t('e.g. stars, tip, shop')}"></div>
+      <label class="admin-toggle"><input type="checkbox" id="admin-changed-only"> <span>${t('Only the ones changed from the default')}</span></label>
+    </div>
+    <p class="muted small" id="admin-find-none" hidden>${t('No setting matches.')}</p>
     ${groups.map(groupCard)}
-    ${actions}
+  </section>`;
+
+  root.innerHTML = String(html`${head}
+    ${poolCard()}
+    ${bountyCard()}
+    ${toolsCard}
+    ${panel ? settingsSection : html`<p class="notice">${t('The bot hasn’t published its settings yet, so only the actions are here.')}</p>`}
     <section class="section card" id="admin-log" aria-labelledby="admin-log-h"><h2 class="card-h" id="admin-log-h">${t('Log')}</h2><div data-log>${logList()}</div></section>`);
 
   const drawLog = () => { root.querySelector('[data-log]').innerHTML = String(logList()); };
+  root.querySelector('[data-log]').addEventListener('click', e => {
+    if (!e.target.closest('[data-log-all]')) return;
+    logAll = true;
+    drawLog();
+    root.querySelectorAll('.admin-log li')[LOG_SHOWN]?.setAttribute('tabindex', '-1');
+    root.querySelectorAll('.admin-log li')[LOG_SHOWN]?.focus();
+  });
   const noteSent = sent => {
     requests = [...[...sent].reverse().map(([type, payload, requestId]) => ({ requestId, type, payload, status: 'pending', t: new Date().toISOString(), code: null, reason: null })), ...requests];
     drawLog();
+    for (const box of root.querySelectorAll('[data-waiting]')) box.innerHTML = String(waitingList(box.dataset.waiting));
   };
+
+  // ---- Finding a setting: filters rows across groups and opens the groups with a match ----
+
+  const find = root.querySelector('#admin-find');
+  const changedOnly = root.querySelector('#admin-changed-only');
+  const filter = () => {
+    const q = find.value.trim().toLowerCase();
+    // Each word typed must start a word of the description or key ("tip" finds tips, not "multiplier").
+    const terms = q.split(/\s+/).filter(Boolean);
+    const matches = text => {
+      const words = text.toLowerCase().split(/[^\p{L}\p{N}]+/u);
+      return terms.every(term => words.some(w => w.startsWith(term)));
+    };
+    const only = changedOnly.checked;
+    let any = false;
+    for (const card of root.querySelectorAll('.admin-group')) {
+      let hits = 0;
+      for (const row of card.querySelectorAll('.admin-setting')) {
+        const s = byKey.get(row.dataset.key);
+        const hit = (!q || matches(`${describe(s)} ${s.key}`)) && (!only || s.overridden || row.classList.contains('admin-dirty'));
+        row.hidden = !hit;
+        hits += hit;
+      }
+      card.hidden = !hits;
+      if (q || only) card.open = hits > 0;
+      any ||= hits > 0;
+    }
+    root.querySelector('#admin-find-none').hidden = any;
+  };
+  find?.addEventListener('input', filter);
+  changedOnly?.addEventListener('change', filter);
 
   // ---- Settings: what changed, review, send ----
 
@@ -207,6 +327,8 @@ export default async function admin(root, { isCurrent }) {
       err.textContent = c?.error ?? '';
       row.querySelectorAll('input').forEach(i => (c?.error ? i.setAttribute('aria-invalid', 'true') : i.removeAttribute('aria-invalid')));
     }
+    const edits = card.querySelector('[data-edits]');
+    if (edits) edits.textContent = list.length ? tn(list.length, '{n} edit not sent', '{n} edits not sent') : '';
     const step = card.querySelector('[data-step="save"]');
     if (!step) return list;
     const n = list.length;
@@ -281,6 +403,7 @@ export default async function admin(root, { isCurrent }) {
         // Every field goes back to the bot's value, with what was sent showing as waiting.
         const g = card.dataset.group;
         card.querySelector('.admin-settings').innerHTML = String(html`${settings.filter(s => s.group === g).map(settingRow)}`);
+        card.querySelector('summary').innerHTML = String(groupSummary(g));
       }
       if (failed) {
         // Stay on the confirmation with what's left, saying why.
@@ -292,8 +415,7 @@ export default async function admin(root, { isCurrent }) {
         return;
       }
       backToSave(card, false);
-      card.querySelector('h2').setAttribute('tabindex', '-1');
-      card.querySelector('h2').focus();
+      card.querySelector('summary').focus();
     });
   }
 
@@ -306,9 +428,9 @@ export default async function admin(root, { isCurrent }) {
       case 'redraft': return { type: 'admin.hill.redraft', payload: {}, note: t('This throws the current draft away and drafts a new pool.') };
       case 'reroll': return { type: 'admin.hill.reroll', payload: { slot: form.querySelector('#reroll-slot').value, tier: form.querySelector('#reroll-tier').value } };
       case 'cancel': {
-        const id = Number(form.querySelector('#cancel-id').value);
-        if (!Number.isSafeInteger(id) || id < 1) return { error: t('Enter the bounty’s number.'), focus: '#cancel-id' };
-        const refund = form.querySelector('#cancel-refund').checked;
+        const id = Number(form.dataset.id ?? form.querySelector('.cancel-id').value);
+        if (!Number.isSafeInteger(id) || id < 1) return { error: t('Enter the bounty’s number.'), focus: '.cancel-id' };
+        const refund = form.querySelector('.cancel-refund').checked;
         return { type: 'admin.bounty.cancel', payload: { id, refund }, note: refund ? '' : t('Without refunds, the bananas in it stay burned.') };
       }
       case 'adjust': {
@@ -375,6 +497,15 @@ export default async function admin(root, { isCurrent }) {
       noteSent([[pick.type, pick.payload, res.requestId]]);
       sentToast(1);
       announce(t('Sent to the bot.'));
+      if (box.dataset.id) {
+        // A listed bounty: its row now just says it's waiting.
+        box.querySelector('[data-step="confirm"]').remove();
+        form.remove();
+        box.insertAdjacentHTML('beforeend', String(status('pending')));
+        box.closest('.admin-card').querySelector('h2').setAttribute('tabindex', '-1');
+        box.closest('.admin-card').querySelector('h2').focus();
+        return;
+      }
       box.querySelector('[data-step="confirm"]').remove();
       form.hidden = false;
       form.querySelectorAll('input[type=text], input[type=number]').forEach(i => { i.value = ''; });
