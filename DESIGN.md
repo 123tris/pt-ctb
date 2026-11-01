@@ -489,6 +489,10 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
   1,000-earned gate, then the latest lines as a quiet `.ledger` (label, signed amount, relative time). No "richest"
   board anywhere: Records shows what's earned and given.
 - **The pouch** (never signed in) leads with "Sign in to collect your 240 🍌" for its owner, gold amount, one button.
+- **A bought name colour** (`--name-*`, `nameClass()` in `core/ui.js`) is the one other job a colour may have: it only
+  ever colours that player's name, wherever names are listed, and nothing else. All six pass 5.6:1 on every layer.
+  It needs no other cue, as it says nothing. Gold and rosa are lighter than `--gold` and `--accent` so a name never reads
+  as an honour or as "you"; an inactive player's row still greys it.
 - **A pot** is a line under a bounty's dare (`.bounty-pot`): the amount in gold, poster, funders, end date.
 - **Anything that spends** shows the cost, your wallet before and after, and each rule the bot will check as a ✓/✕
   list (`.checks-list`) before the button, which stays disabled, with the reason in visible text, until they're met.

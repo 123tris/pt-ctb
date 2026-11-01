@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { records, playerIndex } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import { barChart } from '../core/charts.js';
-import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar, posBadge } from '../core/ui.js';
+import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar, posBadge, nameClass } from '../core/ui.js';
 import { FIRST_10K } from '../core/lore.js';
 import { economy, bananas } from '../core/bananas.js';
 import * as fmt from '../core/fmt.js';
@@ -35,7 +35,7 @@ function throneSection(throne, maps, index) {
         <p class="small muted">${t('Who sits at #2, right behind {name}, on the most maps.', { name: boss.name })}</p>
         <div class="mini-board">${throne.challengers.map(([uid, n], i) => html`<a class="line" href="#/compare/${uid}/${throne.u}">
           <span class="n">${i + 1}<span class="sr-only">.</span></span>
-          <span class="player">${avatar(uid, 'avatar-sm')}<span>${index.get(uid)?.name ?? uid}</span></span>
+          <span class="player">${avatar(uid, 'avatar-sm')}<span class="${nameClass(index.get(uid))}">${index.get(uid)?.name ?? uid}</span></span>
           <span class="sr-only">, </span><span class="pp">${fmt.num(n)}<small><span class="sr-only"> </span>${t('maps')}</small></span>
         </a>`)}</div>
       </div>
@@ -62,7 +62,7 @@ function leaders(title, rows, index, unit, { note, foot } = {}) {
     ${note ? html`<p class="small muted">${note}</p>` : ''}
     <div class="mini-board">${rows.map(([uid, value], i) => html`<a class="line" href="#/player/${uid}">
       <span class="n">${i + 1}<span class="sr-only">.</span></span>
-      <span class="player">${avatar(uid, 'avatar-sm')}<span>${index.get(uid)?.name ?? uid}</span></span>
+      <span class="player">${avatar(uid, 'avatar-sm')}<span class="${nameClass(index.get(uid))}">${index.get(uid)?.name ?? uid}</span></span>
       <span class="sr-only">, </span><span class="pp">${fmt.num(value)}${unit ? html`<small><span class="sr-only"> </span>${unit}</small>` : ''}</span>
     </a>`)}</div>
     ${foot || ''}

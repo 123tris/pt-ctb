@@ -58,8 +58,14 @@ export const avatar = (id, cls = '') => {
 export function playerLink(who, index, cls = '') {
   const p = typeof who === 'object' ? who : index?.get(who);
   const id = typeof who === 'object' ? who.id : who;
-  return html`<a class="player" href="#/player/${id}">${avatar(id, cls)}<span>${p ? p.name : `#${id}`}</span></a>`;
+  return html`<a class="player" href="#/player/${id}">${avatar(id, cls)}<span class="${nameClass(p)}">${p ? p.name : `#${id}`}</span></a>`;
 }
+
+/**
+ * The class for a player's name: their bought name colour from the shop (players.json `nc`, while `ncu` lasts), or ''.
+ * Every place that shows a name uses it, so a colour shows wherever the player is listed (DESIGN.md, Bananas).
+ */
+export const nameClass = p => (p?.nc && (!p.ncu || p.ncu > Date.now() / 1000) ? `name-colour name-${p.nc}` : '');
 
 export const playerName = (index, id) => index.get(id)?.name ?? `#${id}`;
 

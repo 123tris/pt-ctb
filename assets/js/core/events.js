@@ -2,7 +2,7 @@
 
 import { html } from './html.js';
 import { S, MOD, DAN_STAGES } from './model.js';
-import { catChip, CAT_LABEL, mapLabel, modsBadges, ppText, playerName } from './ui.js';
+import { catChip, CAT_LABEL, mapLabel, modsBadges, ppText, playerName, nameClass } from './ui.js';
 import { QUIPS, THRONE_PLAYER, pick } from './lore.js';
 import { SLOT_NAME, TIER_NAME, monthLabel } from './hill.js';
 import * as fmt from './fmt.js';
@@ -25,7 +25,7 @@ export const EVENT_KINDS = {
   join: { tag: t('New player'), label: t('New players') },
 };
 
-const who = (index, id) => html`<a href="#/player/${id}"><b>${playerName(index, id)}</b></a>`;
+const who = (index, id) => html`<a href="#/player/${id}"><b class="${nameClass(index.get(id))}">${playerName(index, id)}</b></a>`;
 
 /** A bounty claim, by goal: whole sentences, as Portuguese words them differently. */
 const BOUNTY_CLAIMED = /* i18n */ {

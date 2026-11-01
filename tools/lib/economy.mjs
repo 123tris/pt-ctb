@@ -33,7 +33,8 @@ const top = (totals, n = BOARD) => [...totals].filter(([, v]) => v[0] > 0).sort(
  * economy.json and the Activity feed's tips. `economy` is { updated, wallets, ledger } or null (then no file);
  * `known(id)` whether a player is on the site.
  *  - players: { id: { b balance, p pouch, e earned, x escrow, s signed in, sh shield, t title, w repeatable this week,
- *    sg 1 when a signature play is pinned, c and cu the name colour and when it ends (only while it lasts),
+ *    sg the pinned signature play's beatmap id (or null), c and cu the name colour and when it ends, ro and ru the Discord
+ *    colour role and when it ends (each only while it lasts; ru is null while the bot doesn't write roleUntil),
  *    r recent: [[t, amount, kind, pouch, note]] newest first } }
  *  - month (Lisbon, yyyy-MM), boards: earned this month [[id, n]], hunters [[id, bananas, claims]] and generous
  *    [[id, bananas]] (tips and bounty funding sent), all time; totals: supply (wallets + pouches + escrow), wallets,
@@ -100,10 +101,15 @@ export function economyBlock({ economy, known, now }) {
 }
 
 /** What the shop shows as already yours: a pinned signature play, and a name colour while it lasts. */
+export const PALETTE = ['rosa', 'gold', 'mint', 'sky', 'lilac', 'sand'];
 function shopState(w, now) {
-  const until = time(w.colourUntil);
-  const colour = typeof w.colour === 'string' && /^[a-z]{1,12}$/.test(w.colour) && until > now ? w.colour : null;
-  return { sg: Number.isSafeInteger(w.signature) && w.signature > 0 ? 1 : 0, c: colour, cu: colour ? until : null };
+  const timed = (name, untilIso) => {
+    const until = time(untilIso);
+    return PALETTE.includes(name) && until > now ? [name, until] : [null, null];
+  };
+  const [c, cu] = timed(w.colour, w.colourUntil);
+  const [ro, ru] = timed(w.role, w.roleUntil);
+  return { sg: Number.isSafeInteger(w.signature) && w.signature > 0 ? w.signature : null, c, cu, ro, ru };
 }
 
 const iso = t => new Date(t * 1000).toISOString().replace('.000Z', 'Z');

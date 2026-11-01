@@ -24,10 +24,11 @@ const DAY = 86400;
 const CHEVRON = raw('<svg class="shop-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 
 /** The extra thing an item needs: { label, field, read(panel) → arg or null, missing }. */
-function argField(item, titles) {
+function argField(item, titles, w) {
   const id = `arg-${item}`;
-  const select = options => html`<select class="select" id="${id}">${options.map(([v, label]) => html`<option value="${v}">${label}</option>`)}</select>`;
-  const mapInput = html`<input class="input" id="${id}" placeholder="${t('Map id or osu! link')}" autocomplete="off" aria-describedby="why-${item}">`;
+  const first = options => options.find(([v]) => v !== w?.t)?.[0];
+  const select = options => html`<select class="select" id="${id}" aria-describedby="effect-${item}">${options.map(([v, label]) => html`<option value="${v}" ${v === first(options) ? raw('selected') : ''}>${label}</option>`)}</select>`;
+  const mapInput = html`<input class="input" id="${id}" placeholder="${t('Map id or osu! link')}" autocomplete="off" aria-describedby="effect-${item} why-${item}">`;
   const value = panel => panel.querySelector(`#${id}`).value;
   const map = label => ({ label, field: mapInput, read: panel => mapIdFrom(value(panel)), missing: t('Add the map first: its id or its osu! link.') });
   switch (item) {
@@ -40,21 +41,51 @@ function argField(item, titles) {
 }
 
 /**
+ * A timed item's current [palette name, end] (unix seconds), or null. The wallet says it (colour and colourUntil, role and
+ * roleUntil); for a role, while the bot doesn't write roleUntil yet, the end is worked out from when it accepted the
+ * purchase.
+ */
+function currentTimed(s, w, requests, now) {
+  if (!w || !s.days) return null;
+  if (s.item === 'colour') return w.c ? [w.c, w.cu] : null;
+  if (w.ro && w.ru) return w.ru > now ? [w.ro, w.ru] : null;
+  const accepted = requests.find(r => r.payload?.item === s.item && r.status === 'accepted');
+  const until = accepted ? Date.parse(accepted.decided ?? accepted.t) / 1000 + s.days * DAY : 0;
+  return until > now ? [w.ro ?? accepted.payload.arg, until] : null;
+}
+
+/**
+ * What buying `value` would do, by the bot's repeat-buy rule (bananas-contract.md §6): the same colour or role again
+ * adds its days; a different one replaces it and keeps the time left; a new title or signature play replaces the old
+ * one; the one you already have can't be bought. { text, blocked }.
+ */
+function effectOf(s, value, w, cur, now) {
+  if (s.days) {
+    if (cur && cur[0] === value) return { text: t('Adds {n} days: active until {date}.', { n: s.days, date: fmt.date(cur[1] + s.days * DAY) }) };
+    if (cur) return { text: t('Replaces {current} with {colour} and keeps the time left: active until {date}.', { current: colourName(cur[0]), colour: colourName(value), date: fmt.date(cur[1]) }) };
+    return { text: t('Active until {date}.', { date: fmt.date(now + s.days * DAY) }) };
+  }
+  if (s.item === 'title' && w?.t) return value === w.t ? { text: t('Already yours.'), blocked: true } : { text: t('Replaces {current}.', { current: w.t }) };
+  if (s.item === 'signature' && w?.sg) return value === w.sg ? { text: t('That play is already pinned.'), blocked: true } : { text: t('Replaces the play you have pinned now.') };
+  return { text: '' };
+}
+
+/**
  * Where an item stands for this visitor: { tag (a few words for the header), why (the reason it can't be bought, or
  * null), owned (a line for the panel) }.
  */
 function standing(s, { me, w, titles, requests }) {
-  const mine = requests.filter(r => r.payload?.item === s.item);
-  const pending = mine.find(r => r.status === 'pending');
-  const accepted = mine.find(r => r.status === 'accepted');
+  const pending = requests.find(r => r.payload?.item === s.item && r.status === 'pending');
   const now = Date.now() / 1000;
-  // A timed item bought through the site: active for its days from when the bot accepted it.
-  const timedLeft = accepted && s.days ? Math.ceil((Date.parse(accepted.decided ?? accepted.t) / 1000 + s.days * DAY - now) / DAY) : 0;
+  const cur = currentTimed(s, w, requests, now);
   let owned = null;
   if (w && s.item === 'title' && w.t) owned = t('Yours now: {title}.', { title: w.t });
-  if (w && s.item === 'signature' && w.sg) owned = t('You have a play pinned. Buying again replaces it.');
-  if (w && s.item === 'colour' && w.c) owned = tn(Math.ceil((w.cu - now) / DAY), 'Active: {colour}, {n} day left.', 'Active: {colour}, {n} days left.', { colour: colourName(w.c) });
-  else if (s.days && timedLeft > 0) owned = tn(timedLeft, 'Active: {n} day left.', 'Active: {n} days left.');
+  if (w && s.item === 'signature' && w.sg) owned = t('You have a play pinned. A new one replaces it.');
+  if (cur) {
+    const left = Math.max(1, Math.ceil((cur[1] - now) / DAY));
+    owned = cur[0] ? tn(left, 'Active: {colour}, {n} day left.', 'Active: {colour}, {n} days left.', { colour: colourName(cur[0]) })
+      : tn(left, 'Active: {n} day left.', 'Active: {n} days left.');
+  }
 
   // Signed out, the page says it once at the top; each panel says it again with the button.
   if (!me) return { tag: '', why: t('Sign in with osu! to buy. You can look around first.'), owned };
@@ -62,8 +93,8 @@ function standing(s, { me, w, titles, requests }) {
   if (pending) return { tag: t('Waiting for the bot'), why: t('You asked for this {ago}. The bot answers within 15 minutes; it shows under “Your purchases”.', { ago: fmt.ago(Date.parse(pending.t) / 1000) }), owned };
   if (s.item === 'title' && !titles.length) return { tag: '', why: t('You have no titles or badges to show yet. Badges come from your plays; titles from King of the hill.'), owned };
   if (w.b < s.price) return { tag: t('{n} short', { n: bananas(s.price - w.b) }), why: t('You need {n} more: your wallet has {balance}.', { n: bananas(s.price - w.b), balance: bananas(w.b) }), owned };
-  const tag = s.item === 'colour' && w.c ? t('Active') : timedLeft > 0 ? t('Active') : (s.item === 'title' && w.t) || (s.item === 'signature' && w.sg) ? t('Yours') : '';
-  return { tag, why: null, owned };
+  const tag = cur ? t('Active') : (s.item === 'title' && w.t) || (s.item === 'signature' && w.sg) ? t('Yours') : '';
+  return { tag, why: null, owned, cur };
 }
 
 export default async function shop(root, { isCurrent }) {
@@ -93,7 +124,7 @@ export default async function shop(root, { isCurrent }) {
 
   /** Step one: what the item does, what it needs, and why not when it can't be bought. */
   const panel = (s, st) => {
-    const arg = argField(s.item, titles);
+    const arg = argField(s.item, titles, w);
     return html`
       ${st.owned ? html`<p class="shop-owned">${st.owned}</p>` : ''}
       ${s.approval ? html`<p class="small muted">${t('A moderator checks it fits first. If they say no, the bananas come back.')}</p>` : ''}
@@ -101,13 +132,15 @@ export default async function shop(root, { isCurrent }) {
         : html`<div class="shop-step" data-step="pick">
           <div class="field"><label for="arg-${s.item}">${arg.label}</label>${arg.field}</div>
           <button class="btn btn-small" type="button" data-review>${t('Buy…')}</button>
+          <p class="small shop-effect" id="effect-${s.item}" aria-live="polite"></p>
           <p class="small muted shop-why" id="why-${s.item}" aria-live="polite">${t('Your wallet: {balance}, then {after}.', { balance: bananas(w.b), after: bananas(w.b - s.price) })}</p>
         </div>`}`;
   };
 
   /** Step two: the confirmation, with the price, the choice and the wallet after; Cancel goes back. */
-  const confirmStep = (s, choice) => html`<div class="shop-step shop-confirm" data-step="confirm">
+  const confirmStep = (s, choice, effect) => html`<div class="shop-step shop-confirm" data-step="confirm">
     <p>${th('Buy {item} ({choice}) for {price}?', { item: html`<b>${s.name}</b>`, choice, price: html`<b>${bananas(s.price)}</b>` })}</p>
+    ${effect ? html`<p class="small shop-effect">${effect}</p>` : ''}
     <p class="small muted">${t('Your wallet goes from {balance} to {after}. Bananas spent in the shop are burned: they don’t come back.', { balance: bananas(w.b), after: bananas(w.b - s.price) })}${s.approval ? ` ${t('Unless a moderator says no: then they do.')}` : ''}</p>
     <div class="btn-row">
       <button class="btn btn-small btn-primary" type="button" data-confirm>${t('Confirm purchase')}</button>
@@ -115,7 +148,7 @@ export default async function shop(root, { isCurrent }) {
     </div>
   </div>`;
 
-  const draw = () => {
+  let draw = () => {
     root.innerHTML = String(html`
       ${pageHead({ title: t('Shop'), intro: t('Spend bananas on your look or on community picks. What you spend here is burned: bananas are never bought, sold or turned into supporter.') })}
       ${!eco ? empty(t('Bananas haven’t started yet. The shop opens with them.')) : html`
@@ -132,7 +165,24 @@ export default async function shop(root, { isCurrent }) {
         </section>`)}`}
     `);
   };
+  /** The open item's effect line, for what's picked right now. */
+  const showEffect = () => {
+    const s = SHOP.find(x => x.item === open);
+    const panelBox = s && root.querySelector(`#panel-${s.item}`);
+    const line = panelBox?.querySelector(`#effect-${s.item}`);
+    if (!line) return;
+    const value = argField(s.item, titles, w).read(panelBox);
+    const now = Date.now() / 1000;
+    const { text, blocked } = value === null || value === '' ? { text: '' } : effectOf(s, value, w, currentTimed(s, w, requests, now), now);
+    line.textContent = text;
+    line.classList.toggle('shop-blocked', Boolean(blocked));
+    panelBox.querySelector('[data-review]').disabled = Boolean(blocked);
+  };
+  const drawAll = draw;
+  draw = () => { drawAll(); showEffect(); };
   draw();
+  root.addEventListener('input', showEffect);
+  root.addEventListener('change', showEffect);
   if (!eco) return;
   if (me) {
     const refresh = async () => {
@@ -169,10 +219,13 @@ export default async function shop(root, { isCurrent }) {
         panelBox.querySelector(`#arg-${s.item}`).focus();
         return;
       }
+      const now = Date.now() / 1000;
+      const effect = effectOf(s, value, w, currentTimed(s, w, requests, now), now);
+      if (effect.blocked) return;
       const select = panelBox.querySelector(`select#arg-${s.item}`);
       const choice = select ? select.selectedOptions[0].textContent : t('map {id}', { id: value });
       const kept = step.outerHTML;
-      step.outerHTML = String(confirmStep(s, choice));
+      step.outerHTML = String(confirmStep(s, choice, effect.text));
       panelBox.dataset.pick = kept;
       panelBox.dataset.value = String(value);
       panelBox.querySelector('[data-confirm]').focus();
@@ -182,6 +235,7 @@ export default async function shop(root, { isCurrent }) {
     if (e.target.closest('[data-cancel]')) {
       panelBox.querySelector('.shop-confirm').outerHTML = panelBox.dataset.pick;
       panelBox.querySelector(`#arg-${s.item}`).value = panelBox.dataset.value;
+      showEffect();
       panelBox.querySelector(`#arg-${s.item}`).focus();
       return;
     }

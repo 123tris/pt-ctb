@@ -659,6 +659,21 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // Bananas: bounties players posted, and tips (economy.mjs; none until the bot has an Economy/ folder).
   const economy = economyBlock({ economy: bot.economy ?? null, known: id => people.has(id), now });
   for (const e of [...board.posts, ...economy.events]) if (e.t >= since) derived.push(e);
+  // What players bought for everyone to see: a name colour on players.json (nc, and ncu when it ends), which every page
+  // already loads (core/ui.js nameClass), and the pinned signature play on their profile file ([category, ...play], the
+  // best one they have on that map).
+  const entryOf = new Map(players.map(p => [p.id, p]));
+  for (const [key, w] of Object.entries(economy.file?.players ?? {})) {
+    const id = Number(key);
+    if (w.c && entryOf.has(id)) Object.assign(entryOf.get(id), { nc: w.c, ncu: w.cu });
+    const file = playerFiles[id];
+    if (!w.sg || !file) continue;
+    const best = CATS.flatMap(cat => file.scores[cat].filter(t => t[S.MAP] === w.sg).map(t => [cat, ...t]))
+      .sort((a, b) => b[S.PP + 1] - a[S.PP + 1] || b[S.SCORE + 1] - a[S.SCORE + 1])[0];
+    if (!best) continue;
+    file.pinned = best;
+    file.maps[w.sg] ??= playerMapsFor([w.sg])[w.sg];
+  }
 
   // State-based events: who overtook whom on the pp boards, pp milestones and newly tracked players, found by
   // comparing with the previous export. The first export has nothing to compare with, so it only records.
@@ -965,7 +980,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       scores, top, dan: file.dan,
       ...(pre ? { pre } : {}),
       ...(file.crowns ? { crowns: file.crowns } : {}),
-      maps: Object.fromEntries(shown.map(t => t[S.MAP]).sort((a, b) => a - b).map(m => [m, file.maps[m]])),
+      ...(file.pinned ? { pinned: file.pinned } : {}),
+      maps: Object.fromEntries([...shown.map(t => t[S.MAP]), ...(file.pinned ? [file.pinned[S.MAP + 1]] : [])].sort((a, b) => a - b)
+        .map(m => [m, file.maps[m]])),
       extras: {
         badges: playerBadges(entry, file, records, now),
         era: era(entry, file, now),

@@ -32,7 +32,7 @@ const line = (id, t, user, amount, kind, ref, extra = {}) => ({ id, t, user, amo
 const ECONOMY = {
   updated: '2026-11-20T11:45:00Z',
   wallets: {
-    1: wallet(1400, 0, 1250, { signedIn: true, escrow: 600, title: 'Bounty hunter', signature: 12345, colour: 'mint', colourUntil: '2026-12-01T00:00:00Z' }), // over the gate
+    1: wallet(1400, 0, 1250, { signedIn: true, escrow: 600, title: 'Bounty hunter', signature: 10, colour: 'mint', colourUntil: '2026-12-01T00:00:00Z', role: 'sky', roleUntil: '2026-11-25T00:00:00Z' }), // over the gate
     2: wallet(700, 0, 420, { signedIn: true, shield: true, colour: 'gold', colourUntil: '2026-11-01T00:00:00Z' }), // signed in, under the gate; colour ran out
     3: wallet(0, 240, 240), // pouch only: never signed in
     99: wallet(5000, 0, 5000, { signedIn: true }), // not on the site: never shown
@@ -77,8 +77,8 @@ test('economy.json: wallets of players on the site, recent lines, the boards and
   const { files } = run();
   const eco = files['economy.json'];
   assert.deepEqual(Object.keys(eco.players), ['1', '2', '3']);
-  assert.deepEqual({ ...eco.players[1], r: undefined }, { b: 1400, p: 0, e: 1250, x: 600, s: 1, sh: 0, t: 'Bounty hunter', w: 0, sg: 1, c: 'mint', cu: Date.parse('2026-12-01T00:00:00Z') / 1000, r: undefined });
-  assert.deepEqual({ ...eco.players[3], r: undefined }, { b: 0, p: 240, e: 240, x: 0, s: 0, sh: 0, t: null, w: 0, sg: 0, c: null, cu: null, r: undefined });
+  assert.deepEqual({ ...eco.players[1], r: undefined }, { b: 1400, p: 0, e: 1250, x: 600, s: 1, sh: 0, t: 'Bounty hunter', w: 0, sg: 10, c: 'mint', cu: Date.parse('2026-12-01T00:00:00Z') / 1000, ro: 'sky', ru: Date.parse('2026-11-25T00:00:00Z') / 1000, r: undefined });
+  assert.deepEqual({ ...eco.players[3], r: undefined }, { b: 0, p: 240, e: 240, x: 0, s: 0, sh: 0, t: null, w: 0, sg: null, c: null, cu: null, ro: null, ru: null, r: undefined });
   assert.equal(eco.players[2].sh, 1);
   assert.equal(eco.players[2].c, null, 'a colour that ran out isn’t shown');
   // Newest first; the pouch flag; a tip's reason, nothing else's.
@@ -160,4 +160,19 @@ test('unlocks.json: records dated by their play; badges held when tracking began
     [1, 'wysi', '1970-01-01T00:00:00Z'], [1, 'digits2', '2026-11-20T12:00:00Z'], [2, 'wysi', '2026-11-20T12:00:00Z'],
   ]);
   assert.ok('digits3:1' in later.seen, 'a badge that went is remembered, so it’s never new again');
+});
+
+test('a name colour reaches players.json while it lasts, and the pinned play reaches the profile files', () => {
+  const { files } = run();
+  const alpha = files['players.json'].find(p => p.id === 1);
+  assert.deepEqual([alpha.nc, alpha.ncu], ['mint', Date.parse('2026-12-01T00:00:00Z') / 1000]);
+  assert.equal(files['players.json'].find(p => p.id === 2).nc, undefined, 'ran out');
+  // Alpha pinned map 10: their play there, with its category, in both profile files, and the map's details.
+  for (const name of ['players/1.json', 'players/1-head.json']) {
+    const file = files[name];
+    assert.equal(file.pinned[0], 'r', name);
+    assert.equal(file.pinned[1], 10, name);
+    assert.ok(file.maps[10], name);
+  }
+  assert.equal(files['players/2.json'].pinned, undefined);
 });

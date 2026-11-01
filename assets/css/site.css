@@ -73,6 +73,15 @@
   --grade-b: #5aa8f0;
   --grade-c: #e8905e;
   --discord: #5865f2;         /* the Discord invite only */
+  /* Bought name colours (the Bananas shop): only ever on a player's name. 5.6:1 or more on every layer, --surface-3 and
+     the "you" row included. Gold and rosa are lighter than --gold and --accent, so a name never reads as an honour or
+     as "you". */
+  --name-rosa: #ff8fa5;
+  --name-gold: #f0d27a;
+  --name-mint: #7fe0c0;
+  --name-sky: #8cc8f5;
+  --name-lilac: #c9a8f5;
+  --name-sand: #e6c99a;
   --discord-hover: #6d78f5;
   --discord-ink: #fff;
 
@@ -1403,6 +1412,17 @@ a.dan-stage:hover { text-decoration: none; }
 
 tr.inactive td, tr.inactive .player, tr.inactive .pp, .row.inactive .player, .row.inactive .pp { color: var(--text-dim); }
 tr.inactive .avatar, .row.inactive .avatar { filter: grayscale(.7); }
+
+/* A bought name colour (core/ui.js nameClass). It only decorates the name, so it needs no other cue; the link's hover
+   underline stays, and an inactive player's row still greys it. */
+.name-colour.name-rosa { color: var(--name-rosa); }
+.name-colour.name-gold { color: var(--name-gold); }
+.name-colour.name-mint { color: var(--name-mint); }
+.name-colour.name-sky { color: var(--name-sky); }
+.name-colour.name-lilac { color: var(--name-lilac); }
+.name-colour.name-sand { color: var(--name-sand); }
+a:hover .name-colour, a.name-colour:hover { text-decoration: underline; text-underline-offset: 3px; }
+tr.inactive .name-colour, .row.inactive .name-colour { color: inherit; }
 /* "legend", "inactive": a small outlined tag after a name (the user's choice: the one boxed status, DESIGN.md §9), centred
    on the name. A .player link is avatar-tall, so it's middle-aligned too when a tag follows it. */
 .legend-tag {
@@ -1520,6 +1540,10 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 .shop-step .field { width: min(320px, 100%); }
 .shop-step > p { flex-basis: 100%; }
 .shop-confirm { display: grid; align-items: start; }
+.shop-effect { color: var(--text-dim); }
+.shop-effect:empty { display: none; }
+.shop-effect.shop-blocked { color: var(--text); font-weight: 600; }
+.pinned-play .rows { margin-bottom: var(--sp-2); }
 /* On a phone the price and its state go under the text, so the text keeps the width. */
 @media (max-width: 480px) {
   .shop-head { grid-template-columns: minmax(0, 1fr) 16px; grid-template-areas: 'name chev' 'about chev' 'side chev'; }

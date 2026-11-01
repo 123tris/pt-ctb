@@ -12,7 +12,7 @@ import { GOAL_LABEL } from '../core/bounty.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
-  isLegend, legendTag, gradeBadge, chipGroup, setPressed, placeholderRows, mapLabel,
+  isLegend, legendTag, gradeBadge, chipGroup, setPressed, placeholderRows, mapLabel, nameClass, scoreUrl, osuMap,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { t, th, tn } from '../core/i18n.js';
@@ -43,6 +43,19 @@ function trophies(crowns, claims, maps) {
       goal: GOAL_LABEL[goal], map: html`<a href="#/map/${id}">${mapLabel(id, maps[id])}</a>`,
     })}${at ? html` <span class="faint">· ${fmt.date(at)}</span>` : ''}</p>`)}
     ${claims.length > CLAIMS_SHOWN ? html`<p class="small"><a href="#/challenges/bounties">${t('{n} more in the hall of fame', { n: fmt.num(claims.length - CLAIMS_SHOWN) })}</a></p>` : ''}
+  </section>`;
+}
+
+/**
+ * The signature play the player pinned with bananas (players/{id}.json `pinned`: [category, ...play], tools/lib/build.mjs),
+ * as one score row and a link to it on osu!. It takes the place of the automatic "Signature map".
+ */
+function pinnedPlay([cat, ...s], maps) {
+  const url = scoreUrl(s) ?? osuMap(s[S.MAP]);
+  return html`<section class="section card signature pinned-play">
+    <h2 class="card-h">${t('Signature play')}</h2>
+    <div class="rows">${scoreRow({ s, meta: maps[s[S.MAP]], pos: s[S.POS], cat })}</div>
+    <p class="small m-0"><a href="${url}" target="_blank" rel="noopener">${scoreUrl(s) ? t('See the play on osu!') : t('See the map on osu!')}</a></p>
   </section>`;
 }
 
@@ -340,7 +353,7 @@ export default async function player(root, { params, query, isCurrent }) {
     <header class="profile-head">
       <a class="avatar-link" href="${osuUser(id)}" target="_blank" rel="noopener" aria-label="${t('{name} on osu!', { name: p.name })}" title="${t('{name} on osu!', { name: p.name })}">${avatar(id, 'avatar-lg')}</a>
       <div class="profile-info">
-        <h1><a class="title-link" href="${osuUser(id)}" target="_blank" rel="noopener" title="${t('{name} on osu!', { name: p.name })}">${p.name}</a>${isLegend(p) ? legendTag() : ''}</h1>
+        <h1><a class="title-link ${nameClass(p)}" href="${osuUser(id)}" target="_blank" rel="noopener" title="${t('{name} on osu!', { name: p.name })}">${p.name}</a>${isLegend(p) ? legendTag() : ''}</h1>
         <p class="profile-line">${[
           role && html`<span class="profile-role">${role}</span>`,
           firsts && tn(firsts, '{n} #1 in Portugal', '{n} #1s in Portugal'),
@@ -380,7 +393,7 @@ export default async function player(root, { params, query, isCurrent }) {
 
     ${id === THRONE_PLAYER ? html`<p class="mt-4 notice">${th('Every #1 on this profile is up for grabs. {link}', { link: html`<a href="#/records?at=throne">${t('Dethrone Tris')}</a>` })}</p>` : ''}
 
-    ${signature ? html`<section class="section card signature">
+    ${file.pinned ? pinnedPlay(file.pinned, file.maps) : signature ? html`<section class="section card signature">
       <h2 class="card-h">${t('Signature map')} <span class="faint">· ${t(signature.kind)}</span></h2>
       ${mapLink(signature.s[S.MAP], signature.meta)}
       <div class="mt-2 score-line">${catChip(signature.cat)} ${scoreStats(signature.s)} <span>${fmt.pp(signature.s[S.PP])} pp</span> <span class="faint">${fmt.date(signature.s[S.TIME])}</span></div>

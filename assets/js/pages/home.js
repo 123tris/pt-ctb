@@ -10,7 +10,7 @@ import { WANTED } from '../core/challenge-chips.js';
 import { season } from '../core/fun.js';
 import {
   setTitle, avatar, mapText, cover, setCover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
-  playerLink, mapLabel,
+  playerLink, mapLabel, nameClass,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
@@ -143,7 +143,7 @@ function miniBoard(list, key, cat) {
         const offOsu = cat === 'r' && isInactiveOnOsu(p);
         return html`<a class="line ${p.id === me ? 'me' : ''}" href="#/player/${p.id}">
           <span class="n">${i + 1}<span class="sr-only">.</span></span>
-          <span class="player">${avatar(p.id, 'avatar-sm')}<span>${p.name}</span>${isLegend(p) ? legendTag({ plain: true }) : offOsu ? inactiveTag(p, { plain: true }) : ''}</span>
+          <span class="player">${avatar(p.id, 'avatar-sm')}<span class="${nameClass(p)}">${p.name}</span>${isLegend(p) ? legendTag({ plain: true }) : offOsu ? inactiveTag(p, { plain: true }) : ''}</span>
           <span class="sr-only">, </span>${offOsu ? officialPp(p, { compact: true }) : html`<span class="pp">${fmt.pp(p[key])}<small>pp</small></span>`}
         </a>`;
       })}
