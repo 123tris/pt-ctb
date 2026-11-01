@@ -259,7 +259,9 @@ Tooltip (every icon has a name; avoid icons in buttons).*
 - **Characters** (★, ✕, ✓) are text beside a number or word.
 - **Icon-only controls** need an `aria-label` and a visible name. On phones prefer a word, as the "Search" toggle does.
 - **No icons inside text buttons** unless the action needs one.
-- **No emoji in the interface.** They belong in opt-in easter eggs and in text copied to Discord.
+- **No emoji in the interface.** They belong in opt-in easter eggs and in text copied to Discord. The one exception is
+  🍌, the unit of Bananas (the user's choice): it follows an amount the way ★ follows stars ("240 🍌", `bananas()` in
+  `core/bananas.js`), and never stands alone as an icon or decoration.
 - **No arrows after link text.**
 
 ---
@@ -481,6 +483,16 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
     a live region, so it's read out. Escape, another click, losing focus or scrolling closes it.
   - Inside a link a button can't go, so `tipTag(…, { plain: true })` gives the bare tag; the page it links to explains.
 - **Length:** under 200 characters. Complete sentences end with a full stop.
+
+### Bananas (wallet, pot, post form)
+- **A wallet** is an open `.card` on the profile: a `.kv` strip (wallet, earned, in open bounties), one line about the
+  1,000-earned gate, then the latest lines as a quiet `.ledger` (label, signed amount, relative time). No "richest"
+  board anywhere: Records shows what's earned and given.
+- **The pouch** (never signed in) leads with "Sign in to collect your 240 🍌" for its owner, gold amount, one button.
+- **A pot** is a line under a bounty's dare (`.bounty-pot`): the amount in gold, poster, funders, end date.
+- **Anything that spends** shows the cost, your wallet before and after, and each rule the bot will check as a ✓/✕
+  list (`.checks-list`) before the button, which stays disabled, with the reason in visible text, until they're met.
+  It opens in place (`aria-expanded`), never in a modal. The answer comes back as a toast and in "Your requests".
 
 ### Notices, toasts and disclosures
 

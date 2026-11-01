@@ -4,7 +4,9 @@
 //
 // With CONFIG.signIn on, the bar also offers "Sign in with osu!" while nobody is chosen: the site's /auth/* Functions
 // (signin/oauth.js, set up with SETUP-HOSTING.md) ask osu! who the visitor is, so they get the same "me" on every
-// device without hunting for their profile. It still only fills prefs 'me'; nothing else is kept anywhere.
+// device without hunting for their profile. It fills prefs 'me', and keeps the 30-day session token /auth/callback
+// sends (prefs 'osuSession', signin/session.js) that Bananas needs: collecting the pouch, the paying daily game and
+// spending (core/bananas.js). "This is me" stays for everything else: it only highlights rows, and works anywhere.
 
 import { html } from './html.js';
 import { playerIndex } from './data.js';
@@ -12,14 +14,14 @@ import { avatar, prefs } from './ui.js';
 import { toast } from './fun.js';
 import { track, identify } from './track.js';
 import { t, th } from './i18n.js';
-import { CONFIG } from '../config.js';
+import { economy, bananas, signInHere } from './bananas.js';
 
 const SIGN_IN_TTL = 15 * 60 * 1000;
 // The osu! app only knows CONFIG.home's callback, so pages.dev previews, the old github.io copy and localhost don't offer it.
-const SIGN_IN_HERE = CONFIG.signIn && (!CONFIG.home || location.origin === new URL(CONFIG.home).origin);
+const SIGN_IN_HERE = signInHere();
 
 /** Leaves for osu!'s "Authorise" page, remembering a one-time state and the page to come back to. */
-function signIn() {
+export function signIn() {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   const state = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   prefs.set('signin', { state, back: location.hash, at: Date.now() });
@@ -39,7 +41,8 @@ const signInResult = (() => {
   if (!pending || pending.state !== answer.get('state') || Date.now() - pending.at > SIGN_IN_TTL) return { error: 'stale' };
   if (answer.get('error')) return { error: answer.get('error') };
   const id = Number(answer.get('id'));
-  return Number.isSafeInteger(id) && id > 0 ? { id, name: answer.get('name') ?? '', proof: answer.get('proof') ?? '' } : { error: 'osu' };
+  const token = answer.get('token') ?? '';
+  return Number.isSafeInteger(id) && id > 0 ? { id, name: answer.get('name') ?? '', proof: answer.get('proof') ?? '', token } : { error: 'osu' };
 })();
 
 const SIGN_IN_ERRORS = {
@@ -48,7 +51,7 @@ const SIGN_IN_ERRORS = {
   osu: t('osu! didn’t confirm who you are. Try again in a moment.'),
 };
 
-async function finishSignIn({ id, name, proof, error }) {
+async function finishSignIn({ id, name, proof, token, error }) {
   if (error) {
     track('auth', 'error', error);
     return toast(SIGN_IN_ERRORS[error] ?? SIGN_IN_ERRORS.osu);
@@ -61,6 +64,9 @@ async function finishSignIn({ id, name, proof, error }) {
   track('auth', 'ok');
   // Lets the usage counts tell an osu! sign-in from a hand-picked "This is me" (signin/proof.js).
   prefs.set('osuProof', proof ? { id, proof } : null);
+  // The session for Bananas: "<id>.<expiry>.<signature>" (signin/session.js); only the site's endpoints can check it.
+  const [tokenId, exp] = token.split('.').map(Number);
+  prefs.set('osuSession', tokenId === id && exp > Date.now() / 1000 ? { id, token, exp } : null);
   prefs.set('osuMe', id);
   prefs.set('me', id);
   window.dispatchEvent(new HashChangeEvent('hashchange')); // re-render the page with your rows highlighted
@@ -95,9 +101,10 @@ export function initYou() {
     if (p) identify(p.name);
     if (!p) {
       box.innerHTML = String(html`<button class="you-signin" type="button" aria-label="${t('Sign in with osu!')}"
-        title="${t('Sign in with your osu! account to see your rows highlighted on any device')}">${t('Sign in')}</button>`);
+        title="${t('Sign in with your osu! account to collect your bananas and see your rows highlighted on any device')}">${t('Sign in')}</button>`);
       return;
     }
+    const wallet = viaOsu ? (await economy().catch(() => null))?.players?.[id] : null;
     box.innerHTML = String(html`
       <button class="you-btn" type="button" aria-expanded="false" aria-controls="you-menu"
         aria-label="${t('You: {name}', { name: p.name })}" title="${t('You: {name}', { name: p.name })}">${avatar(id, 'avatar-sm')}</button>
@@ -105,17 +112,20 @@ export function initYou() {
         <a class="you-head" href="#/player/${id}" aria-label="${t('Your profile: {name}', { name: p.name })}">${avatar(id, 'avatar-md')}<div><span class="you-label">${t('You')}</span><b>${p.name}</b></div></a>
         <a href="#/player/${id}">${t('Your profile')}</a>
         <a href="#/compare/${id}">${t('Compare with someone')}</a>
+        ${wallet ? html`<a href="#/shop">${t('Shop')} <span class="faint">· ${bananas(wallet.b)}</span></a>` : ''}
+        ${!viaOsu && SIGN_IN_HERE ? html`<button class="you-osu" type="button" data-signin>${t('Sign in with osu!')}</button>` : ''}
         <button class="you-forget" type="button">${viaOsu ? t('Sign out') : t('This isn’t me')}</button>
-        <p class="you-note">${viaOsu ? t('Signed in with osu! in this browser.') : t('Remembered in this browser.')}</p>
+        <p class="you-note">${viaOsu ? t('Signed in with osu! in this browser.') : t('Remembered in this browser. Sign in with osu! to collect bananas.')}</p>
       </div>`);
   };
 
   box.addEventListener('click', e => {
-    if (e.target.closest('.you-signin')) signIn();
+    if (e.target.closest('.you-signin, [data-signin]')) signIn();
     else if (e.target.closest('.you-btn')) setMenu(box.querySelector('.you-menu').hidden);
     else if (e.target.closest('.you-forget')) {
       track('auth', prefs.get('osuMe', null) ? 'sign out' : 'not me');
       prefs.set('osuProof', null);
+      prefs.set('osuSession', null);
       prefs.set('osuMe', null);
       prefs.set('me', null);
       // Re-render the current page so its highlights and "This is me" button drop the old choice.
@@ -129,7 +139,9 @@ export function initYou() {
   // A disclosure, not a menu: it closes when focus leaves it (APG disclosure navigation).
   box.addEventListener('focusout', e => { if (e.relatedTarget && !box.contains(e.relatedTarget)) setMenu(false); });
   window.addEventListener('hashchange', () => setMenu(false));
-  window.addEventListener('ptctb:pref', e => { if (e.detail.key === 'me') draw(); });
+  window.addEventListener('ptctb:pref', e => { if (e.detail.key === 'me' || e.detail.key === 'osuMe') draw(); });
+  // Any page's "Sign in with osu!" (core/bananas.js signInButton) starts the same sign-in.
+  document.addEventListener('click', e => { if (!box.contains(e.target) && e.target.closest('[data-signin]')) signIn(); });
   window.addEventListener('storage', e => { if (e.key === 'ptctb:me') draw(); }); // another tab changed it
   draw();
   if (signInResult) finishSignIn(signInResult);

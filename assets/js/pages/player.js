@@ -1,5 +1,6 @@
 import { html, raw } from '../core/html.js';
 import { playerFile, playerHead, playerIndex, history, records, bounties } from '../core/data.js';
+import { economy, session, bananas, RULES, ledgerList, signInButton, sendRequest, myRequests, requestList } from '../core/bananas.js';
 import { S, CATS, DAN_STAGES, DAN_MAPS, HILL_SLOTS, HILL_TIERS, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { lineChart, chartHover } from '../core/charts.js';
@@ -43,6 +44,91 @@ function trophies(crowns, claims, maps) {
     })}${at ? html` <span class="faint">· ${fmt.date(at)}</span>` : ''}</p>`)}
     ${claims.length > CLAIMS_SHOWN ? html`<p class="small"><a href="#/challenges/bounties">${t('{n} more in the hall of fame', { n: fmt.num(claims.length - CLAIMS_SHOWN) })}</a></p>` : ''}
   </section>`;
+}
+
+/**
+ * Bananas: the player's wallet (economy.json, tools/lib/economy.mjs), or their pouch while they've never signed in.
+ * Their own profile, signed in, adds their requests and the snipe shield; someone else's, a tip form. Nothing before
+ * the bot starts Bananas, or for a player it has no wallet for.
+ */
+function bananaSection(p, w) {
+  if (!w) return '';
+  const me = session();
+  const own = me?.id === p.id;
+  const visitorIsThem = own || prefs.get('me', null) === p.id;
+  const head = html`<h2 class="card-h">${t('Bananas')} <a class="card-h-link" href="#/glossary">${t('What are bananas?')}</a></h2>`;
+  if (!w.s) {
+    return html`<section class="section card bananas" id="bananas">${head}
+      ${w.p > 0 ? html`
+        <p class="pouch">${visitorIsThem && !own
+          ? th('Sign in to collect your {n}', { n: html`<b>${bananas(w.p)}</b>` })
+          : th('{n} waiting in {name}’s pouch', { n: html`<b>${bananas(w.p)}</b>`, name: p.name })}</p>
+        <p class="small muted">${own
+          ? t('You’ve signed in: the bot moves them into your wallet at its next update, within 15 minutes.')
+          : t('Bananas earned before signing in on this site wait in a pouch. The first sign-in with osu! collects them. The pouch holds {cap} at most; anything past that is lost.', { cap: bananas(RULES.pouchCap) })}</p>
+        ${visitorIsThem && !own ? html`<div class="btn-row">${signInButton(t('Sign in to collect'))}</div>` : ''}`
+        : html`<p class="small muted">${t('No bananas yet. They’re earned by playing: snipes, first FCs on hard maps, crowns, the daily game and more.')}</p>`}
+      ${ledgerList(w.r)}
+    </section>`;
+  }
+  const gateLeft = RULES.gate - w.e;
+  return html`<section class="section card bananas" id="bananas">${head}
+    <dl class="kv kv-strip">
+      <div><dt>${t('Wallet')}</dt><dd>${bananas(w.b)}</dd></div>
+      <div><dt>${t('Earned')}</dt><dd>${fmt.num(w.e)}</dd></div>
+      ${w.x ? html`<div><dt>${t('In open bounties')}</dt><dd>${bananas(w.x)}</dd></div>` : ''}
+    </dl>
+    <p class="small muted">${gateLeft > 0
+      ? t('{n} more earned to post a bounty (it takes {gate} earned; tips, refunds and the launch grant don’t count).', { n: fmt.num(gateLeft), gate: fmt.num(RULES.gate) })
+      : t('Past the {gate} earned that posting a bounty takes.', { gate: fmt.num(RULES.gate) })}${w.sh ? ` ${t('Snipe shield on: snipe bounties can’t target them.')}` : ''}</p>
+    ${ledgerList(w.r)}
+    ${own ? html`<div class="wallet-own">
+      <div class="btn-row">
+        <a class="btn btn-small" href="#/shop">${t('Shop')}</a>
+        <a class="btn btn-small" href="#/challenges/bounties">${t('Bounties')}</a>
+        <button class="btn btn-small" type="button" id="shield" aria-pressed="${w.sh ? 'true' : 'false'}">${t('Snipe shield')}</button>
+      </div>
+      <p class="small faint">${t('The shield keeps snipe bounties from targeting your #1s. Changing it goes through the bot.')}</p>
+      <div id="my-requests"></div>
+    </div>` : me ? html`<form class="tip-form" id="tip" novalidate>
+      <div class="field"><label for="tip-amount">${t('Tip {name}', { name: p.name })}</label>
+        <input class="input" id="tip-amount" type="number" inputmode="numeric" min="${RULES.tipMin}" max="${RULES.tipMax}" step="1" value="10"></div>
+      <div class="field"><label for="tip-reason">${t('Why (optional)')}</label>
+        <input class="input" id="tip-reason" maxlength="80" placeholder="${t('that FC, the crown…')}"></div>
+      <button class="btn btn-small" type="submit">${t('Send tip')}</button>
+      <p class="small faint tip-note">${t('{min} to {max} a day. A tip goes from your wallet to theirs; it doesn’t count towards their 1,000 earned.', { min: fmt.num(RULES.tipMin), max: bananas(RULES.tipMax) })}</p>
+    </form>` : ''}
+  </section>`;
+}
+
+/** Wires the wallet: the shield toggle, the player's requests (fetched now and after each new one) and the tip form. */
+function wireBananas(root, p, index, query, isCurrent) {
+  const shield = root.querySelector('#shield');
+  shield?.addEventListener('click', () => sendRequest('shield', { on: shield.getAttribute('aria-pressed') !== 'true' }));
+  const box = root.querySelector('#my-requests');
+  if (box) {
+    const draw = async () => {
+      if (!isCurrent()) { window.removeEventListener('ptctb:requests', draw); return; }
+      const list = await myRequests();
+      if (!isCurrent() || !list) return;
+      box.innerHTML = String(list.length ? html`<h3 class="small-h">${t('Your requests')}</h3>${requestList(list, index)}` : '');
+    };
+    draw();
+    window.addEventListener('ptctb:requests', draw);
+  }
+  const form = root.querySelector('#tip');
+  if (!form) return;
+  if (query.tip) form.querySelector('#tip-amount').focus();
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const amount = Math.round(Number(form.querySelector('#tip-amount').value));
+    if (!(amount >= RULES.tipMin && amount <= RULES.tipMax)) {
+      form.querySelector('.tip-note').textContent = t('A tip is {min} to {max}.', { min: fmt.num(RULES.tipMin), max: fmt.num(RULES.tipMax) });
+      return;
+    }
+    const reason = form.querySelector('#tip-reason').value.trim() || null;
+    if (await sendRequest('tip', { to: p.id, amount, reason })) form.reset();
+  });
 }
 
 const SORTS = {
@@ -218,10 +304,14 @@ export default async function player(root, { params, query, isCurrent }) {
   // Records only feed the badges, which a head file brings already worked out.
   const recsPromise = (head ?? Promise.resolve(null)).then(h => (h ? null : records().catch(() => null)));
   // bounties.json is small and cached: the trophies list the bounties this player claimed.
-  let [file, index, hist, recs, board] = await Promise.all([filePromise, playerIndex(), history(), recsPromise, bounties().catch(() => null)]);
+  // economy.json (Bananas) is small and cached too: the wallet or pouch.
+  let [file, index, hist, recs, board, eco] = await Promise.all([
+    filePromise, playerIndex(), history(), recsPromise, bounties().catch(() => null), economy().catch(() => null),
+  ]);
   if (!isCurrent()) return;
   if (!file.head) lastFull = file;
   const p = index.get(id);
+  const wallet = eco?.players?.[id] ?? null;
   setTitle(p.name);
   const extras = file.extras;
   const badges = (extras ? extras.badges : playerBadges(p, file, recs)).map(localBadge);
@@ -256,6 +346,7 @@ export default async function player(root, { params, query, isCurrent }) {
           firsts && tn(firsts, '{n} #1 in Portugal', '{n} #1s in Portugal'),
           p.last && t('last played {ago}', { ago: fmt.ago(p.last) }),
           playerEra && t('era: {era}', { era: playerEra }),
+          wallet?.t && html`<span class="profile-title">${wallet.t}</span>`,
         ].filter(Boolean).map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>
         <div class="links">
           <button class="btn btn-small" id="me" type="button" aria-pressed="false" title="${t('Highlights your rows on every leaderboard (saved in this browser)')}">${t('This is me')}</button>
@@ -297,6 +388,8 @@ export default async function player(root, { params, query, isCurrent }) {
 
     ${trophies(file.crowns, (board?.hall ?? []).filter(r => r[4] === id && r[3] === 'claimed'), board?.maps ?? {})}
 
+    ${bananaSection(p, wallet)}
+
     ${historySection(points, rebuilt)}
 
     <section class="section">
@@ -314,6 +407,8 @@ export default async function player(root, { params, query, isCurrent }) {
         <div id="scores"></div>`}
     </section>
   `);
+
+  wireBananas(root, p, index, query, isCurrent);
 
   // The pp chart: drawn when its section is first opened, redrawn (chart only) when the range changes.
   const ranges = historyRanges(points, rebuilt);

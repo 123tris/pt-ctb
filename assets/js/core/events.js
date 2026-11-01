@@ -7,6 +7,7 @@ import { QUIPS, THRONE_PLAYER, pick } from './lore.js';
 import { SLOT_NAME, TIER_NAME, monthLabel } from './hill.js';
 import * as fmt from './fmt.js';
 import { t, th } from './i18n.js';
+import { bananas, session } from './bananas.js';
 
 /** "Zeroth Dan", "7th Dan", "Aleph". */
 export const danName = i => (i === 0 ? t('Zeroth Dan') : i <= 10 ? t('{nth} Dan', { nth: fmt.ordinal(i) }) : DAN_STAGES[i].key);
@@ -15,6 +16,8 @@ export const EVENT_KINDS = {
   snipe: { tag: t('#1 sniped'), label: t('Snipes') },
   crown: { tag: t('Crown'), label: t('Crowns') },
   bounty: { tag: t('Bounty claimed'), label: t('Bounties') },
+  post: { tag: t('Bounty posted'), label: t('New bounties') },
+  tip: { tag: t('Tip'), label: t('Tips') },
   top: { tag: t('Top play'), label: t('Top plays') },
   dan: { tag: 'Dan', label: 'Dan' },
   pass: { tag: t('Overtake'), label: t('Overtakes') },
@@ -28,6 +31,10 @@ const who = (index, id) => html`<a href="#/player/${id}"><b>${playerName(index, 
 const BOUNTY_CLAIMED = /* i18n */ {
   fc: '{who} claimed the FC bounty', pass: '{who} claimed the first-pass bounty', snipe: '{who} claimed the snipe bounty',
 };
+/** A bounty a player posted with Bananas, by goal. */
+const BOUNTY_POSTED = /* i18n */ {
+  fc: '{who} put {stake} on an FC', pass: '{who} put {stake} on a first pass', snipe: '{who} put {stake} on taking the #1',
+};
 
 function describe(e, index, maps) {
   // A play's map, or the map a crown or bounty event names.
@@ -40,7 +47,11 @@ function describe(e, index, maps) {
         ? { what: th('{who} is King of the hill for {month}, with {crowns}', { who: who(index, e.u), month: monthLabel(e.mo), crowns: fmt.plural(e.n, 'crown') }), where: '' }
         : { what: th('{who} took the {slot} crown from {other}', { who: who(index, e.u), slot: `${SLOT_NAME[e.h[0]]} · ${TIER_NAME[e.h[1]]}`, other: who(index, e.v) }), where: map };
     case 'bounty':
-      return { what: th(BOUNTY_CLAIMED[e.g], { who: who(index, e.u) }), where: map };
+      return { what: th(BOUNTY_CLAIMED[e.g], { who: who(index, e.u) }), where: e.a ? html`${map} · ${t('{n} from the pot', { n: bananas(e.a) })}` : map };
+    case 'post':
+      return { what: th(BOUNTY_POSTED[e.g], { who: who(index, e.u), stake: bananas(e.a) }), where: map };
+    case 'tip':
+      return { what: th('{who} tipped {other} {n}', { who: who(index, e.u), other: who(index, e.v), n: bananas(e.a) }), where: e.n ? html`<span class="quote">“${e.n}”</span>` : '' };
     case 'snipe':
       return { what: th('{who} took the #1 from {other}', { who: who(index, e.u), other: who(index, e.v) }), where: map };
     case 'top':
@@ -89,6 +100,13 @@ function quip(e) {
   }
 }
 
+/** Plays worth a tip: a snipe, a top play, a Dan pass, a crown or a claim. Shown only to a signed-in player, not on their own. */
+const TIPPABLE = new Set(['snipe', 'top', 'dan', 'crown', 'bounty']);
+function tipLink(e) {
+  const me = TIPPABLE.has(e.k) ? session() : null;
+  return me && me.id !== e.u ? html`<a class="event-tip small" href="#/player/${e.u}?tip=1">${t('Tip')}</a>` : '';
+}
+
 export function eventItem(e, index, maps) {
   const { what, where } = describe(e, index, maps);
   const line = quip(e);
@@ -103,6 +121,7 @@ export function eventItem(e, index, maps) {
     <div class="what">${what}</div>
     ${where ? html`<div class="where">${where}</div>` : ''}
     ${play}
+    ${tipLink(e)}
     ${line ? html`<div class="quip">${line}</div>` : ''}
   </div>`;
 }

@@ -4,6 +4,7 @@ import { S, M } from '../core/model.js';
 import { barChart } from '../core/charts.js';
 import { setTitle, playerLink, mapLink, scoreStats, ppText, catChip, stat, CAT_LABEL, avatar, posBadge } from '../core/ui.js';
 import { FIRST_10K } from '../core/lore.js';
+import { economy, bananas } from '../core/bananas.js';
 import * as fmt from '../core/fmt.js';
 import { t, tn } from '../core/i18n.js';
 
@@ -81,8 +82,29 @@ function hardFirsts(h, maps, index) {
   });
 }
 
+/**
+ * Bananas (economy.json boards): who earned most this month, the top bounty hunters and the most generous. On purpose
+ * there's no "richest" board: what counts is what you earn and give, not what you sit on.
+ */
+function economySection(eco, index) {
+  const { earned, hunters, generous } = eco.boards;
+  if (!earned.length && !hunters.length && !generous.length) return '';
+  const month = fmt.monthYear(Date.parse(`${eco.month}-15T12:00:00Z`) / 1000);
+  return html`<section class="section" id="economy">
+    <h2>${t('Economy')}</h2>
+    <p class="muted">${t('Bananas are earned by playing and spent on bounties, tips and the shop. {supply} are around right now, {escrow} of them in open bounties.', {
+      supply: bananas(eco.totals.supply), escrow: bananas(eco.totals.escrow),
+    })} <a href="#/glossary">${t('What are bananas?')}</a></p>
+    <div class="grid grid-3">
+      ${leaders(t('Earned in {month}', { month }), earned.slice(0, 5), index, '🍌', { note: earned.length ? '' : t('Nobody yet this month.') })}
+      ${leaders(t('Top bounty hunters'), hunters.slice(0, 5), index, '🍌', { note: t('Bananas taken from bounty pots, all time.') })}
+      ${leaders(t('Most generous'), generous.slice(0, 5), index, '🍌', { note: t('Tips and bounty funding given, all time.') })}
+    </div>
+  </section>`;
+}
+
 export default async function recordsPage(root, { query, isCurrent }) {
-  const [r, index] = await Promise.all([records(), playerIndex()]);
+  const [r, index, eco] = await Promise.all([records(), playerIndex(), economy().catch(() => null)]);
   if (!isCurrent()) return;
   setTitle(t('Records'));
   const maps = r.maps;
@@ -92,7 +114,7 @@ export default async function recordsPage(root, { query, isCurrent }) {
   const mostFirsts = [...index.values()].map(p => [p.id, p.firsts.c + p.firsts.u + p.firsts.r]).filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 5);
   const jumps = [['legendary', t('Legendary plays')], r.throne && ['throne', t('Dethrone Tris')], r.oneMiss && ['choke', 'Choke d’Or'],
-    r.wysi?.length && ['wysi', 'WYSI'], ['first10k', t('First 10k')], ['collectors', t('Collectors')], ['when', t('When we play')]].filter(Boolean);
+    r.wysi?.length && ['wysi', 'WYSI'], ['first10k', t('First 10k')], ['collectors', t('Collectors')], eco && ['economy', t('Economy')], ['when', t('When we play')]].filter(Boolean);
 
   root.innerHTML = String(html`
     <header class="page-head">
@@ -160,6 +182,8 @@ export default async function recordsPage(root, { query, isCurrent }) {
         ${leaders(t('Most full combos'), r.mostFC, index)}
       </div>
     </section>
+
+    ${eco ? economySection(eco, index) : ''}
 
     <section class="section card" id="when">
       <h2 class="card-h">${t('When does Portugal play?')}</h2>

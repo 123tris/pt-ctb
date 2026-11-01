@@ -48,7 +48,7 @@ in `dist/` only:
 | Data | `https://data.ptcatch.com` | the same |
 | Headers | as `_headers` | adds `X-Robots-Tag: noindex` |
 | Look | as is | `<html data-env="dev">`: gold line and **DEV** tag in the top bar |
-| Sign-in | on if the Production `SIGN_IN` is `1` | on if the Preview `SIGN_IN` is `1`; it signs in through ptcatch.com, so it needs no keys of its own |
+| Sign-in | on, unless the Production `SIGN_IN` is `0` | on, unless the Preview `SIGN_IN` is `0`; it signs in through ptcatch.com, so it needs no keys of its own |
 
 To try a branch's build locally:
 - PowerShell: `$env:CF_PAGES_BRANCH='dev'; npm run build`
@@ -213,7 +213,7 @@ dev.ptcatch.com/auth/login ─► ptcatch.com/auth/login?site=https://dev.ptcatc
   that value matches the one it stored. Changing the letter could at most send an answer to the other of our two
   sites, which never stored that value and throws it away.
 - **The keys live in Production only.** The dev site's `/auth/login` just hands over to ptcatch.com, so the Preview
-  environment needs no osu! keys, only `SIGN_IN`.
+  environment needs no osu! keys.
 
 Steps:
 
@@ -224,11 +224,10 @@ Steps:
    - Register it, then open **Edit** to see the Client ID and *Show client secret*.
 2. In the `pt-ctb` project, open **Settings → Variables and Secrets**. For the **Production** environment add:
    - Type **Secret**, `OSU_CLIENT_ID`: the Client ID.
-   - Type **Secret**, `OSU_CLIENT_SECRET`: the Client Secret.
-   - Type **Text**, `SIGN_IN` = `1`. This is the build switch that shows the button, not a secret.
-3. For the **Preview** environment add only:
-   - Type **Text**, `SIGN_IN` = `1`.
-   - No osu! keys.
+   - Type **Secret**, `OSU_CLIENT_SECRET`: the Client Secret. It also signs the 30-day session token Bananas uses
+     (`signin/session.js`), so changing it signs everyone out.
+3. The **Preview** environment needs nothing: no osu! keys. The button shows on both builds unless `SIGN_IN` (Text) is
+   `0` there.
 4. Variables only reach new deployments. Open **Deployments** and use **⋯ → Retry deployment** on the latest
    production deployment and the latest `dev` deployment.
 5. **Check:**
@@ -239,7 +238,7 @@ Steps:
    - On `https://ptcatch.com` and on `https://dev.ptcatch.com` (hard refresh): **Sign in** → **Authorise** brings
      you back to the same page on the same site, signed in.
 
-No signing key is needed. To switch sign-in off on one site, delete that environment's `SIGN_IN` and rebuild it.
+No other signing key is needed. To switch sign-in off on one site, set that environment's `SIGN_IN` to `0` and rebuild it.
 
 ## 3. Forward the old address
 
@@ -290,6 +289,53 @@ Free-plan limits: D1 allows 100,000 written rows and 5 million read rows a day. 
 `npm run serve -- --usage` runs the usage Functions locally over SQLite (dashboard at `/stats`, password `local`).
 `CONFIG.analyticsConsent` in `assets/js/config.js` turns on a consent question (`'identity'` or `'all'`); it's off.
 
+## 5. Bananas 🍌: the database, the daily seed and the bot's key
+
+The bot is the bank (`CURRENCY-DESIGN.md` in the bot's repo). The site only keeps what the bot can't see: who signed
+in (which collects their pouch), the paying daily game, and players' spending requests, in a second D1 database the bot
+pulls every 15 minutes (`economy/store.js`, `economy/api.js`, `functions/api/{daily,wallet,economy}/*`). Until these
+steps are done, `/api/*` for Bananas answers 503 and the site shows no spending buttons; the wallets still show once
+the bot writes `Economy/wallets.json` and you export.
+
+1. **Create the database**, from the repo (logged in with `npx wrangler login`):
+   ```
+   npx wrangler d1 create ptctb-economy --location weur
+   npx wrangler d1 execute ptctb-economy --remote --file=economy/migrations/0001_economy.sql
+   ```
+   Or in the dashboard: **Storage & Databases → D1 SQL Database → Create**, name `ptctb-economy`, location hint
+   Western Europe; then open it → **Console** and paste the file's statements. If the migration is skipped, the code
+   makes the same tables on its first request.
+2. **Bind it, Production only:** **Workers & Pages → pt-ctb → Settings → Bindings → Add → D1 database**, variable name
+   `ECONOMY`, database `ptctb-economy`. Leave Preview without it: dev.ptcatch.com can't check session tokens (it has
+   no `OSU_CLIENT_SECRET`), so there the paying daily falls back to the free one,
+   spending answers "Bananas aren’t set up on this copy of the site", and the bot only pulls the release site.
+3. **Secrets, Production:** **Settings → Variables and Secrets → Add → Secret**:
+   - `DAILY_SEED`: a long random string (e.g. `node -e "console.log(crypto.randomBytes(32).toString('base64url'))"`).
+     It picks each day's map for the paying daily game; changing it changes today's map only if nobody has asked for
+     it yet (the day's round is kept once picked).
+   - `ECONOMY_INBOX_KEY`: another long random string. Give the same value to the bot as its `Economy:InboxKey`
+     user-secret (`dotnet user-secrets set "Economy:InboxKey" "<value>"` in the bot's project).
+   - `OSU_CLIENT_ID` and `OSU_CLIENT_SECRET` are the ones from §2; check they're there.
+4. **Deployments → Retry deployment** on the latest `main` build, so the binding and secrets take effect.
+5. **Check:**
+   - `curl -s https://ptcatch.com/api/economy/inbox` answers 401 "Only the bot reads the inbox".
+   - `curl -s -H "Authorization: Bearer <ECONOMY_INBOX_KEY>" https://ptcatch.com/api/economy/inbox` answers
+     `{"cursor":"0.0.0","events":[]}` (or your own sign-in once you've signed in).
+   - Signed in on ptcatch.com, **Games → Guess the map** says "Signed in: solving pays…".
+
+**The bot ↔ site contract** is `bananas-contract.md` (with the bot's design). In short: the bot calls
+`GET /api/economy/inbox` (no `since`: everything after the cursor it last acked) and answers with `POST
+/api/economy/ack` `{ cursor, results }`; it fetches `https://data.ptcatch.com/unlocks.json` once a day, which
+`tools/r2-sync.mjs` keeps under that plain name as well as the hashed one.
+
+Free-plan cost: a sign-in writes 1–2 rows, a daily guess 1–2, a request 2, an ack one per result plus a few clean-ups;
+the bot's pull reads only what's new. A hundred active players is a few hundred rows a day against D1's 100,000, and
+96 pulls plus a few hundred player calls a day against Functions' 100,000. The cover proxy fetches one image per player
+per day from osu!'s CDN (no API calls).
+
+`npm run serve -- --local-data --economy` runs all of it locally over SQLite, with a stand-in for osu! that asks which
+player to sign in as (seed, inbox key and session secret are all `local`).
+
 ## Day to day
 
 **Local previews:**
@@ -308,7 +354,7 @@ Free-plan limits: D1 allows 100,000 written rows and 5 million read rows a day. 
 | "Sign-in is not configured yet" | A Production key is missing, or there was no new production deployment after adding it. |
 | "osu! didn't confirm who you are" | Wrong client secret, or osu! is down. |
 | "That sign-in had expired…" | More than 15 minutes on osu!'s page, or the browser's storage was cleared mid-way. |
-| No Sign in button | `SIGN_IN` isn't `1` for that environment, or you're not on that build's `home` address (e.g. `*.pages.dev`). |
+| No Sign in button | `SIGN_IN` is `0` for that environment, or you're not on that build's `home` address (e.g. `*.pages.dev`). |
 
 **Other tasks:**
 - **Rotating an osu! secret:** on osu!, use *Edit → Reset client secret*. Update the variable, then **Retry

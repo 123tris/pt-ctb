@@ -11,8 +11,9 @@ export const CONFIG = {
   /** Per branch: this copy's own address. Empty when served from anywhere else (npm run serve, GitHub Pages). */
   home: '',
   /**
-   * Per branch: show "Sign in with osu!" in the top bar (the SIGN_IN build variable). Needs the /auth/* Functions and
-   * an osu! app whose callback is on `home`, so it only shows there. "This is me" works either way.
+   * Per branch: show "Sign in with osu!" in the top bar (on for both builds; the SIGN_IN=0 build variable switches it
+   * off). Needs the /auth/* Functions and an osu! app whose callback is on `home`, so it only shows there. Bananas
+   * needs it to collect and spend; "This is me" works either way, for highlighting only.
    */
   signIn: false,
   /** Per branch: 'dev' on development builds, which shows a DEV marker in the top bar. Empty on the release site. */

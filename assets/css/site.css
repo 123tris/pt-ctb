@@ -318,12 +318,13 @@ button, input, select { font: inherit; color: inherit; }
 .you-head > div { display: grid; min-width: 0; }
 .you-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .you-label { color: var(--text-faint); font-size: var(--fs-xs); }
-.you-menu a, .you-forget {
+.you-menu a, .you-forget, .you-osu {
   display: block; width: 100%; padding: var(--sp-2) var(--sp-4); color: var(--text); font-size: var(--fs-sm); text-align: left;
   background: none; border: 0; cursor: pointer;
 }
-.you-menu a:hover, .you-forget:hover { background: var(--surface-2); text-decoration: none; }
+.you-menu a:hover, .you-forget:hover, .you-osu:hover { background: var(--surface-2); text-decoration: none; }
 .you-forget { color: var(--text-dim); }
+.you-osu { color: var(--accent); font-weight: 600; }
 .you-note { margin: var(--sp-1) var(--sp-4) var(--sp-2); color: var(--text-faint); font-size: var(--fs-xs); }
 /* The avatar and name at the top link to your profile, with the profile page avatar's quiet hover and focus ring. */
 .you-menu a.you-head { display: flex; width: auto; padding: var(--sp-2) var(--sp-4) var(--sp-3); font-size: var(--fs-md); border-radius: var(--r-sm) var(--r-sm) 0 0; }
@@ -1424,6 +1425,57 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 .bounty-done .map-title, .bounty-done .row-meta .pp { color: var(--text-dim); }
 .bounty-done .map-cover, .bounty-done .avatar-sm { opacity: .6; }
 .bounty-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); font-size: var(--fs-sm); }
+
+/* Bananas (core/bananas.js). A bounty's pot runs under its dare, like the prizes; its Fund form opens under that. */
+.bounty-pot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); color: var(--text-dim); font-size: var(--fs-sm); }
+.bounty-pot .pot b { color: var(--gold); font-weight: 700; }
+.bounty-pot .player { font-weight: 600; }
+.bounty-fund { grid-column: 1 / -1; display: grid; gap: var(--sp-2); justify-items: start; }
+.fund-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2) var(--sp-3); }
+.fund-row .field { width: 160px; }
+.fund-row p { flex-basis: 100%; margin: 0; }
+/* The post form: two fields, three chip groups, then the cost and the rules the bot will check. */
+.post-form[hidden] { display: none; }
+.post-form { display: grid; gap: var(--sp-4); margin-top: var(--sp-4); padding: var(--sp-4); border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); }
+.post-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-6); }
+.post-grid .input { max-width: 320px; }
+@media (max-width: 600px) { .post-grid { grid-template-columns: minmax(0, 1fr); } }
+.post-form p { margin: 0; }
+.post-cost { padding: var(--sp-3) 0; border-block: 1px solid var(--border); }
+.checks-list { display: grid; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; font-size: var(--fs-sm); color: var(--text-dim); }
+.checks-list .ok span { color: var(--text); }
+.checks-list .no { color: var(--text); }
+.checks-list .no span { color: var(--red); }
+/* A wallet: the figures, then its latest lines as a quiet ledger. */
+.bananas .pouch { margin: 0 0 var(--sp-2); font-size: var(--fs-lg); }
+.bananas .pouch b { color: var(--gold); }
+.ledger { display: grid; margin: var(--sp-3) 0 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
+.ledger li { display: grid; grid-template-columns: minmax(0, 1fr) auto 7.5em; gap: var(--sp-3); padding: var(--sp-1) 0; border-top: 1px solid var(--border); color: var(--text-dim); }
+.ledger b { color: var(--text); text-align: right; }
+.ledger .ledger-out { color: var(--text-dim); font-weight: 500; }
+.ledger li > .faint { text-align: right; }
+.wallet-own { display: grid; gap: var(--sp-2); margin-top: var(--sp-4); }
+.wallet-own p { margin: 0; }
+.small-h { margin: var(--sp-4) 0 var(--sp-2); font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); }
+.req-list { display: grid; gap: var(--sp-1); margin: 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
+.req-list li { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); }
+.req-status { color: var(--text-dim); }
+.req-ok { color: var(--text); }
+.req-no { color: var(--red); }
+.tip-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-4); }
+.tip-form .field:first-child { width: 140px; }
+.tip-form .field:nth-child(2) { flex: 1 1 200px; max-width: 320px; }
+.tip-form p { flex-basis: 100%; margin: 0; }
+.card-h-link { margin-left: var(--sp-2); font-size: var(--fs-sm); font-weight: 500; }
+.profile-title { color: var(--gold); font-weight: 600; }
+.event-tip { justify-self: start; font-weight: 500; }
+.where .quote { font-style: italic; }
+/* The shop: one row per item, the price on the right, its form under it. */
+.shop-wallet p { margin: 0 0 var(--sp-2); }
+.shop-buy { display: flex; align-items: center; gap: var(--sp-3); }
+.shop-price { font-weight: 700; white-space: nowrap; }
+.shop-form { grid-column: 1 / -1; }
+.shop-form .field { width: min(320px, 100%); }
 
 .throne-head { display: flex; gap: var(--sp-4); align-items: center; }
 .cmp-aura .label { color: var(--gold); }

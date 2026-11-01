@@ -10,7 +10,8 @@
 // and `npm run serve` use it). Cloudflare sets CF_PAGES_BRANCH; set it by hand to try a branch locally:
 //   main → the release site (CONFIG.production);
 //   dev  → the development site (CONFIG.development): DEV marker and noindex. Same data as the release site.
-// SIGN_IN=1 (a Pages build variable, set per environment) turns "Sign in with osu!" on for that build.
+// "Sign in with osu!" is on for both builds (Bananas needs it); SIGN_IN=0 (a Pages build variable, set per environment)
+// switches it off for that build.
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -33,7 +34,7 @@ const release = branch === 'main';
 const settings = !branch ? null : release
   ? { home: CONFIG.production }
   : { home: branch === 'dev' ? CONFIG.development : '', env: 'dev' };
-if (settings) settings.signIn = process.env.SIGN_IN === '1';
+if (settings) settings.signIn = process.env.SIGN_IN !== '0';
 
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist);

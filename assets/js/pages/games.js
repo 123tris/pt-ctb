@@ -2,7 +2,8 @@ import { html } from '../core/html.js';
 import { quiz, players, mapsIndex } from '../core/data.js';
 import { setTitle, avatar, coverUrl, prefs, starsBadge, catChip } from '../core/ui.js';
 import { BOSS_SETS, TUGA_SET, RIVALRIES, pick as stablePick } from '../core/lore.js';
-import { wysi } from '../core/fun.js';
+import { wysi, toast } from '../core/fun.js';
+import { api, session, signInHere, bananas, signInButton } from '../core/bananas.js';
 import { track } from '../core/track.js';
 import * as fmt from '../core/fmt.js';
 import { t, th, tn } from '../core/i18n.js';
@@ -76,7 +77,73 @@ const guessModes = mode => html`<div class="justify-center mb-3 chips">
 const lisbonDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' });
 const todayKey = (offsetDays = 0) => lisbonDay.format(Date.now() + offsetDays * 86400000);
 
+/** Keeps the daily streak the hub shows, for either daily game. `tried` is the try it was solved on, 0 for missed. */
+function noteDaily(today, tried) {
+  const saved = prefs.get('daily', { last: null, streak: 0, best: 0, result: null });
+  const won = tried > 0;
+  const streak = won ? (saved.last === todayKey(-1) || saved.last === today ? saved.streak : 0) + (saved.last === today ? 0 : 1) : 0;
+  prefs.set('daily', { last: today, streak, best: Math.max(streak, saved.best || 0), result: tried });
+  return streak;
+}
+
+/**
+ * The paying daily (signed in with osu!): the server picks the map from its secret seed and checks each guess
+ * (economy/api.js), so this only ever knows the six options, and the answer once the game is over. Solving it pays
+ * 3, 2 or 1 bananas, added by the bot. Returns false when the site can't run it here (then the free daily runs).
+ */
+async function paidDaily(root, isCurrent) {
+  let res = await api('/api/daily');
+  if (!isCurrent()) return true;
+  if (!res.ok) return false;
+  setTitle(`${t('Guess the map')} · ${t('Daily')}`);
+  const verdict = g => (g.solved ? [t('First try. Show-off.'), t('Second try. Not bad.'), t('3rd try gang.')][g.tries - 1] : t('Unlucky, 1 miss. Back tomorrow.'));
+  const draw = g => {
+    const streak = prefs.get('daily', { streak: 0 }).streak;
+    root.innerHTML = String(html`
+      <div class="game">
+        <header class="page-head center">
+          <span class="eyebrow"><a href="#/games">${t('Games')}</a> · ${t('Guess the map')} · ${fmt.date(Date.parse(`${g.day}T12:00:00Z`) / 1000)}</span>
+          <h1>${t('Which map is today’s?')}</h1>
+        </header>
+        ${guessModes('daily')}
+        <p class="center small muted">${t('Signed in: solving pays {pay} on the 1st, 2nd or 3rd try, and the bot adds it within 15 minutes.', { pay: '3 / 2 / 1 🍌' })}</p>
+        <div class="scoreboard"><span>${t('Tries left')} <b>${g.done ? '—' : g.triesLeft}</b></span><span>${t('Streak')} <b>${streak}</b></span></div>
+        <div class="game-cover"><img id="cover" alt="${t('Map cover (blurred)')}" src="${g.cover}" style="filter:${g.done ? 'none' : `blur(${BLUR[Math.min(g.tries, 2)]}px) saturate(1.2)`}"></div>
+        <div class="game-options" id="options">${g.options.map((o, i) => {
+          const tried = g.guesses.includes(i);
+          const right = g.done && g.answer?.index === i;
+          return html`<button class="option ${right ? 'right' : tried ? 'wrong' : ''}" type="button" data-i="${i}" ${g.done || tried ? html`disabled` : ''}>${o.title}<small>${o.artist}</small></button>`;
+        })}</div>
+        ${g.done ? html`<p class="game-result ${g.solved ? 'right' : 'wrong'}">${verdict(g)}</p>
+          <p class="center muted small">${t('{map}, mapped by {mapper}. A new map tomorrow.', { map: `${g.answer.artist} - ${g.answer.title}`, mapper: g.answer.mapper })}
+            ${g.solved ? html`<br>${t('{n} on its way to your wallet.', { n: bananas(4 - g.tries) })}` : ''}</p>
+          <div class="justify-center btn-row"><button class="btn" id="share" type="button">${t('Copy result')}</button></div>` : ''}
+      </div>`);
+    if (g.done) copyButton(root, t('Guess the map (daily) · PT Catch {day}: {result} · streak {streak}', { day: g.day, result: g.solved ? `${'🍎'.repeat(g.tries - 1)}🎯 (${g.tries}/3)` : '❌', streak }));
+  };
+  draw(res.body);
+  let busy = false;
+  root.addEventListener('click', async function onGuess(e) {
+    const button = e.target.closest('#options [data-i]');
+    if (!isCurrent()) { root.removeEventListener('click', onGuess); return; }
+    if (!button || button.disabled || busy) return;
+    busy = true;
+    button.disabled = true;
+    res = await api('/api/daily/guess', { method: 'POST', body: { guess: Number(button.dataset.i) } });
+    busy = false;
+    if (!isCurrent()) return;
+    if (!res.body?.options) { toast(res.body?.error ? t(res.body.error) : t('That didn’t go through. Try again in a moment.')); button.disabled = false; return; }
+    if (res.body.done) {
+      noteDaily(res.body.day, res.body.solved ? res.body.tries : 0);
+      track('game', 'daily', res.body.solved ? 'solved' : 'missed', 'paid', res.body.solved ? res.body.tries : 0);
+    }
+    draw(res.body);
+  });
+  return true;
+}
+
 async function dailyGame(root, isCurrent) {
+  if (session() && await paidDaily(root, isCurrent)) return;
   const { sets } = await quiz();
   if (!isCurrent()) return;
   setTitle(`${t('Guess the map')} · ${t('Daily')}`);
@@ -106,6 +173,7 @@ async function dailyGame(root, isCurrent) {
           <h1>${t('Which map is today’s?')}</h1>
         </header>
         ${guessModes('daily')}
+        ${signInHere() ? html`<p class="center small muted">${t('Signed in with osu!, the daily pays bananas.')} ${signInButton(t('Sign in'))}</p>` : ''}
         <div class="scoreboard"><span>${t('Tries left')} <b>${done ? '—' : 3 - tries}</b></span><span>${t('Streak')} <b>${done ? streak : saved.last === yesterday || saved.last === today ? saved.streak : 0}</b></span></div>
         <div class="game-cover"><img id="cover" alt="${t('Map cover (blurred)')}" src="${coverUrl(answer[0], 'cover')}" style="filter:${done ? 'none' : `blur(${BLUR[Math.min(tries, 2)]}px) saturate(1.2)`}"></div>
         <div class="game-options" id="options">${options.map((s, i) => html`<button class="option ${done && s === answer ? 'right' : ''}" type="button" data-i="${i}" ${done ? html`disabled` : ''}>${s[2]}<small>${s[1]}</small></button>`)}</div>

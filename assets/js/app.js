@@ -28,6 +28,7 @@ const ROUTES = [
   ['calculator', () => import('./pages/calculator.js')],
   ['compare/:a?/:b?', () => import('./pages/compare.js')],
   ['records', () => import('./pages/records.js')],
+  ['shop', () => import('./pages/shop.js')],
   ['recap/:id/:year?', () => import('./pages/wrapped.js')],
   ['commands', () => import('./pages/commands.js')],
   ['join', () => import('./pages/join.js')],
