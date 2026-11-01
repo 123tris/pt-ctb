@@ -53,9 +53,9 @@ function slotCell(s, maps, index, closed, now) {
       ${playerLink(who(h.u, h.name, index), null, 'avatar-sm')}
       ${h.score !== undefined ? html`<span class="hill-score">${fmt.num(h.score)}</span>` : ''}
       ${['FM', 'CV'].includes(s.slot) && h.mods ? modsBadges(h.mods) : ''}
-      ${when ? (h.url ? html`<a class="dim-link" href="${h.url}" target="_blank" rel="noopener" title="${t('This play on osu!')}">${when} ↗</a>`
+      ${when ? (h.url ? html`<a class="dim-link" href="${h.url}" target="_blank" rel="noopener" title="${t('This play on osu!')}">${when}</a>`
         : html`<span class="faint" title="${fmt.dateTime(h.time)}">${when}</span>`) : ''}`
-      : html`<span class="hill-free">${closed ? t('Nobody kept this crown') : t('Up for grabs')}</span>`}
+      : closed ? html`<span class="faint">${t('Nobody kept this crown')}</span>` : html`<span class="hill-free">${t('Up for grabs')}</span>`}
       ${s.snipes ? html`<span class="faint">${fmt.plural(s.snipes, 'snipe')}</span>` : ''}
       ${chips}
     </div>
@@ -171,6 +171,8 @@ function crownTable(rows, season, index, me) {
 function pastMonth(m, index) {
   const kept = (slot, tier) => m.pool.find(s => s.slot === slot && s.tier === tier);
   const holder = s => (s?.holder ? nameLink(s.holder.u, s.holder.name, index) : html`<span class="faint">—</span>`);
+  // A tier nobody kept a crown in that month (all "—") gets no column.
+  const tiers = HILL_TIERS.filter(tier => m.pool.some(s => s.tier === tier && s.holder));
   return html`<div class="hill-month">
     <h3 class="hill-month-h">${monthLabel(m.month)}</h3>
     <p class="muted small">${m.kings.length ? th('{title}: {players} with {crowns}', {
@@ -178,9 +180,9 @@ function pastMonth(m, index) {
       crowns: m.kings.length > 1 ? t('{crowns} each', { crowns: fmt.plural(m.most, 'crown') }) : fmt.plural(m.most, 'crown'),
     }) : t('No crowns given')}</p>
     <div class="table-wrap"><table class="table-compact hill-kept">
-      <thead><tr><th class="col-slot"><span class="sr-only">${t('Slot')}</span></th>${HILL_TIERS.map(tier => html`<th>${TIER_NAME[tier]}</th>`)}</tr></thead>
-      <tbody>${HILL_SLOTS.filter(slot => HILL_TIERS.some(tier => kept(slot, tier))).map(slot => html`<tr>
-        <th scope="row">${SLOT_NAME[slot]}</th>${HILL_TIERS.map(tier => html`<td><span class="cell-line">${holder(kept(slot, tier))}</span></td>`)}
+      <thead><tr><th class="col-slot"><span class="sr-only">${t('Slot')}</span></th>${tiers.map(tier => html`<th>${TIER_NAME[tier]}</th>`)}</tr></thead>
+      <tbody>${HILL_SLOTS.filter(slot => tiers.some(tier => kept(slot, tier))).map(slot => html`<tr>
+        <th scope="row">${SLOT_NAME[slot]}</th>${tiers.map(tier => html`<td><span class="cell-line">${holder(kept(slot, tier))}</span></td>`)}
       </tr>`)}</tbody>
     </table></div>
   </div>`;

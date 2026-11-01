@@ -1,11 +1,19 @@
 import { html } from '../core/html.js';
 import { activity, challenges, playerIndex } from '../core/data.js';
 import { S } from '../core/model.js';
-import { eventItem, EVENT_KINDS } from '../core/events.js';
+import { eventItem } from '../core/events.js';
 import { weeklyRecap, hasWeekly } from '../core/weekly.js';
 import { setTitle, tabs, scoreRow, empty, chipGroup, setPressed, writeQuery, announce, resultCount } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { t, tn } from '../core/i18n.js';
+
+/** The feed's filters: [key, label, the event kinds it shows]. */
+const FILTERS = [
+  ['plays', t('Plays'), ['snipe', 'top', 'dan']],
+  ['challenges', t('Challenges'), ['crown', 'bounty', 'post']],
+  ['boards', t('Leaderboards'), ['pass', 'mile', 'join']],
+  ['tips', t('Tips'), ['tip']],
+];
 
 // The feed shows this many events at first and adds as many again per "Show more": all 400 at once made the page
 // about 6,000 elements, which took phones seconds to lay out.
@@ -19,7 +27,7 @@ function feedItems(events, index, maps, lastDay = null) {
     const d = new Date(e.t * 1000).toDateString();
     const heading = d === lastDay ? '' : html`<div class="feed-day">${d === today ? t('Today') : d === yesterday ? t('Yesterday') : fmt.day(e.t)}</div>`;
     lastDay = d;
-    return html`${heading}${eventItem(e, index, maps)}`;
+    return html`${heading}${eventItem(e, index, maps, { tips: true })}`;
   })}`;
 }
 
@@ -55,8 +63,11 @@ export default async function activityPage(root, { query, isCurrent }) {
   // "This week" (the bot's Monday recap) only appears once the bot has written something for it.
   const weekly = hasWeekly(ch?.weekly) ? ch.weekly : null;
   const view = query.view === 'plays' ? 'plays' : query.view === 'week' && weekly ? 'week' : 'events';
-  const kinds = Object.entries(EVENT_KINDS).filter(([k]) => data.events.some(e => e.k === k));
-  let kind = kinds.some(([k]) => k === query.kind) ? query.kind : '';
+  // The kinds in five filters at most (DESIGN.md §9 Chips): only those with something in them. An old ?kind=snipe link
+  // picks its group.
+  const groups = FILTERS.filter(([, , ks]) => data.events.some(e => ks.includes(e.k)));
+  const asked = FILTERS.find(([key, , ks]) => key === query.kind || ks.includes(query.kind));
+  let kind = asked && groups.includes(asked) ? asked[0] : '';
 
   root.innerHTML = String(html`
     <header class="page-head">
@@ -69,7 +80,7 @@ export default async function activityPage(root, { query, isCurrent }) {
       ...(weekly ? [{ href: '#/activity?view=week', label: t('This week'), active: view === 'week' }] : []),
     ], t('Activity views'))}
     ${view === 'events' ? html`<div id="kinds" class="mb-3">${chipGroup(t('Show'), 'kind', [
-      ['', t('All')], ...kinds.map(([k, { label }]) => [k, html`<span class="event-kind ev-${k}">${label}</span>`]),
+      ['', t('All')], ...groups.map(([k, label]) => [k, label]),
     ], kind)}</div>
     <p class="result-count" id="count"></p>` : ''}
     <div id="list"></div>
@@ -90,7 +101,8 @@ export default async function activityPage(root, { query, isCurrent }) {
   const count = root.querySelector('#count');
   const draw = ({ speak = false } = {}) => {
     setPressed(root, 'kind', kind);
-    const shown = data.events.filter(e => !kind || e.k === kind);
+    const ks = FILTERS.find(([key]) => key === kind)?.[2];
+    const shown = data.events.filter(e => !ks || ks.includes(e.k));
     feed(list, shown, index, data.maps);
     count.textContent = resultCount(shown.length, data.events.length, 'event');
     if (speak) announce(count.textContent);

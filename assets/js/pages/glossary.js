@@ -30,23 +30,35 @@ const SECTIONS = [
   [t('The community'), [
     [t('Dan course'), t('The community’s ladder of 19 challenge maps, from Zeroth Dan to Shin. Passing stages earns points and Discord roles. It lives under Challenges.')],
     [t('King of the hill'), t('A pool of maps each month, one per slot (NM, HD, HR, DT and FM on catch-specific maps, and Convert on a convert) in two tiers: Open (6–9★) and the easier Challenger (4.5–6.5★). The best play on a map holds its crown; whoever holds it when the month ends keeps it. The most crowns in a month makes you King of the hill. HT, EZ and speed changes never count.')],
-    [t('Bounties'), t('Prizes the community puts on hard maps, for the first FC, the first pass or taking the #1. A moderator posts one with the bot’s !bounty, anyone can add a prize, and the bot spots the claim by itself. Claiming one makes you a Bounty hunter.')],
-    [t('Bananas 🍌'), t('The community’s play money, named after catch’s bonus fruit. You earn them by playing well: snipes, first FCs on 5★ maps and up, crowns, the map of the week, Dan stages, badges and the daily game. You spend them on bounties, tips and the shop. They’re never bought or sold. The bot keeps the books, and you sign in on this site with osu! to collect what you earned.')],
-    [t('Pouch'), t('Where your bananas wait until you first sign in on this site with osu!. It holds 300; anything past that is lost, so sign in early.')],
-    [t('Posting a bounty'), t('Takes 1,000 bananas earned (tips, refunds and the launch grant don’t count), a stake of 500 or more and a 20% fee, which is burned. One a month. The first play that meets the goal takes the whole pot; if nobody does, 70% goes back to the funders.')],
+    [t('Bounties'), t('Prizes on hard maps for the first FC, the first pass or taking the #1. Players past 1,000 bananas earned post them with a pot, moderators post house bounties, and anyone signed in can add to a pot. The first play that meets the goal takes it all, and the bot spots it by itself. Nobody can claim a bounty they posted or funded.'), 'bounties'],
+    [t('Crown'), t('King of the hill’s prize for one slot: the best play on that slot’s map holds it, and whoever holds it when the month ends keeps it.'), 'crown'],
     [t('Verified'), t('The Discord role for Portuguese osu! accounts, given by the bot’s /verify command.')],
     [t('This is me'), t('A button on every player profile. Press it on yours and your rows are highlighted across the site. It’s saved in your browser only.')],
   ]],
+  [t('Bananas'), [
+    [t('Bananas'), t('The community’s play money, named after catch’s bonus fruit. You earn them by playing well: snipes, first FCs on 5★ maps and up, crowns, the map of the week, Dan stages, badges and the daily game. You spend them on bounties, tips and the shop. They’re never bought or sold. The bot keeps the books, and you sign in on this site with osu! to collect what you earned.'), 'bananas'],
+    [t('Wallet and earned'), t('Your wallet is what you can spend. Earned counts only what playing brought you: it’s what the 1,000 needed to post a bounty is checked against, so tips, refunds and the launch grant don’t add to it.'), 'wallet'],
+    [t('Pouch'), t('Where your bananas wait until you first sign in on this site with osu!. It holds 300; anything past that is lost, so sign in early.'), 'pouch'],
+    [t('Posting a bounty'), t('Takes 1,000 bananas earned (tips, refunds and the launch grant don’t count), a stake of 500 or more and a 20% fee, which is burned. One a month. The first play that meets the goal takes the whole pot; if nobody does, 70% goes back to the funders.'), 'posting'],
+    [t('Tip'), t('Bananas you give another player, 5 to 50 a day. They come out of your wallet and don’t count towards the other player’s earned.'), 'tip'],
+    [t('Snipe shield'), t('A switch on your own wallet: while it’s on, snipe bounties can’t target your #1s.'), 'shield'],
+    [t('Shop'), t('Where bananas buy a profile title, a pinned signature play, a name colour, a Discord colour role, a map of the week nomination or King of the hill’s wildcard. What you spend there is burned.'), 'shop'],
+    [t('Signature play'), t('One of your plays, pinned to the top of your profile. Bought in the shop.'), 'signature'],
+    [t('Name colour'), t('Your name in a colour you pick, wherever names are listed on the site. It’s bought 30 days at a time, up to a year at once, and more adds to the time left. The Discord colour role works the same way, a week at a time.'), 'colour'],
+    [t('Wildcard'), t('Picks the convert map (4.5–6.5★) for next month’s King of the hill Challenger tier. One a month for all of PT, first bought, once a moderator approves it.'), 'wildcard'],
+  ]],
 ];
 
-export default async function glossary(root) {
+/** #/glossary?at=bananas goes straight to that entry (the "What are bananas?" links). */
+export default async function glossary(root, { query = {} } = {}) {
   setTitle(t('Glossary'));
   root.innerHTML = String(html`
     ${pageHead({ title: t('Glossary'), intro: t('What the numbers and badges on this site mean, and the words the community uses for them.') })}
     ${SECTIONS.map(([title, terms]) => html`<section class="section">
       <h2>${title}</h2>
-      <dl class="glossary">${terms.map(([term, text]) => html`<div><dt>${term}</dt><dd>${text}</dd></div>`)}</dl>
+      <dl class="glossary">${terms.map(([term, text, id]) => html`<div ${id ? html`id="g-${id}"` : ''} class="${id && id === query.at ? 'target' : ''}"><dt>${term}</dt><dd>${text}</dd></div>`)}</dl>
     </section>`)}
     <p class="section muted">${t('Still stuck? Ask in the Discord: someone’s always around.')} <a href="#/join">${t('How to join')}</a></p>
   `);
+  if (query.at) root.querySelector(`#g-${CSS.escape(query.at)}`)?.scrollIntoView({ block: 'center' });
 }

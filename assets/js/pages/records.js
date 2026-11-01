@@ -94,7 +94,7 @@ function economySection(eco, index) {
     <h2>${t('Economy')}</h2>
     <p class="muted">${t('Bananas are earned by playing and spent on bounties, tips and the shop. {supply} are around right now, {escrow} of them in open bounties.', {
       supply: bananas(eco.totals.supply), escrow: bananas(eco.totals.escrow),
-    })} <a href="#/glossary">${t('What are bananas?')}</a></p>
+    })} <a href="#/glossary?at=bananas">${t('What are bananas?')}</a></p>
     <div class="grid grid-3">
       ${leaders(t('Earned in {month}', { month }), earned.slice(0, 5), index, '🍌', { note: earned.length ? '' : t('Nobody yet this month.') })}
       ${leaders(t('Top bounty hunters'), hunters.slice(0, 5), index, '🍌', { note: t('Bananas taken from bounty pots, all time.') })}

@@ -100,14 +100,17 @@ function quip(e) {
   }
 }
 
-/** Plays worth a tip: a snipe, a top play, a Dan pass, a crown or a claim. Shown only to a signed-in player, not on their own. */
+/**
+ * Plays worth a tip: a snipe, a top play, a Dan pass, a crown or a claim. Only on the Activity page (`tips`), only for a
+ * signed-in player, never on their own.
+ */
 const TIPPABLE = new Set(['snipe', 'top', 'dan', 'crown', 'bounty']);
-function tipLink(e) {
+function tipLink(e, index) {
   const me = TIPPABLE.has(e.k) ? session() : null;
-  return me && me.id !== e.u ? html`<a class="event-tip small" href="#/player/${e.u}?tip=1">${t('Tip')}</a>` : '';
+  return me && me.id !== e.u ? html`<a class="event-tip small" href="#/player/${e.u}?tip=1" aria-label="${t('Tip {name}', { name: playerName(index, e.u) })}">${t('Tip')}</a>` : '';
 }
 
-export function eventItem(e, index, maps) {
+export function eventItem(e, index, maps, { tips = false } = {}) {
   const { what, where } = describe(e, index, maps);
   const line = quip(e);
   const play = e.s && (e.k === 'snipe' || e.k === 'top')
@@ -121,7 +124,7 @@ export function eventItem(e, index, maps) {
     <div class="what">${what}</div>
     ${where ? html`<div class="where">${where}</div>` : ''}
     ${play}
-    ${tipLink(e)}
+    ${tips ? tipLink(e, index) : ''}
     ${line ? html`<div class="quip">${line}</div>` : ''}
   </div>`;
 }
