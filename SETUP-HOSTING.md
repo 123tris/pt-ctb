@@ -16,7 +16,7 @@ minutes without a git commit or a Pages build (see "Data on R2").
 
 The old address keeps working. GitHub Pages stays on and, once `leaveGithub` is on, forwards
 `https://123tris.github.io/pt-ctb/#/…` to `https://ptcatch.com/#/…`. It always forwards to the release site, never to
-dev, and each visitor's "This is me" comes along. The bot's `/verify` page, `https://123tris.github.io/pt-ctb-verify/`,
+dev. Visitors sign in again there: sign-ins are per address. The bot's `/verify` page, `https://123tris.github.io/pt-ctb-verify/`,
 is a different repo and **must stay exactly where it is**. Moving it would mean changing the bot's osu! app and config
 too.
 
@@ -282,7 +282,8 @@ Free-plan limits: D1 allows 100,000 written rows and 5 million read rows a day. 
    It adds columns and empty tables and rewrites no rows, so it costs almost nothing. Run twice, the ALTERs fail with
    "duplicate column name", which is harmless. If it's skipped, the code makes the same changes on its first request.
 3. Release as usual. `/auth/callback` now adds a signed `proof` to sign-ins (`signin/proof.js`, keyed by
-   `OSU_CLIENT_SECRET`), so the dashboard marks osu! sign-ins on ptcatch.com as **verified**; nothing new to set up.
+   `OSU_CLIENT_SECRET`), so the dashboard marks osu! sign-ins on ptcatch.com as **verified**; nothing new to set up. Only signed-in players
+   are linked: rows from before may still say **claimed** (the old "This is me", which the site no longer has).
 4. Check `/stats?view=people` after a visit of your own, then press **Don't count this browser** again (the old switch
    still works, but your browser now also has a visitor id).
 

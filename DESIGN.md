@@ -302,7 +302,7 @@ Bar.*
 | **Focus** | `:focus-visible`: a 2px accent outline at a 2px offset. Inputs: an accent border | Distinct from hover, never clipped by a parent. No ring on the H1 that the router focuses |
 | **Pressed or checked** (a toggle that stays on: `.chip.active`, `.btn[aria-pressed]`, `.fun-chip`) | `--accent-bg` fill, `--accent-line` edge, accent text; buttons add ✓ | Always with `aria-pressed` |
 | **Current or selected** (`.tabs a.active`, `.nav-top.active`, `.diff[aria-current]`, `.dan-stage.selected`) | Tabs and nav: a 2px accent underline. Objects: an accent border on `--accent-bg` | Always with `aria-current` |
-| **You** (`.me` rows) | `--accent-bg` and a 2px inset accent left edge | Only the player marked "This is me" |
+| **You** (`.me` rows) | `--accent-bg` and a 2px inset accent left edge | Only the player signed in with osu! in this browser |
 | **Disabled** | `opacity: .45`, no hover change | Hide a control that rarely applies. Disable one that's usually there, and say why in visible text. Never hide buttons |
 | **Invalid input** | Number fields keep the last valid value | No red borders while typing |
 
@@ -348,7 +348,7 @@ Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout)
 - **Labels:** one line, one to three words, starting with a verb ("Join the Discord", "Clear filters"), with no end
   punctuation. Add "…" only when more input follows.
 - **Order:** primary first, then secondary; destructive actions sit apart.
-- **Toggles** that stay on, like "This is me", use `aria-pressed`.
+- **Toggles** that stay on, like the snipe shield, use `aria-pressed`.
 
 ### Links
 

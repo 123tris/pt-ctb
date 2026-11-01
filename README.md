@@ -79,8 +79,9 @@ so `tools/` and the scripts stay private. The same script applies each branch's 
 address, DEV marker and noindex on dev, sign-in (on unless the `SIGN_IN` build variable is `0`). `_headers` sets the security and
 cache headers.
 `functions/auth/` (code in `signin/oauth.js`) runs osu!'s OAuth on the site's own address, because the exchange
-needs a client secret a static page can't hold. Visitors get back their osu! id and name, which fill the same
-"This is me" preference, and a 30-day session token (`signin/session.js`) for Bananas 🍌, the community's play money:
+needs a client secret a static page can't hold. Visitors get back their osu! id and name and a 30-day session
+token (`signin/session.js`). That sign-in is the only way the site knows who "you" are (highlighted rows, the You
+menu) and what Bananas 🍌, the community's play money, runs on:
 `functions/api/{daily,wallet,economy}/` (code in `economy/`) run the paying daily game and queue spending requests in
 D1 for the bot, which is the bank and pulls them every 15 minutes. The setup steps (Pages project, domains, branches, R2 data, osu! apps, secrets) are in
 [SETUP-HOSTING.md](SETUP-HOSTING.md).
