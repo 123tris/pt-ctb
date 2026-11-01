@@ -14,7 +14,7 @@ const rowsRead = results => {
   return metered.every(n => Number.isFinite(n)) ? metered.reduce((a, b) => a + b, 0) : null;
 };
 const rangeOf = (days, now) => ({ from: dayOf(now - (days - 1) * 86400000), to: dayOf(now) });
-const WHO = { verified: ['verified', 'Signed in with osu!, checked'], osu: ['osu!', 'Signed in with osu! (not checkable on this site)'], claimed: ['claimed', 'Picked with “This is me”: could be anyone'] };
+const WHO = { verified: ['verified', 'Signed in with osu!, checked'], osu: ['osu!', 'Signed in with osu! (not checkable on this site)'], claimed: ['claimed', 'Picked with “This is me” (before the site only knew sign-ins): could be anyone'] };
 const RANK = { verified: 3, osu: 2, claimed: 1, '': 0 };
 const whoTag = who => (WHO[who] ? `<span class="tag${who === 'verified' ? ' ok' : ''}" title="${esc(WHO[who][1])}">${esc(WHO[who][0])}</span>` : '');
 
@@ -149,7 +149,7 @@ export function renderPeople(r, { nonce, names, shell, playerLink, objectLink, s
 </div>
 
 <h2>Players</h2>
-<p class="muted">Visitors who said who they are: <span class="tag ok">verified</span> signed in with osu! (checked), <span class="tag">osu!</span> signed in on a site that can't check it, <span class="tag">claimed</span> pressed “This is me”, which anyone can do for anyone. Names open everything that player did.</p>
+<p class="muted">Visitors who said who they are: <span class="tag ok">verified</span> signed in with osu! (checked), <span class="tag">osu!</span> signed in on a site that can't check it, <span class="tag">claimed</span> (older visits only) pressed the old “This is me”, which anyone could do for anyone. Names open everything that player did.</p>
 ${table(['Player', { label: 'Days', num: true }, { label: 'Sessions', num: true }, { label: 'Page views', num: true }, 'Last seen', 'Mostly opens', 'Looks at'],
   r.players.map(p => [
     td(`${playerLink(p.player, names, query)} ${whoTag(r.identities.get(p.player)?.who)}`),
@@ -158,8 +158,8 @@ ${table(['Player', { label: 'Days', num: true }, { label: 'Sessions', num: true 
     td((r.playerObjs.get(p.player) ?? []).map(x => `${objectLink(x.obj, names, query)} (${x.n})`).join(', '), 'small'),
   ]), 'No known players in this period.')}
 
-<h2>Regulars who haven't said who they are</h2>
-<p class="muted">The most active visitors without a player, by random id. If one of them later presses “This is me”, their earlier visits join that player.</p>
+<h2>Regulars who haven't signed in</h2>
+<p class="muted">The most active visitors without a player, by random id. If one of them later signs in with osu!, their earlier visits join that player.</p>
 ${table(['Visitor', { label: 'Days', num: true }, { label: 'Sessions', num: true }, { label: 'Page views', num: true }, 'Last seen'],
   r.anonymous.map(v => [td(`<a href="?view=person&amp;visitor=${esc(v.visitor)}${query}">${esc(v.visitor.slice(0, 8))}</a>`), td(num(v.days), 'num'), td(num(v.sessions), 'num'), td(num(v.views), 'num'), td(esc(when(v.last)), 'nowrap small')]),
   'No anonymous visitors with an id yet.')}

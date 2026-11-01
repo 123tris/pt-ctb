@@ -1,11 +1,11 @@
 // Storage for the usage counts: one D1 database (bound to the Pages project as USAGE).
 //
 // Who an event belongs to. Every browser that allows counting gets a random visitor id and a session id from
-// assets/js/core/track.js (localStorage, first-party, nothing derived from the device). When the visitor has said who
-// they are on osu! ("This is me", or "Sign in with osu!"), their events carry that player id too, marked as how it was
-// given: 'claimed' (picked by hand, so it could be anyone), 'osu' (signed in, but this site can't check it: dev) or
-// 'verified' (signed in, and the proof from /auth/callback checks out: signin/proof.js). Browsers too old to send an
-// id fall back to the old daily hash (SHA-256 of a per-day salt + IP + user agent, the salt deleted the next day).
+// assets/js/core/track.js (localStorage, first-party, nothing derived from the device). When the visitor is signed in
+// with osu!, their events carry that player id too, marked 'verified' when the proof from /auth/callback checks out
+// (signin/proof.js) or 'osu' when this site can't check it (no app secret). Older rows may say 'claimed': the site
+// used to let anyone pick a player with "This is me", and those ids are no longer linked (a batch that still says so
+// counts without a player). Browsers too old to send an id fall back to the old daily hash (SHA-256 of a per-day salt + IP + user agent, the salt deleted the next day).
 //
 // What's never stored: IP addresses, user agents (only the browser family and OS, worked out here), cookies, search
 // text. The IP is only ever hashed with today's salt, as the key of the per-source rate limit (`limits`), and that
@@ -209,7 +209,8 @@ const int = (v, min, max) => (Number.isFinite(v) ? Math.min(max, Math.max(min, M
 export function parseBatch(body) {
   if (!body || !Array.isArray(body.e) || !body.e.length || body.e.length > MAX_EVENTS) return null;
   const device = ['phone', 'tablet', 'desktop'].includes(body.d) ? body.d : '';
-  const player = Number.isSafeInteger(body.p) && body.p > 0 && body.p < 1e10 ? body.p : null;
+  // Only a signed-in player is linked; a hand-picked one ("claim", from browsers that haven't reloaded since) isn't.
+  const player = body.w === 'osu' && Number.isSafeInteger(body.p) && body.p > 0 && body.p < 1e10 ? body.p : null;
   const me = body.m === 1 || player ? 1 : 0;
   const rows = [];
   for (const ev of body.e) {
@@ -228,7 +229,7 @@ export function parseBatch(body) {
     sid: typeof body.s === 'string' && /^[0-9a-f]{12}$/.test(body.s) ? body.s : '',
     first: body.f === 1,
     player,
-    how: player ? (body.w === 'osu' ? 'osu' : 'claimed') : '',
+    how: player ? 'osu' : '',
     proof: typeof body.pr === 'string' ? body.pr.slice(0, 40) : '',
     playerName: player ? label(body.pn).slice(0, 30) : '',
     context: {

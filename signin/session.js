@@ -1,6 +1,6 @@
 // The site's session token: proof that osu! confirmed who a browser belongs to, good for SESSION_DAYS, which the
 // Bananas endpoints (economy/api.js) accept instead of a cookie. /auth/callback makes it next to the usage proof
-// (signin/proof.js) and adds it to the #signin answer; the browser keeps it with its "me" (core/you.js) and sends it as
+// (signin/proof.js) and adds it to the #signin answer; the browser keeps it (core/you.js), as its only "you", and sends it as
 // "Authorization: Bearer <token>".
 //
 // It's an HMAC of "osuId|expiry", keyed by the osu! app's client secret under a label of its own, so only the release

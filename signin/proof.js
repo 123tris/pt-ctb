@@ -1,6 +1,6 @@
-// A small signed note that osu! confirmed a player id in this browser, so the usage counts (usage/store.js) can tell
-// "signed in with osu!" from "pressed This is me", which anyone can do for anyone. /auth/callback adds it to the
-// #signin answer; the browser keeps it with its "me" (core/you.js) and sends it with its usage events.
+// A small signed note that osu! confirmed a player id in this browser, so the usage counts (usage/store.js) can mark
+// that player "verified". /auth/callback adds it to the #signin answer; the browser keeps it next to its session
+// (core/you.js) and sends it with its usage events, instead of the session token itself, which opens Bananas.
 //
 // It's an HMAC of the id and the time, keyed by the osu! app's client secret (only the release site has it, so dev
 // can't check one and records such ids as "osu", not "verified"). It proves nothing else and opens nothing: there's

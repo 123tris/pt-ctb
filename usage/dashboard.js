@@ -233,7 +233,7 @@ export function renderDashboard(r, { nonce = '', names = new Map() } = {}) {
   <div class="tile"><b>${r.visits ? (r.views / r.visits).toFixed(1) : '–'}</b><span>pages per visit</span></div>
   <div class="tile"><b>${pct(r.returning, r.sessions)}</b><span>of sessions by a returning visitor</span></div>
   <div class="tile"><b>${pct(phone, r.visits)}</b><span>of visits on a phone</span></div>
-  <div class="tile"><b>${pct(r.me, r.visits)}</b><span>of visits with "This is me" set</span></div>
+  <div class="tile"><b>${pct(r.me, r.visits)}</b><span>of visits signed in (or, before, with "This is me" set)</span></div>
   ${r.players === null ? '' : `<div class="tile"><b>${num(r.players)}</b><span>known players</span></div>`}
 </div>
 

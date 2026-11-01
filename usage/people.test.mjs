@@ -38,16 +38,16 @@ const reason = async (db, body, t = DAY, opts) => (await recordHit(post(body, op
 const basic = pw => `Basic ${btoa(`tris:${pw}`)}`;
 const get = path => new Request(`https://ptcatch.com${path}`, { headers: { authorization: basic('pw') } });
 
-test('a visitor id, session and chosen player are stored with each event, plus one session row and one visitor row', async () => {
+test('a visitor id, session and signed-in player are stored with each event, plus one session row and one visitor row', async () => {
   const db = fakeD1();
   const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605 Version/18.0 Mobile/15E148 Safari/604.1';
-  assert.equal(await reason(db, v2({ f: 1, p: 4158549, w: 'claim', pn: 'Tristan', c: { vw: 390, vh: 840, sc: 'dark', ln: 'pt-PT' } },
+  assert.equal(await reason(db, v2({ f: 1, p: 4158549, w: 'osu', pn: 'Tristan', c: { vw: 390, vh: 840, sc: 'dark', ln: 'pt-PT' } },
     ['view', 'home', 'direct', 'discord.com', 120], ['view', 'player', 'page', '', 300, 'p123'], ['dwell', 'player', '', '', 5400, 'p123']), DAY, { ua }), 'ok:3');
   const [home, player, dwell] = all(db, 'SELECT * FROM events ORDER BY rowid');
   assert.deepEqual([home.visitor, home.sid, home.player, home.val, player.obj, dwell.val], [VID, SID, 4158549, 120, 'p123', 5400]);
   assert.deepEqual(one(db, 'SELECT * FROM sessions'), {
     sid: SID, env: 'prod', visitor: VID, day: '2026-10-25', start: DAY / 1000, last: DAY / 1000, batches: 1, events: 3, views: 2,
-    entry: 'home', exit: 'player', ref: 'discord.com', player: 4158549, who: 'claimed', returned: 0,
+    entry: 'home', exit: 'player', ref: 'discord.com', player: 4158549, who: 'osu', returned: 0,
     device: 'desktop', browser: 'Safari', os: 'iOS', country: 'PT', vw: 390, vh: 840, scheme: 'dark', lang: 'pt-PT',
   });
   // Later in the same session, then a new session the next day: the visitor is now a returning one.
@@ -56,7 +56,7 @@ test('a visitor id, session and chosen player are stored with each event, plus o
   assert.deepEqual(one(db, 'SELECT batches, exit, last FROM sessions WHERE sid = ?', SID), { batches: 2, exit: 'compare/pair', last: DAY / 1000 + 60 });
   assert.equal(one(db, 'SELECT returned FROM sessions WHERE sid = ?', 'ffffffffffff').returned, 1);
   const v = one(db, 'SELECT days, sessions, events, player, who, name FROM visitors');
-  assert.deepEqual(v, { days: 2, sessions: 2, events: 5, player: 4158549, who: 'claimed', name: 'Tristan' });
+  assert.deepEqual(v, { days: 2, sessions: 2, events: 5, player: 4158549, who: 'osu', name: 'Tristan' });
   const everything = JSON.stringify([all(db, 'SELECT * FROM events'), all(db, 'SELECT * FROM sessions'), all(db, 'SELECT * FROM visitors')]);
   assert.ok(!everything.includes('1.2.3.4') && !everything.includes('iPhone OS'), 'no IP or user agent anywhere');
 });
@@ -70,14 +70,15 @@ test('an osu! sign-in is "verified" only when its proof checks out with the app 
   assert.equal(await who({ w: 'osu', pr: await makeProof('shh', 77) }, '000000000001'), 'verified');
   assert.equal(await who({ w: 'osu', pr: await makeProof('shh', 78) }, '000000000002'), 'osu');
   assert.equal(await who({ w: 'osu', pr: await makeProof('other', 77) }, '000000000003'), 'osu');
-  assert.equal(await who({ w: 'claim' }, '000000000004'), 'claimed');
+  assert.equal(await who({ w: 'claim' }, '000000000004'), '', 'a hand-picked player (old browsers) is not linked');
+  assert.equal(one(db, 'SELECT player FROM sessions WHERE sid = ?', '000000000004').player, null);
   assert.equal(await who({ w: 'osu', pr: await makeProof('shh', 77) }, '000000000005', { USAGE: db }), 'osu', 'no secret (dev), no check');
 });
 
 test('a session id can only be continued by the visitor that started it', async () => {
   const db = fakeD1();
-  await reason(db, v2({ p: 1, w: 'claim' }, ['view', 'home']));
-  await reason(db, { ...v2({ p: 2, w: 'claim' }, ['view', 'maps']), id: 'ffffffffffffffff' });
+  await reason(db, v2({ p: 1, w: 'osu' }, ['view', 'home']));
+  await reason(db, { ...v2({ p: 2, w: 'osu' }, ['view', 'maps']), id: 'ffffffffffffffff' });
   assert.deepEqual(one(db, 'SELECT visitor, player, exit FROM sessions'), { visitor: VID, player: 1, exit: 'home' });
 });
 
@@ -103,7 +104,7 @@ test('the estimated rows written stop a flood of tiny batches (DAILY_WRITE_CAP)'
 test('finished days are rolled up into anonymous counts, which the 365-day overview reads', async () => {
   const db = fakeD1();
   const env = { USAGE: db, STATS_PASSWORD: 'pw' };
-  await recordHit(post(v2({ p: 5, w: 'claim' }, ['view', 'home', 'direct', 'discord.com'], ['view', 'records', 'nav'], ['dwell', 'records', '', '', 4000])), env, DAY);
+  await recordHit(post(v2({ p: 5, w: 'osu' }, ['view', 'home', 'direct', 'discord.com'], ['view', 'records', 'nav'], ['dwell', 'records', '', '', 4000])), env, DAY);
   await recordHit(post({ e: [['view', 'home']], d: 'phone', m: 0 }, { ip: '9.9.9.9' }), env, DAY); // an old client: daily hash
   await recordHit(post(v2({}, ['view', 'maps'])), env, DAY + 86400000); // the next day's first event rolls up the 25th
   const rolled = all(db, "SELECT kind, name, detail, n, visits, total FROM rollup WHERE day = '2026-10-25'");
@@ -133,7 +134,7 @@ test('"delete my data" drops the visitor row at once and its events and sessions
 test('the people, health and person views show players, funnels, errors and timings', async () => {
   const db = fakeD1();
   const env = { USAGE: db, STATS_PASSWORD: 'pw' };
-  await recordHit(post(v2({ f: 1, p: 4158549, w: 'claim', pn: 'Tristan', c: { vw: 1920, vh: 1080, sc: 'dark', ln: 'en-GB' } },
+  await recordHit(post(v2({ f: 1, p: 4158549, w: 'osu', pn: 'Tristan', c: { vw: 1920, vh: 1080, sc: 'dark', ln: 'en-GB' } },
     ['view', 'home', 'direct', '', 200], ['view', 'player', 'page', '', 900, 'p123'], ['view', 'compare/pair', 'page', '', 1500, 'p123|p456'],
     ['search', 'header', 'picked a player · text 3-5'], ['err', 'x is not a function', 'player.js:#'], ['perf', 'ttfb', 'home', '', 180],
     ['fetch', 'players/#.json', 'player', '', 1300])), env, DAY);
@@ -141,7 +142,7 @@ test('the people, health and person views show players, funnels, errors and timi
   const names = new Map([[123, 'Pinguim']]);
   const view = async path => { const res = await stats(get(path), env, DAY, { names }); assert.equal(res.status, 200, path); return res.text(); };
   const people = await view('/stats?view=people&days=7');
-  assert.match(people, /Tristan<\/a> <span class="tag"[^>]*>claimed/);
+  assert.match(people, /Tristan<\/a> <span class="tag"[^>]*>osu!/);
   assert.match(people, /Pinguim/);
   assert.match(people, /Home → a profile → Compare<\/td><td class="small">home: <b>2<\/b><\/td><td class="small">player: <b>1<\/b> <span class="muted">50%/);
   assert.match(people, /visitor=ffffffffffffffff/);
