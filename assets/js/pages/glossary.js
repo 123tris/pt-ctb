@@ -49,7 +49,7 @@ const SECTIONS = [
   ]],
 ];
 
-/** #/glossary?at=bananas goes straight to that entry (the "What are bananas?" links). */
+/** /glossary?at=bananas goes straight to that entry (the "What are bananas?" links). */
 export default async function glossary(root, { query = {} } = {}) {
   setTitle(t('Glossary'));
   root.innerHTML = String(html`
@@ -58,7 +58,7 @@ export default async function glossary(root, { query = {} } = {}) {
       <h2>${title}</h2>
       <dl class="glossary">${terms.map(([term, text, id]) => html`<div ${id ? html`id="g-${id}"` : ''} class="${id && id === query.at ? 'target' : ''}"><dt>${term}</dt><dd>${text}</dd></div>`)}</dl>
     </section>`)}
-    <p class="section muted">${t('Still stuck? Ask in the Discord: someone’s always around.')} <a href="#/join">${t('How to join')}</a></p>
+    <p class="section muted">${t('Still stuck? Ask in the Discord: someone’s always around.')} <a href="/join">${t('How to join')}</a></p>
   `);
   if (query.at) root.querySelector(`#g-${CSS.escape(query.at)}`)?.scrollIntoView({ block: 'center' });
 }

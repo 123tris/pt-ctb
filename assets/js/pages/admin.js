@@ -1,4 +1,4 @@
-// #/admin: the admin panel (contract §8), for the osu! ids the site and the bot list as admins. Nothing here changes
+// /admin: the admin panel (contract §8), for the osu! ids the site and the bot list as admins. Nothing here changes
 // anything by itself: every save or action is an admin.* request the bot takes from the inbox within 15 minutes, checks
 // again and applies or refuses with a code. Anyone else, signed in or not, gets "Admins only" and no data.
 //
@@ -193,7 +193,7 @@ export default async function admin(root, { isCurrent }) {
   const cancelWaiting = id => requests.some(r => r.status === 'pending' && r.type === 'admin.bounty.cancel' && r.payload.id === id);
   const bountyRow = r => {
     const [mapId, , goal, , , , , , id, pot, , poster, expires] = r;
-    const what = html`<span class="admin-bounty-what"><span><b>#${id}</b> ${GOAL_LABEL[goal] ?? goal} · <a href="#/map/${mapId}">${mapLabel(mapId, bountyData.maps?.[mapId])}</a></span>
+    const what = html`<span class="admin-bounty-what"><span><b>#${id}</b> ${GOAL_LABEL[goal] ?? goal} · <a href="/map/${mapId}">${mapLabel(mapId, bountyData.maps?.[mapId])}</a></span>
       <span class="faint small">${[pot ? t('{amount} pot', { amount: bananas(pot) }) : '', poster ? index.get(poster)?.name ?? '' : t('house bounty'), expires ? t('ends {date}', { date: fmt.date(expires) }) : ''].filter(Boolean).join(' · ')}</span></span>`;
     if (cancelWaiting(id)) return html`<li class="admin-bounty">${what}${status('pending')}</li>`;
     return html`<li class="admin-bounty admin-action" data-action="cancel" data-id="${id}">${what}

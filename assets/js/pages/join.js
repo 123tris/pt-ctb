@@ -4,7 +4,7 @@ import { t, th } from '../core/i18n.js';
 import { CONFIG } from '../config.js';
 
 // Everything a newcomer needs in one place: join the Discord, verify, play. (It used to be split between the home
-// page's "How to join" and a separate Verification page; #/verify now lands here.)
+// page's "How to join" and a separate Verification page; /verify now lands here.)
 export default async function join(root) {
   setTitle(t('How to join'));
   const verify = html`<span class="kbd">/verify</span>`;
@@ -25,8 +25,8 @@ export default async function join(root) {
           <div class="step"><div><b>${th('Type {verify} in the verification channel', { verify })}</b><p>${th('The bot replies to you only, with a {button} button. Sign in on osu!’s official page (osu.ppy.sh); the bot only asks to read your public profile. Back in Discord, within a few seconds your message shows the result and, if the account is Portuguese, you get the verified role. Nothing showed up? The confirmation page shows a code: press {enter} on the bot’s message and paste it there.', { button: html`<b>Verify with osu!</b>`, enter: html`<b>Enter code</b>` })}</p></div></div>
           <div class="step"><div><b>${t('Play!')}</b><p>${th('The bot picks up everyone’s recent plays every 15 minutes, and they reach the site within a few minutes after that. Use {rs} to show your latest one, and {commands} for the rest. Words you don’t know are in {glossary}.', {
             rs: html`<span class="kbd">/rs</span>`,
-            commands: html`<a href="#/commands">${t('the commands page')}</a>`,
-            glossary: html`<a href="#/glossary">${t('the glossary')}</a>`,
+            commands: html`<a href="/commands">${t('the commands page')}</a>`,
+            glossary: html`<a href="/glossary">${t('the glossary')}</a>`,
           })}</p></div></div>
         </div>
       </div>

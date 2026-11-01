@@ -21,7 +21,7 @@ const BOARDS = [
 ];
 
 const INTRO = {
-  converts: html`${t('osu!standard maps played in catch mode, weighted the way osu! does it.')} <a class="help-link" href="#/glossary">${t('What’s pp?')}</a>`,
+  converts: html`${t('osu!standard maps played in catch mode, weighted the way osu! does it.')} <a class="help-link" href="/glossary">${t('What’s pp?')}</a>`,
   loved: t('Loved, pending and graveyarded maps, with pp the bot works out from the current formula.'),
   ranked: t('The official leaderboard, from each player’s osu! profile. Players inactive on osu! keep their last known pp.'),
   mods: t('Weighted pp from plays that include the chosen mod. HDDT counts for HD, DT and HDDT. NF is ignored when filtering: NF counts as NM, HRNF as HR.'),
@@ -139,8 +139,8 @@ export default async function rankings(root, { params, query, isCurrent }) {
 
   if (slug === 'kings') {
     const head = html`
-      ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="#/players">${t('All players')}</a><a href="#/compare">${t('Compare two players')}</a></p>` })}
-      ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}`;
+      ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${t('All players')}</a><a href="/compare">${t('Compare two players')}</a></p>` })}
+      ${tabs(BOARDS.map(b => ({ href: `/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}`;
     kingsPage(root, { kings: recs?.kings, index, me, query, head, intro: INTRO.kings });
     return;
   }
@@ -153,8 +153,8 @@ export default async function rankings(root, { params, query, isCurrent }) {
   let mod = modChoices.includes(query.mod) ? query.mod : defaultMod;
 
   root.innerHTML = String(html`
-    ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="#/players">${t('All players')}</a><a href="#/compare">${t('Compare two players')}</a></p>` })}
-    ${tabs(BOARDS.map(b => ({ href: `#/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}
+    ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${t('All players')}</a><a href="/compare">${t('Compare two players')}</a></p>` })}
+    ${tabs(BOARDS.map(b => ({ href: `/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}
     <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">${t('Players and plays imported from the osu! data dump of {date}.', { date: m.dump.replaceAll('_', '-') })}</span>` : ''}</p>
     <div class="toolbar">
       <input class="input" type="search" id="filter" placeholder="${t('Search players…')}" aria-label="${t('Search this leaderboard')}" value="${query.q || ''}">
@@ -167,7 +167,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
     <p class="result-count" id="count"></p>
     <div id="board"></div>
     <div id="board-empty"></div>
-    <p class="mt-3 small"><a href="#/players">${t('Browse all {n} players', { n: fmt.num(list.length) })}</a></p>
+    <p class="mt-3 small"><a href="/players">${t('Browse all {n} players', { n: fmt.num(list.length) })}</a></p>
     ${FOOTNOTE[slug] ? html`<p class="mt-2 small faint">${FOOTNOTE[slug]}</p>` : ''}
   `);
 

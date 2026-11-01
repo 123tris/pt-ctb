@@ -26,7 +26,7 @@ export function initConsent() {
     bar.className = 'consent';
     bar.setAttribute('role', 'region');
     bar.setAttribute('aria-label', t('Usage counting'));
-    bar.innerHTML = String(html`<p>${ASK[mode]} <a href="#/privacy">${t('What’s recorded')}</a></p>
+    bar.innerHTML = String(html`<p>${ASK[mode]} <a href="/privacy">${t('What’s recorded')}</a></p>
       <div class="btn-row"><button class="btn btn-small btn-primary" type="button" data-yes>${t('Allow')}</button><button class="btn btn-small" type="button" data-no>${t('No thanks')}</button></div>`);
     bar.addEventListener('click', e => {
       const yes = e.target.closest('[data-yes]'), no = e.target.closest('[data-no]');

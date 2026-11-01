@@ -21,7 +21,7 @@ const PAGE = 50;
 
 const row = (r, index) => {
   const titled = Boolean(r[3]);
-  return html`<a class="plain-link row card-link" href="#/map/${r[0]}">
+  return html`<a class="plain-link row card-link" href="/map/${r[0]}">
     <span class="map">
       ${setCover(r[1])}
       <span class="map-text">

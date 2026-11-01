@@ -38,7 +38,7 @@ function playCell([uid, , ...s], maps, index) {
   const pp = url ? html`<a href="${url}" target="_blank" rel="noopener" title="${t('This play on osu!')}">${ppText(s[S.PP])}</a>` : ppText(s[S.PP]);
   const label = mapLabel(s[S.MAP], maps[s[S.MAP]]);
   return html`<span class="cell-line">${playerLink(uid, index, 'avatar-sm')} ${pp}</span>
-    <a class="cell-line dim-link small" href="#/map/${s[S.MAP]}" title="${label}">${label}</a>`;
+    <a class="cell-line dim-link small" href="/map/${s[S.MAP]}" title="${label}">${label}</a>`;
 }
 
 /** How a past week's map was picked, when the data says. */
@@ -107,10 +107,10 @@ export function weeklySummary(weekly, maps, index) {
   if (!current && !mapVote) return '';
   const top = current?.top;
   return html`<section class="week-summary">
-    <div class="section-head"><h2>${t('This week so far')}</h2><a href="#/activity?view=week">${t('The week’s recap')}</a></div>
+    <div class="section-head"><h2>${t('This week so far')}</h2><a href="/activity?view=week">${t('The week’s recap')}</a></div>
     ${current ? html`<p class="muted small">${weekLine(current)}</p>` : ''}
     ${top ? html`<div class="week-top"><span class="faint small">${t('Top play')}</span> ${playerLink(top[0], index, 'avatar-sm')}
-      <span>${ppText(top[2 + S.PP])}</span> <a class="dim-link" href="#/map/${top[2 + S.MAP]}">${mapLabel(top[2 + S.MAP], maps[top[2 + S.MAP]])}</a></div>` : ''}
+      <span>${ppText(top[2 + S.PP])}</span> <a class="dim-link" href="/map/${top[2 + S.MAP]}">${mapLabel(top[2 + S.MAP], maps[top[2 + S.MAP]])}</a></div>` : ''}
     ${current?.most.length ? html`<div class="week-top"><span class="faint small">${t('Most plays')}</span> ${playerLink(current.most[0][0], index, 'avatar-sm')} <span class="muted">${fmt.plural(current.most[0][1], 'play')}</span></div>` : ''}
     ${mapVote ? html`<div class="week-top"><span class="faint small">${t('Next map')}</span> ${t('Pick the map of the week for {week}.', { week: weekRange(mapVote) })} <a href="${mapVote.url}" target="_blank" rel="noopener">${t('Vote on Discord')} ↗</a></div>` : ''}
   </section>`;

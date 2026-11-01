@@ -17,7 +17,7 @@ const SCOPE_CHIPS = 5;
 /** A player in the hill's lists: their site entry, or the name the bot gave for someone the site doesn't list. */
 const who = (id, name, index) => index.get(id) ?? { id, name: name || `#${id}` };
 /** A player's name as a plain link, for names in running text and the past months' tables (no avatar to line up). */
-const nameLink = (id, name, index) => html`<a class="hill-name" href="#/player/${id}">${who(id, name, index).name}</a>`;
+const nameLink = (id, name, index) => html`<a class="hill-name" href="/player/${id}">${who(id, name, index).name}</a>`;
 /** Names in a sentence: "A, B and C", each linked. */
 const names = (ids, index) => andList(ids.map(id => nameLink(id, '', index)));
 
@@ -45,7 +45,7 @@ function slotCell(s, maps, index, closed, now) {
   const when = h?.time ? (closed ? fmt.date(h.time) : fmt.ago(h.time)) : '';
   const chips = now ? challengeChips(s.map, now, 'hill') : [];
   return html`<div class="hill-cell" data-tier="${s.tier}">
-    <a class="map" href="#/map/${s.map}">
+    <a class="map" href="/map/${s.map}">
       ${cover(meta, 'list', 'map-cover hill-cover')}
       <span class="map-title" title="${title} ${sub}">${starsBadge(slotStars(s, maps))} ${title} <span class="map-sub">${sub}</span></span>
     </a>

@@ -22,7 +22,7 @@ const SIGN_IN_HERE = signInHere();
 export function signIn() {
   const bytes = crypto.getRandomValues(new Uint8Array(24));
   const state = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  prefs.set('signin', { state, back: location.hash, at: Date.now() });
+  prefs.set('signin', { state, back: location.pathname + location.search, at: Date.now() });
   track('auth', 'start');
   location.assign(`/auth/login?state=${state}`);
 }
@@ -35,7 +35,9 @@ const signInResult = (() => {
   const answer = new URLSearchParams(location.hash.slice('#signin?'.length));
   const pending = prefs.get('signin', null);
   prefs.set('signin', null);
-  history.replaceState(null, '', location.pathname + location.search + (pending?.back || '#/'));
+  // `back` is the page's path, or its old #/ address from before the site had paths (app.js turns that into the path).
+  const back = pending?.back || '/';
+  history.replaceState(null, '', back.startsWith('#') ? `/${back}` : back);
   if (!pending || pending.state !== answer.get('state') || Date.now() - pending.at > SIGN_IN_TTL) return { error: 'stale' };
   if (answer.get('error')) return { error: answer.get('error') };
   const id = Number(answer.get('id'));
@@ -65,7 +67,7 @@ async function finishSignIn({ id, name, proof, token, error }) {
   // The session: "<id>.<expiry>.<signature>" (signin/session.js); only the site's endpoints can check it.
   const [tokenId, exp] = token.split('.').map(Number);
   prefs.set('osuSession', tokenId === id && exp > Date.now() / 1000 ? { id, token, exp } : null);
-  window.dispatchEvent(new HashChangeEvent('hashchange')); // re-render the page with your rows highlighted
+  window.dispatchEvent(new Event('routechange')); // re-render the page with your rows highlighted
   toast(th('Signed in as {name}.', { name: html`<b>${p.name}</b>` }));
 }
 
@@ -105,11 +107,11 @@ export function initYou() {
       <button class="you-btn" type="button" aria-expanded="false" aria-controls="you-menu"
         aria-label="${t('You: {name}', { name: p.name })}" title="${t('You: {name}', { name: p.name })}">${avatar(id, 'avatar-sm')}</button>
       <div class="you-menu" id="you-menu" hidden>
-        <a class="you-head" href="#/player/${id}" aria-label="${t('Your profile: {name}', { name: p.name })}">${avatar(id, 'avatar-md')}<div><span class="you-label">${t('You')}</span><b>${p.name}</b></div></a>
-        <a href="#/player/${id}">${t('Your profile')}</a>
-        <a href="#/compare/${id}">${t('Compare with someone')}</a>
-        ${wallet ? html`<a href="#/shop">${t('Shop')} <span class="faint">· ${bananas(wallet.b)}</span></a>` : ''}
-        ${isAdmin(id, panel) ? html`<a href="#/admin">${t('Admin')}</a>` : ''}
+        <a class="you-head" href="/player/${id}" aria-label="${t('Your profile: {name}', { name: p.name })}">${avatar(id, 'avatar-md')}<div><span class="you-label">${t('You')}</span><b>${p.name}</b></div></a>
+        <a href="/player/${id}">${t('Your profile')}</a>
+        <a href="/compare/${id}">${t('Compare with someone')}</a>
+        ${wallet ? html`<a href="/shop">${t('Shop')} <span class="faint">· ${bananas(wallet.b)}</span></a>` : ''}
+        ${isAdmin(id, panel) ? html`<a href="/admin">${t('Admin')}</a>` : ''}
         <button class="you-forget" type="button">${t('Sign out')}</button>
         <p class="you-note">${t('Signed in with osu! in this browser.')}</p>
       </div>`);
@@ -123,7 +125,7 @@ export function initYou() {
       prefs.set('osuProof', null);
       prefs.set('osuSession', null);
       // Re-render the current page so its highlights and Bananas parts drop the old "you".
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      window.dispatchEvent(new Event('routechange'));
     } else if (e.target.closest('a')) setMenu(false);
   });
   box.addEventListener('keydown', e => {
@@ -132,7 +134,7 @@ export function initYou() {
   document.addEventListener('click', e => { if (!box.contains(e.target)) setMenu(false); });
   // A disclosure, not a menu: it closes when focus leaves it (APG disclosure navigation).
   box.addEventListener('focusout', e => { if (e.relatedTarget && !box.contains(e.relatedTarget)) setMenu(false); });
-  window.addEventListener('hashchange', () => setMenu(false));
+  window.addEventListener('routechange', () => setMenu(false));
   window.addEventListener('ptctb:pref', e => { if (e.detail.key === 'osuSession') draw(); });
   // Any page's "Sign in with osu!" (core/bananas.js signInButton) starts the same sign-in.
   document.addEventListener('click', e => { if (!box.contains(e.target) && e.target.closest('[data-signin]')) signIn(); });

@@ -10,7 +10,7 @@ const starLabel = stars => `${fmt.num(stars)}${stars === 10 ? '+' : ''}★`;
 const rangeText = stars => (stars === 10 ? t('from {from}★ up', { from: fmt.num(10, 2) })
   : t('from {from}★ to below {to}★', { from: fmt.num(stars, 2), to: fmt.num(stars + 1, 2) }));
 /** A range's board link; catch is the default source, so it stays out of the URL (as writeQuery leaves it). */
-const boardHref = (stars, source) => `#/rankings/kings?stars=${stars}${source === 'catch' ? '' : `&src=${source}`}`;
+const boardHref = (stars, source) => `/rankings/kings?stars=${stars}${source === 'catch' ? '' : `&src=${source}`}`;
 
 /** Two comparable boards; only the holders of each title appear, including joint kings. */
 export function starKingsBoards(kings, index, me) {
@@ -99,7 +99,7 @@ export function kingsPage(root, { kings, index, me, query, head, intro }) {
     </div>
     <p class="result-count" id="kings-count"></p>
     <div id="kings-board"></div>
-    <p class="mt-3 small"><a href="#/rankings/kings">${t('All star kings')}</a></p>`);
+    <p class="mt-3 small"><a href="/rankings/kings">${t('All star kings')}</a></p>`);
 
   const view = root.querySelector('[data-kings]');
   const boardEl = root.querySelector('#kings-board');

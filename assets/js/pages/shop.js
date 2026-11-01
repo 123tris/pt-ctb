@@ -1,4 +1,4 @@
-// #/shop: what bananas buy (core/bananas.js SHOP, CURRENCY-DESIGN.md §5). Every purchase is a request the bot judges,
+// /shop: what bananas buy (core/bananas.js SHOP, CURRENCY-DESIGN.md §5). Every purchase is a request the bot judges,
 // like a bounty, and it can take up to 15 minutes.
 //
 // Each item is one disclosure: its whole header is a single button (aria-expanded) that opens or folds its panel, and
@@ -183,7 +183,7 @@ export default async function shop(root, { isCurrent }) {
       ${!eco ? empty(t('Bananas haven’t started yet. The shop opens with them.')) : html`
         <section class="shop-wallet">
           ${!me ? html`<p class="muted">${t('Sign in with osu! to buy. You can look around first.')}</p><div class="btn-row">${signInButton()}</div>`
-            : w ? html`<p>${walletLine(w, pending)} <a class="small" href="#/player/${me.id}">${t('See your wallet')}</a></p>
+            : w ? html`<p>${walletLine(w, pending)} <a class="small" href="/player/${me.id}">${t('See your wallet')}</a></p>
               ${!w.s && w.p ? html`<p class="small muted">${t('Plus {n} in your pouch: the bot moves it into your wallet at its next update, within 15 minutes.', { n: bananas(w.p) })}</p>` : ''}`
               : html`<p class="muted">${t('The bot has no wallet for you yet. It makes one at its next update after your first sign-in.')}</p>`}
           ${requests.some(r => r.type === 'shop.buy') ? html`<h2 class="small-h">${t('Your purchases')}</h2>${requestList(requests.filter(r => r.type === 'shop.buy'), index)}` : ''}

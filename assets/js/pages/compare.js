@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { players, playerFile } from '../core/data.js';
 import { S, M, CATS, CAT, boardComparator } from '../core/model.js';
 import {
-  setTitle, avatar, playerPicker, pickedPlayer, myId, mapLink, modsBadges, ppText, gradeBadge, paginate, empty, CAT_LABEL, tabs,
+  setTitle, avatar, playerPicker, pickedPlayer, myId, mapLink, modsBadges, ppText, gradeBadge, paginate, empty, CAT_LABEL, tabs, go,
 } from '../core/ui.js';
 import { RIVALRIES } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
@@ -79,7 +79,7 @@ export default async function compare(root, { params, query, isCurrent }) {
         <p>${t('Pick two players to compare their stats and see who wins on the maps they’ve both played.')}</p></header>
       ${pickers}
       ${!a && presets.length ? html`<section class="section"><h2>${t('Classic rivalries')}</h2>
-        <div class="grid grid-3">${presets.map(([x, y, label]) => html`<a class="card card-link" href="#/compare/${x}/${y}">
+        <div class="grid grid-3">${presets.map(([x, y, label]) => html`<a class="card card-link" href="/compare/${x}/${y}">
           <span class="eyebrow">${label}</span>
           <div class="mt-1 versus">
             <span class="side">${avatar(x, 'avatar-sm')}<b>${byId.get(x).name}</b></span>
@@ -89,7 +89,7 @@ export default async function compare(root, { params, query, isCurrent }) {
         </a>`)}</div></section>` : ''}
       ${rivals.length ? html`<section class="section"><h2>${t('Rivals for {name}', { name: a.name })}</h2>
         <p class="muted small">${t('The players closest in Converts pp.')}</p>
-        <div class="grid grid-3">${rivals.map(r => html`<a class="card card-link" href="#/compare/${a.id}/${r.id}">
+        <div class="grid grid-3">${rivals.map(r => html`<a class="card card-link" href="/compare/${a.id}/${r.id}">
           <span class="player">${avatar(r.id, 'avatar-md')}<span><b>${r.name}</b><br><span class="small muted">${fmt.pp(r.cv)} pp (${r.cv >= a.cv ? '+' : ''}${fmt.num(r.cv - a.cv)})</span></span></span>
         </a>`)}</div></section>` : ''}
     `);
@@ -109,9 +109,9 @@ export default async function compare(root, { params, query, isCurrent }) {
     ${pickers}
     <section class="card">
       <div class="mb-3 versus">
-        <a class="plain-link side" href="#/player/${a.id}">${avatar(a.id, 'avatar-md')}<b>${a.name}</b></a>
+        <a class="plain-link side" href="/player/${a.id}">${avatar(a.id, 'avatar-md')}<b>${a.name}</b></a>
         <span class="faint">vs</span>
-        <a class="plain-link side right" href="#/player/${b.id}"><b>${b.name}</b>${avatar(b.id, 'avatar-md')}</a>
+        <a class="plain-link side right" href="/player/${b.id}"><b>${b.name}</b>${avatar(b.id, 'avatar-md')}</a>
       </div>
       ${statRows(a, b)}
       ${(() => {
@@ -124,7 +124,7 @@ export default async function compare(root, { params, query, isCurrent }) {
 
     <section class="section">
       <h2>${t('Maps in common')}</h2>
-      ${tabs(CATS.map(c => ({ href: `#/compare/${a.id}/${b.id}?cat=${c}`, label: CAT_LABEL[c], count: shared(fa, fb, c).length, active: c === cat })))}
+      ${tabs(CATS.map(c => ({ href: `/compare/${a.id}/${b.id}?cat=${c}`, label: CAT_LABEL[c], count: shared(fa, fb, c).length, active: c === cat })))}
       ${both.length ? html`
         <div class="mb-2 versus">
           <b class="side">${a.name}: ${fmt.num(winsA)}</b>
@@ -147,12 +147,12 @@ export default async function compare(root, { params, query, isCurrent }) {
 }
 
 function wirePickers(root, list, a, b) {
-  const go = () => {
+  const compare = () => {
     const pa = pickedPlayer(root.querySelector('#pick-a'), list) ?? a;
     const pb = pickedPlayer(root.querySelector('#pick-b'), list) ?? b;
-    if (pa && pb && pa.id !== pb.id) location.hash = `#/compare/${pa.id}/${pb.id}`;
-    else if (pa && pa !== a) location.hash = `#/compare/${pa.id}`;
+    if (pa && pb && pa.id !== pb.id) go(`/compare/${pa.id}/${pb.id}`);
+    else if (pa && pa !== a) go(`/compare/${pa.id}`);
   };
-  root.querySelector('#pick-a').addEventListener('change', go);
-  root.querySelector('#pick-b').addEventListener('change', go);
+  root.querySelector('#pick-a').addEventListener('change', compare);
+  root.querySelector('#pick-b').addEventListener('change', compare);
 }

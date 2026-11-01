@@ -46,14 +46,14 @@ function goalBand(goal) {
   const counts = { cleared: fmt.num(goal.cleared), total: fmt.num(goal.total) };
   const label = t('{pct}% of ranked osu!catch maps cleared in Portugal: {cleared} of {total}', { pct: fmt.num(pct, 1), ...counts });
   return html`<div class="hero-goal">
-    <a class="goal-line" href="#/challenges/completion" aria-label="${label}">
+    <a class="goal-line" href="/challenges/completion" aria-label="${label}">
       <span class="goal-pct">${fmt.num(pct, 1)}%</span>
       <span class="goal-bar" aria-hidden="true" style="--done:${pct.toFixed(2)}%"><span></span></span>
     </a>
     <p class="hero-caption"><b>${t('Every ranked map, together.')}</b> ${goal.players
       ? t('{cleared} of {total} ranked osu!catch maps cleared by {players};', { ...counts, players: fmt.plural(goal.players, 'player') })
       : t('{cleared} of {total} ranked osu!catch maps cleared;', counts)} ${left ? t('{n} to go.', { n: fmt.num(left) }) : t('nothing left.')}
-      <a href="#/challenges/completion">${t('See what’s left')}</a></p>
+      <a href="/challenges/completion">${t('See what’s left')}</a></p>
   </div>`;
 }
 
@@ -66,12 +66,12 @@ function goalNext(goal, index) {
   const left = goal.total - goal.cleared;
   const latest = goal.latest;
   return html`<section class="goal-next">
-    <div class="section-head"><h2>${t('Still to clear')}</h2><a href="#/challenges/completion?sort=easy">${t('See all {n}', { n: fmt.num(left) })}</a></div>
+    <div class="section-head"><h2>${t('Still to clear')}</h2><a href="/challenges/completion?sort=easy">${t('See all {n}', { n: fmt.num(left) })}</a></div>
     <p class="muted small">${t('The easiest ranked maps nobody in Portugal has passed yet.')}</p>
     ${goal.next.map(([id, set, version, stars]) => {
       const named = goal.sets?.[set];
       const title = named ? `${named[0]} - ${named[1]}` : t('Map #{id}', { id });
-      return html`<a class="map goal-map" href="#/map/${id}">
+      return html`<a class="map goal-map" href="/map/${id}">
         ${setCover(set)}
         <span class="map-text">
           <span class="map-title" title="${title}">${title}</span>
@@ -81,7 +81,7 @@ function goalNext(goal, index) {
     })}
     ${latest ? html`<div class="week-top"><span class="faint small">${t('Latest clear')}</span> ${playerLink(latest[1], index, 'avatar-sm')}
       ${latest[2] ? html`<span class="muted small" title="${fmt.date(latest[2])}">${fmt.ago(latest[2])}</span>` : ''}
-      <a class="dim-link" href="#/map/${latest[0]}">${mapLabel(latest[0], goal.maps?.[latest[0]])}</a></div>` : ''}
+      <a class="dim-link" href="/map/${latest[0]}">${mapLabel(latest[0], goal.maps?.[latest[0]])}</a></div>` : ''}
   </section>`;
 }
 
@@ -104,12 +104,12 @@ function hillSummary(month, index) {
     players: andList(leaders.map(id => playerLink(id, index, 'avatar-sm'))), crowns: fmt.plural(most, 'crown'),
   }) : '';
   return html`<section class="week-summary">
-    <div class="section-head"><h2>${t('King of the hill')}</h2><a href="#/challenges/hill">${t('See the pool')}</a></div>
+    <div class="section-head"><h2>${t('King of the hill')}</h2><a href="/challenges/hill">${t('See the pool')}</a></div>
     ${ended ? html`<p class="muted small">${t('{month} has ended: {held} of {total} crowns kept, final after the bot’s next update.', counts)}</p>
       ${lead ? html`<div class="week-top">${lead}</div>` : ''}`
     : html`<p class="muted small">${t('{month}: {held} of {total} crowns taken, {left}.', { ...counts, left: timeLeft(month.end) })}</p>
       ${free.slice(0, 3).map(([slot, tier, id]) => html`<div class="week-top"><span class="faint small">${SLOT_NAME[slot]} · ${TIER_NAME[tier]}</span>
-        <span class="muted">${t('Up for grabs')}</span> <a class="dim-link" href="#/map/${id}">${mapLabel(id, month.maps[id])}</a></div>`)}
+        <span class="muted">${t('Up for grabs')}</span> <a class="dim-link" href="/map/${id}">${mapLabel(id, month.maps[id])}</a></div>`)}
       ${!free.length && lead ? html`<div class="week-top">${lead}</div>` : ''}`}
   </section>`;
 }
@@ -124,14 +124,14 @@ function bountySummary(board) {
   const live = r => r[7].filter(p => !p[4]);
   const top = [...open].sort((a, b) => (b[9] ?? 0) - (a[9] ?? 0) || live(b).length - live(a).length || (b[3] ?? 0) - (a[3] ?? 0)).slice(0, 3);
   return html`<section class="week-summary">
-    <div class="section-head"><h2>${t('Open bounties')}</h2><a href="#/challenges/bounties">${t('See all {n}', { n: fmt.num(open.length) })}</a></div>
+    <div class="section-head"><h2>${t('Open bounties')}</h2><a href="/challenges/bounties">${t('See all {n}', { n: fmt.num(open.length) })}</a></div>
     ${top.map(r => {
       const [first, ...more] = live(r);
       const prize = first ? (first[1] ? t('{prize} · from {by}', { prize: first[0], by: first[1] }) : first[0]) : '';
       return html`<div class="week-top"><span class="faint small">${WANTED[r[2]]}</span>
         ${r[9] ? html`<b class="home-pot">${bananas(r[9])}</b>` : ''}
         ${prize ? html`<span class="muted">${more.length ? t('{prize} and {n} more', { prize, n: fmt.num(more.length) }) : prize}</span>` : ''}
-        <a class="dim-link" href="#/map/${r[0]}">${mapLabel(r[0], board.maps[r[0]])}</a></div>`;
+        <a class="dim-link" href="/map/${r[0]}">${mapLabel(r[0], board.maps[r[0]])}</a></div>`;
     })}
   </section>`;
 }
@@ -146,14 +146,14 @@ function miniBoard(list, key, cat) {
         // The official top 5 includes players inactive on osu! (osu! shows them at 0 pp), tagged as such; legends
         // (lore.js) get their own tag on any board.
         const offOsu = cat === 'r' && isInactiveOnOsu(p);
-        return html`<a class="line ${p.id === me ? 'me' : ''}" href="#/player/${p.id}">
+        return html`<a class="line ${p.id === me ? 'me' : ''}" href="/player/${p.id}">
           <span class="n">${i + 1}<span class="sr-only">.</span></span>
           <span class="player">${avatar(p.id, 'avatar-sm')}<span class="${nameClass(p)}">${p.name}</span>${isLegend(p) ? legendTag({ plain: true }) : offOsu ? inactiveTag(p, { plain: true }) : ''}</span>
           <span class="sr-only">, </span>${offOsu ? officialPp(p, { compact: true }) : html`<span class="pp">${fmt.pp(p[key])}<small>pp</small></span>`}
         </a>`;
       })}
     </div>
-    <p class="card-foot"><a href="#/rankings/${{ c: 'converts', u: 'loved', r: 'ranked' }[cat]}">${t('Full leaderboard')}</a></p>
+    <p class="card-foot"><a href="/rankings/${{ c: 'converts', u: 'loved', r: 'ranked' }[cat]}">${t('Full leaderboard')}</a></p>
   </div>`;
 }
 
@@ -179,8 +179,8 @@ export default async function home(root, { isCurrent }) {
         <p>${t('Leaderboards, the Dan course and weekly challenges, from everything the PT-CTB Discord’s bot tracks.')}</p>
         <div class="hero-actions">
           ${CONFIG.discordInvite ? html`<a class="btn btn-primary" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">${t('Join the Discord')}</a>` : ''}
-          <a href="#/rankings">${t('See the leaderboards')}</a>
-          ${mine ? html`<a href="#/player/${mine.id}">${t('Your profile')}</a>` : signInHere() ? html`<button type="button" class="link-button" data-signin>${t('Sign in with osu!')}</button>`
+          <a href="/rankings">${t('See the leaderboards')}</a>
+          ${mine ? html`<a href="/player/${mine.id}">${t('Your profile')}</a>` : signInHere() ? html`<button type="button" class="link-button" data-signin>${t('Sign in with osu!')}</button>`
             : html`<button type="button" class="link-button" data-find>${t('Find yourself')}</button>`}
         </div>
       </div>
@@ -192,21 +192,21 @@ export default async function home(root, { isCurrent }) {
       </dl>
       <div class="hero-ladder">
         ${ladderBand(counts, { mine: highestDan(mine) })}
-        <p class="hero-caption">${ladderCaption(counts)} <a href="#/challenges/dan">${t('Open the Dan course')}</a></p>
+        <p class="hero-caption">${ladderCaption(counts)} <a href="/challenges/dan">${t('Open the Dan course')}</a></p>
         ${goalBand(m.completion)}
       </div>
     </section>
 
     ${season() === 'xmas' ? html`<p class="mt-4 notice">${th('{greeting}, you lot. Play less, eat more. 🎅', { greeting: html`<span lang="pt-PT">Feliz Natal</span>` })}</p>` : ''}
 
-    ${boss && bossHeld ? html`<a class="throne-strip card-link" href="#/records?at=throne">
+    ${boss && bossHeld ? html`<a class="throne-strip card-link" href="/records?at=throne">
       ${avatar(boss.id, 'avatar-md')}
       <span><b>${t('{name} still holds {n} #1s.', { name: boss.name, n: fmt.num(bossHeld) })}</b> <span class="muted">${t('Snipe him. He keeps asking.')}</span></span>
       <span class="throne-go">${t('Dethrone Tris')}</span>
     </a>` : ''}
 
     <section class="section">
-      <div class="section-head"><h2>${t('Portugal’s best')}</h2><a href="#/rankings">${t('All leaderboards')}</a></div>
+      <div class="section-head"><h2>${t('Portugal’s best')}</h2><a href="/rankings">${t('All leaderboards')}</a></div>
       <div class="grid grid-3">
         ${miniBoard(list, 'cv', 'c')}
         ${miniBoard(list, 'ul', 'u')}
@@ -216,8 +216,8 @@ export default async function home(root, { isCurrent }) {
 
     <section class="section grid grid-2">
       <div>
-        <div class="section-head"><h2>${t('Map of the week')}</h2><a href="#/challenges/week">${t('Challenges')}</a></div>
-        ${week ? html`<a class="card-flush card card-link" href="#/map/${week.map}">
+        <div class="section-head"><h2>${t('Map of the week')}</h2><a href="/challenges/week">${t('Challenges')}</a></div>
+        ${week ? html`<a class="card-flush card card-link" href="/map/${week.map}">
           ${cover(weekMeta, 'cover', 'week-cover')}
           <div class="card-body">
             <div class="text-lg map-title">${weekText.title}</div>
@@ -229,7 +229,7 @@ export default async function home(root, { isCurrent }) {
         ${goalNext(m.completion, index)}
       </div>
       <div>
-        <div class="section-head"><h2>${t('Recent activity')}</h2><a href="#/activity">${t('See all')}</a></div>
+        <div class="section-head"><h2>${t('Recent activity')}</h2><a href="/activity">${t('See all')}</a></div>
         <div class="feed">${act.events.slice(0, 5).map(e => eventItem(e, index, act.maps))}</div>
         ${hillSummary(m.hill, index)}
         ${bountySummary(board)}
@@ -237,12 +237,12 @@ export default async function home(root, { isCurrent }) {
     </section>
 
     <section class="section">
-      <div class="section-head"><h2>${t('Since 2018')}</h2><a href="#/team">${t('Team Portugal')}</a></div>
+      <div class="section-head"><h2>${t('Since 2018')}</h2><a href="/team">${t('Team Portugal')}</a></div>
       <ol class="since">${HISTORY.map(([year, text]) => html`<li><span class="since-year">${year}</span><p>${text}</p></li>`)}</ol>
     </section>
 
     <section class="section">
-      <div class="section-head"><h2>${t('How to join')}</h2><a href="#/join">${t('The full guide')}</a></div>
+      <div class="section-head"><h2>${t('How to join')}</h2><a href="/join">${t('The full guide')}</a></div>
       <div class="steps steps-row">
           <div class="step"><div><b>${t('Join the Discord server')}</b><p>${t('That’s where the bot lives and where the community chats, shares plays and sets up matches.')}</p></div></div>
           <div class="step"><div><b>${th('Verify your account with {command}', { command: html`<span class="kbd">/verify</span>` })}</b><p>${t('You sign in to osu! and, if your account is Portuguese, you get the verified role straight away.')}</p></div></div>

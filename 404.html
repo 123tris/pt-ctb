@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <title>PT Catch</title>
 <script>
-  // Every page lives behind the hash (#/...). Send stray paths back to the site's front page.
+  // An address that is no page of the site (the pages are answered by functions/[[path]].js). Go to the front page.
   const base = location.hostname.endsWith('github.io') ? `/${location.pathname.split('/')[1]}/` : '/';
-  location.replace(`${base}#/`);
+  location.replace(base);
 </script>
 </head>
 <body style="background:#1f191b;color:#f4ebee;font-family:system-ui,sans-serif">

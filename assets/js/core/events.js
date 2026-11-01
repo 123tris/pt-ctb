@@ -25,7 +25,7 @@ export const EVENT_KINDS = {
   join: { tag: t('New player'), label: t('New players') },
 };
 
-const who = (index, id) => html`<a href="#/player/${id}"><b class="${nameClass(index.get(id))}">${playerName(index, id)}</b></a>`;
+const who = (index, id) => html`<a href="/player/${id}"><b class="${nameClass(index.get(id))}">${playerName(index, id)}</b></a>`;
 
 /** A bounty claim, by goal: whole sentences, as Portuguese words them differently. */
 const BOUNTY_CLAIMED = /* i18n */ {
@@ -39,7 +39,7 @@ const BOUNTY_POSTED = /* i18n */ {
 function describe(e, index, maps) {
   // A play's map, or the map a crown or bounty event names.
   const mapId = e.s ? e.s[S.MAP] : e.m;
-  const map = mapId ? html`<a class="dim-link" href="#/map/${mapId}">${mapLabel(mapId, maps[mapId])}</a>` : '';
+  const map = mapId ? html`<a class="dim-link" href="/map/${mapId}">${mapLabel(mapId, maps[mapId])}</a>` : '';
   switch (e.k) {
     case 'crown':
       // A crown taken on King of the hill, or a closed month's King.
@@ -107,7 +107,7 @@ function quip(e) {
 const TIPPABLE = new Set(['snipe', 'top', 'dan', 'crown', 'bounty']);
 function tipLink(e, index) {
   const me = TIPPABLE.has(e.k) ? session() : null;
-  return me && me.id !== e.u ? html`<a class="event-tip small" href="#/player/${e.u}?tip=1" aria-label="${t('Tip {name}', { name: playerName(index, e.u) })}">${t('Tip')}</a>` : '';
+  return me && me.id !== e.u ? html`<a class="event-tip small" href="/player/${e.u}?tip=1" aria-label="${t('Tip {name}', { name: playerName(index, e.u) })}">${t('Tip')}</a>` : '';
 }
 
 export function eventItem(e, index, maps, { tips = false } = {}) {

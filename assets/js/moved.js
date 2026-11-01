@@ -1,5 +1,5 @@
 // The site moved from GitHub Pages to CONFIG.production. Loaded before app.js: with CONFIG.leaveGithub on, the old
-// github.io copy goes to the same page (the #/… route) on the release site, never the development one. Old links that
+// github.io copy goes to the same page (its #/… address, which the release site turns into the path) on the release site, never the development one. Old links that
 // still carry ?me=… (the hand-picked "you" the site no longer has) lose it.
 
 import { CONFIG } from './config.js';

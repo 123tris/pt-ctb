@@ -44,19 +44,19 @@ function hub(root) {
       <p>${t('Quick games made from the community’s data. Your records are saved in this browser.')}</p>
     </header>
     <div class="grid grid-3 game-cards">
-      <a class="card card-link" href="#/games/guess">
+      <a class="card card-link" href="/games/guess">
         <span class="game-art"><img class="game-art-blur" src="${coverUrl(BOSS_SETS[Math.floor(Date.now() / 864e5) % BOSS_SETS.length], 'card')}" alt="" width="400" height="140" loading="lazy" decoding="async"></span>
         <h2>${t('Guess the map')}</h2>
         <p class="muted">${th('Name the map from its blurred cover. {daily} one map a day, three tries, like the Discord’s Wordle but with fruit. {practice} ten rounds with a boss round at the end.', { daily: html`<b>${t('Daily:')}</b>`, practice: html`<b>${t('Practice:')}</b>` })}</p>
         <p class="m-0 small faint">${daily?.streak ? tn(daily.streak, 'Daily streak: {n} day', 'Daily streak: {n} days') : t('No daily streak yet.')}${best !== null ? ` · ${t('Practice record: {best} of 30', { best })}` : ''}</p>
       </a>
-      <a class="card card-link" href="#/games/quiz">
+      <a class="card card-link" href="/games/quiz">
         <span class="game-art"><img src="${coverUrl(TUGA_SET, 'card')}" alt="" width="400" height="140" loading="lazy" decoding="async"></span>
         <h2>${t('Convert or specific?')}</h2>
         <p class="muted">${t('The eternal argument, as a quiz. Or try “Overdose or Rain?” and name the difficulty from the cover and the stars.')}</p>
         <p class="m-0 small faint">${quizBest !== null ? t('Your record: {best} of 10', { best: quizBest }) : t('You haven’t played yet.')}</p>
       </a>
-      <a class="card card-link" href="#/games/higher-lower">
+      <a class="card card-link" href="/games/higher-lower">
         <span class="game-art game-art-duel">${avatar(RIVALRIES[0][0], 'avatar-md')}<span class="duel-vs">${t('vs')}</span>${avatar(RIVALRIES[0][1], 'avatar-md')}<small>${RIVALRIES[0][2]}</small></span>
         <h2>${t('Higher or lower?')}</h2>
         <p class="muted">${t('Who has more pp, more #1s or more plays? Guess whether the next player is higher or lower and keep the streak alive.')}</p>
@@ -69,8 +69,8 @@ function hub(root) {
 // ---- Guess the map: Daily (one map a day) or Practice (ten rounds) ------------------------------------------------
 
 const guessModes = mode => html`<div class="justify-center mb-3 chips">
-  <a class="chip ${mode === 'daily' ? 'active' : ''}" href="#/games/guess" ${mode === 'daily' ? html`aria-current="page"` : ''}>${t('Daily')}</a>
-  <a class="chip ${mode === 'practice' ? 'active' : ''}" href="#/games/guess?mode=practice" ${mode === 'practice' ? html`aria-current="page"` : ''}>${t('Practice')}</a>
+  <a class="chip ${mode === 'daily' ? 'active' : ''}" href="/games/guess" ${mode === 'daily' ? html`aria-current="page"` : ''}>${t('Daily')}</a>
+  <a class="chip ${mode === 'practice' ? 'active' : ''}" href="/games/guess?mode=practice" ${mode === 'practice' ? html`aria-current="page"` : ''}>${t('Practice')}</a>
 </div>`;
 
 // The day turns at midnight in Lisbon, so everyone gets the same map on the same day.
@@ -102,7 +102,7 @@ async function paidDaily(root, isCurrent) {
     root.innerHTML = String(html`
       <div class="game">
         <header class="page-head center">
-          <span class="eyebrow"><a href="#/games">${t('Games')}</a> · ${t('Guess the map')} · ${fmt.date(Date.parse(`${g.day}T12:00:00Z`) / 1000)}</span>
+          <span class="eyebrow"><a href="/games">${t('Games')}</a> · ${t('Guess the map')} · ${fmt.date(Date.parse(`${g.day}T12:00:00Z`) / 1000)}</span>
           <h1>${t('Which map is today’s?')}</h1>
         </header>
         ${guessModes('daily')}
@@ -171,7 +171,7 @@ async function dailyGame(root, isCurrent) {
     root.innerHTML = String(html`
       <div class="game">
         <header class="page-head center">
-          <span class="eyebrow"><a href="#/games">${t('Games')}</a> · ${t('Guess the map')} · ${fmt.date(Date.parse(`${today}T12:00:00Z`) / 1000)}</span>
+          <span class="eyebrow"><a href="/games">${t('Games')}</a> · ${t('Guess the map')} · ${fmt.date(Date.parse(`${today}T12:00:00Z`) / 1000)}</span>
           <h1>${t('Which map is today’s?')}</h1>
         </header>
         ${guessModes('daily')}
@@ -238,9 +238,9 @@ async function quizGame(root, query, isCurrent) {
     root.innerHTML = String(html`
       <div class="game">
         <header class="page-head center">
-          <span class="eyebrow"><a href="#/games">${t('Games')}</a> · ${m.label}</span>
+          <span class="eyebrow"><a href="/games">${t('Games')}</a> · ${m.label}</span>
           <h1>${m.question}</h1>
-          <div class="justify-center chips">${Object.entries(QUIZ_MODES).map(([k, v]) => html`<a class="chip ${k === mode ? 'active' : ''}" href="#/games/quiz?mode=${k}">${v.label}</a>`)}</div>
+          <div class="justify-center chips">${Object.entries(QUIZ_MODES).map(([k, v]) => html`<a class="chip ${k === mode ? 'active' : ''}" href="/games/quiz?mode=${k}">${v.label}</a>`)}</div>
         </header>
         <div class="scoreboard"><span>${t('Round')} <b>${round + 1}<small>/${deck.length}</small></b></span><span>${t('Points')} <b>${score}</b></span></div>
         <div class="game-cover"><img src="${coverUrl(r[1], 'cover')}" alt="${t('Map cover')}" data-hide-broken></div>
@@ -266,7 +266,7 @@ async function quizGame(root, query, isCurrent) {
         <span class="eyebrow">${m.label}</span>
         <div class="game-score">${score}<small>/ ${deck.length}</small></div>
         <p class="muted">${score >= 9 ? t('You’ve clearly had this argument before.') : score >= 6 ? t('Not bad.') : t('Skill issue. Try again?')}</p>
-        <div class="justify-center btn-row"><a class="btn btn-primary" href="#/games/quiz?mode=${mode}&r=${Date.now()}">${t('Play again')}</a></div>
+        <div class="justify-center btn-row"><a class="btn btn-primary" href="/games/quiz?mode=${mode}&r=${Date.now()}">${t('Play again')}</a></div>
       </div>`);
     });
   };
@@ -303,7 +303,7 @@ async function guessGame(root, isCurrent) {
   root.innerHTML = String(html`
     <div class="game">
       <header class="page-head center">
-        <span class="eyebrow"><a href="#/games">${t('Games')}</a> · ${t('Guess the map')}</span>
+        <span class="eyebrow"><a href="/games">${t('Games')}</a> · ${t('Guess the map')}</span>
         <h1>${t('Which map is this?')}</h1>
       </header>
       ${guessModes('practice')}
@@ -359,11 +359,11 @@ async function guessGame(root, isCurrent) {
         <h1 class="text-xl">${t('{score} of {max} points', { score, max: ROUNDS * 3 })}</h1>
         <p class="muted">${score >= 25 ? t('You know your maps by heart!') : score >= 15 ? t('Not bad, you’ve been playing.') : t('Plenty of maps left to discover.')} ${t('Your record is {best}.', { best })}</p>
         <div class="justify-center btn-row">
-          <a class="btn btn-primary" href="#/games/guess?mode=practice&r=${Date.now()}">${t('Play again')}</a>
+          <a class="btn btn-primary" href="/games/guess?mode=practice&r=${Date.now()}">${t('Play again')}</a>
           <button class="btn" id="share" type="button">${t('Copy result')}</button>
         </div>
       </div>`);
-    copyButton(root, `${t('Guess the map')} · PT Catch: ${score}/${ROUNDS * 3} 🍎 ${location.href.split('#')[0]}#/games/guess?mode=practice`);
+    copyButton(root, `${t('Guess the map')} · PT Catch: ${score}/${ROUNDS * 3} 🍎 ${location.origin}/games/guess?mode=practice`);
   };
 
   // A set without a cover can't be guessed: quietly swap it for the next one in the deck.
@@ -439,7 +439,7 @@ async function higherLower(root, isCurrent) {
     root.innerHTML = String(html`
       <div class="game">
         <header class="page-head center">
-          <span class="eyebrow"><a href="#/games">${t('Games')}</a> · ${t('Higher or lower?')}</span>
+          <span class="eyebrow"><a href="/games">${t('Games')}</a> · ${t('Higher or lower?')}</span>
           <h1>${t('Who has more {stat}?', { stat: stat.label })}</h1>
         </header>
         <div class="scoreboard"><span>${t('Streak')} <b>${streak}</b></span><span>${t('Record')} <b>${prefs.get('hilo-best', 0)}</b></span></div>
@@ -489,7 +489,7 @@ async function higherLower(root, isCurrent) {
 }
 
 export default async function games(root, { params, query, isCurrent }) {
-  // #/games/guess is the daily map and ?mode=practice the ten rounds; old #/games/daily links still work.
+  // /games/guess is the daily map and ?mode=practice the ten rounds; old /games/daily links still work.
   if (params.game === 'guess') return query.mode === 'practice' ? guessGame(root, isCurrent) : dailyGame(root, isCurrent);
   if (params.game === 'higher-lower') return higherLower(root, isCurrent);
   if (params.game === 'daily') return dailyGame(root, isCurrent);

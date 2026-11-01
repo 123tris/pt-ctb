@@ -5,6 +5,7 @@ import { html } from './html.js';
 import { FOOTER, pick } from './lore.js';
 import { track } from './track.js';
 import { t, th } from './i18n.js';
+import { go } from './ui.js';
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
@@ -73,8 +74,8 @@ function setBacalhau(on) {
 // Typed words that do something. Checked against the end of what was typed, so they work mid-sentence too.
 const TRIGGERS = [
   ['727', () => wysi()],
-  ['<rc', () => { location.hash = '#/activity?view=plays'; toast(th('Yes, we know you’ve typed {rc} more often than “hello”.', { rc: html`<span class="kbd">&lt;rc</span>` })); }],
-  ['aqui', () => toast(html`<b lang="pt-PT">Eu estou aqui</b>… <span lang="pt-PT">e tu?</span> <a href="#/map/2311555">${t('Go and see the map')}</a>`)], // PT text (intentional)
+  ['<rc', () => { go('/activity?view=plays'); toast(th('Yes, we know you’ve typed {rc} more often than “hello”.', { rc: html`<span class="kbd">&lt;rc</span>` })); }],
+  ['aqui', () => toast(html`<b lang="pt-PT">Eu estou aqui</b>… <span lang="pt-PT">e tu?</span> <a href="/map/2311555">${t('Go and see the map')}</a>`)], // PT text (intentional)
   ['bacalhau', () => { const on = !bacalhauOn(); setBacalhau(on); toast(on ? html`<b>BACALHAU!</b> 🐟 ${t('The catcher only catches cod now.')}` : html`${t('Back to fruit.')} 🍎`); }],
   ...RPS.flatMap(word => [...new Set([word, RPS_WORD[word]])].map(typed => [typed, () => rockPaperScissors(word)])),
 ];

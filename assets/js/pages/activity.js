@@ -75,9 +75,9 @@ export default async function activityPage(root, { query, isCurrent }) {
       <p>${t('Snipes, crowns, bounties, new top plays, Dan passes and leaderboard climbs from the last four months.')}</p>
     </header>
     ${tabs([
-      { href: '#/activity', label: t('Events'), active: view === 'events' },
-      { href: '#/activity?view=plays', label: t('Recent plays'), active: view === 'plays' },
-      ...(weekly ? [{ href: '#/activity?view=week', label: t('This week'), active: view === 'week' }] : []),
+      { href: '/activity', label: t('Events'), active: view === 'events' },
+      { href: '/activity?view=plays', label: t('Recent plays'), active: view === 'plays' },
+      ...(weekly ? [{ href: '/activity?view=week', label: t('This week'), active: view === 'week' }] : []),
     ], t('Activity views'))}
     ${view === 'events' ? html`<div id="kinds" class="mb-3">${chipGroup(t('Show'), 'kind', [
       ['', t('All')], ...groups.map(([k, label]) => [k, label]),

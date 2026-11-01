@@ -27,14 +27,14 @@ export const runningNow = ({ challenges, meta, bounties }) => ({
  */
 export function challengeChips(id, now, skip = '') {
   const chips = [];
-  if (skip !== 'week' && now.week === id) chips.push(html`<a class="badge badge-gold" href="#/challenges/week">${t('Map of the week')}</a>`);
+  if (skip !== 'week' && now.week === id) chips.push(html`<a class="badge badge-gold" href="/challenges/week">${t('Map of the week')}</a>`);
   if (skip !== 'hill') {
     for (const [slot, tier, map] of now.hill) {
-      if (map === id) chips.push(html`<a class="badge badge-gold" href="#/challenges/hill">${t('King of the hill: {slot} · {tier}', { slot: SLOT_NAME[slot], tier: TIER_NAME[tier] })}</a>`);
+      if (map === id) chips.push(html`<a class="badge badge-gold" href="/challenges/hill">${t('King of the hill: {slot} · {tier}', { slot: SLOT_NAME[slot], tier: TIER_NAME[tier] })}</a>`);
     }
   }
   if (skip !== 'bounty') {
-    for (const [map, , goal] of now.open) if (map === id) chips.push(html`<a class="badge badge-gold" href="#/challenges/bounties">${WANTED[goal]}</a>`);
+    for (const [map, , goal] of now.open) if (map === id) chips.push(html`<a class="badge badge-gold" href="/challenges/bounties">${WANTED[goal]}</a>`);
   }
   return chips;
 }

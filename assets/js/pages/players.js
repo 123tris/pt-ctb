@@ -16,7 +16,7 @@ const SORTS = {
 
 const card = p => {
   const role = danRole(p.danScore);
-  return html`<a class="card card-link" href="#/player/${p.id}">
+  return html`<a class="card card-link" href="/player/${p.id}">
     <div class="mb-3 player">${avatar(p.id, 'avatar-md')}<span class="text-lg fw-600">${p.name}</span></div>
     <dl class="kv kv-3">
       <div><dt>${t('Converts')}</dt><dd>${fmt.num(p.cv)}</dd></div>

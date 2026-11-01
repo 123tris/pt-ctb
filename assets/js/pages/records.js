@@ -13,7 +13,7 @@ function throneSection(throne, maps, index) {
   const boss = index.get(throne.u);
   if (!boss) return '';
   return html`<section class="section" id="throne">
-    <div class="section-head"><h2>${t('Dethrone {name}', { name: boss.name })}</h2><a href="#/player/${throne.u}">${t('{name}’s profile', { name: boss.name })}</a></div>
+    <div class="section-head"><h2>${t('Dethrone {name}', { name: boss.name })}</h2><a href="/player/${throne.u}">${t('{name}’s profile', { name: boss.name })}</a></div>
     <div class="throne-head card">
       ${avatar(throne.u, 'avatar-lg')}
       <div>
@@ -33,7 +33,7 @@ function throneSection(throne, maps, index) {
       <div class="card">
         <h3>${t('Closest challengers')}</h3>
         <p class="small muted">${t('Who sits at #2, right behind {name}, on the most maps.', { name: boss.name })}</p>
-        <div class="mini-board">${throne.challengers.map(([uid, n], i) => html`<a class="line" href="#/compare/${uid}/${throne.u}">
+        <div class="mini-board">${throne.challengers.map(([uid, n], i) => html`<a class="line" href="/compare/${uid}/${throne.u}">
           <span class="n">${i + 1}<span class="sr-only">.</span></span>
           <span class="player">${avatar(uid, 'avatar-sm')}<span class="${nameClass(index.get(uid))}">${index.get(uid)?.name ?? uid}</span></span>
           <span class="sr-only">, </span><span class="pp">${fmt.num(n)}<small><span class="sr-only"> </span>${t('maps')}</small></span>
@@ -60,7 +60,7 @@ function leaders(title, rows, index, unit, { note, foot } = {}) {
   return html`<div class="card">
     <h3>${title}</h3>
     ${note ? html`<p class="small muted">${note}</p>` : ''}
-    <div class="mini-board">${rows.map(([uid, value], i) => html`<a class="line" href="#/player/${uid}">
+    <div class="mini-board">${rows.map(([uid, value], i) => html`<a class="line" href="/player/${uid}">
       <span class="n">${i + 1}<span class="sr-only">.</span></span>
       <span class="player">${avatar(uid, 'avatar-sm')}<span class="${nameClass(index.get(uid))}">${index.get(uid)?.name ?? uid}</span></span>
       <span class="sr-only">, </span><span class="pp">${fmt.num(value)}${unit ? html`<small><span class="sr-only"> </span>${unit}</small>` : ''}</span>
@@ -94,7 +94,7 @@ function economySection(eco, index) {
     <h2>${t('Economy')}</h2>
     <p class="muted">${t('Bananas are earned by playing and spent on bounties, tips and the shop. {supply} are around right now, {escrow} of them in open bounties.', {
       supply: bananas(eco.totals.supply), escrow: bananas(eco.totals.escrow),
-    })} <a href="#/glossary?at=bananas">${t('What are bananas?')}</a></p>
+    })} <a href="/glossary?at=bananas">${t('What are bananas?')}</a></p>
     <div class="grid grid-3">
       ${leaders(t('Earned in {month}', { month }), earned.slice(0, 5), index, '🍌', { note: earned.length ? '' : t('Nobody yet this month.') })}
       ${leaders(t('Top bounty hunters'), hunters.slice(0, 5), index, '🍌', { note: t('Bananas taken from bounty pots, all time.') })}
@@ -122,7 +122,7 @@ export default async function recordsPage(root, { query, isCurrent }) {
       <p>${t('The biggest marks across every score the bot keeps: each player’s best play on each map.')}</p>
     </header>
 
-    <nav class="jump-links" aria-label="${t('On this page')}">${jumps.map(([id, label]) => html`<a class="chip" href="#/records?at=${id}">${label}</a>`)}</nav>
+    <nav class="jump-links" aria-label="${t('On this page')}">${jumps.map(([id, label]) => html`<a class="chip" href="/records?at=${id}">${label}</a>`)}</nav>
 
     <div class="stats">
       ${stat(t('Scores'), fmt.num(r.totals.scores))}

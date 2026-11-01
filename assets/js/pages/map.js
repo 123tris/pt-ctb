@@ -38,7 +38,7 @@ function statusDate(meta) {
 function diffSwitcher(id, diffs) {
   return html`<nav class="diffs" aria-label="${t('Difficulties')}">${diffs.map(([mapId, version, stars, players]) => {
     const label = t('{version}, {stars} stars, {players}', { version, stars: fmt.num(stars, 2), players: players ? fmt.plural(players, 'Portuguese player') : t('no Portuguese scores yet') });
-    return html`<a class="diff ${players ? '' : 'diff-new'}" href="#/map/${mapId}" style="--s:${starColor(stars)}" title="${label}"
+    return html`<a class="diff ${players ? '' : 'diff-new'}" href="/map/${mapId}" style="--s:${starColor(stars)}" title="${label}"
       aria-label="${label}" aria-current="${mapId === id ? 'page' : 'false'}"><span>${version}</span><small>${fmt.num(stars, 2)}</small></a>`;
   })}</nav>`;
 }
@@ -118,7 +118,7 @@ export default async function mapPage(root, { params, isCurrent }) {
         <div class="sub">${sub}</div>
         ${diffs ? diffSwitcher(id, diffs) : ''}
         ${wanted.map(([, , goal, , , , target, pledges, , pot, funds, poster, expires]) => html`<p class="bounty-line m-0 mt-2">${goalLine(goal, target, index)}${prizeTags(pledges)}</p>
-          ${pot ? html`${potLine({ pot, funds, poster, expires }, index)}<p class="m-0 small"><a href="#/challenges/bounties">${t('Fund it on the Bounties tab')}</a></p>` : ''}`)}
+          ${pot ? html`${potLine({ pot, funds, poster, expires }, index)}<p class="m-0 small"><a href="/challenges/bounties">${t('Fund it on the Bounties tab')}</a></p>` : ''}`)}
         ${funChips(tags, 'map-tags')}
         ${unrankedForever ? html`<p class="m-0 mt-2 small faint">${t('Still waiting to be ranked. Since 2018, probably.')}</p>` : ''}
       </div>
@@ -142,7 +142,7 @@ export default async function mapPage(root, { params, isCurrent }) {
 
     <div class="mt-4 btn-row">
       <a class="btn btn-small" href="${osuGame(id)}" title="${t('Opens this difficulty in the osu! game (on stable, downloading it through osu!direct needs supporter)')}">${t('Open in osu!')}</a>
-      ${meta?.[M.MAX_COMBO] ? html`<a class="btn btn-small" href="#/calculator?map=${id}">${t('Calculate pp')}</a>` : ''}
+      ${meta?.[M.MAX_COMBO] ? html`<a class="btn btn-small" href="/calculator?map=${id}">${t('Calculate pp')}</a>` : ''}
     </div>
 
     <section class="section map-board">

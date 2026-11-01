@@ -200,7 +200,7 @@ export const signInButton = (label = t('Sign in with osu!')) => (signInHere()
 
 const MOD_TEXT = mods => (mods ? ` +${mods}` : '');
 const GOAL_TEXT = { fc: t('Full combo'), pass: t('First pass'), snipe: t('Snipe') };
-const mapRef = (id, maps) => html`<a href="#/map/${id}">${maps?.[id] ? mapLabel(id, maps[id]) : t('map {id}', { id })}</a>`;
+const mapRef = (id, maps) => html`<a href="/map/${id}">${maps?.[id] ? mapLabel(id, maps[id]) : t('map {id}', { id })}</a>`;
 
 /** What a shop request asked for: the colour's name, the map, or the title. */
 function shopChoice(p, maps) {
@@ -217,7 +217,7 @@ export function requestText(r, index, maps) {
       goal: GOAL_TEXT[p.goal], mods: MOD_TEXT(p.mods), map: mapRef(p.map, maps), stake: bananas(p.stake),
     });
     case 'bounty.fund': return t('Fund bounty #{id} with {amount}', { id: p.bountyId, amount: bananas(p.amount) });
-    case 'tip': return th('Tip {who} {amount}', { who: html`<a href="#/player/${p.to}">${index?.get(p.to)?.name ?? `#${p.to}`}</a>`, amount: bananas(p.amount) });
+    case 'tip': return th('Tip {who} {amount}', { who: html`<a href="/player/${p.to}">${index?.get(p.to)?.name ?? `#${p.to}`}</a>`, amount: bananas(p.amount) });
     case 'shop.buy': {
       const choice = shopChoice(p, maps);
       const s = shopItem(p.item);

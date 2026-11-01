@@ -1,5 +1,6 @@
-// Hash router: #/player/123?tab=x → pages/player.js. GitHub Pages can't rewrite paths, so every page lives
-// behind the hash and index.html is the only document.
+// Path router: /player/123?tab=x → pages/player.js. index.html is the only document: Cloudflare Pages answers every
+// page address with it (functions/[[path]].js, which also writes the page's link preview into it), and links between
+// pages are followed here, without a reload. Old #/player/123 links still work: they're turned into the path on load.
 
 import { html } from './core/html.js';
 import { meta, NotFound } from './core/data.js';
@@ -14,50 +15,36 @@ import { initConsent } from './core/consent.js';
 import * as fmt from './core/fmt.js';
 import { t, lang, setLang } from './core/i18n.js';
 import { CONFIG } from './config.js';
+import { matchPage, unmoved } from './core/routes.js';
+import { here, go } from './core/ui.js';
 
-const ROUTES = [
-  ['', () => import('./pages/home.js')],
-  ['rankings/:board?', () => import('./pages/rankings.js')],
-  ['players', () => import('./pages/players.js')],
-  ['player/:id/:tab?', () => import('./pages/player.js')],
-  ['maps', () => import('./pages/maps.js')],
-  ['map/:id', () => import('./pages/map.js')],
-  ['activity', () => import('./pages/activity.js')],
-  ['challenges/:tab?', () => import('./pages/challenges.js')],
-  ['games/:game?', () => import('./pages/games.js')],
-  ['calculator', () => import('./pages/calculator.js')],
-  ['compare/:a?/:b?', () => import('./pages/compare.js')],
-  ['records', () => import('./pages/records.js')],
-  ['shop', () => import('./pages/shop.js')],
-  ['admin', () => import('./pages/admin.js')],
-  ['recap/:id/:year?', () => import('./pages/wrapped.js')],
-  ['commands', () => import('./pages/commands.js')],
-  ['join', () => import('./pages/join.js')],
-  ['team', () => import('./pages/team.js')],
-  ['glossary', () => import('./pages/glossary.js')],
-  ['privacy', () => import('./pages/privacy.js')],
-];
-
-/** Old addresses that moved: the Dan course is now a tab of Challenges (#/dan?stage=3 → #/challenges/dan?stage=3). */
-const MOVED = { dan: 'challenges/dan', verify: 'join' };
+/** Each page in core/routes.js and its module. */
+const LOADERS = {
+  '': () => import('./pages/home.js'),
+  'rankings/:board?': () => import('./pages/rankings.js'),
+  'players': () => import('./pages/players.js'),
+  'player/:id/:tab?': () => import('./pages/player.js'),
+  'maps': () => import('./pages/maps.js'),
+  'map/:id': () => import('./pages/map.js'),
+  'activity': () => import('./pages/activity.js'),
+  'challenges/:tab?': () => import('./pages/challenges.js'),
+  'games/:game?': () => import('./pages/games.js'),
+  'calculator': () => import('./pages/calculator.js'),
+  'compare/:a?/:b?': () => import('./pages/compare.js'),
+  'records': () => import('./pages/records.js'),
+  'shop': () => import('./pages/shop.js'),
+  'admin': () => import('./pages/admin.js'),
+  'recap/:id/:year?': () => import('./pages/wrapped.js'),
+  'commands': () => import('./pages/commands.js'),
+  'join': () => import('./pages/join.js'),
+  'team': () => import('./pages/team.js'),
+  'glossary': () => import('./pages/glossary.js'),
+  'privacy': () => import('./pages/privacy.js'),
+};
 
 function match(path) {
-  const parts = path.split('/').filter(Boolean);
-  for (const [pattern, load] of ROUTES) {
-    const keys = pattern.split('/').filter(Boolean);
-    const params = {};
-    let ok = parts.length <= keys.length;
-    for (let i = 0; ok && i < keys.length; i++) {
-      const key = keys[i];
-      if (key.startsWith(':')) {
-        const optional = key.endsWith('?');
-        if (parts[i] === undefined && !optional) ok = false;
-        else if (parts[i] !== undefined) params[key.slice(1).replace('?', '')] = decodeURIComponent(parts[i]);
-      } else if (parts[i] !== key) ok = false;
-    }
-    if (ok) return { load, params, pattern };
-  }
-  return null;
+  const found = matchPage(path);
+  return found && { ...found, load: LOADERS[found.pattern] };
 }
 
 // Route parts that are ids, left out of the usage key so "which pages get used" doesn't split by player or map.
@@ -94,12 +81,12 @@ let current = 0;
 async function route({ newPage = false } = {}) {
   const ticket = ++current;
   const started = performance.now();
-  let [path, search = ''] = location.hash.replace(/^#\/?/, '').split('?');
-  const moved = MOVED[path.split('/')[0]];
-  if (moved) {
-    path = [moved, ...path.split('/').slice(1)].join('/');
-    history.replaceState(history.state, '', `#/${path}${search ? `?${search}` : ''}`);
-    lastPath = location.hash.split('?')[0];
+  let path = location.pathname.replace(/^\/+/, '');
+  const search = location.search.slice(1);
+  if (unmoved(path) !== path) {
+    path = unmoved(path);
+    history.replaceState(history.state, '', `/${path}${location.search}`);
+    lastPath = location.pathname;
   }
   const query = Object.fromEntries(new URLSearchParams(search));
   const section = path.split('/')[0];
@@ -153,8 +140,8 @@ function showError(title, text, { newPage = false, players = false, glyph = '', 
   root.innerHTML = String(html`<div class="empty">${glyph ? html`<div class="lost-glyph" aria-hidden="true">${glyph}</div>` : ''}<h1>${title}</h1><p>${text}</p>${detail ? html`<p class="small faint">${detail}</p>` : ''}
     <div class="btn-row justify-center">
       <button class="btn btn-primary" type="button" data-open-search>${t('Search players')}</button>
-      ${players ? html`<a class="btn" href="#/players">${t('Browse all players')}</a>` : ''}
-      <a class="btn" href="#/">${t('Go to the home page')}</a>
+      ${players ? html`<a class="btn" href="/players">${t('Browse all players')}</a>` : ''}
+      <a class="btn" href="/">${t('Go to the home page')}</a>
     </div></div>`);
   root.querySelector('[data-open-search]').addEventListener('click', openSearch);
   if (newPage) focusHeading();
@@ -162,7 +149,7 @@ function showError(title, text, { newPage = false, players = false, glyph = '', 
 
 /**
  * Marks the current category in the main nav (class and aria-current on its name) and, in its menu, the page that's
- * open: the link matching the whole address, or else the one matching its path (#/activity for #/activity?kind=x).
+ * open: the link matching the whole address, or else the one matching its path (/activity for /activity?kind=x).
  */
 function markNav(section) {
   document.querySelectorAll('.nav-top').forEach(a => {
@@ -172,11 +159,11 @@ function markNav(section) {
     if (on) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  const here = location.hash || '#/';
-  const path = here.split('?')[0];
+  const address = here();
+  const path = location.pathname;
   document.querySelectorAll('.nav-menu').forEach(menu => {
     const links = [...menu.querySelectorAll('a')];
-    const current = links.find(a => a.getAttribute('href') === here) ?? links.find(a => a.getAttribute('href') === path);
+    const current = links.find(a => a.getAttribute('href') === address) ?? links.find(a => a.getAttribute('href') === path);
     links.forEach(a => a.classList.toggle('current', a === current));
   });
 }
@@ -226,7 +213,7 @@ document.addEventListener('keydown', e => {
   else if (nav.classList.contains('open') && nav.contains(document.activeElement)) { closeMenus(); toggle.focus(); }
 });
 
-// "Skip to content" focuses the page rather than following #content, which the router would treat as a route.
+// "Skip to content" focuses the page rather than following #content, which would put a hash in the address.
 document.querySelector('.skip')?.addEventListener('click', e => { e.preventDefault(); root.focus(); });
 
 // Hide images marked data-hide-broken (avatars, covers) that fail to load. One capture-phase listener, since error
@@ -235,16 +222,39 @@ document.addEventListener('error', e => {
   if (e.target instanceof HTMLImageElement && e.target.hasAttribute('data-hide-broken')) e.target.style.visibility = 'hidden';
 }, true);
 
+// An old #/player/123 address (a link from before the site had paths, or one still written that way) becomes the path.
+function fromHash() {
+  if (!location.hash.startsWith('#/')) return false;
+  history.replaceState(history.state, '', `/${location.hash.slice(2)}`);
+  return true;
+}
+fromHash();
+
+// Links to the site's own pages open here without a reload (core/ui.js go()). New tabs, downloads, other sites and the
+// addresses that aren't pages (/auth, /api, /stats) are left to the browser.
+document.addEventListener('click', e => {
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = e.target.closest?.('a[href]');
+  if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+  const url = new URL(a.href, location.href);
+  if (url.origin !== location.origin || !match(unmoved(url.pathname.replace(/^\/+/, '')))) return;
+  if (url.hash && url.pathname === location.pathname && url.search === location.search) return;
+  e.preventDefault();
+  go(url.pathname + url.search);
+});
+window.addEventListener('popstate', () => window.dispatchEvent(new Event('routechange')));
+window.addEventListener('hashchange', () => { if (fromHash()) window.dispatchEvent(new Event('routechange')); });
+
 // Scroll to the top on a new page, but not when only the query changes (e.g. a filter on the same page).
 let lastPath = null;
-window.addEventListener('hashchange', () => {
-  const path = location.hash.split('?')[0];
+window.addEventListener('routechange', () => {
+  const path = location.pathname;
   const newPage = path !== lastPath;
   if (newPage) window.scrollTo({ top: 0, behavior: 'instant' });
   lastPath = path;
   route({ newPage });
 });
-lastPath = location.hash.split('?')[0];
+lastPath = location.pathname;
 startTracking();
 route();
 // Tables are rendered by many pages, some after the fact (paging, filters): label each one as it appears.

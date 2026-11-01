@@ -18,14 +18,14 @@ import { runningNow, challengeChips } from '../core/challenge-chips.js';
 import * as fmt from '../core/fmt.js';
 import { t, th, tn } from '../core/i18n.js';
 
-// Six sub-pages with their own URLs (#/challenges/week, /hill, /dan, /targets, /bounties, /completion). "Dan" keeps the
+// Six sub-pages with their own URLs (/challenges/week, /hill, /dan, /targets, /bounties, /completion). "Dan" keeps the
 // community's own word. They're tabs, like the leaderboards', and each tab shows where that challenge stands right now.
 // The week, the month's King of the hill and the bounties are what's on now: a map in more than one of them carries
 // the others' chips (core/challenge-chips.js), here and on its map page.
 const TABS = [
-  { slug: 'week', label: t('This week'), intro: th('A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on {activity}.', { activity: html`<a href="#/activity?view=week">${t('Activity')}</a>` }) },
+  { slug: 'week', label: t('This week'), intro: th('A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on {activity}.', { activity: html`<a href="/activity?view=week">${t('Activity')}</a>` }) },
   // Only once the export has hill.json (the bot started King of the hill): see `shown` below.
-  { slug: 'hill', label: t('King of the hill'), intro: th('A pool of maps each month, one per slot, in an Open and an easier Challenger tier (from November 2026: 6–9★ and 4.5–6.5★). Hold a map’s best play when the month ends to keep its crown. {more}', { more: html`<a href="#/glossary?at=crown">${t('How crowns work')}</a>` }) },
+  { slug: 'hill', label: t('King of the hill'), intro: th('A pool of maps each month, one per slot, in an Open and an easier Challenger tier (from November 2026: 6–9★ and 4.5–6.5★). Hold a map’s best play when the month ends to keep its crown. {more}', { more: html`<a href="/glossary?at=crown">${t('How crowns work')}</a>` }) },
   { slug: 'dan', label: t('Dan course'), intro: DAN_INTRO },
   { slug: 'targets', label: t('Snipe targets'), intro: t('#1s that are begging to be sniped, maps with a single Portuguese player, and maps nobody in Portugal has played yet.') },
   { slug: 'bounties', label: t('Bounties'), intro: t('Prizes the community puts up for hard maps: full combo one, pass it first or take its #1, and the bot announces the claim on Discord.') },
@@ -81,14 +81,14 @@ function weekSection(week, maps, index, me, now) {
           <span class="badge badge-accent">${t('Week {n}', { n: week.id.split('-W')[1] })}</span>
           ${catChip(week.cat)} ${meta ? starsBadge(meta[M.STARS]) : ''} ${challengeChips(week.map, now, 'week')}
         </div>
-        <h3 class="banner-title"><a href="#/map/${week.map}">${title}</a></h3>
+        <h3 class="banner-title"><a href="/map/${week.map}">${title}</a></h3>
         <div class="sub">${sub}</div>
         <p class="m-0 mt-3">${th('Ends in {countdown}', { countdown: html`<span class="countdown" id="countdown">${countdown(week.end)}</span>` })}</p>
       </div>
     </section>
     <div class="mt-3 mb-6 btn-row">
       <a class="btn btn-primary" href="${osuMap(week.map)}" target="_blank" rel="noopener">${t('Open on osu!')} ↗</a>
-      <a class="btn" href="#/map/${week.map}">${t('Full leaderboard')}</a>
+      <a class="btn" href="/map/${week.map}">${t('Full leaderboard')}</a>
     </div>
     <div class="section-head"><h2>${t('This week’s plays')}</h2></div>
     ${week.weekly.length ? boardTable(week.weekly, index, me, t('This week’s plays on the map of the week')) : empty(t('Nobody has played this map this week. Be the first!'))}
@@ -116,7 +116,7 @@ export default async function challengesPage(root, { params, query, isCurrent })
 
   root.innerHTML = String(html`
     ${pageHead({ title: t('Challenges') })}
-    ${tabs(shown.map(x => ({ href: `#/challenges/${x.slug}`, label: x.label, count: figures[x.slug], active: x === tab })), t('Challenges'))}
+    ${tabs(shown.map(x => ({ href: `/challenges/${x.slug}`, label: x.label, count: figures[x.slug], active: x === tab })), t('Challenges'))}
     <p class="muted tabs-intro">${tab.intro}</p>
     <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me, now) : tab.slug === 'targets' ? targetsPanel(data, maps, index)
       : tab.slug === 'bounties' ? bountiesPanel(board, data, index, now, eco) : ''}</div>
@@ -199,7 +199,7 @@ const percent = (n, total) => (total ? (n / total) * 100 : 0);
 function leftRow([id, set, version, stars, rankedDay, plays, length], sets) {
   const named = sets[set];
   const title = named ? `${named[0]} - ${named[1]}` : t('Map #{id}', { id });
-  return html`<a class="row card-link" href="#/map/${id}">
+  return html`<a class="row card-link" href="/map/${id}">
     <span class="map">
       ${setCover(set)}
       <span class="map-text">

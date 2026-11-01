@@ -178,7 +178,7 @@ export const valueText = v => (typeof v === 'boolean' ? (v ? t('on') : t('off'))
 
 /** One line saying what an admin action asks for. `index` names players; settings show by key, as the bot logs them. */
 export function actionText(kind, a = {}, index) {
-  const who = id => html`<a href="#/player/${id}">${index?.get(id)?.name ?? `#${id}`}</a>`;
+  const who = id => html`<a href="/player/${id}">${index?.get(id)?.name ?? `#${id}`}</a>`;
   switch (kind) {
     case 'admin.set': return th('Set {key} to {value}', { key: html`<code>${a.key}</code>`, value: html`<b>${valueText(a.value)}</b>` });
     case 'admin.reset': return th('Reset {key} to its default', { key: html`<code>${a.key}</code>` });
@@ -187,8 +187,8 @@ export function actionText(kind, a = {}, index) {
     case 'admin.hill.redraft': return t('Redraft the King of the hill pool');
     case 'admin.bounty.cancel': return a.refund === false ? t('Cancel bounty #{id} without refunds', { id: a.id }) : t('Cancel bounty #{id} and refund everyone', { id: a.id });
     case 'admin.bananas.adjust': return th('Adjust {who} by {amount}', { who: who(a.osuId), amount: html`<b>${a.amount > 0 ? '+' : '−'}${bananas(Math.abs(a.amount ?? 0))}</b>` });
-    case 'admin.map.ban': return th('Ban {map}', { map: html`<a href="#/map/${a.beatmapId}">${t('map {id}', { id: a.beatmapId })}</a>` });
-    case 'admin.map.unban': return th('Unban {map}', { map: html`<a href="#/map/${a.beatmapId}">${t('map {id}', { id: a.beatmapId })}</a>` });
+    case 'admin.map.ban': return th('Ban {map}', { map: html`<a href="/map/${a.beatmapId}">${t('map {id}', { id: a.beatmapId })}</a>` });
+    case 'admin.map.unban': return th('Unban {map}', { map: html`<a href="/map/${a.beatmapId}">${t('map {id}', { id: a.beatmapId })}</a>` });
     default: return kind;
   }
 }

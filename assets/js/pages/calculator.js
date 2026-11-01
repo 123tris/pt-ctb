@@ -40,7 +40,7 @@ export default async function calculator(root, { query, isCurrent }) {
         <h2>${t('pp calculator')}</h2>
         <nav class="mb-3 chips" aria-label="${t('Preset maps')}">
           <span class="chips-label small faint">${t('Try:')}</span>
-          ${CALC_PRESETS.map(([id, label]) => html`<a class="chip ${id === mapId ? 'active' : ''}" href="#/calculator?map=${id}" ${id === mapId ? raw('aria-current="page"') : ''}>${label}</a>`)}
+          ${CALC_PRESETS.map(([id, label]) => html`<a class="chip ${id === mapId ? 'active' : ''}" href="/calculator?map=${id}" ${id === mapId ? raw('aria-current="page"') : ''}>${label}</a>`)}
         </nav>
         ${meta ? html`<div class="mb-3">${mapLink(mapId, meta)}</div>` : ''}
         <div class="gap-3 grid grid-2">

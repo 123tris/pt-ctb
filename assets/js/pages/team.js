@@ -25,7 +25,7 @@ export default async function team(root) {
       <div class="card">
         <h2>${t('The currency')}</h2>
         <p class="muted">${t('Bounties, challenges and bets on this server have been paid in osu!supporter since 2018: weekly prizes, a month per sniped loved score, the top-50 challenge, and in 2026 a month of supporter for every point the CWC team took.')}</p>
-        <a class="btn btn-small" href="#/challenges">${t('See the challenges')}</a>
+        <a class="btn btn-small" href="/challenges">${t('See the challenges')}</a>
       </div>
     </section>
   `);

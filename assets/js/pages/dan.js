@@ -6,7 +6,7 @@ import { playerLink, mapLink, scoreStats, posBadge, empty, myId, scrollBehavior,
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
 
-// The Dan course is the "Dan course" tab of Challenges (pages/challenges.js); #/dan still redirects there.
+// The Dan course is the "Dan course" tab of Challenges (pages/challenges.js); /dan still redirects there.
 export const DAN_INTRO = th('The Dan course is the community’s ladder of challenges: 19 maps, each harder than the last. Up to the 10th Dan you pass with 98% accuracy; from the Hebrew letters on (Aleph to Shin) you need 99%. Every stage gives points, and points give Discord roles. Use {updatedan} and {claimdanrole}.', {
   updatedan: html`<span class="kbd">/updatedan</span>`, claimdanrole: html`<span class="kbd">/claimdanrole</span>`,
 });
@@ -99,7 +99,7 @@ export function renderDan(root, data, index, query) {
     draw();
     // The ladder was rebuilt, so put focus back on the stage that was just chosen rather than losing it.
     ladder.querySelector(`[data-stage="${selected}"]`)?.focus({ preventScroll: true });
-    history.replaceState(null, '', `#/challenges/dan?stage=${selected}`);
+    history.replaceState(null, '', `/challenges/dan?stage=${selected}`);
     detail.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
   });
   draw();

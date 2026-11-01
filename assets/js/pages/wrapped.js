@@ -62,7 +62,7 @@ export default async function wrapped(root, { params, isCurrent }) {
   const year = years.includes(Number(params.year)) ? Number(params.year) : years[0];
   setTitle(t('{name} in {year}', { name: p.name, year: year ?? '' }));
 
-  const yearChips = html`<div class="mb-4 chips">${years.map(y => html`<a class="chip ${y === year ? 'active' : ''}" href="#/recap/${id}/${y}">${y}</a>`)}</div>`;
+  const yearChips = html`<div class="mb-4 chips">${years.map(y => html`<a class="chip ${y === year ? 'active' : ''}" href="/recap/${id}/${y}">${y}</a>`)}</div>`;
   if (!year) {
     root.innerHTML = String(empty(t('{name} has no recorded plays yet.', { name: p.name })));
     return;
@@ -80,7 +80,7 @@ export default async function wrapped(root, { params, isCurrent }) {
     <header class="profile-head">
       ${avatar(id, 'avatar-lg')}
       <div><span class="eyebrow">${t('Year in review')}</span><h1>${t('{name}’s {year}', { name: p.name, year })}</h1>
-        <div class="btn-row"><a class="btn btn-small" href="#/player/${id}">← ${t('Profile')}</a><button class="btn btn-small btn-primary" id="share" type="button">${t('Copy recap')}</button></div></div>
+        <div class="btn-row"><a class="btn btn-small" href="/player/${id}">← ${t('Profile')}</a><button class="btn btn-small btn-primary" id="share" type="button">${t('Copy recap')}</button></div></div>
     </header>
     ${yearChips}
     <p class="small faint">${t('Counts {name}’s stored best scores on each map that were set in {year}. Plays that were improved later show up in the year of the improvement.', { name: p.name, year })}</p>

@@ -58,7 +58,7 @@ export const avatar = (id, cls = '') => {
 export function playerLink(who, index, cls = '') {
   const p = typeof who === 'object' ? who : index?.get(who);
   const id = typeof who === 'object' ? who.id : who;
-  return html`<a class="player" href="#/player/${id}">${avatar(id, cls)}<span class="${nameClass(p)}">${p ? p.name : `#${id}`}</span></a>`;
+  return html`<a class="player" href="/player/${id}">${avatar(id, cls)}<span class="${nameClass(p)}">${p ? p.name : `#${id}`}</span></a>`;
 }
 
 /**
@@ -142,7 +142,7 @@ export const bannerArt = set => html`<div class="banner-art"${set ? html` style=
 /** A map with its cover, title and difficulty, linking to its page. */
 export function mapLink(id, meta, { showStars = true } = {}) {
   const { title, sub } = mapText(id, meta);
-  return html`<a class="map" href="#/map/${id}">
+  return html`<a class="map" href="/map/${id}">
     ${cover(meta)}
     <span class="map-text">
       <span class="map-title" title="${title}">${title}</span>
@@ -312,19 +312,32 @@ export function announce(text) {
   setTimeout(() => { el.textContent = text; }, 50);
 }
 
-/** The hash's query (#/maps?q=x&page=2) as an object. */
-export const readQuery = () => Object.fromEntries(new URLSearchParams(location.hash.split('?')[1] ?? ''));
+/** The page's address on this site, path and query: '/maps?q=x&page=2'. */
+export const here = () => location.pathname + location.search;
 
 /**
- * Rewrites the hash's query in place, so filters, sort and page survive Back and can be shared. No history entry
+ * Opens one of the site's pages (an address like '/player/123?tab=x') without a reload; `replace` swaps it for the
+ * current history entry instead of adding one. app.js renders it on 'routechange'.
+ */
+export function go(address, { replace = false } = {}) {
+  if (address === here()) return;
+  history[replace ? 'replaceState' : 'pushState'](null, '', address);
+  window.dispatchEvent(new Event('routechange'));
+}
+
+/** The address's query (/maps?q=x&page=2) as an object. */
+export const readQuery = () => Object.fromEntries(new URLSearchParams(location.search));
+
+/**
+ * Rewrites the address's query in place, so filters, sort and page survive Back and can be shared. No history entry
  * and no re-render. Empty, false and default values (`defaults[key]`) are left out.
  */
 export function writeQuery(params, defaults = {}) {
-  const [path] = location.hash.split('?');
+  const path = location.pathname;
   const before = readQuery();
   const kept = Object.entries(params).filter(([k, v]) => v !== '' && v !== null && v !== undefined && v !== false && String(v) !== String(defaults[k] ?? ''));
   const q = String(new URLSearchParams(kept.map(([k, v]) => [k, v === true ? '1' : v])));
-  history.replaceState(history.state, '', `${path || '#/'}${q ? `?${q}` : ''}`);
+  history.replaceState(history.state, '', `${path}${q ? `?${q}` : ''}`);
   // For the usage counts (core/track.js): which filters, sorts and search fields get used.
   window.dispatchEvent(new CustomEvent('ptctb:query', { detail: { before, after: readQuery() } }));
 }
@@ -424,7 +437,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && tipOwner) 
 document.addEventListener('focusout', e => { if (e.target === tipOwner && e.relatedTarget) closeTip(); });
 addEventListener('scroll', () => closeTip(), { passive: true, capture: true });
 addEventListener('resize', () => closeTip());
-addEventListener('hashchange', () => closeTip());
+addEventListener('routechange', () => closeTip());
 
 /**
  * Renders `items` a page at a time into `container`, with previous/next buttons. `render(slice, offset)` returns

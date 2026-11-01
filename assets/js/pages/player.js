@@ -40,11 +40,11 @@ function trophies(crowns, claims, maps) {
     </ul>` : ''}
     ${crowns?.total ? html`<p class="small muted">${t('{crowns} on King of the hill: {tally}', { crowns: fmt.plural(crowns.total, 'crown'), tally: slotTally(crowns.slots) })}</p>` : ''}
     ${holding.length ? html`<p class="small muted">${t('Holding this month: {slots}.', { slots: holding.map(([slot, tier]) => `${SLOT_NAME[slot]} (${TIER_NAME[tier]})`).join(', ') })}
-      <a href="#/challenges/hill">${t('See the pool')}</a></p>` : ''}
+      <a href="/challenges/hill">${t('See the pool')}</a></p>` : ''}
     ${claims.slice(0, CLAIMS_SHOWN).map(([id, , goal, , , at]) => html`<p class="small muted">${th('Bounty claimed: {goal} on {map}', {
-      goal: GOAL_LABEL[goal], map: html`<a href="#/map/${id}">${mapLabel(id, maps[id])}</a>`,
+      goal: GOAL_LABEL[goal], map: html`<a href="/map/${id}">${mapLabel(id, maps[id])}</a>`,
     })}${at ? html` <span class="faint">· ${fmt.date(at)}</span>` : ''}</p>`)}
-    ${claims.length > CLAIMS_SHOWN ? html`<p class="small"><a href="#/challenges/bounties">${t('{n} more in the hall of fame', { n: fmt.num(claims.length - CLAIMS_SHOWN) })}</a></p>` : ''}
+    ${claims.length > CLAIMS_SHOWN ? html`<p class="small"><a href="/challenges/bounties">${t('{n} more in the hall of fame', { n: fmt.num(claims.length - CLAIMS_SHOWN) })}</a></p>` : ''}
   </section>`;
 }
 
@@ -73,7 +73,7 @@ function bananaSection(p, w, ledger) {
   const own = me?.id === p.id;
   // Signed out, it could be theirs: the way to collect. Signed in as someone else, it isn't.
   const mayBeThem = !me && signInHere();
-  const head = html`<h2 class="card-h">${t('Bananas')} <a class="card-h-link" href="#/glossary?at=bananas">${t('What are bananas?')}</a></h2>`;
+  const head = html`<h2 class="card-h">${t('Bananas')} <a class="card-h-link" href="/glossary?at=bananas">${t('What are bananas?')}</a></h2>`;
   if (!w.s) {
     return html`<section class="section card bananas" id="bananas">${head}
       ${w.p > 0 ? html`
@@ -100,8 +100,8 @@ function bananaSection(p, w, ledger) {
     ${ledgerList(ledger)}
     ${own ? html`<div class="wallet-own">
       <div class="btn-row">
-        <a class="btn btn-small" href="#/shop">${t('Shop')}</a>
-        <a class="btn btn-small" href="#/challenges/bounties">${t('Bounties')}</a>
+        <a class="btn btn-small" href="/shop">${t('Shop')}</a>
+        <a class="btn btn-small" href="/challenges/bounties">${t('Bounties')}</a>
         <button class="btn btn-small" type="button" id="shield" aria-pressed="${w.sh ? 'true' : 'false'}" aria-describedby="shield-note">${t('Snipe shield')}</button>
       </div>
       <p class="small faint" id="shield-note" aria-live="polite">${t('The shield keeps snipe bounties from targeting your #1s. Changing it goes through the bot.')}</p>
@@ -245,7 +245,7 @@ function rankStat(label, rank, where, pp, { sub = '', noRank, cls, board, id }) 
   const ppText = `${fmt.pp(pp)} pp`;
   const boardName = t('{board} leaderboard', { board: board === 'ranked' ? t('Ranked') : label }); // as the Leaderboards page names it
   return rank
-    ? stat(label, html`<a class="stat-link" href="#/rankings/${board}?at=${id}" aria-label="${boardName}, ${fmt.rank(rank)} ${where}" title="${t('See the {board}', { board: boardName })}">${fmt.rank(rank)} <span class="stat-unit">${where}</span></a>`, sub ? html`<span class="keep">${ppText}</span> · <span class="keep">${sub}</span>` : ppText, cls)
+    ? stat(label, html`<a class="stat-link" href="/rankings/${board}?at=${id}" aria-label="${boardName}, ${fmt.rank(rank)} ${where}" title="${t('See the {board}', { board: boardName })}">${fmt.rank(rank)} <span class="stat-unit">${where}</span></a>`, sub ? html`<span class="keep">${ppText}</span> · <span class="keep">${sub}</span>` : ppText, cls)
     : stat(label, ppText, noRank, cls);
 }
 
@@ -271,7 +271,7 @@ function danGrid(file) {
   const passes = new Map(file.dan.map(([i, s]) => [i, s]));
   return html`<div class="dan-ladder">${DAN_STAGES.map(stage => {
     const s = passes.get(stage.index);
-    return html`<a class="dan-stage ${stage.index > 10 ? 'hebrew' : ''} ${s ? '' : 'locked'}" href="#/map/${DAN_MAPS[stage.index]}">
+    return html`<a class="dan-stage ${stage.index > 10 ? 'hebrew' : ''} ${s ? '' : 'locked'}" href="/map/${DAN_MAPS[stage.index]}">
       <span class="points">${stage.points} pts</span>
       <div class="dan-glyph">${stage.glyph}</div>
       <b>${danName(stage.index)}</b>
@@ -440,7 +440,7 @@ export default async function player(root, { params, query, isCurrent }) {
             && html`<button class="link-button" type="button" data-signin>${t('Is this you? Sign in to collect {n}', { n: bananas(wallet.p) })}</button>`,
         ].filter(Boolean).map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>
         <div class="links">
-          <a class="btn btn-small btn-icon" href="#/compare/${id}" aria-label="${t('Compare {name} with another player', { name: p.name })}" title="${t('Compare with another player')}">${COMPARE_ICON}</a>
+          <a class="btn btn-small btn-icon" href="/compare/${id}" aria-label="${t('Compare {name} with another player', { name: p.name })}" title="${t('Compare with another player')}">${COMPARE_ICON}</a>
           ${badges.length ? badgePeek(badges) : ''}
         </div>
       </div>
@@ -467,7 +467,7 @@ export default async function player(root, { params, query, isCurrent }) {
       ${stat(t('Play count'), fmt.num(p.plays), html`<span class="grade-counts">${['X', 'S', 'A'].map((g, i) => html`<span>${gradeBadge(g)}${fmt.num(p.grades[i])}</span>`)}</span>`)}
       ${stat(t('Dan points'), fmt.num(p.danScore), t('{done} of {total} stages', { done: fmt.num(p.dan.length), total: fmt.num(DAN_STAGES.length) }))}    </div>
 
-    ${id === THRONE_PLAYER ? html`<p class="mt-4 notice">${th('Every #1 on this profile is up for grabs. {link}', { link: html`<a href="#/records?at=throne">${t('Dethrone Tris')}</a>` })}</p>` : ''}
+    ${id === THRONE_PLAYER ? html`<p class="mt-4 notice">${th('Every #1 on this profile is up for grabs. {link}', { link: html`<a href="/records?at=throne">${t('Dethrone Tris')}</a>` })}</p>` : ''}
 
     ${file.pinned ? pinnedPlay(file.pinned, file.maps) : signature ? html`<section class="section card signature">
       <h2 class="card-h">${t('Signature map')} <span class="faint">· ${t(signature.kind)}</span></h2>
@@ -483,7 +483,7 @@ export default async function player(root, { params, query, isCurrent }) {
 
     <section class="section">
       <h2 class="sr-only">${t('Plays')}</h2>
-      ${tabs(shownTabs.map(item => ({ href: `#/player/${id}/${item.slug}`, label: item.label, count: counts[item.slug], active: item === tab })), t('Score lists'))}
+      ${tabs(shownTabs.map(item => ({ href: `/player/${id}/${item.slug}`, label: item.label, count: counts[item.slug], active: item === tab })), t('Score lists'))}
       ${tab.slug === 'dan' ? danGrid(file) : html`
         ${tab.slug === 'top' ? html`<p class="muted small">${t('The best ranked plays (converts included) with their official pp, taken from osu!’s monthly data dump.')}</p>` : ''}
         ${tab.slug === 'pre' ? html`<p class="muted small">${t('Plays set before their map was ranked. They’re kept for the record but count toward nothing: no pp, no leaderboard spot.')}</p>` : ''}
