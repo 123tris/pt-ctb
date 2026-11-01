@@ -669,9 +669,7 @@ td.king-rank { color: var(--gold); }
    six rows, NM to Convert, with the Open and Challenger cells side by side (one tier at a time on phones, picked with
    chips); the crown table, where only a sole #1 is gold; past months in brief, as a small slot by tier table. */
 .hill-lead { margin: 0; font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
-.hill-lead .player { vertical-align: middle; }
 .hill-lead-sub { margin: var(--sp-1) 0 var(--sp-4); color: var(--text-dim); font-size: var(--fs-sm); }
-.hill-lead-sub .player { vertical-align: middle; }
 .hill-pick { display: none; margin-bottom: var(--sp-3); }
 .hill-tiers, .row.hill-row { display: grid; grid-template-columns: 4rem repeat(2, minmax(0, 1fr)); gap: var(--sp-4); }
 .hill-tiers { padding: 0 var(--sp-4) var(--sp-2); color: var(--text-dim); font-size: var(--fs-sm); font-weight: 600; }
@@ -696,14 +694,18 @@ td.king-rank { color: var(--gold); }
 td.hill-king { color: var(--text); font-weight: 700; }
 .hill-titles { margin-bottom: var(--sp-6); }
 .hill-titles li { display: grid; gap: 2px; }
-.hill-titles .player { vertical-align: middle; }
 .hill-scope-label { align-self: center; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
 .hill-months { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: var(--sp-6); }
 .hill-month-h { margin: 0; font: 600 var(--fs-md)/1.3 var(--font); color: var(--text); }
 .hill-month p { margin: var(--sp-1) 0 var(--sp-2); }
-.hill-month p .player { vertical-align: middle; }
-.hill-kept th[scope='row'] { width: 4rem; color: var(--text); font-size: var(--fs-sm); font-weight: 700; text-transform: none; letter-spacing: 0; }
-.hill-kept td { max-width: 0; }
+.hill-name { color: var(--text); font-weight: 500; }
+/* Who kept each crown: a fixed layout (as .kings-table), so a long name ends in "…" in its own column. The slot is a
+   row header on the row's own background, like the pool's slot column. */
+.hill-kept { table-layout: fixed; }
+.hill-kept .col-slot { width: 5.5rem; }
+@media (max-width: 600px) { .hill-kept .col-slot { width: 4.75rem; } }
+.hill-kept tbody th { background: transparent; color: var(--text); font-size: var(--fs-sm); font-weight: 700; text-transform: none; letter-spacing: 0; }
+.hill-kept tr:last-child th { border-bottom: 0; }
 /* Linked badges (challenge chips) and pool player links get a 24px hit area. */
 a.badge { min-height: 24px; }
 /* A profile's trophies (pages/player.js): King of the hill's titles and Bounty hunter as chips, then a line each for
