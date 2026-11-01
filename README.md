@@ -33,23 +33,25 @@ and is imported by both the exporter and the pages, so the two can't drift apart
 
 | Route | What |
 |---|---|
-| `#/` | Home: top 5s, map of the week, latest activity, how to join |
-| `#/rankings/{converts,loved,ranked,mods,plays}` | Leaderboards, osupepe-style mod rankings, and the country's top plays (by source and mod) |
-| `#/players`, `#/player/{id}/{tab}` | Player list (the header search's "all results", not in the nav) and profiles (scores, Dan, pp history) |
-| `#/maps`, `#/map/{id}` | Map search and per-map Portuguese leaderboards |
-| `#/activity`, `#/activity?view=plays` | Snipes, top plays, Dan passes, overtakes; recent plays |
-| `#/challenges/{week,dan,targets}` | This week (map of the week); the Dan course (`?stage={n}`; old `#/dan` links redirect here); snipe targets (vulnerable #1s, bounties, one-player maps, unclaimed) |
-| `#/glossary` | pp, converts, grades, mods and the community's words, for newcomers |
-| `#/games/{guess,higher-lower}` | Guess the map from its cover; higher or lower |
-| `#/calculator` | Catch pp calculator and "what if" pp gain |
-| `#/compare/{a}/{b}` | Head to head |
-| `#/records` | Records and community stats |
-| `#/rankings/kings` | King of each whole-star range (10★ and above combined), with separate catch and convert boards; tied totals share the title. `?stars=6&src=converts` is one range's full board: everyone with a #1 there, ties sharing a rank |
-| `#/recap/{id}/{year}` | A player's year in review |
-| `#/commands`, `#/verify`, `#/team` | Bot commands, how `/verify` works, Team Portugal |
+| `/` | Home: top 5s, map of the week, latest activity, how to join |
+| `/rankings/{converts,loved,ranked,mods,plays}` | Leaderboards, osupepe-style mod rankings, and the country's top plays (by source and mod) |
+| `/players`, `/player/{id}/{tab}` | Player list (the header search's "all results", not in the nav) and profiles (scores, Dan, pp history) |
+| `/maps`, `/map/{id}` | Map search and per-map Portuguese leaderboards |
+| `/activity`, `/activity?view=plays` | Snipes, top plays, Dan passes, overtakes; recent plays |
+| `/challenges/{week,dan,targets}` | This week (map of the week); the Dan course (`?stage={n}`; old `/dan` links redirect here); snipe targets (vulnerable #1s, bounties, one-player maps, unclaimed) |
+| `/glossary` | pp, converts, grades, mods and the community's words, for newcomers |
+| `/games/{guess,higher-lower}` | Guess the map from its cover; higher or lower |
+| `/calculator` | Catch pp calculator and "what if" pp gain |
+| `/compare/{a}/{b}` | Head to head |
+| `/records` | Records and community stats |
+| `/rankings/kings` | King of each whole-star range (10★ and above combined), with separate catch and convert boards; tied totals share the title. `?stars=6&src=converts` is one range's full board: everyone with a #1 there, ties sharing a rank |
+| `/recap/{id}/{year}` | A player's year in review |
+| `/commands`, `/verify`, `/team` | Bot commands, how `/verify` works, Team Portugal |
 
-Filters, sort and page are kept in the hash's query (e.g. `#/maps?q=freedom&cat=r&page=2`), so Back and shared links
-restore them.
+Filters, sort and page are kept in the address's query (e.g. `/maps?q=freedom&cat=r&page=2`), so Back and shared links
+restore them. Old `#/…` addresses still work: the site turns them into the path. Every page address gets index.html from
+`functions/[[path]].js`, with the page's own title, description and picture in its `<head>` (`embed/embed.js`), so a
+link posted on Discord previews that page: a player's rank and pp, a map's stars and #1, a leaderboard's description.
 
 ## Running it
 

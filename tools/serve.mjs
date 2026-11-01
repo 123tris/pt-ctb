@@ -21,6 +21,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { plainName } from '../assets/js/core/data-name.js';
+import { describe, pageFor } from '../embed/embed.js';
+import { CONFIG } from '../assets/js/config.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.argv.slice(2).find(a => /^\d+$/.test(a))) || 8080;
@@ -129,7 +131,7 @@ function oldText(page) {
   return oldTexts.get(key);
 }
 
-http.createServer((req, res) => {
+http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
   if (usage && url.pathname === '/api/hit' && req.method === 'POST') return serveUsage(req, res, url, usage.recordHit);
   if (usage && url.pathname === '/stats') return serveUsage(req, res, url, usage.stats);
@@ -145,12 +147,19 @@ http.createServer((req, res) => {
   let file = path.join(root, decodeURIComponent(url.pathname));
   if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
   const local = isLocal(req);
-  const page = url.pathname === '/' ? '/index.html' : decodeURIComponent(url.pathname);
+  // A page address (/player/123) gets index.html with its link preview, as functions/[[path]].js sends it.
+  const isPage = url.pathname === '/' || (!path.extname(url.pathname) && describe(url.pathname) !== null);
+  const page = isPage ? '/index.html' : decodeURIComponent(url.pathname);
   if (local && page === '/index.html') readBefore(); // on every page load, so new edits and commits count
   const old = local && wantsOld(req) && before?.files.has(page) ? oldText(page) : null;
-  if (old !== null || (local && page === '/index.html')) {
+  if (old !== null || page === '/index.html') {
     let text = old ?? fs.readFileSync(path.join(root, page), 'utf8');
-    if (page === '/index.html') text = text.replace('</head>', '<script src="tools/local-review.js"></script>\n</head>');
+    if (page === '/index.html') {
+      const base = localData ? `${url.origin}/data/` : CONFIG.data;
+      const fetchJson = u => fetch(u).then(r => (r.ok ? r.json() : Promise.reject(new Error(`${r.status} ${u}`))));
+      text = await pageFor(text, url.href, { ua: req.headers['user-agent'], base, fetchJson });
+      if (local) text = text.replace('</head>', '<script src="tools/local-review.js"></script>\n</head>');
+    }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(page)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
     res.end(text);
     return;

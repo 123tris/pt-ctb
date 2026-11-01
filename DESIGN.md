@@ -498,7 +498,7 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
   list (`.checks-list`) before the button, which stays disabled, with the reason in visible text, until they're met.
   It opens in place (`aria-expanded`), never in a modal. The answer comes back as a toast and in "Your requests".
 
-### Admin panel (`#/admin`)
+### Admin panel (`/admin`)
 - Only for admins: anyone else gets "Admins only" and no data, and only admins see it in the You menu.
 - **A setting** is a row: its description as the label (in the visitor's language), then the key in `--mono`, the
   default and when it takes effect in `--text-faint`, and its typed field on the right (under the text on a phone):
@@ -583,7 +583,7 @@ Messaging, Label, Tooltip, Accessibility (link text).*
 - **Headings** say what the page is ("Leaderboards"), never a slogan. `pageHead()` takes at most one plain sentence of
   intro.
 - **Labels** are nouns of one to three words, with no end punctuation. **Buttons and menu items** are verbs.
-- **Explain once**, where it's needed, and link to `#/glossary` instead of repeating the explanation above every table.
+- **Explain once**, where it's needed, and link to `/glossary` instead of repeating the explanation above every table.
 - **Use players' own terms:** pp, FC, SS, nomod, HDDT, converts, loved, snipe, Dan. New terms go in the glossary.
 
 **Languages:**

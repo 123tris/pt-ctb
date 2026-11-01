@@ -15,7 +15,7 @@ minutes without a git commit or a Pages build (see "Data on R2").
 `/auth/callback`). They exist because osu!'s OAuth needs a client secret, which a static page can't hold.
 
 The old address keeps working. GitHub Pages stays on and, once `leaveGithub` is on, forwards
-`https://123tris.github.io/pt-ctb/#/…` to `https://ptcatch.com/#/…`. It always forwards to the release site, never to
+`https://123tris.github.io/pt-ctb/#/…` to the same page on `https://ptcatch.com`. It always forwards to the release site, never to
 dev. Visitors sign in again there: sign-ins are per address. The bot's `/verify` page, `https://123tris.github.io/pt-ctb-verify/`,
 is a different repo and **must stay exactly where it is**. Moving it would mean changing the bot's osu! app and config
 too.
@@ -31,6 +31,7 @@ caps that keep publishing far inside it are in "Data on R2".
 | `tools/build-site.mjs` | The Pages build command. See below. |
 | `_headers` | Security headers (CSP, HSTS, no framing…; `connect-src` allows `https://data.ptcatch.com`) and caching: images for a week, JS/CSS revalidated. |
 | `publish.ps1`, `tools/r2-sync.mjs`, `tools/lib/r2*.mjs` | Export and upload the data to R2, within hard free-tier caps. See "Data on R2". |
+| `functions/[[path]].js`, `embed/embed.js` | Every page address (`/player/123`, `/rankings/plays`…) gets index.html with that page's link preview in its `<head>`, so links posted on Discord show what the page is. Crawlers get the player's or map's name and numbers from the data (a few cached fetches); visitors get the page's fixed text with no fetch. The build's `dist/_routes.json` keeps `/`, `/assets/*` and `/404.html` off Functions, so only page loads count against the free 100,000 Function requests a day. |
 | `functions/auth/*.js`, `signin/oauth.js` | The sign-in endpoints. Both sites share one osu! app through the release site's callback, with a two-site allowlist. Stateless: no cookies, no database, no signing key. The osu! token is revoked straight away. |
 | `assets/js/config.js` | `production` and `development` (the two addresses), `data` (`https://data.ptcatch.com/`) and `leaveGithub` are edited by hand. `home`, `signIn` and `env` are filled in by the build, per branch. |
 | `assets/js/moved.js` | The forwarding from github.io to `production`. |
@@ -246,13 +247,13 @@ Once you're happy with `https://ptcatch.com`, set `leaveGithub: true` in `assets
 and push. **Keep GitHub Pages switched on** for this repo, because it now serves the forwarding. It always goes to
 `production`, so dev settings can never send anyone to dev.
 
-**Check:** `https://123tris.github.io/pt-ctb/#/dan` ends up at `https://ptcatch.com/#/dan`. If you had picked "This is
+**Check:** `https://123tris.github.io/pt-ctb/#/dan` ends up at `https://ptcatch.com/challenges/dan`. If you had picked "This is
 me" on the old site, it's still picked on the new one.
 
 ## 4. Usage counts and your dashboard (/stats)
 
 The site counts how it's used, per visitor (a random id in the browser) and, when the visitor said who they are, per
-osu! player (`assets/js/core/track.js` → `functions/api/hit.js` → `usage/store.js`; `#/privacy` explains it to
+osu! player (`assets/js/core/track.js` → `functions/api/hit.js` → `usage/store.js`; `/privacy` explains it to
 visitors), and `https://ptcatch.com/stats` shows it to you only: Overview, People, Health, and one page per player. Until the steps below are done, the site sends the counts but they
 are dropped (the endpoint answers "no-database"), and `/stats` says what's missing.
 
@@ -337,7 +338,7 @@ per day from osu!'s CDN (no API calls).
 `npm run serve -- --local-data --economy` runs all of it locally over SQLite, with a stand-in for osu! that asks which
 player to sign in as (seed, inbox key and session secret are all `local`).
 
-### The admin panel (`#/admin`, bananas-contract.md §8)
+### The admin panel (`/admin`, bananas-contract.md §8)
 
 Admins change the bot's live settings and do admin work from the site. Like spending, every change is a request in the
 same D1 inbox (kinds `admin.*`), which the bot checks against its own admin list and applies or refuses within 15
@@ -352,7 +353,7 @@ which the export makes from the bot's `Admin/panel.json` (`tools/lib/admin.mjs`;
    ids. Unset, it's Tris (3821475) and DemiGod Yoxide (6205809). Keep it the same as the bot's `Admin:OsuIds`: the bot
    refuses anyone not on its own list with `not_admin` anyway. Retry the deployment after changing it.
 3. **Check:** signed in as an admin on ptcatch.com, the You menu has **Admin**; signed in as anyone else,
-   `#/admin` says "Admins only".
+   `/admin` says "Admins only".
 
 Locally, `--economy` lists the admins first in the sign-in stand-in, and with `--local-data` and no `data/admin.json`
 of its own serves `tools/admin-sample.json` (made-up values for all 86 settings and a short log) as `admin.json`.

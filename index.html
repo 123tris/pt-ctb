@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PT Catch · osu!catch in Portugal</title>
 <meta name="description" content="Portugal's osu!catch community: leaderboards, player profiles, the Dan course, weekly challenges and games.">
+<!-- The front page's link preview. Every other page gets its own from functions/[[path]].js (embed/embed.js). -->
+<meta property="og:site_name" content="PT Catch">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PT Catch · osu!catch in Portugal">
+<meta property="og:description" content="Portugal's osu!catch community: leaderboards, player profiles, the Dan course, weekly challenges and games.">
+<meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#1f191b">
 <link rel="icon" href="assets/img/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/css/site.css">
@@ -32,7 +38,7 @@ addEventListener('load', () => {
 <a class="skip" href="#content" data-t>Skip to content</a>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="#/" aria-label="PT Catch, home page" data-t-label>
+    <a class="brand" href="/" aria-label="PT Catch, home page" data-t-label>
       <img src="assets/img/logo.svg" alt="" width="32" height="32">
       <span>PT Catch</span>
     </a>
@@ -43,36 +49,36 @@ addEventListener('load', () => {
       <!-- Categories, as on osu.ppy.sh: the name opens the page people use most; hovering (or tabbing in) shows the rest.
            A category whose page already lists all its sub-pages (tabs or cards) has no menu. -->
       <div class="nav-cat">
-        <a class="nav-top" href="#/rankings" data-section="rankings players player recap compare" data-t>Leaderboards</a>
+        <a class="nav-top" href="/rankings" data-section="rankings players player recap compare" data-t>Leaderboards</a>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/maps" data-section="maps map calculator" data-t>Maps</a>
+        <a class="nav-top" href="/maps" data-section="maps map calculator" data-t>Maps</a>
         <div class="nav-menu">
-          <a href="#/maps" data-t>Search maps</a>
-          <a href="#/calculator" data-t>pp calculator</a>
+          <a href="/maps" data-t>Search maps</a>
+          <a href="/calculator" data-t>pp calculator</a>
         </div>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/challenges" data-section="challenges" data-t>Challenges</a>
+        <a class="nav-top" href="/challenges" data-section="challenges" data-t>Challenges</a>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/activity" data-section="activity records team shop" data-t>Community</a>
+        <a class="nav-top" href="/activity" data-section="activity records team shop" data-t>Community</a>
         <div class="nav-menu">
-          <a href="#/activity" data-t>Activity</a>
-          <a href="#/records" data-t>Records</a>
-          <a href="#/team" data-t>Team Portugal</a>
-          <a href="#/shop" data-t>Shop</a>
+          <a href="/activity" data-t>Activity</a>
+          <a href="/records" data-t>Records</a>
+          <a href="/team" data-t>Team Portugal</a>
+          <a href="/shop" data-t>Shop</a>
         </div>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/games" data-section="games" data-t>Games</a>
+        <a class="nav-top" href="/games" data-section="games" data-t>Games</a>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="#/join" data-section="join glossary commands" data-t>Help</a>
+        <a class="nav-top" href="/join" data-section="join glossary commands" data-t>Help</a>
         <div class="nav-menu">
-          <a href="#/join" data-t>How to join</a>
-          <a href="#/glossary" data-t>Glossary</a>
-          <a href="#/commands" data-t>Bot commands</a>
+          <a href="/join" data-t>How to join</a>
+          <a href="/glossary" data-t>Glossary</a>
+          <a href="/commands" data-t>Bot commands</a>
         </div>
       </div>
       <!-- The site's language (app.js): each button names its language in that language. -->
@@ -89,9 +95,9 @@ addEventListener('load', () => {
 <div id="status" class="sr-only" role="status" aria-live="polite"></div>
 <footer class="footer">
   <div class="footer-inner">
-    <p class="footer-links" id="footer-links"><a href="#/glossary" data-t>New here? Read the glossary</a></p>
+    <p class="footer-links" id="footer-links"><a href="/glossary" data-t>New here? Read the glossary</a></p>
     <p><span data-t-html>Made by the <b>PT Catch</b> community with data from the server's bot.</span> <span id="quip"></span> <span id="freshness"></span></p>
-    <p class="footer-dim"><span data-t>osu! is a trademark of ppy Pty Ltd. This site is not official. We record how the site is used, to make it better.</span> <a class="dim-link" href="#/privacy" data-t>Privacy and opt-out</a></p>
+    <p class="footer-dim"><span data-t>osu! is a trademark of ppy Pty Ltd. This site is not official. We record how the site is used, to make it better.</span> <a class="dim-link" href="/privacy" data-t>Privacy and opt-out</a></p>
   </div>
 </footer>
 </body>
