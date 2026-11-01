@@ -16,7 +16,10 @@ const SCOPE_CHIPS = 5;
 
 /** A player in the hill's lists: their site entry, or the name the bot gave for someone the site doesn't list. */
 const who = (id, name, index) => index.get(id) ?? { id, name: name || `#${id}` };
-const names = (ids, index) => andList(ids.map(id => playerLink(who(id, '', index), null, 'avatar-sm')));
+/** A player's name as a plain link, for names in running text and the past months' tables (no avatar to line up). */
+const nameLink = (id, name, index) => html`<a class="hill-name" href="#/player/${id}">${who(id, name, index).name}</a>`;
+/** Names in a sentence: "A, B and C", each linked. */
+const names = (ids, index) => andList(ids.map(id => nameLink(id, '', index)));
 
 /** The stars a slot's map shows: HR and DT slots' with the mod (the bot's), the others' nomod. */
 const slotStars = (s, maps) => (HILL_MOD_STARS.includes(s.slot) && s.stars ? s.stars : maps[s.map]?.[M.STARS] ?? 0);
@@ -161,10 +164,13 @@ function crownTable(rows, season, index, me) {
   </table></div>`;
 }
 
-/** A closed month in brief: its King(s) of the hill, then who kept each slot's crown in each tier. */
+/**
+ * A closed month in brief: its King(s) of the hill as a sentence, then who kept each slot's crown in each tier, a fixed
+ * table (like Star kings) whose names end in "…" rather than run into the next column.
+ */
 function pastMonth(m, index) {
   const kept = (slot, tier) => m.pool.find(s => s.slot === slot && s.tier === tier);
-  const holder = s => (s?.holder ? playerLink(who(s.holder.u, s.holder.name, index), null, 'avatar-sm') : html`<span class="faint">—</span>`);
+  const holder = s => (s?.holder ? nameLink(s.holder.u, s.holder.name, index) : html`<span class="faint">—</span>`);
   return html`<div class="hill-month">
     <h3 class="hill-month-h">${monthLabel(m.month)}</h3>
     <p class="muted small">${m.kings.length ? th('{title}: {players} with {crowns}', {
@@ -172,9 +178,9 @@ function pastMonth(m, index) {
       crowns: m.kings.length > 1 ? t('{crowns} each', { crowns: fmt.plural(m.most, 'crown') }) : fmt.plural(m.most, 'crown'),
     }) : t('No crowns given')}</p>
     <div class="table-wrap"><table class="table-compact hill-kept">
-      <thead><tr><th><span class="sr-only">${t('Slot')}</span></th>${HILL_TIERS.map(tier => html`<th>${TIER_NAME[tier]}</th>`)}</tr></thead>
+      <thead><tr><th class="col-slot"><span class="sr-only">${t('Slot')}</span></th>${HILL_TIERS.map(tier => html`<th>${TIER_NAME[tier]}</th>`)}</tr></thead>
       <tbody>${HILL_SLOTS.filter(slot => HILL_TIERS.some(tier => kept(slot, tier))).map(slot => html`<tr>
-        <th scope="row">${SLOT_NAME[slot]}</th>${HILL_TIERS.map(tier => html`<td class="cell-player">${holder(kept(slot, tier))}</td>`)}
+        <th scope="row">${SLOT_NAME[slot]}</th>${HILL_TIERS.map(tier => html`<td><span class="cell-line">${holder(kept(slot, tier))}</span></td>`)}
       </tr>`)}</tbody>
     </table></div>
   </div>`;
