@@ -5,7 +5,7 @@
 // publish.ps1), or data/ with npm run serve -- --local-data, which maps the hashed names back to the plain files.
 
 import { CONFIG } from '../config.js';
-import { decodeMapsSearch } from './maps-search.js';
+import { decodeMapsSearch, decodeSearchMaps } from './maps-search.js';
 import { hashedName } from './data-name.js';
 
 const cache = new Map();
@@ -70,6 +70,15 @@ export function mapsIndex() {
   mapsPromise ??= load('maps-search.json').then(decodeMapsSearch);
   mapsPromise.catch(() => { mapsPromise = null; });
   return mapsPromise;
+}
+
+/**
+ * The header search's maps (search-maps.json, core/maps-search.js decodeSearchMaps): the maps two or more players here
+ * have played, in the full index's row shape. Data from before it falls back to the full index.
+ */
+export async function searchMaps() {
+  const m = await meta();
+  return m.files?.['search-maps.json'] ? decodeSearchMaps(await load('search-maps.json')) : mapsIndex();
 }
 
 /** { total, rows }: the most-played maps (most players first), for the Maps page's first pages; mapsIndex() has them all. */

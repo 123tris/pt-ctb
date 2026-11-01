@@ -4,7 +4,7 @@ import { S, M, CAT, STATUS, DAN_MAPS } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { mapTags } from '../core/badges.js';
 import { mapLore } from '../core/lore.js';
-import { goalLine, prizeTags } from '../core/bounty.js';
+import { goalLine, prizeTags, potLine } from '../core/bounty.js';
 import { runningNow, challengeChips } from '../core/challenge-chips.js';
 import {
   setTitle, playerLink, scoreStats, ppText, posBadge, bannerArt, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip, scoreWhen,
@@ -63,20 +63,22 @@ const boardTable = rows => html`<div class="table-wrap"><table>
   <tbody>${rows}</tbody>
 </table></div>`;
 
-async function otherMeta(id, { ch, site, bountyData }) {
-  return ch?.maps[id] ?? bountyData?.maps[id] ?? site.hill?.maps[id] ?? (await dan()).stages.find(stage => stage.map === id)?.meta ?? null;
+/** A map nobody here has played still has details in one of the challenge files; challenges.json only comes if needed. */
+async function otherMeta(id, { site, bountyData }) {
+  return bountyData?.maps[id] ?? site.hill?.maps[id] ?? (await dan()).stages.find(stage => stage.map === id)?.meta
+    ?? (await challenges().catch(() => null))?.maps[id] ?? null;
 }
 
 export default async function mapPage(root, { params, isCurrent }) {
   const id = Number(params.id);
-  // The challenges running now, for the chips under the title: challenges.json (the map of the week) and bounties.json
-  // are small and cached, and meta.json has King of the hill's month. A missing or broken one only means fewer chips.
-  const [entry, index, ch, bountyData, site] = await Promise.all([
-    mapEntry(id), playerIndex(), challenges().catch(() => null), bounties().catch(() => null), siteMeta(),
+  // The challenges running now, for the chips under the title: bounties.json is small and cached, and meta.json has
+  // the map of the week and King of the hill's month in brief. A missing or broken one only means fewer chips.
+  const [entry, index, bountyData, site] = await Promise.all([
+    mapEntry(id), playerIndex(), bounties().catch(() => null), siteMeta(),
   ]);
   // Maps nobody here has played (challenge suggestions, bounties, pool maps, unplayed Dan stages) still have details
   // elsewhere.
-  const meta = entry?.m ?? await otherMeta(id, { ch, site, bountyData });
+  const meta = entry?.m ?? await otherMeta(id, { site, bountyData });
   // The set's difficulties, when the data has them (sets/ came after the map files) and they include this one.
   const set = meta?.[M.SET] ? await mapSet(meta[M.SET]).catch(() => null) : null;
   const diffs = set?.some(d => d[0] === id) ? set : null;
@@ -99,7 +101,7 @@ export default async function mapPage(root, { params, isCurrent }) {
   // Open bounties on this map ([mapId, cat, goal, posted, players, closestMiss, target, pledges]): a Wanted chip, and
   // each one's dare and prizes under the title.
   const wanted = (bountyData?.open ?? []).filter(r => r[0] === id);
-  const chips = challengeChips(id, runningNow({ challenges: ch, meta: site, bounties: bountyData }));
+  const chips = challengeChips(id, runningNow({ meta: site, bounties: bountyData }));
 
   root.innerHTML = String(html`
     <section class="banner">
@@ -115,7 +117,8 @@ export default async function mapPage(root, { params, isCurrent }) {
         <h1><a class="title-link" href="${osuMap(id)}" target="_blank" rel="noopener" title="${t('{name} on osu!', { name: title })}">${title}</a></h1>
         <div class="sub">${sub}</div>
         ${diffs ? diffSwitcher(id, diffs) : ''}
-        ${wanted.map(([, , goal, , , , target, pledges]) => html`<p class="bounty-line m-0 mt-2">${goalLine(goal, target, index)}${prizeTags(pledges)}</p>`)}
+        ${wanted.map(([, , goal, , , , target, pledges, , pot, funds, poster, expires]) => html`<p class="bounty-line m-0 mt-2">${goalLine(goal, target, index)}${prizeTags(pledges)}</p>
+          ${pot ? html`${potLine({ pot, funds, poster, expires }, index)}<p class="m-0 small"><a href="#/challenges/bounties">${t('Fund it on the Bounties tab')}</a></p>` : ''}`)}
         ${funChips(tags, 'map-tags')}
         ${unrankedForever ? html`<p class="m-0 mt-2 small faint">${t('Still waiting to be ranked. Since 2018, probably.')}</p>` : ''}
       </div>

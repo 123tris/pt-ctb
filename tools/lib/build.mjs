@@ -5,7 +5,7 @@ import {
   S, M, CAT, CATS, STATUS, MODE, DAN_MAPS, THRONE_PLAYER, PLAYER_MAP_FIELDS, classify, boardComparator, weightedTotal,
   matchesModFilter, parseModFilter, isSS, PLAY_SOURCES, topPlaysView,
 } from '../../assets/js/core/model.js';
-import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
+import { encodeMapsSearch, encodeSearchMaps, SEARCH_MIN_PLAYERS } from '../../assets/js/core/maps-search.js';
 import { playerBadges, era, signatureMap, badgeKey } from '../../assets/js/core/badges.js';
 import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
 import { completion, homeGoal } from './completion.mjs';
@@ -667,6 +667,9 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     const id = Number(key);
     if (w.c && entryOf.has(id)) Object.assign(entryOf.get(id), { nc: w.c, ncu: w.cu });
     const file = playerFiles[id];
+    // Each wallet's latest lines go on the player's own profile file, so economy.json stays the size of the balances.
+    if (file && w.r?.length) file.ledger = w.r;
+    delete w.r;
     if (!w.sg || !file) continue;
     const best = CATS.flatMap(cat => file.scores[cat].filter(t => t[S.MAP] === w.sg).map(t => [cat, ...t]))
       .sort((a, b) => b[S.PP + 1] - a[S.PP + 1] || b[S.SCORE + 1] - a[S.SCORE + 1])[0];
@@ -981,6 +984,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       ...(pre ? { pre } : {}),
       ...(file.crowns ? { crowns: file.crowns } : {}),
       ...(file.pinned ? { pinned: file.pinned } : {}),
+      ...(file.ledger ? { ledger: file.ledger } : {}),
       maps: Object.fromEntries([...shown.map(t => t[S.MAP]), ...(file.pinned ? [file.pinned[S.MAP + 1]] : [])].sort((a, b) => a - b)
         .map(m => [m, file.maps[m]])),
       extras: {
@@ -1008,6 +1012,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     completion: homeGoal(goal.file),
     // King of the hill's running month in brief (hill.mjs hillNow), or null.
     hill: hillNow(hill.file),
+    // The map of the week in brief, for the map page's chip, so it doesn't load challenges.json for it.
+    week: challenges.week ? { map: challenges.week.map, end: challenges.week.end } : null,
   };
 
   const state = {
@@ -1047,8 +1053,11 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       ...(economy.file ? { 'economy.json': economy.file } : {}),
       'unlocks.json': unlocked.file,
       'history.json': history,
-      'maps-top.json': { total: mapsIndex.length, rows: mapsIndex.slice(0, MAPS_TOP) },
-      'maps-search.json': encodeMapsSearch(mapsIndex),
+      // The Maps page's rows leave out the mapper, which only the header search uses.
+      'maps-top.json': { total: mapsIndex.length, rows: mapsIndex.slice(0, MAPS_TOP).map(r => r.slice(0, 9)) },
+      'maps-search.json': encodeMapsSearch(mapsIndex.map(r => r.slice(0, 9))),
+      // The header search's own index (core/search.js): the maps SEARCH_MIN_PLAYERS or more players here have played.
+      'search-maps.json': encodeSearchMaps(mapsIndex.filter(r => r[7] >= SEARCH_MIN_PLAYERS)),
       ...Object.fromEntries(Object.entries(playerFiles).map(([id, file]) => [`players/${id}.json`, file])),
       ...Object.fromEntries(Object.entries(headFiles).map(([id, file]) => [`players/${id}-head.json`, file])),
       ...Object.fromEntries(Object.entries(mapBuckets).map(([b, file]) => [`maps/${b}.json`, file])),

@@ -98,3 +98,55 @@ export function rankMaps(rows, hay, text) {
   return scored.slice(0, MAP_LIMIT).map(s => ({ tier: s[0], row: s[2] }));
 }
 
+
+// ---- The header search's own index (search-maps.json) --------------------------------------------------------------
+// Only what the search shows and matches: id, set, artist, title, difficulty, stars (hundredths), mapper and players (for
+// ranking), stored by column like maps-search.json, for the maps SEARCH_MIN_PLAYERS or more players here have played.
+// About 45% of the full index; a map outside it is still found by its id, and "Search all maps" searches every one.
+
+export const SEARCH_MIN_PLAYERS = 2;
+
+/** Rows [id, setId, artist, title, version, stars, category, players, topPlayerId, mapper] → search-maps.json. */
+export function encodeSearchMaps(rows) {
+  const sorted = [...rows].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+  const file = { v: 1, sets: [], mappers: [], id: [], set: [], ver: [], stars: [], n: [] };
+  const setNumber = new Map(), mapperNumber = new Map();
+  let lastId = 0, lastSet = 0, lastSetId = 0;
+  for (const [id, setId, artist, title, version, stars, , players, , mapper = ''] of sorted) {
+    if (!mapperNumber.has(mapper)) { mapperNumber.set(mapper, file.mappers.length); file.mappers.push(mapper); }
+    const key = `${setId}\u0000${artist}\u0000${title}\u0000${mapper}`;
+    if (!setNumber.has(key)) {
+      setNumber.set(key, file.sets.length);
+      file.sets.push([setId - lastSetId, artist, title, mapperNumber.get(mapper)]);
+      lastSetId = setId;
+    }
+    const set = setNumber.get(key);
+    file.id.push(id - lastId);
+    file.set.push(set - lastSet);
+    lastId = id;
+    lastSet = set;
+    file.ver.push(version);
+    file.stars.push(Math.round(stars * 100));
+    file.n.push(players);
+  }
+  return file;
+}
+
+/** search-maps.json → rows in the full index's shape ([…, players, null, mapper]; no category or #1). */
+export function decodeSearchMaps(file) {
+  const sets = [];
+  let setId = 0;
+  for (const [delta, artist, title, mapper] of file.sets) {
+    setId += delta;
+    sets.push([setId, artist, title, file.mappers[mapper] ?? '']);
+  }
+  const rows = new Array(file.id.length);
+  let id = 0, set = 0;
+  for (let i = 0; i < rows.length; i++) {
+    id += file.id[i];
+    set += file.set[i];
+    const [sid, artist, title, mapper] = sets[set];
+    rows[i] = [id, sid, artist, title, file.ver[i], file.stars[i] / 100, '', file.n[i], null, mapper];
+  }
+  return rows;
+}

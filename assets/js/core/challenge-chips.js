@@ -15,7 +15,8 @@ export const WANTED = { fc: t('Wanted: FC'), pass: t('Wanted: first pass'), snip
  * (the open bounties). Any of them may be null.
  */
 export const runningNow = ({ challenges, meta, bounties }) => ({
-  week: challenges?.week?.map ?? null,
+  // challenges.json's week, or meta.json's brief one (the map page reads only that) while it hasn't ended.
+  week: challenges?.week?.map ?? (meta?.week?.end > Date.now() / 1000 ? meta.week.map : null),
   hill: meta?.hill?.status === 'live' && meta.hill.end > Date.now() / 1000 ? meta.hill.pool : [],
   open: bounties?.open ?? [],
 });

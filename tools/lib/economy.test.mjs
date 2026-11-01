@@ -82,8 +82,11 @@ test('economy.json: wallets of players on the site, recent lines, the boards and
   assert.equal(eco.players[2].sh, 1);
   assert.equal(eco.players[2].c, null, 'a colour that ran out isn’t shown');
   // Newest first; the pouch flag; a tip's reason, nothing else's.
-  assert.deepEqual(eco.players[3].r.map(r => r.slice(1)), [[120, 'fc.first', 1, null], [120, 'snipe', 1, null]]);
-  assert.deepEqual(eco.players[1].r[2].slice(1), [-20, 'tip.out', 0, 'nice FC']);
+  // The latest lines are on each profile file, not economy.json.
+  assert.equal(eco.players[3].r, undefined);
+  assert.deepEqual(files['players/3.json'].ledger.map(r => r.slice(1)), [[120, 'fc.first', 1, null], [120, 'snipe', 1, null]]);
+  assert.deepEqual(files['players/3-head.json'].ledger, files['players/3.json'].ledger);
+  assert.deepEqual(files['players/1.json'].ledger[2].slice(1), [-20, 'tip.out', 0, 'nice FC']);
   assert.equal(eco.month, '2026-11');
   assert.deepEqual(eco.boards.earned, [[1, 750], [3, 240]], 'this month only: the October crown doesn’t count');
   assert.deepEqual(eco.boards.hunters, [[1, 750, 1]]);
@@ -175,4 +178,12 @@ test('a name colour reaches players.json while it lasts, and the pinned play rea
     assert.ok(file.maps[10], name);
   }
   assert.equal(files['players/2.json'].pinned, undefined);
+});
+
+test('meta.json carries the map of the week in brief, and the header search gets its own small index', () => {
+  const { files } = run();
+  assert.ok('week' in files['meta.json']);
+  const search = files['search-maps.json'];
+  assert.ok(search && Array.isArray(search.mappers));
+  assert.ok(!files['maps-search.json'].mappers?.some(Boolean), 'the Maps page index leaves the mapper out');
 });

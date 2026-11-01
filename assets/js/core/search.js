@@ -3,13 +3,15 @@
 // through all of them. Wide screens show the field inline; narrow ones show a search button that opens the field as a
 // full-width row under the bar. "/" anywhere focuses it.
 //
-// The maps come from maps-search.json (core/data.js mapsIndex, the Maps page's own index: about 0.9 MB compressed, cached
-// under its content hash). It's only fetched on the field's first focus, never on page load; until it arrives the
-// players show alone.
+// The maps come from search-maps.json (core/data.js searchMaps): the maps two or more players here have played, about
+// 0.4 MB compressed, cached under its content hash. It's only fetched on the field's first focus, never on page load;
+// until it arrives the players show alone. An exact beatmap id or link outside it is looked up in that map's own small
+// file, and "Search all maps" (the Maps page) has every map.
 
 import { html } from './html.js';
-import { players, mapsIndex } from './data.js';
-import { tierOf, rankMaps } from './maps-search.js';
+import { players, searchMaps, mapEntry } from './data.js';
+import { tierOf, rankMaps, beatmapIdOf } from './maps-search.js';
+import { M } from './model.js';
 import { avatar, setCover, starsBadge, nameClass } from './ui.js';
 import * as fmt from './fmt.js';
 import { track, shapeOf } from './track.js';
@@ -93,6 +95,7 @@ export function initSearch() {
   const listEl = box.querySelector('.search-results');
   const [allPlayers, allMaps] = box.querySelectorAll('.search-all a');
   let list = null, maps = null, results = [], active = -1;
+  const looked = new Map(); // beatmap id → a row from its own map file, for ids outside the search index (null: none)
 
   const load = () => {
     if (!list) list = players().then(l => (list = l)).catch(() => (list = null, []));
@@ -101,7 +104,7 @@ export function initSearch() {
   /** The maps and their search text, fetched once, on the field's first focus; redraws when they arrive. */
   const loadMaps = () => {
     if (maps) return;
-    maps = mapsIndex().then(rows => {
+    maps = searchMaps().then(rows => {
       maps = { rows, hay: rows.map(r => `${r[3]} ${r[2]} ${r[4]} ${r[9] ?? ''}`.toLowerCase()) };
       if (input.value.trim() && document.activeElement === input) draw();
     }).catch(() => { maps = null; });
@@ -133,7 +136,7 @@ export function initSearch() {
         ${setCover(setId, 'list', 'search-cover')}
         <span class="search-name">${known ? html`${highlight(title, text)} <span class="search-diff">[${highlight(version, text)}]</span>` : t('Map {id}', { id })}</span>
         <span class="search-detail">${known && stars ? starsBadge(stars) : ''}</span>
-        <span class="search-sub">${known ? html`${highlight(artist, text)}${mapper ? html` · ${t('mapped by {mapper}', { mapper: highlight(mapper, text) })}` : ''}` : t('No Portuguese plays on it yet')}</span>
+        <span class="search-sub">${known ? html`${highlight(artist, text)}${mapper ? html` · ${t('mapped by {mapper}', { mapper: highlight(mapper, text) })}` : ''}` : r.map[7] ? t('No map details') : t('No Portuguese plays on it yet')}</span>
       </div>`;
     }
     return html`<div role="option" id="search-opt-${i}" data-i="${i}" aria-selected="false">
@@ -152,7 +155,20 @@ export function initSearch() {
     if (text !== input.value.trim()) return; // typed on while loading
     const pages = pageMatches(text);
     const ranked = rank(l, text);
-    const foundMaps = maps?.rows ? rankMaps(maps.rows, maps.hay, text) : [];
+    let foundMaps = maps?.rows ? rankMaps(maps.rows, maps.hay, text) : [];
+    // An id the index doesn't have: its own map file has it (or says nobody here has played it).
+    const id = beatmapIdOf(text);
+    if (id !== null && foundMaps[0] && !foundMaps[0].row[3]) {
+      if (!looked.has(id)) {
+        looked.set(id, undefined);
+        mapEntry(id).then(e => {
+          const m = e?.m;
+          looked.set(id, m ? [id, m[M.SET], m[M.ARTIST], m[M.TITLE], m[M.VERSION], m[M.STARS], e.c, e.s.length, null, m[M.CREATOR]] : null);
+          if (input.value.trim() === text) draw();
+        }).catch(() => looked.set(id, null));
+      }
+      if (looked.get(id)) foundMaps = [{ tier: 0, row: looked.get(id) }];
+    }
     // Players first when the text matches a name at least as well as a map (a name, then, not a title or a map id).
     const playersFirst = !foundMaps.length || (ranked.length > 0 && ranked[0].tier <= foundMaps[0].tier);
     const people = ranked.slice(0, Math.max(2, LIMIT - foundMaps.length - pages.length)).map(r => r.p);
@@ -176,7 +192,7 @@ export function initSearch() {
     status.textContent = results.length
       ? t('{what} found', { what: [pages.length && tn(pages.length, '{names} page', '{names} pages', { names: pages.map(p => p.name).join(and) }),
         people.length && fmt.plural(people.length, 'player'), mapItems.length && fmt.plural(mapItems.length, 'map')].filter(Boolean).join(and) })
-      : loadingMaps ? t('No players found. Looking through the maps…') : t('No players or maps found');
+      : loadingMaps ? t('No players found. Looking through the maps…') : t('No players or maps found. This search has the maps two or more players here have played; Search all maps has the rest.');
     allPlayers.href = `#/players?q=${encodeURIComponent(text)}`;
     allMaps.href = `#/maps?q=${encodeURIComponent(text)}`;
     showPop(true);
@@ -212,7 +228,8 @@ export function initSearch() {
   toggle.addEventListener('click', () => setOpen(!box.classList.contains('open')));
   document.querySelector('.nav-toggle')?.addEventListener('click', () => setOpen(false));
   input.addEventListener('focus', () => { load(); loadMaps(); if (input.value.trim()) draw(); });
-  input.addEventListener('input', draw);
+  // Typing also starts the maps, for a field focused before the window had focus (no focus event then).
+  input.addEventListener('input', () => { loadMaps(); draw(); });
   input.addEventListener('keydown', e => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
