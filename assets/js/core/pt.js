@@ -267,14 +267,12 @@ export const PT = {
   'How much pp is a play worth': 'Quantos pp vale uma jogada',
   'Discord, /verify and playing': 'Discord, /verify e jogar',
   'No pp yet': 'Ainda sem pp',
-  'Search players|placeholder': 'Procurar jogador', // fits the field at its narrowest
   'Search': 'Pesquisar',
   'Search all players': 'Pesquisar todos os jogadores',
   'and': 'e',
   '{what} found': 'Resultados: {what}',
   '{names} page': ['página {names}', 'páginas {names}'],
   '(the best 8)': '(os 8 melhores)',
-  'No players found': 'Nenhum jogador encontrado',
 
   // ---- core/star-range.js and core/star-slider.js -------------------------------------------------------------
   'Any': 'Qualquer',
@@ -1361,4 +1359,13 @@ export const PT = {
   'That play is already pinned.': 'Essa jogada já está afixada.',
   'Replaces the play you have pinned now.': 'Substitui a jogada que tens afixada agora.',
   'You have a play pinned. A new one replaces it.': 'Tens uma jogada afixada. Uma nova substitui-a.',
+  'Search players or maps': 'Pesquisar jogadores ou mapas',
+  'Search players or maps|placeholder': 'Jogador ou mapa',
+  'Players and maps': 'Jogadores e mapas',
+  'Search all maps': 'Pesquisar todos os mapas',
+  'Map {id}': 'Mapa {id}',
+  'mapped by {mapper}': 'mapeado por {mapper}',
+  'No Portuguese plays on it yet': 'Ainda sem jogadas portuguesas',
+  'No players found. Looking through the maps…': 'Nenhum jogador encontrado. A procurar nos mapas…',
+  'No players or maps found': 'Nenhum jogador ou mapa encontrado',
 };

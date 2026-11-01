@@ -1,10 +1,16 @@
-// The player search in the top bar: a combobox over players.json, plus a few pages (the Dan course, the glossary…).
-// Wide screens show the field inline; narrow ones show a search button that opens the field as a full-width row under
-// the bar. "/" anywhere focuses it.
+// The search in the top bar: a combobox over players.json and the maps index, plus a few pages (the Dan course, the
+// glossary…). Results come in labelled groups (pages, Players, Maps) inside one listbox, and the arrow keys move
+// through all of them. Wide screens show the field inline; narrow ones show a search button that opens the field as a
+// full-width row under the bar. "/" anywhere focuses it.
+//
+// The maps come from maps-search.json (core/data.js mapsIndex, the Maps page's own index: about 0.9 MB compressed, cached
+// under its content hash). It's only fetched on the field's first focus, never on page load; until it arrives the
+// players show alone.
 
 import { html } from './html.js';
-import { players } from './data.js';
-import { avatar } from './ui.js';
+import { players, mapsIndex } from './data.js';
+import { tierOf, rankMaps } from './maps-search.js';
+import { avatar, setCover, starsBadge, nameClass } from './ui.js';
 import * as fmt from './fmt.js';
 import { track, shapeOf } from './track.js';
 import { t, tn } from './i18n.js';
@@ -17,14 +23,11 @@ function rank(list, text) {
   const q = text.toLowerCase();
   const scored = [];
   for (const p of list) {
-    const name = p.name.toLowerCase();
-    const at = name.indexOf(q);
-    if (at < 0) continue;
-    const tier = at === 0 ? 0 : /[\s_\-[\].]/.test(name[at - 1]) ? 1 : 2;
-    scored.push([tier, Math.max(p.cv, p.ul, p.pp), p]);
+    const tier = tierOf(p.name.toLowerCase(), q);
+    if (tier >= 0) scored.push([tier, Math.max(p.cv, p.ul, p.pp), p]);
   }
   scored.sort((a, b) => a[0] - b[0] || b[1] - a[1] || a[2].name.localeCompare(b[2].name, 'en'));
-  return scored.slice(0, LIMIT).map(s => s[2]);
+  return scored.map(s => ({ tier: s[0], p: s[2] }));
 }
 
 // Pages the search offers above the players, so "dan" finds the Dan course even though it lives under Challenges.
@@ -48,7 +51,7 @@ function pageMatches(text) {
   return PAGES.filter(p => p.name.toLowerCase().includes(q) || p.words.split(' ').some(w => w.startsWith(q))).slice(0, 2);
 }
 
-/** The player's name with the matched part in a <mark>. */
+/** The text with the matched part in a <mark>. */
 function highlight(name, text) {
   const at = name.toLowerCase().indexOf(text.toLowerCase());
   if (at < 0) return name;
@@ -68,18 +71,18 @@ export function initSearch() {
   const box = document.createElement('div');
   box.className = 'search';
   box.innerHTML = `
-    <button class="search-toggle" type="button" aria-label="${t('Search players')}" aria-expanded="false" aria-controls="search-panel">${ICON}<span class="search-toggle-label" aria-hidden="true">${t('Search')}</span></button>
+    <button class="search-toggle" type="button" aria-label="${t('Search players or maps')}" aria-expanded="false" aria-controls="search-panel">${ICON}<span class="search-toggle-label" aria-hidden="true">${t('Search')}</span></button>
     <div class="search-panel" id="search-panel" role="search">
       <div class="search-field">
         ${ICON}
-        <input id="player-search" type="text" placeholder="${t('Search players|placeholder')}" autocomplete="off" spellcheck="false"
-          role="combobox" aria-label="${t('Search players')}" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
+        <input id="player-search" type="text" placeholder="${t('Search players or maps|placeholder')}" autocomplete="off" spellcheck="false"
+          role="combobox" aria-label="${t('Search players or maps')}" aria-autocomplete="list" aria-expanded="false" aria-controls="search-results">
         <kbd class="search-key" aria-hidden="true">/</kbd>
       </div>
       <div class="search-pop" hidden>
-        <ul class="search-results" id="search-results" role="listbox" aria-label="${t('Players')}"></ul>
+        <div class="search-results" id="search-results" role="listbox" aria-label="${t('Players and maps')}"></div>
         <p class="search-status" id="search-status" role="status"></p>
-        <a class="search-all" href="#/players">${t('Search all players')}</a>
+        <div class="search-all"><a href="#/players">${t('Search all players')}</a><a href="#/maps">${t('Search all maps')}</a></div>
       </div>
     </div>`;
   bar.insertBefore(box, bar.querySelector('.nav-toggle'));
@@ -88,18 +91,27 @@ export function initSearch() {
   const input = box.querySelector('input');
   const pop = box.querySelector('.search-pop');
   const listEl = box.querySelector('.search-results');
-  const all = box.querySelector('.search-all');
-  let list = null, results = [], active = -1;
+  const [allPlayers, allMaps] = box.querySelectorAll('.search-all a');
+  let list = null, maps = null, results = [], active = -1;
 
   const load = () => {
     if (!list) list = players().then(l => (list = l)).catch(() => (list = null, []));
     return Promise.resolve(list);
   };
+  /** The maps and their search text, fetched once, on the field's first focus; redraws when they arrive. */
+  const loadMaps = () => {
+    if (maps) return;
+    maps = mapsIndex().then(rows => {
+      maps = { rows, hay: rows.map(r => `${r[3]} ${r[2]} ${r[4]} ${r[9] ?? ''}`.toLowerCase()) };
+      if (input.value.trim() && document.activeElement === input) draw();
+    }).catch(() => { maps = null; });
+  };
+  const options = () => listEl.querySelectorAll('[role="option"]');
 
   const setActive = i => {
     active = i;
-    listEl.querySelectorAll('[role="option"]').forEach((li, k) => li.setAttribute('aria-selected', String(k === i)));
-    const li = listEl.children[i];
+    options().forEach((li, k) => li.setAttribute('aria-selected', String(k === i)));
+    const li = options()[i];
     if (li?.id) { input.setAttribute('aria-activedescendant', li.id); li.scrollIntoView({ block: 'nearest' }); }
     else input.removeAttribute('aria-activedescendant');
   };
@@ -110,31 +122,63 @@ export function initSearch() {
     if (!open) setActive(-1);
   };
 
+  const option = (r, i, text) => {
+    if (r.page) return html`<div role="option" class="search-page" id="search-opt-${i}" data-i="${i}" aria-selected="false">
+      <span class="search-page-mark" aria-hidden="true">→</span><span class="search-name">${highlight(r.page.name, text)}</span><span class="search-detail">${r.page.detail}</span>
+    </div>`;
+    if (r.map) {
+      const [id, setId, artist, title, version, stars, , , , mapper] = r.map;
+      const known = Boolean(title);
+      return html`<div role="option" class="search-map" id="search-opt-${i}" data-i="${i}" aria-selected="false">
+        ${setCover(setId, 'list', 'search-cover')}
+        <span class="search-name">${known ? html`${highlight(title, text)} <span class="search-diff">[${highlight(version, text)}]</span>` : t('Map {id}', { id })}</span>
+        <span class="search-detail">${known && stars ? starsBadge(stars) : ''}</span>
+        <span class="search-sub">${known ? html`${highlight(artist, text)}${mapper ? html` · ${t('mapped by {mapper}', { mapper: highlight(mapper, text) })}` : ''}` : t('No Portuguese plays on it yet')}</span>
+      </div>`;
+    }
+    return html`<div role="option" id="search-opt-${i}" data-i="${i}" aria-selected="false">
+      ${avatar(r.id, 'avatar-sm')}<span class="search-name ${nameClass(r)}">${highlight(r.name, text)}</span><span class="search-detail">${detail(r)}</span>
+    </div>`;
+  };
+  const group = (label, items, offset, text) => (items.length ? html`<div role="group" aria-labelledby="search-g-${offset}">
+    <div class="search-group" id="search-g-${offset}" role="presentation">${label}</div>
+    ${items.map((r, k) => option(r, offset + k, text))}
+  </div>` : '');
+
   const draw = async () => {
     const text = input.value.trim();
     if (!text) { results = []; showPop(false); return; }
     const l = await load();
     if (text !== input.value.trim()) return; // typed on while loading
     const pages = pageMatches(text);
-    const people = rank(l, text).slice(0, LIMIT - pages.length);
-    results = [...pages.map(page => ({ page })), ...people];
-    listEl.innerHTML = String(html`${results.map((r, i) => (r.page
-      ? html`<li role="option" class="search-page" id="search-opt-${i}" data-i="${i}" aria-selected="false">
-          <span class="search-page-mark" aria-hidden="true">→</span><span class="search-name">${highlight(r.page.name, text)}</span><span class="search-detail">${r.page.detail}</span>
-        </li>`
-      : html`<li role="option" id="search-opt-${i}" data-i="${i}" aria-selected="false">
-          ${avatar(r.id, 'avatar-sm')}<span class="search-name">${highlight(r.name, text)}</span><span class="search-detail">${detail(r)}</span>
-        </li>`))}`);
+    const ranked = rank(l, text);
+    const foundMaps = maps?.rows ? rankMaps(maps.rows, maps.hay, text) : [];
+    // Players first when the text matches a name at least as well as a map (a name, then, not a title or a map id).
+    const playersFirst = !foundMaps.length || (ranked.length > 0 && ranked[0].tier <= foundMaps[0].tier);
+    const people = ranked.slice(0, Math.max(2, LIMIT - foundMaps.length - pages.length)).map(r => r.p);
+    const mapItems = foundMaps.map(m => ({ map: m.row }));
+    const groups = playersFirst
+      ? [['', pages.map(page => ({ page }))], [t('Players'), people], [t('Maps'), mapItems]]
+      : [['', pages.map(page => ({ page }))], [t('Maps'), mapItems], [t('Players'), people]];
+    results = groups.flatMap(([, items]) => items);
+    let offset = 0;
+    listEl.innerHTML = String(html`${groups.map(([label, items]) => {
+      const out = label ? group(label, items, offset, text) : items.map((r, k) => option(r, offset + k, text));
+      offset += items.length;
+      return out;
+    })}`);
     listEl.hidden = !results.length;
-    // Outside the listbox, in a live region, so screen readers hear "No players found" or how many matched.
+    // Outside the listbox, in a live region, so screen readers hear "Nothing found" or how many matched.
     const status = box.querySelector('.search-status');
+    const loadingMaps = maps && !maps.rows;
     status.classList.toggle('sr-only', Boolean(results.length));
     const and = ` ${t('and')} `;
     status.textContent = results.length
       ? t('{what} found', { what: [pages.length && tn(pages.length, '{names} page', '{names} pages', { names: pages.map(p => p.name).join(and) }),
-        people.length && `${fmt.plural(people.length, 'player')}${people.length === LIMIT ? ` ${t('(the best 8)')}` : ''}`].filter(Boolean).join(and) })
-      : t('No players found');
-    all.href = `#/players?q=${encodeURIComponent(text)}`;
+        people.length && fmt.plural(people.length, 'player'), mapItems.length && fmt.plural(mapItems.length, 'map')].filter(Boolean).join(and) })
+      : loadingMaps ? t('No players found. Looking through the maps…') : t('No players or maps found');
+    allPlayers.href = `#/players?q=${encodeURIComponent(text)}`;
+    allMaps.href = `#/maps?q=${encodeURIComponent(text)}`;
     showPop(true);
     setActive(results.length ? 0 : -1);
   };
@@ -160,14 +204,14 @@ export function initSearch() {
 
   // Usage counts: what was picked and the shape of what was typed, never the text (core/track.js).
   const go = r => {
-    track('search', 'header', `${r.page ? 'picked a page' : 'picked a player'} · ${shapeOf(input.value)}`);
-    location.hash = r.page ? r.page.href : `#/player/${r.id}`;
+    track('search', 'header', `${r.page ? 'picked a page' : r.map ? 'picked a map' : 'picked a player'} · ${shapeOf(input.value)}`);
+    location.hash = r.page ? r.page.href : r.map ? `#/map/${r.map[0]}` : `#/player/${r.id}`;
     reset();
   };
 
   toggle.addEventListener('click', () => setOpen(!box.classList.contains('open')));
   document.querySelector('.nav-toggle')?.addEventListener('click', () => setOpen(false));
-  input.addEventListener('focus', () => { load(); if (input.value.trim()) draw(); });
+  input.addEventListener('focus', () => { load(); loadMaps(); if (input.value.trim()) draw(); });
   input.addEventListener('input', draw);
   input.addEventListener('keydown', e => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -180,7 +224,7 @@ export function initSearch() {
       e.preventDefault();
       const p = results[active] ?? results[0];
       if (p) go(p);
-      else if (input.value.trim()) { track('search', 'header', `all results · ${shapeOf(input.value)}`); location.hash = all.getAttribute('href'); reset(); }
+      else if (input.value.trim()) { track('search', 'header', `all results · ${shapeOf(input.value)}`); location.hash = allPlayers.getAttribute('href'); reset(); }
     } else if (e.key === 'Escape') {
       if (!pop.hidden) showPop(false);
       else { input.value = ''; setOpen(false); input.blur(); }
@@ -196,7 +240,7 @@ export function initSearch() {
     const li = e.target.closest('[data-i]');
     if (li && Number(li.dataset.i) !== active) setActive(Number(li.dataset.i));
   });
-  all.addEventListener('click', () => { track('search', 'header', `all results · ${shapeOf(input.value)}`); setTimeout(reset); });
+  for (const a of [allPlayers, allMaps]) a.addEventListener('click', () => { track('search', 'header', `all results · ${shapeOf(input.value)}`); setTimeout(reset); });
   box.addEventListener('focusout', e => { if (!box.contains(e.relatedTarget)) showPop(false); });
   document.addEventListener('click', e => { if (!box.contains(e.target)) { showPop(false); if (!input.value) setOpen(false); } });
 

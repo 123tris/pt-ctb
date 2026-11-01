@@ -249,7 +249,7 @@ button, input, select { font: inherit; color: inherit; }
 .search-field input:focus ~ .search-key, .search-field input:not(:placeholder-shown) ~ .search-key { display: none; }
 
 .search-pop {
-  position: absolute; top: calc(100% + 6px); left: 0; width: 340px; z-index: 55; overflow: hidden;
+  position: absolute; top: calc(100% + 6px); left: 0; width: 380px; z-index: 55; overflow: hidden;
   background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r);
 }
 .search-pop[hidden] { display: none; }
@@ -263,8 +263,21 @@ button, input, select { font: inherit; color: inherit; }
 .search-name mark { background: none; color: var(--accent); }
 .search-detail { color: var(--text-faint); font-size: var(--fs-xs); white-space: nowrap; }
 .search-none { padding: var(--sp-3); color: var(--text-dim); font-size: var(--fs-sm); }
-.search-all { display: block; padding: var(--sp-2) var(--sp-3); border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 500; }
-.search-all:hover { background: var(--surface-2); text-decoration: none; }
+.search-all { display: flex; flex-wrap: wrap; border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 500; }
+.search-all a { flex: 1; padding: var(--sp-2) var(--sp-3); }
+.search-all a + a { border-left: 1px solid var(--border); }
+.search-all a:hover { background: var(--surface-2); text-decoration: none; }
+/* The results' groups (Players, Maps): a small dim label, like a table header, and a hairline between groups. */
+.search-group { padding: var(--sp-2) var(--sp-3) var(--sp-1); color: var(--text-faint); font-size: var(--fs-xs); font-weight: 600; }
+.search-results [role='group'] + [role='group'], .search-results [role='option'] + [role='group'] { border-top: 1px solid var(--border); margin-top: var(--sp-1); }
+/* A map: its cover, title [diff] and stars, then artist and mapper under them. */
+.search-results .search-map { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: 'cover name stars' 'cover sub sub'; row-gap: 2px; }
+.search-map .search-cover { grid-area: cover; width: 40px; height: 28px; object-fit: cover; border-radius: var(--r-sm); background: var(--surface-3); }
+.search-map .search-name { grid-area: name; }
+.search-map .search-detail { grid-area: stars; }
+.search-map .search-sub { grid-area: sub; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-faint); font-size: var(--fs-xs); }
+.search-sub mark, .search-diff mark { background: none; color: var(--accent); }
+.search-diff { color: var(--text-dim); font-weight: 400; }
 
 @media (max-width: 1180px) {
   .search-field input { width: 170px; }

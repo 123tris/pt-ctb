@@ -516,7 +516,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     };
     mapsIndex.push([
       id, meta ? meta[M.SET] : 0, meta ? meta[M.ARTIST] : '', meta ? meta[M.TITLE] : '', meta ? meta[M.VERSION] : '',
-      meta ? meta[M.STARS] : 0, board.cat, board.entries.length, board.entries[0][0],
+      meta ? meta[M.STARS] : 0, board.cat, board.entries.length, board.entries[0][0], meta ? meta[M.CREATOR] : '',
     ]);
   }
   mapsIndex.sort((a, b) => b[7] - a[7] || a[0] - b[0]);
