@@ -167,6 +167,8 @@ test('requests: the shape is checked and rebuilt, then queued for the bot and li
     { type: 'bounty.create', payload: { map: 1, goal: 'fc', stake: 500, mods: 'DTNC', days: 60 } },
     { type: 'bounty.fund', payload: { bountyId: 3 } },
     { type: 'shop.buy', payload: { item: 'supporter' } },
+    { type: 'shop.buy', payload: { item: 'colour', arg: 'mint', periods: 0 } },
+    { type: 'shop.buy', payload: { item: 'role', arg: 'sky', periods: 53 } },
     { type: 'shield', payload: { on: 'yes' } },
   ]) assert.equal((await send(bad)).status, 400, JSON.stringify(bad));
 
@@ -250,4 +252,14 @@ test('sign-in still works where the economy isn’t set up', async () => {
   const res = await callbackRoute({ request: new Request(`${BASE}/auth/callback?code=c&state=p.AbCdEfGhIjKlMnOpQrStUv`), env });
   assert.ok(new URL(res.headers.get('Location')).hash.includes('token='));
   assert.equal((await walletRequest(new Request(`${BASE}/api/wallet/request`, { method: 'POST', body: '{}' }), env)).status, 503);
+});
+
+test('a timed shop item can be bought several periods at once; one is the default', async () => {
+  const env = envWith();
+  const token = await tokenFor(21);
+  const send = payload => call(requestRoute, '/api/wallet/request', { method: 'POST', token, body: { type: 'shop.buy', payload } }, env);
+  assert.equal((await send({ item: 'role', arg: 'sky', periods: 52 })).status, 202);
+  assert.equal((await send({ item: 'colour', arg: 'mint' })).status, 202);
+  const list = (await call(requestsRoute, '/api/wallet/requests', { token }, env)).body.requests;
+  assert.deepEqual(list.map(r => r.payload), [{ item: 'colour', arg: 'mint', periods: 1 }, { item: 'role', arg: 'sky', periods: 52 }]);
 });

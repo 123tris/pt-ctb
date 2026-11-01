@@ -121,6 +121,8 @@ async function paidDaily(root, isCurrent) {
       </div>`);
     if (g.done) copyButton(root, t('Guess the map (daily) · PT Catch {day}: {result} · streak {streak}', { day: g.day, result: g.solved ? `${'🍎'.repeat(g.tries - 1)}🎯 (${g.tries}/3)` : '❌', streak }));
   };
+  // A game already over (played earlier today, maybe on another device) still counts for this browser's streak.
+  if (res.body.done) noteDaily(res.body.day, res.body.solved ? res.body.tries : 0);
   draw(res.body);
   let busy = false;
   root.addEventListener('click', async function onGuess(e) {

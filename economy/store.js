@@ -123,6 +123,7 @@ export const SHOP_ITEMS = ['title', 'signature', 'colour', 'motw', 'wildcard', '
 const GOALS = ['fc', 'pass', 'snipe'];
 const DAYS = [30, 60, 90];
 const MAX_AMOUNT = 1_000_000;
+const MAX_PERIODS = 52; // a year of a weekly item
 
 const id = v => (Number.isSafeInteger(v) && v > 0 && v < 1e10 ? v : null);
 const amount = v => (Number.isSafeInteger(v) && v > 0 && v <= MAX_AMOUNT ? v : null);
@@ -167,7 +168,11 @@ export function parseRequest(body, osuId) {
   }
   if (type === 'shop.buy') {
     const arg = Number.isSafeInteger(p.arg) ? p.arg : line(p.arg, 80);
-    return SHOP_ITEMS.includes(p.item) ? { type, payload: { item: p.item, arg } } : { error: 'That isn’t in the shop.' };
+    if (!SHOP_ITEMS.includes(p.item)) return { error: 'That isn’t in the shop.' };
+    // Timed items (colour, role) can be bought several periods at once, up to a year of weeks; anything else is one.
+    const periods = p.periods === undefined || p.periods === null ? 1 : p.periods;
+    if (!Number.isSafeInteger(periods) || periods < 1 || periods > MAX_PERIODS) return { error: 'Buy 1 to 52 periods at once.' };
+    return { type, payload: { item: p.item, arg, periods } };
   }
   return typeof p.on === 'boolean' ? { type, payload: { on: p.on } } : { error: 'Shield needs on or off.' };
 }

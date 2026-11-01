@@ -12,6 +12,7 @@ import {
   setTitle, avatar, mapText, cover, setCover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
   playerLink, mapLabel, nameClass,
 } from '../core/ui.js';
+import { bananas } from '../core/bananas.js';
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
 import { CONFIG } from '../config.js';
@@ -113,18 +114,22 @@ function hillSummary(month, index) {
   </section>`;
 }
 
-/** The open bounties with the most on offer (newest first among equals), at most three. */
+/**
+ * The open bounties with the most on offer, at most three: the biggest Bananas pots first (row[9]), then the most
+ * pledges still standing, then the newest. A pot leads its line in gold; the pledges follow.
+ */
 function bountySummary(board) {
   const open = board?.open ?? [];
   if (!open.length) return '';
   const live = r => r[7].filter(p => !p[4]);
-  const top = [...open].sort((a, b) => live(b).length - live(a).length || (b[3] ?? 0) - (a[3] ?? 0)).slice(0, 3);
+  const top = [...open].sort((a, b) => (b[9] ?? 0) - (a[9] ?? 0) || live(b).length - live(a).length || (b[3] ?? 0) - (a[3] ?? 0)).slice(0, 3);
   return html`<section class="week-summary">
     <div class="section-head"><h2>${t('Open bounties')}</h2><a href="#/challenges/bounties">${t('See all {n}', { n: fmt.num(open.length) })}</a></div>
     ${top.map(r => {
       const [first, ...more] = live(r);
       const prize = first ? (first[1] ? t('{prize} · from {by}', { prize: first[0], by: first[1] }) : first[0]) : '';
       return html`<div class="week-top"><span class="faint small">${WANTED[r[2]]}</span>
+        ${r[9] ? html`<b class="home-pot">${bananas(r[9])}</b>` : ''}
         ${prize ? html`<span class="muted">${more.length ? t('{prize} and {n} more', { prize, n: fmt.num(more.length) }) : prize}</span>` : ''}
         <a class="dim-link" href="#/map/${r[0]}">${mapLabel(r[0], board.maps[r[0]])}</a></div>`;
     })}

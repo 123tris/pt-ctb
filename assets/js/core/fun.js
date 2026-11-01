@@ -16,7 +16,7 @@ export function toast(body, { ms = 6000 } = {}) {
   const el = document.createElement('div');
   el.className = 'toast';
   el.setAttribute('role', 'status');
-  el.innerHTML = String(html`<div class="toast-body">${body}</div><button class="toast-close" type="button">${t('Not now, Fie.')}</button>`);
+  el.innerHTML = String(html`<div class="toast-body">${body}</div><button class="toast-close" type="button">${t('Dismiss')}</button>`);
   const close = () => el.remove();
   el.querySelector('.toast-close').addEventListener('click', close);
   toastBox.appendChild(el);

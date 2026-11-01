@@ -1189,6 +1189,8 @@ a.dan-stage:hover { text-decoration: none; }
 .ev-snipe { --k: var(--text-faint); }
 .ev-crown { --k: var(--gold); }
 .ev-bounty { --k: var(--gold); }
+.ev-post { --k: var(--gold); }
+.ev-tip { --k: var(--text-faint); }
 .ev-top { --k: var(--gold); }
 .ev-dan { --k: var(--gold); }
 .ev-pass { --k: var(--text-faint); }
@@ -1383,6 +1385,8 @@ a.dan-stage:hover { text-decoration: none; }
 .glossary { display: grid; gap: 0; margin: 0; border-top: 1px solid var(--border); }
 .glossary > div { display: grid; grid-template-columns: minmax(120px, 200px) minmax(0, 1fr); gap: var(--sp-1) var(--sp-6); padding: var(--sp-4) 0; border-bottom: 1px solid var(--border); }
 .glossary dt { font-weight: 700; color: var(--text); }
+/* The entry a link went to (#/glossary?at=…): the "you are here" mark rows use for a linked row. */
+.glossary > div.target { box-shadow: inset 2px 0 0 var(--accent); padding-left: var(--sp-3); }
 .glossary dd { margin: 0; color: var(--text-dim); }
 @media (max-width: 600px) { .glossary > div { grid-template-columns: 1fr; } }
 .help-link { margin-left: var(--sp-2); font-size: var(--fs-xs); font-weight: 600; }
@@ -1473,7 +1477,7 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
   display: inline-flex; align-items: center; padding: 1px var(--sp-2); border: 1px solid var(--border-strong); border-radius: var(--r-sm);
   color: var(--gold); font-size: var(--fs-sm); font-weight: 500; overflow-wrap: anywhere;
 }
-.prize-lapsed { color: var(--text-faint); border-style: dashed; text-decoration: line-through; }
+.prize-lapsed { color: var(--text-faint); text-decoration: line-through; }
 /* A goal already met before the bounty went up: credited quietly, so the row steps back. */
 .bounty-done { color: var(--text-dim); }
 .bounty-done .map-title, .bounty-done .row-meta .pp { color: var(--text-dim); }
@@ -1482,7 +1486,19 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 
 /* Bananas (core/bananas.js). A bounty's pot runs under its dare, like the prizes; its Fund form opens under that. */
 .bounty-pot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-3); color: var(--text-dim); font-size: var(--fs-sm); }
-.bounty-pot .pot b { color: var(--gold); font-weight: 700; }
+.bounty-pot .pot b, .bounty-foot .pot b { color: var(--gold); font-weight: 700; }
+.home-pot { color: var(--gold); font-weight: 700; white-space: nowrap; }
+/* Why "Post a bounty…" won't go through yet, next to it; and a form's own error line (a refusal, in words). */
+.post-hint { margin: var(--sp-2) 0 0; color: var(--text-dim); }
+.post-hint:empty { display: none; }
+.fund-error, .tip-error, .shop-error { margin: 0; color: var(--red); }
+.fund-error:empty, .tip-error:empty, .shop-error:empty { display: none; }
+/* Fund's and a tip's confirmation: the question, the wallet before and after, Confirm and Cancel. */
+.fund-confirm, .tip-confirm { display: grid; gap: var(--sp-2); }
+.fund-confirm p, .tip-confirm p { margin: 0; }
+.tip-box { margin-top: var(--sp-4); }
+.tip-box .tip-form { margin-top: 0; }
+.shop-preview { margin: 0; flex-basis: 100%; color: var(--text-dim); }
 .bounty-pot .player { font-weight: 600; }
 .bounty-fund { grid-column: 1 / -1; display: grid; gap: var(--sp-2); justify-items: start; }
 .fund-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2) var(--sp-3); }
@@ -1522,7 +1538,8 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 .tip-form p { flex-basis: 100%; margin: 0; }
 .card-h-link { margin-left: var(--sp-2); font-size: var(--fs-sm); font-weight: 500; }
 .profile-title { color: var(--gold); font-weight: 600; }
-.event-tip { justify-self: start; font-weight: 500; }
+.event-tip { justify-self: start; display: inline-flex; align-items: center; min-height: 24px; padding-inline: var(--sp-1); margin-inline: calc(-1 * var(--sp-1)); font-weight: 500; }
+@media (pointer: coarse) { .event-tip { min-height: 44px; } }
 .where .quote { font-style: italic; }
 /* The shop: each item is one disclosure. Its whole header is the button (name, a line about it, the price and where it
    stands for you, a chevron); the panel under it holds the choice and the two-step buy. */
@@ -1550,7 +1567,7 @@ button.legend-tag:hover, button.legend-tag[aria-expanded='true'] { color: var(--
 .shop-panel { display: grid; gap: var(--sp-2); padding: 0 var(--sp-4) var(--sp-4); }
 .shop-panel[hidden] { display: none; }
 .shop-panel p { margin: 0; }
-.shop-owned { color: var(--gold); font-weight: 600; font-size: var(--fs-sm); }
+.shop-owned { color: var(--text); font-weight: 600; font-size: var(--fs-sm); }
 .shop-step { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2) var(--sp-3); }
 .shop-step .field { width: min(320px, 100%); }
 .shop-step > p { flex-basis: 100%; }

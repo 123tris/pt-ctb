@@ -104,7 +104,7 @@ export function initYou() {
         title="${t('Sign in with your osu! account to collect your bananas and see your rows highlighted on any device')}">${t('Sign in')}</button>`);
       return;
     }
-    const wallet = viaOsu ? (await economy().catch(() => null))?.players?.[id] : null;
+    const wallet = (await economy().catch(() => null))?.players?.[id] ?? null;
     box.innerHTML = String(html`
       <button class="you-btn" type="button" aria-expanded="false" aria-controls="you-menu"
         aria-label="${t('You: {name}', { name: p.name })}" title="${t('You: {name}', { name: p.name })}">${avatar(id, 'avatar-sm')}</button>
@@ -112,8 +112,9 @@ export function initYou() {
         <a class="you-head" href="#/player/${id}" aria-label="${t('Your profile: {name}', { name: p.name })}">${avatar(id, 'avatar-md')}<div><span class="you-label">${t('You')}</span><b>${p.name}</b></div></a>
         <a href="#/player/${id}">${t('Your profile')}</a>
         <a href="#/compare/${id}">${t('Compare with someone')}</a>
-        ${wallet ? html`<a href="#/shop">${t('Shop')} <span class="faint">· ${bananas(wallet.b)}</span></a>` : ''}
-        ${!viaOsu && SIGN_IN_HERE ? html`<button class="you-osu" type="button" data-signin>${t('Sign in with osu!')}</button>` : ''}
+        ${viaOsu && wallet ? html`<a href="#/shop">${t('Shop')} <span class="faint">· ${bananas(wallet.b)}</span></a>` : ''}
+        ${!viaOsu && SIGN_IN_HERE ? html`<button class="you-osu" type="button" data-signin>${wallet && !wallet.s && wallet.p > 0
+          ? t('Sign in to collect your {n}', { n: bananas(wallet.p) }) : t('Sign in with osu!')}</button>` : ''}
         <button class="you-forget" type="button">${viaOsu ? t('Sign out') : t('This isn’t me')}</button>
         <p class="you-note">${viaOsu ? t('Signed in with osu! in this browser.') : t('Remembered in this browser. Sign in with osu! to collect bananas.')}</p>
       </div>`);

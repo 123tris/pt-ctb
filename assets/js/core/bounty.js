@@ -4,6 +4,7 @@
 import { html } from './html.js';
 import { MOD } from './model.js';
 import { playerLink, modsBadges } from './ui.js';
+import { bananas } from './bananas.js';
 import * as fmt from './fmt.js';
 import { t, th } from './i18n.js';
 
@@ -34,3 +35,23 @@ export function claimMods(text) {
   const mask = (text.match(/.{2}/g) ?? []).reduce((m, name) => m | (MOD[name] ?? 0), 0);
   return mask ? modsBadges(mask) : '';
 }
+
+/**
+ * A bounty's Bananas (bounties.json open row, from index 9: pot, funds, poster, expires): the pot in gold, who posted it
+ * and who funded it, and when it ends. The Bounties tab, the home page and the map page all show it.
+ */
+export function potLine({ pot, funds, poster, expires }, index) {
+  const named = funds.filter(f => f[0]);
+  const others = funds.length - named.length;
+  const funders = named.slice(0, 3).map(f => playerLink(f[0], index));
+  const more = named.length - funders.length + others;
+  return html`<div class="bounty-pot">
+    <span class="pot">${th('{amount} pot', { amount: html`<b>${bananas(pot)}</b>` })}</span>
+    <span>${poster ? th('posted by {who}', { who: playerLink(poster, index) }) : t('house bounty')}</span>
+    ${funders.length || more ? html`<span>${th('funded by {who}', {
+      who: html`${funders.map((f, i) => html`${i ? ', ' : ''}${f}`)}${more ? (funders.length ? ` ${t('and {n} more', { n: fmt.num(more) })}` : fmt.plural(more, 'player')) : ''}`,
+    })}</span>` : ''}
+    ${expires ? html`<span class="faint" title="${fmt.dateTime(expires)}">${t('ends {date}', { date: fmt.date(expires) })}</span>` : ''}
+  </div>`;
+}
+
