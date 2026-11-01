@@ -207,3 +207,31 @@ export function loadBounties(root) {
     return [];
   }
 }
+
+/**
+ * Bananas (the bot's Economy/ folder): { wallets, ledger }, where `wallets` is wallets.json's `players` (by osu! id) and
+ * `ledger` every line of ledger.jsonl that parses, oldest first. Null when the bot has no Economy/wallets.json yet: the
+ * currency is off, and the export leaves its files out.
+ */
+export function loadEconomy(root) {
+  const dir = path.join(root, 'Economy');
+  const file = path.join(dir, 'wallets.json');
+  if (!fs.existsSync(file)) return null;
+  let wallets;
+  try {
+    wallets = readJson(file);
+  } catch {
+    console.warn('  Economy/wallets.json in the data folder won’t parse; Bananas skipped');
+    return null;
+  }
+  if (!wallets?.players || typeof wallets.players !== 'object') return null;
+  const ledger = [];
+  const ledgerFile = path.join(dir, 'ledger.jsonl');
+  if (fs.existsSync(ledgerFile)) {
+    for (const text of fs.readFileSync(ledgerFile, 'utf8').split(/\r?\n/)) {
+      if (!text.trim()) continue;
+      try { ledger.push(JSON.parse(text)); } catch { /* a half-written last line: the next export reads it */ }
+    }
+  }
+  return { updated: wallets.updated ?? null, wallets: wallets.players, ledger };
+}

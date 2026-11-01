@@ -254,3 +254,27 @@ test('avatar thumbnails go up as WebP images, byte for byte', async () => {
   assert.ok(Buffer.from(thumb.body).equals(webp));
   assert.equal(r2.buckets[BUCKETS.data].get(hashedName('players.json', hash('[1]'))).headers['Content-Type'], 'application/json; charset=utf-8');
 });
+
+test('unlocks.json also goes up under its plain name, for the bot, only when it changed, and is never pruned', async () => {
+  const files = { 'players.json': '[1]', 'unlocks.json': '[{"osuId":1}]' };
+  const dirs = folders({ files });
+  const ctx = context(dirs);
+  const r2 = fakeR2(ctx.budget);
+  await upload({ ...ctx, client: r2 }, dirs);
+  const plain = r2.buckets[BUCKETS.data].get('unlocks.json');
+  assert.equal(String(plain.body), files['unlocks.json']);
+  assert.equal(plain.headers['Cache-Control'], 'public, max-age=0, s-maxage=300');
+  assert.ok(r2.buckets[BUCKETS.data].has(hashedName('unlocks.json', hash(files['unlocks.json']))));
+
+  // Unchanged: not sent again. Changed a day later: sent, and the plain copy is never retired or pruned.
+  const again = fakeR2(ctx.budget, { [BUCKETS.data]: Object.fromEntries([...r2.buckets[BUCKETS.data]].map(([k, o]) => [k, { body: o.body, modified: NOW - 2 * 24 * HOUR }])) });
+  await upload({ ...context(dirs), client: again }, dirs);
+  assert.ok(!again.log.some(l => l.endsWith('/unlocks.json')));
+  const next = { ...files, 'unlocks.json': '[{"osuId":2}]' };
+  const dirs2 = folders({ files: next });
+  const ctx2 = context(dirs2, NOW + 3 * 24 * HOUR);
+  await upload({ ...ctx2, client: again }, dirs2);
+  assert.ok(again.log.includes(`put ${BUCKETS.data}/unlocks.json`));
+  assert.equal(String(again.buckets[BUCKETS.data].get('unlocks.json').body), next['unlocks.json']);
+  assert.ok(!ctx2.ledger.retired['unlocks.json']);
+});

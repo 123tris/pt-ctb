@@ -15,9 +15,9 @@
 // set, 50 per request, 2.5s apart, stopping at the first rate limit) and keeps it in state/beatmaps.json. A one-off
 // fill: maps fetched since then carry their dates already.
 //
-// Only public osu! data leaves the bot's folder: usernames, scores and profile stats for home-country players, and the
-// bounty board. The verification log and per-user settings are never read; Bounties.json has Discord ids, which
-// tools/lib/bounties.mjs leaves out. Files are only rewritten when their content changed, so an export with nothing new
+// Only public osu! data leaves the bot's folder: usernames, scores and profile stats for home-country players, the
+// bounty board and Bananas' balances. The verification log and per-user settings are never read; Bounties.json has
+// Discord ids, which tools/lib/bounties.mjs leaves out, and tools/lib/economy.mjs builds its files field by field too. Files are only rewritten when their content changed, so an export with nothing new
 // leaves git clean.
 //
 // It also writes small WebP copies of the players' avatars (avatars/{id}-64.webp and -128.webp, tools/lib/avatars.mjs),
@@ -27,7 +27,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { loadBotData, loadBeatmaps, loadPastOfficial, loadCommands, loadBounties } from './lib/source.mjs';
+import { loadBotData, loadBeatmaps, loadPastOfficial, loadCommands, loadBounties, loadEconomy } from './lib/source.mjs';
 import { build, neededMapIds, isUnclaimedCandidate, isCatchPlayable } from './lib/build.mjs';
 import { isRankedSpecific } from './lib/completion.mjs';
 import { loadCache, saveCache, findCredentials, fetchMissing, fetchCatchDifficulty, fetchDates, hasCatchDifficulty } from './lib/osu-api.mjs';
@@ -82,12 +82,14 @@ function prune(folder, keep) {
 
 const started = Date.now();
 console.log(`Reading bot data from ${dataRoot}`);
-// Bounties go in with the rest (build.mjs writes bounties.json from them; a missing Bounties.json is no bounties).
-const bot = { ...loadBotData(dataRoot), bounties: loadBounties(dataRoot) };
+// Bounties go in with the rest (build.mjs writes bounties.json from them; a missing Bounties.json is no bounties), and
+// so does Bananas (economy.json; no Economy/wallets.json means the currency hasn't started, and there's no file).
+const bot = { ...loadBotData(dataRoot), bounties: loadBounties(dataRoot), economy: loadEconomy(dataRoot) };
 const needed = neededMapIds(bot, country);
 // isCatchPlayable keeps the rest of each shown map's set, for the map page's difficulty switcher.
 const beatmaps = loadBeatmaps(dataRoot, raw => needed.has(raw.beatmap_id) || isUnclaimedCandidate(raw) || isCatchPlayable(raw));
-console.log(`  ${bot.players.length} tracked players, ${bot.ptCatch.length} dump players, ${bot.bounties.length} bounties, ${beatmaps.size} beatmaps kept`);
+console.log(`  ${bot.players.length} tracked players, ${bot.ptCatch.length} dump players, ${bot.bounties.length} bounties, ${beatmaps.size} beatmaps kept`
+  + (bot.economy ? `; Bananas: ${Object.keys(bot.economy.wallets).length} wallets, ${bot.economy.ledger.length} ledger lines` : '; no Bananas yet'));
 
 // Top up maps the bot only knows by id (no title) from our own cache, fetching new ones when asked to.
 const cacheFile = path.join(repoRoot, 'state', 'beatmaps.json');

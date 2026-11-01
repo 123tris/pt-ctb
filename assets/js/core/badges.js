@@ -103,6 +103,19 @@ function unfill(template, text) {
   return m && Object.fromEntries(names.map((name, i) => [name, m[i + 1]]));
 }
 
+/**
+ * A badge's stable key ({ name, tip } in English, from playerBadges()): its rule's name in BADGES, with the digits for
+ * the n-digit club ("digits3"), so a 2-digit rank is a new badge. Null for a name no rule makes. The exporter's
+ * unlocks.json (tools/lib/economy.mjs) uses it.
+ */
+export function badgeKey(b) {
+  for (const [key, [name]] of Object.entries(BADGES)) {
+    const named = unfill(name, b.name);
+    if (named) return key === 'digits' ? `digits${named.digits}` : key;
+  }
+  return null;
+}
+
 /** A badge ({ name, tip }, in English from playerBadges() or a head file) in the visitor's language. */
 export function localBadge(b) {
   if (lang === 'en') return b;

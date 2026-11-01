@@ -40,10 +40,18 @@ const JSON_TYPE = 'application/json; charset=utf-8';
 export const contentType = key => (key.endsWith('.webp') ? 'image/webp' : JSON_TYPE);
 
 /**
- * meta.json: browsers always revalidate it (max-age=0); Cloudflare's edge keeps it a minute (s-maxage=60), so however
- * many visitors there are it costs R2 at most one read a minute per edge location. Everything else never changes.
+ * Files also kept under their plain name, for readers that don't go through meta.json: unlocks.json, which the bot
+ * fetches once a day at https://data.ptcatch.com/unlocks.json (tools/lib/economy.mjs). Sent when their content changed.
  */
-export const cacheControl = key => (key === 'meta.json' ? 'public, max-age=0, s-maxage=60' : 'public, max-age=31536000, immutable');
+export const PLAIN = ['unlocks.json'];
+
+/**
+ * meta.json: browsers always revalidate it (max-age=0); Cloudflare's edge keeps it a minute (s-maxage=60), so however
+ * many visitors there are it costs R2 at most one read a minute per edge location. A PLAIN copy is kept five minutes at
+ * the edge. Everything else never changes.
+ */
+export const cacheControl = key => (key === 'meta.json' ? 'public, max-age=0, s-maxage=60'
+  : PLAIN.includes(key) ? 'public, max-age=0, s-maxage=300' : 'public, max-age=31536000, immutable');
 
 const md5 = buf => createHash('md5').update(buf).digest('hex');
 /** The exporter's content hash (tools/export.mjs): sha256, base64url, first 10 characters. */
@@ -84,7 +92,7 @@ export function localExport(dataDir) {
     if (!fs.existsSync(file)) throw new Error(`meta.json names ${name}, which isn't in data/. Nothing was uploaded.`);
     const body = fs.readFileSync(file);
     if (contentHash(body) !== hash) throw new Error(`data/${name} doesn't match its hash in meta.json. Nothing was uploaded.`);
-    return { key: hashedName(name, hash), file, size: body.length };
+    return { name, key: hashedName(name, hash), file, size: body.length };
   });
   return { meta: { key: 'meta.json', body: metaBody }, files };
 }
@@ -133,7 +141,9 @@ export async function upload({ client, budget: b, ledger, now = Date.now() }, { 
   const local = localExport(dataDir);
   const remote = await client.list(BUCKETS.data);
   const remoteByKey = new Map(remote.map(o => [o.key, o]));
-  const named = new Set([local.meta.key, ...local.files.map(f => f.key)]);
+  const plain = local.files.filter(f => PLAIN.includes(f.name)).map(f => ({ ...f, key: f.name }))
+    .filter(f => remoteByKey.get(f.key)?.etag !== md5(fs.readFileSync(f.file)));
+  const named = new Set([local.meta.key, ...local.files.map(f => f.key), ...local.files.filter(f => PLAIN.includes(f.name)).map(f => f.name)]);
 
   // Prune: files retired over a day ago that the new manifest doesn't bring back. Deletes are free.
   const prune = remote.filter(o => !named.has(o.key) && ledger.retired[o.key] && now - ledger.retired[o.key] > GRACE_MS);
@@ -142,12 +152,13 @@ export async function upload({ client, budget: b, ledger, now = Date.now() }, { 
 
   // Check the whole run against the caps before sending anything: these uploads, meta.json, the state bucket's list,
   // up to four state files and the ledger.
-  b.uploads(uploads.length);
-  b.need(uploads.length + (metaChanged ? 1 : 0) + 6);
-  const bytes = remote.reduce((n, o) => n + o.size, 0) - prune.reduce((n, o) => n + o.size, 0) + uploads.reduce((n, f) => n + f.size, 0);
+  b.uploads(uploads.length + plain.length);
+  b.need(uploads.length + plain.length + (metaChanged ? 1 : 0) + 6);
+  const bytes = remote.reduce((n, o) => n + o.size, 0) - prune.reduce((n, o) => n + o.size, 0) + [...uploads, ...plain].reduce((n, f) => n + f.size, 0);
   b.storage(bytes);
 
   await pool(uploads.map(f => () => client.put(BUCKETS.data, f.key, fs.readFileSync(f.file), { 'Content-Type': contentType(f.key), 'Cache-Control': cacheControl(f.key) })));
+  await pool(plain.map(f => () => client.put(BUCKETS.data, f.key, fs.readFileSync(f.file), { 'Content-Type': contentType(f.key), 'Cache-Control': cacheControl(f.key) })));
   if (metaChanged) await client.put(BUCKETS.data, 'meta.json', local.meta.body, { 'Content-Type': JSON_TYPE, 'Cache-Control': cacheControl('meta.json') });
   await pool(prune.map(o => () => client.delete(BUCKETS.data, o.key)));
 
@@ -165,8 +176,8 @@ export async function upload({ client, budget: b, ledger, now = Date.now() }, { 
     .filter(f => remoteState.get(f.name) !== md5(f.body));
   await pool(stateUploads.map(f => () => client.put(BUCKETS.state, f.name, f.body, { 'Content-Type': JSON_TYPE })));
 
-  console.log(uploads.length || metaChanged || prune.length || stateUploads.length
-    ? `R2: ${uploads.length} new data file(s)${metaChanged ? ', then meta.json' : ''}; ${prune.length} pruned, ${Object.keys(retired).length} retired; `
+  console.log(uploads.length || plain.length || metaChanged || prune.length || stateUploads.length
+    ? `R2: ${uploads.length} new data file(s)${plain.length ? ` and ${plain.map(f => f.key).join(', ')}` : ''}${metaChanged ? ', then meta.json' : ''}; ${prune.length} pruned, ${Object.keys(retired).length} retired; `
       + `state: ${stateUploads.map(f => f.name).join(', ') || 'unchanged'}; bucket ${(bytes / 1024 ** 2).toFixed(1)} MiB.`
     : 'R2: nothing changed.');
   await saveLedger({ client, budget: b, ledger }, stateDir);

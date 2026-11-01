@@ -75,8 +75,8 @@ test('the hall of fame lists claims newest first, with the prizes still standing
   const { files } = run(JSON.parse(bountiesJson).bounties);
   const { hall, maps } = files['bounties.json'];
   assert.deepEqual(hall, [
-    [12, 'r', 'pass', 'claimed', 1, Date.parse('2026-10-05T12:00:00Z') / 1000, 'HDHR', 98.12, 1234, 512.3, [['bragging rights', 'Pledger A', 1]]],
-    [13, 'r', 'fc', 'done', 2, Date.parse('2024-01-01T00:00:00Z') / 1000, '', 99.5, 1000, 300, []],
+    [12, 'r', 'pass', 'claimed', 1, Date.parse('2026-10-05T12:00:00Z') / 1000, 'HDHR', 98.12, 1234, 512.3, [['bragging rights', 'Pledger A', 1]], null],
+    [13, 'r', 'fc', 'done', 2, Date.parse('2024-01-01T00:00:00Z') / 1000, '', 99.5, 1000, 300, [], null],
   ]);
   for (const id of [10, 11, 12, 13, 15]) assert.ok(maps[id], `map ${id} has its meta`);
 });

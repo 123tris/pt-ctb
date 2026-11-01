@@ -6,12 +6,13 @@ import {
   matchesModFilter, parseModFilter, isSS, PLAY_SOURCES, topPlaysView,
 } from '../../assets/js/core/model.js';
 import { encodeMapsSearch } from '../../assets/js/core/maps-search.js';
-import { playerBadges, era, signatureMap } from '../../assets/js/core/badges.js';
+import { playerBadges, era, signatureMap, badgeKey } from '../../assets/js/core/badges.js';
 import { lisbonWeek, scoreId, weeklyBlock, votedMaps } from './weekly.mjs';
 import { completion, homeGoal } from './completion.mjs';
 import { starKings } from './star-kings.mjs';
 import { hillBlock, hillNow } from './hill.mjs';
 import { bountyBoard } from './bounties.mjs';
+import { economyBlock, unlocks } from './economy.mjs';
 
 const DAY = 86400;
 const BUCKETS = 128;
@@ -652,9 +653,12 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // The competitive layer's moments: crowns taken on King of the hill and its months' Kings (hill.mjs), and bounties
   // claimed after they were posted. They name a map (`m`) rather than carry a play.
   for (const e of hill.events) if (e.t >= since) derived.push(e);
-  for (const [map, cat, goal, status, uid, at] of board.file.hall) {
-    if (status === 'claimed' && at >= since) derived.push({ t: at, k: 'bounty', u: uid, m: map, c: cat, g: goal });
+  for (const [map, cat, goal, status, uid, at, , , , , , payout] of board.file.hall) {
+    if (status === 'claimed' && at >= since) derived.push({ t: at, k: 'bounty', u: uid, m: map, c: cat, g: goal, ...(payout ? { a: payout } : {}) });
   }
+  // Bananas: bounties players posted, and tips (economy.mjs; none until the bot has an Economy/ folder).
+  const economy = economyBlock({ economy: bot.economy ?? null, known: id => people.has(id), now });
+  for (const e of [...board.posts, ...economy.events]) if (e.t >= since) derived.push(e);
 
   // State-based events: who overtook whom on the pp boards, pp milestones and newly tracked players, found by
   // comparing with the previous export. The first export has nothing to compare with, so it only records.
@@ -944,6 +948,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // on the first search, sort, filter or page change. Shown as of the export, like everything else.
   const playerEntry = new Map(players.map(p => [p.id, p]));
   const headFiles = {};
+  const badgesHeld = [];
   for (const [id, file] of Object.entries(playerFiles)) {
     const first = list => [...list].sort((a, b) => b[S.PP] - a[S.PP]).slice(0, HEAD_ROWS);
     const scores = Object.fromEntries(CATS.map(cat => [cat, first(file.scores[cat])]));
@@ -968,7 +973,11 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
         years: [...new Set(CATS.flatMap(cat => file.scores[cat].map(t => new Date(t[S.TIME] * 1000).getFullYear())))].sort((a, b) => b - a),
       },
     };
+    badgesHeld.push([Number(id), headFiles[id].extras.badges.map(badgeKey)]);
   }
+  // The badges and records the bot pays for (economy.mjs): written whether or not Bananas has started, so a badge's
+  // first-seen date is right from the start.
+  const unlocked = unlocks({ badges: badgesHeld, records, seen: previous.unlocks, now });
 
   // ---- Meta + state -----------------------------------------------------------------------------------------------
 
@@ -1000,6 +1009,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     weeks,
     // Each cleared ranked catch map's first clear, [userId, unix time] (completion.mjs keeps the earliest seen).
     cleared: goal.firsts,
+    // When each badge was first seen on a player, "key:osuId" → unix seconds (0: held before unlocks were tracked).
+    unlocks: unlocked.seen,
   };
 
   return {
@@ -1016,6 +1027,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'completion.json': goal.file,
       'quiz.json': quiz,
       ...(hill.file ? { 'hill.json': hill.file } : {}),
+      ...(economy.file ? { 'economy.json': economy.file } : {}),
+      'unlocks.json': unlocked.file,
       'history.json': history,
       'maps-top.json': { total: mapsIndex.length, rows: mapsIndex.slice(0, MAPS_TOP) },
       'maps-search.json': encodeMapsSearch(mapsIndex),
