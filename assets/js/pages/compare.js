@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { players, playerFile } from '../core/data.js';
 import { S, M, CATS, CAT, boardComparator } from '../core/model.js';
 import {
-  setTitle, avatar, playerPicker, pickedPlayer, prefs, mapLink, modsBadges, ppText, gradeBadge, paginate, empty, CAT_LABEL, tabs,
+  setTitle, avatar, playerPicker, pickedPlayer, myId, mapLink, modsBadges, ppText, gradeBadge, paginate, empty, CAT_LABEL, tabs,
 } from '../core/ui.js';
 import { RIVALRIES } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
@@ -61,7 +61,7 @@ export default async function compare(root, { params, query, isCurrent }) {
   const list = await players();
   if (!isCurrent()) return;
   const byId = new Map(list.map(p => [p.id, p]));
-  const a = byId.get(Number(params.a)) ?? byId.get(prefs.get('me', null)) ?? null;
+  const a = byId.get(Number(params.a)) ?? byId.get(myId()) ?? null;
   const b = byId.get(Number(params.b)) ?? null;
   setTitle(a && b ? `${a.name} vs ${b.name}` : t('Compare'));
 

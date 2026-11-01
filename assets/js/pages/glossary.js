@@ -33,7 +33,7 @@ const SECTIONS = [
     [t('Bounties'), t('Prizes on hard maps for the first FC, the first pass or taking the #1. Players past 1,000 bananas earned post them with a pot, moderators post house bounties, and anyone signed in can add to a pot. The first play that meets the goal takes it all, and the bot spots it by itself. Nobody can claim a bounty they posted or funded.'), 'bounties'],
     [t('Crown'), t('King of the hill’s prize for one slot: the best play on that slot’s map holds it, and whoever holds it when the month ends keeps it.'), 'crown'],
     [t('Verified'), t('The Discord role for Portuguese osu! accounts, given by the bot’s /verify command.')],
-    [t('This is me'), t('A button on every player profile. Press it on yours and your rows are highlighted across the site. It’s saved in your browser only.')],
+    [t('Signing in'), t('“Sign in with osu!” is the only way the site knows who you are: osu! confirms your account, and only your player id and name come back. Signed in, your rows are highlighted across the site and you can collect and spend bananas. It lasts 30 days in that browser, or until you sign out.'), 'signin'],
   ]],
   [t('Bananas'), [
     [t('Bananas'), t('The community’s play money, named after catch’s bonus fruit. You earn them by playing well: snipes, first FCs on 5★ maps and up, crowns, the map of the week, Dan stages, badges and the daily game. You spend them on bounties, tips and the shop. They’re never bought or sold. The bot keeps the books, and you sign in on this site with osu! to collect what you earned.'), 'bananas'],

@@ -7,7 +7,7 @@ import { mapLore } from '../core/lore.js';
 import { goalLine, prizeTags, potLine } from '../core/bounty.js';
 import { runningNow, challengeChips } from '../core/challenge-chips.js';
 import {
-  setTitle, playerLink, scoreStats, ppText, posBadge, bannerArt, starsBadge, starColor, mapText, osuMap, osuGame, prefs, catChip, scoreWhen,
+  setTitle, playerLink, scoreStats, ppText, posBadge, bannerArt, starsBadge, starColor, mapText, osuMap, osuGame, myId, catChip, scoreWhen,
   funChips, setPressed,
 } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
@@ -85,7 +85,7 @@ export default async function mapPage(root, { params, isCurrent }) {
   if (!isCurrent()) return;
   const { title, sub } = mapText(id, meta);
   setTitle(title);
-  const me = prefs.get('me', null);
+  const me = myId();
   const danStage = DAN_MAPS.indexOf(id);
   const board = entry?.s ?? [];
   // Plays from before the map was ranked: a second view of the leaderboard, offered only when there are any.

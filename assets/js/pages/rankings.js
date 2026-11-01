@@ -3,7 +3,7 @@ import { players, modRankings, topPlays, meta, records } from '../core/data.js';
 import { kingsPage } from './star-kings.js';
 import { S, parseModFilter, topPlaysView } from '../core/model.js';
 import {
-  setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, prefs, SLUG_CAT, CAT_LABEL, pageHead,
+  setTitle, tabs, playerLink, mapLink, modsBadges, ppText, empty, emptyFiltered, myId, SLUG_CAT, CAT_LABEL, pageHead,
   chipGroup, setPressed, writeQuery, announce, resultCount, isInactiveOnOsu, isInactive, isLegend, inactiveTag, legendTag,
   statusTag, officialPp, scoreStats, posBadge, catChip,
 } from '../core/ui.js';
@@ -135,7 +135,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
   if (!isCurrent()) return;
   setTitle(board.board);
   const index = new Map(list.map(p => [p.id, p]));
-  const me = prefs.get('me', null);
+  const me = myId();
 
   if (slug === 'kings') {
     const head = html`

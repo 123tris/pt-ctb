@@ -514,7 +514,7 @@ export const pickedPlayer = (input, list) => {
 
 /**
  * Tiny persistent preference (localStorage may be unavailable, so every access is guarded). Setting one fires a
- * `ptctb:pref` event on window with `{ key, value }`, so the header can follow "This is me" as it changes.
+ * `ptctb:pref` event on window with `{ key, value }`, so the header can follow a sign-in as it changes.
  */
 export const prefs = {
   get(key, fallback) {
@@ -525,3 +525,16 @@ export const prefs = {
     window.dispatchEvent(new CustomEvent('ptctb:pref', { detail: { key, value } }));
   },
 };
+
+// The site used to let anyone mark a profile "This is me" (prefs 'me', and 'osuMe' for the id an osu! sign-in gave). It
+// knows who a visitor is only from "Sign in with osu!" now, so a stored pick is dropped once, never promoted.
+try { localStorage.removeItem('ptctb:me'); localStorage.removeItem('ptctb:osuMe'); } catch { /* storage blocked */ }
+
+/**
+ * The visitor's osu! player id while their sign-in lasts (the 30-day session core/you.js keeps, signin/session.js),
+ * else null. The only "you" the site has: highlighted rows, the You menu and Bananas all key off it.
+ */
+export function myId() {
+  const s = prefs.get('osuSession', null);
+  return s?.token && s.exp > Date.now() / 1000 && Number.isSafeInteger(s.id) && s.id > 0 ? s.id : null;
+}

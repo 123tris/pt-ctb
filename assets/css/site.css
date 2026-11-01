@@ -320,7 +320,7 @@ button, input, select { font: inherit; color: inherit; }
 /* Pages in the header search's results (e.g. "Dan course"), above the players. */
 .search-results .search-page-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--accent-bg); color: var(--accent); font-weight: 700; font-size: var(--fs-sm); }
 
-/* "You" in the top bar (core/you.js): the avatar of whoever this browser marked with "This is me", and its menu. Sits
+/* "You" in the top bar (core/you.js): the avatar of whoever is signed in with osu!, and its menu. Sits
    last on wide screens; on narrow ones between the search button and the menu button. */
 
 .you { position: relative; display: flex; align-items: center; order: 5; margin-left: -8px; }
@@ -340,13 +340,12 @@ button, input, select { font: inherit; color: inherit; }
 .you-head > div { display: grid; min-width: 0; }
 .you-head b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .you-label { color: var(--text-faint); font-size: var(--fs-xs); }
-.you-menu a, .you-forget, .you-osu {
+.you-menu a, .you-forget {
   display: block; width: 100%; padding: var(--sp-2) var(--sp-4); color: var(--text); font-size: var(--fs-sm); text-align: left;
   background: none; border: 0; cursor: pointer;
 }
-.you-menu a:hover, .you-forget:hover, .you-osu:hover { background: var(--surface-2); text-decoration: none; }
+.you-menu a:hover, .you-forget:hover { background: var(--surface-2); text-decoration: none; }
 .you-forget { color: var(--text-dim); }
-.you-osu { color: var(--accent); font-weight: 600; }
 .you-note { margin: var(--sp-1) var(--sp-4) var(--sp-2); color: var(--text-faint); font-size: var(--fs-xs); }
 /* The avatar and name at the top link to your profile, with the profile page avatar's quiet hover and focus ring. */
 .you-menu a.you-head { display: flex; width: auto; padding: var(--sp-2) var(--sp-4) var(--sp-3); font-size: var(--fs-md); border-radius: var(--r-sm) var(--r-sm) 0 0; }
@@ -552,10 +551,9 @@ h3 .cat { color: var(--text); }
 /* Chip groups say what they filter. */
 .chips-label { align-self: center; margin-right: var(--sp-1); color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
 
-/* "This is me" is a toggle with a visible state. */
+/* Toggle buttons (the snipe shield) show their state. */
 .btn[aria-pressed='true'] { border-color: var(--accent-line); background: var(--accent-bg); color: var(--accent); }
 .btn[aria-pressed='true']::before { content: '✓'; }
-.not-you { font-size: var(--fs-sm); }
 
 /* ---- osu! bits: mods, grades, stars ------------------------------------------------------------- */
 
@@ -628,7 +626,7 @@ td.rank { width: 1%; color: var(--text-faint); font-weight: 700; }
 td.wide { white-space: normal; min-width: 260px; max-width: 460px; }
 tr.me, .row.me { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); }
 tr.me:hover, .row.me:hover { background: var(--accent-bg); }
-/* The row a profile's rank link points at (rankings.js, ?at=): framed, so it still reads beside "This is me". */
+/* The row a profile's rank link points at (rankings.js, ?at=): framed, so it still reads beside your own (.me) row. */
 tr.target { outline: 1px solid var(--accent-line); outline-offset: -1px; }
 tr.target:not(.me) { background: var(--surface-2); }
 .table-compact td, .table-compact th { padding: var(--sp-2) var(--sp-3); }
@@ -1082,7 +1080,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 .badge-list span { color: var(--text-dim); font-size: var(--fs-sm); }
 @media (max-width: 600px) { .badge-list { grid-template-columns: minmax(0, 1fr); } }
 
-/* Profile actions: "This is me", compare as an icon, and the badges folded into one button. */
+/* Profile actions: compare as an icon, and the badges folded into one button. */
 .btn-icon { width: 30px; padding: 0; }
 .peek { position: relative; display: inline-flex; }
 .peek-btn {

@@ -1,7 +1,7 @@
 import { html, raw } from '../core/html.js';
 import { players, playerFile, mapEntry } from '../core/data.js';
 import { S, M, MOD, catchPp, adjustedAr, weightedTotal, countedPp } from '../core/model.js';
-import { setTitle, playerPicker, pickedPlayer, prefs, mapLink, ppText } from '../core/ui.js';
+import { setTitle, playerPicker, pickedPlayer, myId, mapLink, ppText } from '../core/ui.js';
 import { CALC_PRESETS } from '../core/lore.js';
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
@@ -27,7 +27,7 @@ export default async function calculator(root, { query, isCurrent }) {
   if (!isCurrent()) return;
   setTitle(t('Calculator'));
   const meta = entry?.m ?? null;
-  const me = list.find(p => p.id === prefs.get('me', null));
+  const me = list.find(p => p.id === myId());
 
   root.innerHTML = String(html`
     <header class="page-head">

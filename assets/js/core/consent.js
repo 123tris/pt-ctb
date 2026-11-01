@@ -5,7 +5,7 @@
 
 import { html } from './html.js';
 import { trackingBlock, setConsent } from './track.js';
-import { prefs } from './ui.js';
+import { prefs, myId } from './ui.js';
 import { t } from './i18n.js';
 import { CONFIG } from '../config.js';
 
@@ -19,9 +19,9 @@ export function initConsent() {
   if (!ASK[mode] || prefs.get('consent', null)) return;
   const block = trackingBlock();
   if (block && block !== 'consent') return;
-  // 'identity' only matters once the visitor has said who they are.
+  // 'identity' only matters once the visitor has signed in.
   const show = () => {
-    if (document.querySelector('.consent') || prefs.get('consent', null) || (mode === 'identity' && !prefs.get('me', null))) return;
+    if (document.querySelector('.consent') || prefs.get('consent', null) || (mode === 'identity' && !myId())) return;
     const bar = document.createElement('div');
     bar.className = 'consent';
     bar.setAttribute('role', 'region');
@@ -37,5 +37,5 @@ export function initConsent() {
     document.body.append(bar);
   };
   show();
-  window.addEventListener('ptctb:pref', e => { if (e.detail.key === 'me') show(); });
+  window.addEventListener('ptctb:pref', e => { if (e.detail.key === 'osuSession') show(); });
 }

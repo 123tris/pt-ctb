@@ -22,7 +22,7 @@ export const topStage = counts => counts.findLastIndex(n => n > 0);
 
 /**
  * The ladder: every stage's glyph, lit once someone in Portugal has passed it, with how many have. `mine` is the
- * highest stage of whoever this browser marked "This is me" (-1 for nobody), which gets a mark under it.
+ * highest stage of whoever is signed in (-1 for nobody), which gets a mark under it.
  */
 export function ladderBand(counts, { mine = -1 } = {}) {
   const top = topStage(counts);

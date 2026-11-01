@@ -2,7 +2,7 @@ import { html, raw } from '../core/html.js';
 import { challenges, bounties, hill, playerIndex, dan, completion, meta } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
-  setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, bannerArt, mapText, starsBadge, empty, osuMap, prefs,
+  setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, bannerArt, mapText, starsBadge, empty, osuMap, myId,
   pageHead, scoreWhen, setCover, paginate, writeQuery, announce, resultCount, emptyFiltered, tabs, scrollBehavior,
 } from '../core/ui.js';
 import { economy } from '../core/bananas.js';
@@ -110,7 +110,7 @@ export default async function challengesPage(root, { params, query, isCurrent })
   const goal = tab.slug === 'completion';
   const now = runningNow({ challenges: data, meta: m, bounties: board });
   setTitle(tab.slug === 'week' ? t('Challenges') : `${tab.label} · ${t('Challenges')}`);
-  const me = prefs.get('me', null);
+  const me = myId();
   const maps = data.maps;
   const figures = tabFigures(data, board, index, m.completion, m.hill);
 

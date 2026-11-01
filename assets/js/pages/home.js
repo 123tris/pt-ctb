@@ -9,10 +9,10 @@ import { SLOT_NAME, TIER_NAME, monthLabel, timeLeft, andList } from '../core/hil
 import { WANTED } from '../core/challenge-chips.js';
 import { season } from '../core/fun.js';
 import {
-  setTitle, avatar, mapText, cover, setCover, starsBadge, CAT_LABEL, prefs, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
+  setTitle, avatar, mapText, cover, setCover, starsBadge, CAT_LABEL, myId, openSearch, isInactiveOnOsu, inactiveTag, isLegend, legendTag, officialPp,
   playerLink, mapLabel, nameClass,
 } from '../core/ui.js';
-import { bananas } from '../core/bananas.js';
+import { bananas, signInHere } from '../core/bananas.js';
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
 import { CONFIG } from '../config.js';
@@ -138,7 +138,7 @@ function bountySummary(board) {
 
 function miniBoard(list, key, cat) {
   const rows = list.filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 5);
-  const me = prefs.get('me', null);
+  const me = myId();
   return html`<div class="card">
     <h3 class="board-title"><span class="cat cat-${cat}">${CAT_LABEL[cat]}</span></h3>
     <div class="mini-board">
@@ -164,7 +164,7 @@ export default async function home(root, { isCurrent }) {
   if (!isCurrent()) return;
   setTitle('');
   const index = new Map(list.map(p => [p.id, p]));
-  const mine = index.get(prefs.get('me', null)) ?? null;
+  const mine = index.get(myId()) ?? null;
   const boss = index.get(THRONE_PLAYER);
   const bossHeld = rec?.throne?.held ?? (boss ? boss.firsts.c + boss.firsts.u + boss.firsts.r : 0);
   const week = ch.week;
@@ -180,7 +180,8 @@ export default async function home(root, { isCurrent }) {
         <div class="hero-actions">
           ${CONFIG.discordInvite ? html`<a class="btn btn-primary" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">${t('Join the Discord')}</a>` : ''}
           <a href="#/rankings">${t('See the leaderboards')}</a>
-          ${mine ? html`<a href="#/player/${mine.id}">${t('Your profile')}</a>` : html`<button type="button" class="link-button" data-find>${t('Find yourself')}</button>`}
+          ${mine ? html`<a href="#/player/${mine.id}">${t('Your profile')}</a>` : signInHere() ? html`<button type="button" class="link-button" data-signin>${t('Sign in with osu!')}</button>`
+            : html`<button type="button" class="link-button" data-find>${t('Find yourself')}</button>`}
         </div>
       </div>
       <dl class="hero-stats">

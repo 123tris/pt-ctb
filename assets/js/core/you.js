@@ -1,16 +1,13 @@
-// "You" in the top bar: once a visitor marks a profile with "This is me", their avatar sits in the bar with a small
-// menu (their profile, compare, and "This isn't me" to forget it). The choice lives in localStorage (prefs 'me'),
-// so it is per browser.
-//
-// With CONFIG.signIn on, the bar also offers "Sign in with osu!" while nobody is chosen: the site's /auth/* Functions
-// (signin/oauth.js, set up with SETUP-HOSTING.md) ask osu! who the visitor is, so they get the same "me" on every
-// device without hunting for their profile. It fills prefs 'me', and keeps the 30-day session token /auth/callback
-// sends (prefs 'osuSession', signin/session.js) that Bananas needs: collecting the pouch, the paying daily game and
-// spending (core/bananas.js). "This is me" stays for everything else: it only highlights rows, and works anywhere.
+// "You" in the top bar. The site knows who a visitor is only from "Sign in with osu!": the /auth/* Functions
+// (signin/oauth.js, set up with SETUP-HOSTING.md) ask osu! who they are and send back a 30-day session token
+// (signin/session.js), kept in this browser as prefs 'osuSession'. While it lasts, their avatar sits in the bar with a
+// small menu (their profile, compare, the shop, sign out), their rows are highlighted everywhere (ui.js myId) and
+// Bananas works: collecting the pouch, the paying daily game and spending (core/bananas.js). Signed out, or where
+// sign-in doesn't work (CONFIG.signIn off, another address), there is no "you" at all.
 
 import { html } from './html.js';
 import { playerIndex } from './data.js';
-import { avatar, prefs } from './ui.js';
+import { avatar, prefs, myId } from './ui.js';
 import { toast } from './fun.js';
 import { track, identify } from './track.js';
 import { t, th } from './i18n.js';
@@ -31,7 +28,7 @@ export function signIn() {
 
 // /auth/callback sends the browser back to #signin?id=…&name=…&state=… (or …&error=…). Read it here, while the modules
 // load and before the router sees the hash, and put the page the visitor left from back in the address bar. The
-// answer only counts if its state is the one this browser just sent, so a crafted link can't pick "me" for anyone.
+// answer only counts if its state is the one this browser just sent, so a crafted link can't sign anyone in.
 const signInResult = (() => {
   if (!location.hash.startsWith('#signin?')) return null;
   const answer = new URLSearchParams(location.hash.slice('#signin?'.length));
@@ -62,13 +59,11 @@ async function finishSignIn({ id, name, proof, token, error }) {
     return toast(th('Signed in as {name}, but you’re not on the Portuguese leaderboards yet, so there’s nothing to show as yours.', { name: html`<b>${name}</b>` }));
   }
   track('auth', 'ok');
-  // Lets the usage counts tell an osu! sign-in from a hand-picked "This is me" (signin/proof.js).
+  // Lets the usage counts check that it was osu! that said who this is (signin/proof.js).
   prefs.set('osuProof', proof ? { id, proof } : null);
-  // The session for Bananas: "<id>.<expiry>.<signature>" (signin/session.js); only the site's endpoints can check it.
+  // The session: "<id>.<expiry>.<signature>" (signin/session.js); only the site's endpoints can check it.
   const [tokenId, exp] = token.split('.').map(Number);
   prefs.set('osuSession', tokenId === id && exp > Date.now() / 1000 ? { id, token, exp } : null);
-  prefs.set('osuMe', id);
-  prefs.set('me', id);
   window.dispatchEvent(new HashChangeEvent('hashchange')); // re-render the page with your rows highlighted
   toast(th('Signed in as {name}.', { name: html`<b>${p.name}</b>` }));
 }
@@ -90,10 +85,9 @@ export function initYou() {
 
   let drawn = null;
   const draw = async () => {
-    const id = prefs.get('me', null);
+    const id = myId();
     const p = id ? (await playerIndex().catch(() => null))?.get(id) : null;
-    const viaOsu = !!p && prefs.get('osuMe', null) === id;
-    const state = p ? `${id}:${viaOsu}` : SIGN_IN_HERE ? 'signin' : null;
+    const state = p ? String(id) : SIGN_IN_HERE ? 'signin' : null;
     if (drawn === state) return;
     drawn = state;
     box.hidden = !state;
@@ -112,11 +106,9 @@ export function initYou() {
         <a class="you-head" href="#/player/${id}" aria-label="${t('Your profile: {name}', { name: p.name })}">${avatar(id, 'avatar-md')}<div><span class="you-label">${t('You')}</span><b>${p.name}</b></div></a>
         <a href="#/player/${id}">${t('Your profile')}</a>
         <a href="#/compare/${id}">${t('Compare with someone')}</a>
-        ${viaOsu && wallet ? html`<a href="#/shop">${t('Shop')} <span class="faint">· ${bananas(wallet.b)}</span></a>` : ''}
-        ${!viaOsu && SIGN_IN_HERE ? html`<button class="you-osu" type="button" data-signin>${wallet && !wallet.s && wallet.p > 0
-          ? t('Sign in to collect your {n}', { n: bananas(wallet.p) }) : t('Sign in with osu!')}</button>` : ''}
-        <button class="you-forget" type="button">${viaOsu ? t('Sign out') : t('This isn’t me')}</button>
-        <p class="you-note">${viaOsu ? t('Signed in with osu! in this browser.') : t('Remembered in this browser. Sign in with osu! to collect bananas.')}</p>
+        ${wallet ? html`<a href="#/shop">${t('Shop')} <span class="faint">· ${bananas(wallet.b)}</span></a>` : ''}
+        <button class="you-forget" type="button">${t('Sign out')}</button>
+        <p class="you-note">${t('Signed in with osu! in this browser.')}</p>
       </div>`);
   };
 
@@ -124,12 +116,10 @@ export function initYou() {
     if (e.target.closest('.you-signin, [data-signin]')) signIn();
     else if (e.target.closest('.you-btn')) setMenu(box.querySelector('.you-menu').hidden);
     else if (e.target.closest('.you-forget')) {
-      track('auth', prefs.get('osuMe', null) ? 'sign out' : 'not me');
+      track('auth', 'sign out');
       prefs.set('osuProof', null);
       prefs.set('osuSession', null);
-      prefs.set('osuMe', null);
-      prefs.set('me', null);
-      // Re-render the current page so its highlights and "This is me" button drop the old choice.
+      // Re-render the current page so its highlights and Bananas parts drop the old "you".
       window.dispatchEvent(new HashChangeEvent('hashchange'));
     } else if (e.target.closest('a')) setMenu(false);
   });
@@ -140,10 +130,10 @@ export function initYou() {
   // A disclosure, not a menu: it closes when focus leaves it (APG disclosure navigation).
   box.addEventListener('focusout', e => { if (e.relatedTarget && !box.contains(e.relatedTarget)) setMenu(false); });
   window.addEventListener('hashchange', () => setMenu(false));
-  window.addEventListener('ptctb:pref', e => { if (e.detail.key === 'me' || e.detail.key === 'osuMe') draw(); });
+  window.addEventListener('ptctb:pref', e => { if (e.detail.key === 'osuSession') draw(); });
   // Any page's "Sign in with osu!" (core/bananas.js signInButton) starts the same sign-in.
   document.addEventListener('click', e => { if (!box.contains(e.target) && e.target.closest('[data-signin]')) signIn(); });
-  window.addEventListener('storage', e => { if (e.key === 'ptctb:me') draw(); }); // another tab changed it
+  window.addEventListener('storage', e => { if (e.key === 'ptctb:osuSession') draw(); }); // another tab signed in or out
   draw();
   if (signInResult) finishSignIn(signInResult);
 }

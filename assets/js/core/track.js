@@ -3,8 +3,7 @@
 // /stats.
 //
 // Each browser gets a random visitor id and a session id (localStorage, never derived from the device). When the
-// visitor has said who they are on osu! ("This is me" or "Sign in with osu!"), batches carry that player id and how it
-// was given. Search text is never sent, only its shape ("text, 3-5 characters"), since it can be anything.
+// visitor has signed in with osu!, batches carry that player id and the proof /auth/callback gave (signin/proof.js). Search text is never sent, only its shape ("text, 3-5 characters"), since it can be anything.
 //
 // Off when: not on the site's own address (npm run serve, GitHub Pages), Do Not Track or Global Privacy Control is on,
 // this browser opted out (the privacy page, or /stats, sets ptctb:notrack), or CONFIG.analyticsConsent asks first and
@@ -86,17 +85,17 @@ function sessionId() {
 }
 
 let playerName = '';
-/** Called by core/you.js once it knows the name of the chosen player, so the dashboard can show it. */
+/** Called by core/you.js once it knows the name of the signed-in player, so the dashboard can show it. */
 export function identify(name) { playerName = String(name ?? '').slice(0, 30); }
 
-/** Who this browser says it is: the "me" player id, and whether that came from an osu! sign-in (with its proof). */
+/** Who is signed in with osu! in this browser, with the proof that it was osu! that said so. Nobody: nothing. */
 function identity() {
-  const me = store.get('me');
+  const s = store.get('osuSession');
+  const me = s?.exp > Date.now() / 1000 ? s.id : null;
   if (!Number.isSafeInteger(me) || me <= 0) return {};
   if (CONFIG.analyticsConsent === 'identity' && store.get('consent') !== 'yes') return {};
-  const osu = store.get('osuMe') === me;
   const proof = store.get('osuProof');
-  return { p: me, w: osu ? 'osu' : 'claim', pr: osu && proof?.id === me ? proof.proof : undefined, pn: playerName || undefined };
+  return { p: me, w: 'osu', pr: proof?.id === me ? proof.proof : undefined, pn: playerName || undefined };
 }
 
 let queue = [];
@@ -334,7 +333,7 @@ export function startTracking() {
   };
   document.addEventListener('input', used, true);
   document.addEventListener('change', used, true);
-  const QUIET_PREFS = new Set(['signin', 'osuProof', 'daily', 'consent']);
+  const QUIET_PREFS = new Set(['signin', 'osuProof', 'osuSession', 'daily', 'consent']);
   window.addEventListener('ptctb:pref', e => {
     if (!QUIET_PREFS.has(e.detail.key) && !e.detail.key.endsWith('-best')) track('pref', e.detail.key, e.detail.value ? 'on' : 'off');
   });

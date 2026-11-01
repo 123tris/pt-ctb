@@ -2,7 +2,7 @@ import { html } from '../core/html.js';
 import { S, DAN_STAGES, DAN_ROLES, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { DAN_ROLE_LORE } from '../core/lore.js';
-import { playerLink, mapLink, scoreStats, posBadge, empty, prefs, scrollBehavior, avatarSrc } from '../core/ui.js';
+import { playerLink, mapLink, scoreStats, posBadge, empty, myId, scrollBehavior, avatarSrc } from '../core/ui.js';
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
 
@@ -47,7 +47,7 @@ function stageDetail(stage, data, index) {
 /** Renders the Dan course (ladder, chosen stage, leaderboard, roles) into `root`: the Challenges page's Dan tab. */
 export function renderDan(root, data, index, query) {
   let selected = Number(query.stage ?? data.stages.findLastIndex(s => s.passers.length)) || 0;
-  const me = prefs.get('me', null);
+  const me = myId();
 
   root.innerHTML = String(html`
     <div class="section-head"><h2>${t('From Zeroth Dan to Shin')}</h2><span class="muted small">${t('The Dan has run on the server since June 2018. Alphonse sleeps; the site doesn’t.')}</span></div>

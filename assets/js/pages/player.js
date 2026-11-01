@@ -71,18 +71,18 @@ function bananaSection(p, w, ledger) {
   if (!w) return '';
   const me = session();
   const own = me?.id === p.id;
-  const visitorIsThem = own || prefs.get('me', null) === p.id;
+  // Signed out, it could be theirs: the way to collect. Signed in as someone else, it isn't.
+  const mayBeThem = !me && signInHere();
   const head = html`<h2 class="card-h">${t('Bananas')} <a class="card-h-link" href="#/glossary?at=bananas">${t('What are bananas?')}</a></h2>`;
   if (!w.s) {
     return html`<section class="section card bananas" id="bananas">${head}
       ${w.p > 0 ? html`
         <p class="pouch">${own ? th('Your {n} are on their way to your wallet', { n: html`<b>${bananas(w.p)}</b>` })
-          : visitorIsThem ? th('Sign in to collect your {n}', { n: html`<b>${bananas(w.p)}</b>` })
-            : th('{n} waiting in {name}’s pouch', { n: html`<b>${bananas(w.p)}</b>`, name: p.name })}</p>
+          : th('{n} waiting in {name}’s pouch', { n: html`<b>${bananas(w.p)}</b>`, name: p.name })}</p>
         <p class="small muted">${own
           ? t('You’ve signed in: the bot moves them into your wallet at its next update, within 15 minutes.')
           : t('Bananas earned before signing in on this site wait in a pouch. The first sign-in with osu! collects them. The pouch holds {cap} at most; anything past that is lost.', { cap: bananas(RULES.pouchCap) })}</p>
-        ${visitorIsThem && !own ? html`<div class="btn-row">${signInButton(t('Sign in to collect'))}</div>` : ''}`
+        ${mayBeThem ? html`<div class="btn-row">${signInButton(t('Is this you? Sign in to collect'))}</div>` : ''}`
         : html`<p class="small muted">${t('No bananas yet. They’re earned by playing: snipes, first FCs on hard maps, crowns, the daily game and more.')}</p>`}
       ${ledgerList(ledger)}
     </section>`;
@@ -435,13 +435,11 @@ export default async function player(root, { params, query, isCurrent }) {
           p.last && t('last played {ago}', { ago: fmt.ago(p.last) }),
           playerEra && t('era: {era}', { era: playerEra }),
           wallet?.t && html`<span class="profile-title">${wallet.t}</span>`,
-          // Their own profile, not signed in yet, with bananas waiting: the way to collect them, up top.
-          wallet && !wallet.s && wallet.p > 0 && prefs.get('me', null) === id && session()?.id !== id && signInHere()
-            && html`<button class="link-button" type="button" data-signin>${t('Sign in to collect your {n}', { n: bananas(wallet.p) })}</button>`,
+          // Bananas waiting in the pouch and nobody signed in here: if it's theirs, the way to collect them, up top.
+          wallet && !wallet.s && wallet.p > 0 && !session() && signInHere()
+            && html`<button class="link-button" type="button" data-signin>${t('Is this you? Sign in to collect {n}', { n: bananas(wallet.p) })}</button>`,
         ].filter(Boolean).map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>
         <div class="links">
-          <button class="btn btn-small" id="me" type="button" aria-pressed="false" title="${t('Highlights your rows on every leaderboard (saved in this browser)')}">${t('This is me')}</button>
-          <a class="not-you" id="not-you" href="#/player/${id}" hidden>${t('Not you?')}</a>
           <a class="btn btn-small btn-icon" href="#/compare/${id}" aria-label="${t('Compare {name} with another player', { name: p.name })}" title="${t('Compare with another player')}">${COMPARE_ICON}</a>
           ${badges.length ? badgePeek(badges) : ''}
         </div>
@@ -525,27 +523,6 @@ export default async function player(root, { params, query, isCurrent }) {
     setPressed(historyEl, 'range', range[0]);
     drawHistory();
   });
-
-  // "This is me" is a toggle: the label stays the same, aria-pressed and a check mark show the state, and "Not you?"
-  // undoes it without having to guess that the same button does. Its tooltip says what it's for.
-  const meButton = root.querySelector('#me');
-  const notYou = root.querySelector('#not-you');
-  const drawMe = () => {
-    const me = prefs.get('me', null);
-    meButton.setAttribute('aria-pressed', String(me === id));
-    notYou.hidden = me !== id;
-  };
-  meButton.addEventListener('click', () => {
-    prefs.set('me', prefs.get('me', null) === id ? null : id);
-    drawMe();
-  });
-  notYou.addEventListener('click', e => {
-    e.preventDefault();
-    prefs.set('me', null);
-    drawMe();
-    meButton.focus();
-  });
-  drawMe();
 
   // The badges card opens on hover (site.css, pointers only); a click or tap opens it until a second click, Escape or a
   // click anywhere else.

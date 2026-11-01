@@ -11,7 +11,7 @@ import { CONFIG } from '../config.js';
 const RECORDED = [
   [t('Pages and clicks'), t('Which pages you open and how you got there, how long you stay, how far down you scroll, which buttons, filters, sorts and tabs you use, game results, and the links you follow to other sites (only the site and the first part of the address).')],
   [t('Searches'), t('Whether you searched, what you picked, and the shape of what you typed, like “text, 3 to 5 characters”. Never the words themselves.')],
-  [t('Your osu! player'), t('If you pressed “This is me” or signed in with osu!, your player id and name, and which of the two it was. Otherwise you’re just a random id.')],
+  [t('Your osu! player'), t('If you’re signed in with osu!, your player id and name. Otherwise you’re just a random id.')],
   [t('Your browser'), t('A random id kept in this browser (not a cookie, and not worked out from your device) and one for each visit. Also your screen size class and window size, browser and operating system (not the full browser string), whether you prefer light or dark, your browser’s language, and your country, which Cloudflare tells the site.')],
   [t('Problems'), t('Error messages from the site’s code, and how long pages and data take to load.')],
 ];

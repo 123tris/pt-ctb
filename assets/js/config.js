@@ -13,7 +13,7 @@ export const CONFIG = {
   /**
    * Per branch: show "Sign in with osu!" in the top bar (on for both builds; the SIGN_IN=0 build variable switches it
    * off). Needs the /auth/* Functions and an osu! app whose callback is on `home`, so it only shows there. Bananas
-   * needs it to collect and spend; "This is me" works either way, for highlighting only.
+   * needs it to collect and spend, and it is the only way the site knows who "you" are.
    */
   signIn: false,
   /** Per branch: 'dev' on development builds, which shows a DEV marker in the top bar. Empty on the release site. */

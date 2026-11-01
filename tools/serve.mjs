@@ -8,8 +8,8 @@
 // --economy does the same for Bananas (the daily game, wallet requests, the bot's inbox: economy/api.js) and turns
 // "Sign in with osu!" on, with a local stand-in for osu! that asks which player to be.
 //
-// Review aids, for requests to localhost only (tools/local-review.js, never deployed): "This is me" starts as Tris in a
-// browser that never chose, and a "Design: new / old" button sits in the corner. "Old" sets a cookie, and then every site
+// Review aids, for requests to localhost only (tools/local-review.js, never deployed): a "Design: new / old" button
+// sits in the corner. "Old" sets a cookie, and then every site
 // file this branch has changed since it last took in dev is served as dev had it, straight from git, so the old CSS,
 // markup and JS come back together. Drop this once the design pass is merged.
 

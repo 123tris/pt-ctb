@@ -9,7 +9,7 @@
 // rank (a place) → posição, top plays → melhores jogadas, overtake → ultrapassagem, bounty → recompensa, pool → pool,
 // slot → slot (King of the hill's, as players say them),
 // badge → crachá, stage → etapa, a pass → passagem (to pass → passar), star range → intervalo de estrelas,
-// tie → empate, grade → nota, recap → resumo do ano, sign in → iniciar sessão, "This is me" → "Sou eu".
+// tie → empate, grade → nota, recap → resumo do ano, sign in → iniciar sessão.
 // Player names, map titles, Discord role and Dan stage names (Zeroth Dan…Shin) and quoted Portuguese lore stay as they are.
 
 export const PT = {
@@ -324,9 +324,7 @@ export const PT = {
   'Your profile': 'O teu perfil',
   'Compare with someone': 'Comparar com alguém',
   'Sign out': 'Terminar sessão',
-  'This isn’t me': 'Este não sou eu',
   'Signed in with osu! in this browser.': 'Sessão iniciada com o osu! neste browser.',
-  'Remembered in this browser. Sign in with osu! to collect bananas.': 'Guardado neste browser. Inicia sessão com o osu! para recolheres bananas.',
   // ---- pages/home.js ----------------------------------------------------------------------------------------
   'Nobody has passed a stage yet. Zeroth Dan is right there.': 'Ainda ninguém passou uma etapa. O Zeroth Dan está mesmo ali.',
   'Portugal has climbed to the {stage}.': 'Portugal já chegou ao {stage}.',
@@ -578,7 +576,8 @@ export const PT = {
   'The community’s ladder of 19 challenge maps, from Zeroth Dan to Shin. Passing stages earns points and Discord roles. It lives under Challenges.': 'A escada da comunidade, com 19 mapas de desafio, do Zeroth Dan ao Shin. Passar etapas dá pontos e cargos no Discord. Está em Desafios.',
   'Verified': 'Verificado',
   'The Discord role for Portuguese osu! accounts, given by the bot’s /verify command.': 'O cargo do Discord para contas osu! portuguesas, dado pelo comando /verify do bot.',
-  'This is me': 'Sou eu',
+  'Signing in': 'Iniciar sessão',
+  '“Sign in with osu!” is the only way the site knows who you are: osu! confirms your account, and only your player id and name come back. Signed in, your rows are highlighted across the site and you can collect and spend bananas. It lasts 30 days in that browser, or until you sign out.': '“Iniciar sessão com o osu!” é a única forma de o site saber quem és: o osu! confirma a tua conta e só o id e o nome do teu jogador vêm de volta. Com a sessão iniciada, as tuas linhas ficam destacadas em todo o site e podes recolher e gastar bananas. Dura 30 dias nesse browser, ou até terminares a sessão.',
   'A button on every player profile. Press it on yours and your rows are highlighted across the site. It’s saved in your browser only.': 'Um botão em todos os perfis de jogador. Carrega no teu e as tuas linhas ficam destacadas em todo o site. Fica guardado só no teu browser.',
   'What the numbers and badges on this site mean, and the words the community uses for them.': 'O que querem dizer os números e os crachás deste site, e as palavras que a comunidade usa para eles.',
   'Still stuck? Ask in the Discord: someone’s always around.': 'Ainda com dúvidas? Pergunta no Discord: há sempre alguém por lá.',
@@ -607,8 +606,6 @@ export const PT = {
   '{n} #1 in Portugal': ['{n} #1 em Portugal', '{n} #1s em Portugal'],
   'last played {ago}': 'jogou pela última vez {ago}',
   'era: {era}': 'era: {era}',
-  'Highlights your rows on every leaderboard (saved in this browser)': 'Destaca as tuas linhas em todas as classificações (guardado neste browser)',
-  'Not you?': 'Não és tu?',
   'Compare {name} with another player': 'Comparar {name} com outro jogador',
   'Compare with another player': 'Comparar com outro jogador',
   'Unranked': 'Sem posição',
@@ -1037,7 +1034,7 @@ export const PT = {
   'Searches': 'Pesquisas',
   'Whether you searched, what you picked, and the shape of what you typed, like “text, 3 to 5 characters”. Never the words themselves.': 'Se pesquisaste, o que escolheste e a forma do que escreveste, como “texto, 3 a 5 caracteres”. Nunca as palavras em si.',
   'Your osu! player': 'O teu jogador do osu!',
-  'If you pressed “This is me” or signed in with osu!, your player id and name, and which of the two it was. Otherwise you’re just a random id.': 'Se carregaste em “Sou eu” ou iniciaste sessão com o osu!, o id e o nome do teu jogador, e qual das duas foi. Caso contrário, és só um id aleatório.',
+  'If you’re signed in with osu!, your player id and name. Otherwise you’re just a random id.': 'Se tiveres sessão iniciada com o osu!, o id e o nome do teu jogador. Caso contrário, és só um id aleatório.',
   'Your browser': 'O teu browser',
   'A random id kept in this browser (not a cookie, and not worked out from your device) and one for each visit. Also your screen size class and window size, browser and operating system (not the full browser string), whether you prefer light or dark, your browser’s language, and your country, which Cloudflare tells the site.': 'Um id aleatório guardado neste browser (não é um cookie, nem é calculado a partir do teu dispositivo) e um para cada visita. Também a classe de tamanho do ecrã e o tamanho da janela, o browser e o sistema operativo (não a identificação completa do browser), se preferes o tema claro ou escuro, o idioma do teu browser e o teu país, que a Cloudflare indica ao site.',
   'Problems': 'Problemas',
@@ -1245,11 +1242,11 @@ export const PT = {
   'Takes 1,000 bananas earned (tips, refunds and the launch grant don’t count), a stake of 500 or more and a 20% fee, which is burned. One a month. The first play that meets the goal takes the whole pot; if nobody does, 70% goes back to the funders.': 'Exige 1000 bananas ganhas (gorjetas, devoluções e o bónus de lançamento não contam), uma caução de 500 ou mais e uma taxa de 20%, que é queimada. Uma por mês. A primeira jogada que cumprir o objetivo leva o pote todo; se ninguém conseguir, 70% volta para quem contribuiu.',
   'Bananas': 'Bananas',
   'What are bananas?': 'O que são bananas?',
-  'Sign in to collect your {n}': 'Inicia sessão para recolheres as tuas {n}',
+  'Is this you? Sign in to collect {n}': 'És tu? Inicia sessão para recolheres {n}',
   '{n} waiting in {name}’s pouch': '{n} à espera na bolsa de {name}',
   'You’ve signed in: the bot moves them into your wallet at its next update, within 15 minutes.': 'Já iniciaste sessão: o bot passa-as para a tua carteira na próxima atualização, em até 15 minutos.',
   'Bananas earned before signing in on this site wait in a pouch. The first sign-in with osu! collects them. The pouch holds {cap} at most; anything past that is lost.': 'As bananas ganhas antes de iniciares sessão neste site esperam numa bolsa. O primeiro início de sessão com o osu! recolhe-as. A bolsa leva {cap} no máximo; o que passar disso perde-se.',
-  'Sign in to collect': 'Iniciar sessão e recolher',
+  'Is this you? Sign in to collect': 'És tu? Inicia sessão e recolhe',
   'No bananas yet. They’re earned by playing: snipes, first FCs on hard maps, crowns, the daily game and more.': 'Ainda sem bananas. Ganham-se a jogar: snipes, primeiros FCs em mapas difíceis, coroas, o jogo diário e mais.',
   'Wallet': 'Carteira',
   'Earned': 'Ganhas',

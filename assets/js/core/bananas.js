@@ -7,7 +7,7 @@
 
 import { html } from './html.js';
 import { meta, load } from './data.js';
-import { prefs, mapLabel } from './ui.js';
+import { prefs, mapLabel, myId } from './ui.js';
 import { toast } from './fun.js';
 import { track } from './track.js';
 import * as fmt from './fmt.js';
@@ -71,8 +71,7 @@ export const signInHere = () => Boolean(CONFIG.signIn && (!CONFIG.home || locati
 
 /** The signed-in player, { id, token, exp }, while the 30-day session lasts; null otherwise. */
 export function session() {
-  const s = prefs.get('osuSession', null);
-  return s?.token && s.exp > Date.now() / 1000 && prefs.get('osuMe', null) === s.id ? s : null;
+  return myId() ? prefs.get('osuSession', null) : null;
 }
 
 /** Asks the site's endpoints, signed in. { ok, status, body }; a refused session is forgotten. */
