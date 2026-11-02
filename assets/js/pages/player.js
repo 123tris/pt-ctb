@@ -3,7 +3,7 @@ import { playerFile, playerHead, playerIndex, history, records, bounties } from 
 import {
   economy, session, bananas, RULES, ledgerList, signInButton, sendRequest, myRequests, requestList, pendingSpend, closeOnEscape, signInHere,
 } from '../core/bananas.js';
-import { S, CATS, DAN_STAGES, DAN_MAPS, HILL_SLOTS, HILL_TIERS, danRole } from '../core/model.js';
+import { S, CATS, PLAY_SOURCES, DAN_STAGES, DAN_MAPS, HILL_SLOTS, HILL_TIERS, danRole } from '../core/model.js';
 import { danName } from '../core/events.js';
 import { lineChart, chartHover } from '../core/charts.js';
 import { playerBadges, era, signatureMap, localBadge, localEra } from '../core/badges.js';
@@ -227,11 +227,29 @@ const SORTS = {
   combo: [t('Highest combo'), (a, b) => b[S.COMBO] - a[S.COMBO]],
 };
 
+/** Rows per list in a head file (HEAD_ROWS in tools/lib/build.mjs): one page of the list. */
+const HEAD_ROWS = 50;
+
+/** Each play's category, for the lists that mix them (a score tuple doesn't carry its own). */
+const playCat = new WeakMap();
+
+/**
+ * The plays of several categories in one list. A head file has only each category's first page, so there it's the
+ * first page of them together: the 50 with most pp of those first pages, which are the whole list's 50 too.
+ */
+function mixedPlays(f, cats) {
+  const list = cats.flatMap(cat => f.scores[cat].map(s => { playCat.set(s, cat); return s; }));
+  const whole = !f.head || list.length >= cats.reduce((n, cat) => n + f.counts[cat], 0);
+  return whole ? list : list.sort(SORTS.pp[1]).slice(0, HEAD_ROWS);
+}
+
+/** The score lists. `cats` marks one that mixes categories, whose rows say which each play is. */
 const TAB_LIST = [
+  { slug: 'all', label: t('All|plays'), cats: CATS },
   { slug: 'converts', label: t('Converts'), list: f => f.scores.c },
   { slug: 'loved', label: t('Loved'), list: f => f.scores.u },
-  { slug: 'ranked', label: t('Ranked'), list: f => f.scores.r },
-  { slug: 'top', label: 'Top pp', list: f => f.top },
+  // Ranked is what osu! gives pp for: ranked catch-specific maps and converts (every convert here is of a ranked map).
+  { slug: 'ranked', label: t('Ranked'), cats: PLAY_SOURCES.r },
   { slug: 'dan', label: 'Dan', list: f => f.dan },
   { slug: 'pre', label: t('Pre-rank'), list: f => f.pre || [] },
 ];
@@ -378,16 +396,31 @@ function historySection(recorded, rebuilt) {
   </details>`;
 }
 
+/**
+ * Whether a link to a list needs the whole player file: the small head file shows only the first page in the default
+ * order, not a search, sort, filter or later page.
+ */
+const needsAll = query => Boolean(query.q || query.firsts || (query.sort && query.sort !== 'pp') || Number(query.page) > 1);
+
 /** The last full player file this page loaded, so switching tabs on that profile doesn't go back to the head file. */
 let lastFull = null;
 
+/**
+ * The profile on the page: { id, p, counts, file, section }. Switching between its score lists only redraws them
+ * (app.js keeps the page in place for it), so the page doesn't jump back to the top or flash.
+ */
+let onScreen = null;
+
 export default async function player(root, { params, query, isCurrent }) {
   const id = Number(params.id);
+  if (onScreen?.id === id && root.contains(onScreen.section)) {
+    showPlays(onScreen, params.tab, query, isCurrent);
+    return;
+  }
   // The small head file shows the first page in the default order. A link straight to a search, sort, filter or later
   // page needs the whole file, as does data from before head files (playerHead gives null).
-  const needsAll = Boolean(query.q || query.firsts || (query.sort && query.sort !== 'pp') || Number(query.page) > 1);
   const loaded = lastFull?.id === id ? lastFull : null;
-  const head = needsAll || loaded ? null : playerHead(id);
+  const head = needsAll(query) || loaded ? null : playerHead(id);
   const filePromise = loaded ? Promise.resolve(loaded) : head ? head.then(h => h ?? playerFile(id)) : playerFile(id);
   // Records only feed the badges, which a head file brings already worked out.
   const recsPromise = (head ?? Promise.resolve(null)).then(h => (h ? null : records().catch(() => null)));
@@ -406,13 +439,11 @@ export default async function player(root, { params, query, isCurrent }) {
   const playerEra = localEra(extras ? extras.era : era(p, file));
   const signature = extras ? extras.signature : signatureMap(file);
 
-  const counts = file.counts ? { ...file.counts, converts: file.counts.c, loved: file.counts.u, ranked: file.counts.r } : {
-    converts: file.scores.c.length, loved: file.scores.u.length, ranked: file.scores.r.length, top: file.top.length, dan: file.dan.length,
-    pre: file.pre?.length ?? 0,
+  const counts = file.counts ? { ...file.counts } : {
+    c: file.scores.c.length, u: file.scores.u.length, r: file.scores.r.length, dan: file.dan.length, pre: file.pre?.length ?? 0,
   };
-  const tab = TAB_LIST.find(item => item.slug === params.tab) ?? TAB_LIST.find(item => !['dan', 'pre'].includes(item.slug) && counts[item.slug]) ?? TAB_LIST[0];
-  // Only lists with something in them get a tab (so they fit on a phone), plus whichever one is open.
-  const shownTabs = TAB_LIST.filter(item => counts[item.slug] || item === tab);
+  Object.assign(counts, { converts: counts.c, loved: counts.u });
+  for (const item of TAB_LIST) if (item.cats) counts[item.slug] = item.cats.reduce((n, cat) => n + counts[cat], 0);
   const role = danRole(p.danScore);
   const firsts = p.firsts.c + p.firsts.u + p.firsts.r;
   const dayTime = d => Date.parse(`${d}T12:00:00Z`) / 1000;
@@ -481,21 +512,15 @@ export default async function player(root, { params, query, isCurrent }) {
 
     ${historySection(points, rebuilt)}
 
-    <section class="section">
+    <section class="section" id="plays">
       <h2 class="sr-only">${t('Plays')}</h2>
-      ${tabs(shownTabs.map(item => ({ href: `/player/${id}/${item.slug}`, label: item.label, count: counts[item.slug], active: item === tab })), t('Score lists'))}
-      ${tab.slug === 'dan' ? danGrid(file) : html`
-        ${tab.slug === 'top' ? html`<p class="muted small">${t('The best ranked plays (converts included) with their official pp, taken from osu!’s monthly data dump.')}</p>` : ''}
-        ${tab.slug === 'pre' ? html`<p class="muted small">${t('Plays set before their map was ranked. They’re kept for the record but count toward nothing: no pp, no leaderboard spot.')}</p>` : ''}
-        <div class="toolbar">
-          <input class="input" type="search" id="q" placeholder="${t('Search maps…')}" aria-label="${t('Search these plays')}" value="${query.q || ''}">
-          <select class="select" id="sort" aria-label="${t('Sort')}">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === query.sort ? raw('selected') : ''}>${label}</option>`)}</select>
-          ${!['top', 'pre'].includes(tab.slug) ? html`<span class="checks"><label><input type="checkbox" id="firsts" ${query.firsts ? raw('checked') : ''}> ${t('Only #1s')}</label></span>` : ''}
-        </div>
-        <p class="result-count" id="count"></p>
-        <div id="scores"></div>`}
+      <div id="play-tabs"></div>
+      <div id="play-list"></div>
     </section>
   `);
+
+  onScreen = { id, p, counts, file, section: root.querySelector('#plays') };
+  showPlays(onScreen, params.tab, query, isCurrent);
 
   wireBananas(root, p, index, query, isCurrent, eco, board?.maps);
 
@@ -547,27 +572,67 @@ export default async function player(root, { params, query, isCurrent }) {
     });
     peek.addEventListener('mouseleave', () => peek.classList.remove('shut'));
   }
+}
 
-  if (tab.slug === 'dan') return;
+/**
+ * The score lists of the profile on screen (`view`, see onScreen): marks the open tab and draws its list. A switch to
+ * another list runs only this, so the tab that was clicked keeps focus and the page stays where it was scrolled.
+ */
+function showPlays(view, slug, query, isCurrent) {
+  const { id, p, counts, section } = view;
+  const tab = TAB_LIST.find(item => item.slug === slug) ?? TAB_LIST.find(item => !['dan', 'pre'].includes(item.slug) && counts[item.slug]) ?? TAB_LIST[0];
+  const href = `/player/${id}/${tab.slug}`;
+  const links = [...section.querySelectorAll('.tabs a')];
+  if (links.some(a => a.getAttribute('href') === href)) {
+    links.forEach(a => {
+      const on = a.getAttribute('href') === href;
+      a.classList.toggle('active', on);
+      if (on) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+  } else {
+    // Only lists with something in them get a tab (so they fit on a phone), plus whichever one is open.
+    const shownTabs = TAB_LIST.filter(item => counts[item.slug] || item === tab);
+    section.querySelector('#play-tabs').innerHTML = String(tabs(shownTabs.map(item => ({
+      href: `/player/${id}/${item.slug}`, label: item.label, count: counts[item.slug], active: item === tab,
+    })), t('Score lists')));
+  }
+
+  const body = section.querySelector('#play-list');
+  if (tab.slug === 'dan') {
+    body.innerHTML = String(danGrid(view.file));
+    return;
+  }
+  body.innerHTML = String(html`
+    ${tab.slug === 'pre' ? html`<p class="muted small">${t('Plays set before their map was ranked. They’re kept for the record but count toward nothing: no pp, no leaderboard spot.')}</p>` : ''}
+    <div class="toolbar">
+      <input class="input" type="search" id="q" placeholder="${t('Search maps…')}" aria-label="${t('Search these plays')}" value="${query.q || ''}">
+      <select class="select" id="sort" aria-label="${t('Sort')}">${Object.entries(SORTS).map(([k, [label]]) => html`<option value="${k}" ${k === query.sort ? raw('selected') : ''}>${label}</option>`)}</select>
+      ${tab.slug !== 'pre' ? html`<span class="checks"><label><input type="checkbox" id="firsts" ${query.firsts ? raw('checked') : ''}> ${t('Only #1s')}</label></span>` : ''}
+    </div>
+    <p class="result-count" id="count"></p>
+    <div id="scores"></div>`);
+
   const cat = SLUG_CAT[tab.slug] ?? null;
-  let all = tab.list(file);
+  const listOf = f => (tab.cats ? mixedPlays(f, tab.cats) : tab.list(f));
+  let all = listOf(view.file);
   const total = counts[tab.slug];
   // A head file holds this list's first page only (in the default order). Until the whole file is in, `items` is that
   // page padded with nulls to the list's real length, so the pager and the count are right from the start.
   let partial = all.length < total;
   if (!total) {
     const none = {
-      top: t('{name} has no plays imported from the osu! data dump yet.', { name: p.name }),
       pre: t('{name} has no plays from before their map was ranked yet.', { name: p.name }),
+      all: t('{name} has no plays yet.', { name: p.name }),
     }[tab.slug] ?? t('{name} has no plays in {category} yet.', { name: p.name, category: CAT_LABEL[cat] });
-    root.querySelector('#scores').innerHTML = String(empty(none));
+    body.querySelector('#scores').innerHTML = String(empty(none));
     return;
   }
-  const q = root.querySelector('#q');
-  const sort = root.querySelector('#sort');
-  const onlyFirsts = root.querySelector('#firsts');
+  const q = body.querySelector('#q');
+  const sort = body.querySelector('#sort');
+  const onlyFirsts = body.querySelector('#firsts');
   const label = s => {
-    const { title, sub } = mapText(s[S.MAP], file.maps[s[S.MAP]]);
+    const { title, sub } = mapText(s[S.MAP], view.file.maps[s[S.MAP]]);
     return `${title} ${sub}`.toLowerCase();
   };
   // The lowercase labels are built once per list, on the first search, not again on every keystroke.
@@ -585,8 +650,8 @@ export default async function player(root, { params, query, isCurrent }) {
   const loadAll = () => (fullPromise ??= playerFile(id).then(full => {
     if (!isCurrent()) return false;
     lastFull = full;
-    file = full;
-    all = tab.list(full);
+    view.file = full;
+    all = listOf(full);
     labels = null;
     partial = false;
     return true;
@@ -596,7 +661,7 @@ export default async function player(root, { params, query, isCurrent }) {
     return false;
   }));
   // Search, sort, "Only #1s" and page live in the URL, so Back from a map comes back to the same list.
-  const count = root.querySelector('#count');
+  const count = body.querySelector('#count');
   let page = Math.max(0, (Number(query.page) || 1) - 1);
   const save = () => writeQuery({ q: q.value.trim(), sort: sort.value, firsts: Boolean(onlyFirsts?.checked), page: page + 1 }, { sort: 'pp', page: 1 });
   let items = visible();
@@ -605,20 +670,33 @@ export default async function player(root, { params, query, isCurrent }) {
     if (speak) announce(count.textContent);
   };
   // A page of nulls (past the head's first page) shows placeholder rows until the whole file is in.
-  const redraw = paginate(root.querySelector('#scores'), items, slice => (slice[0]
-    ? html`<div class="rows">${slice.map(s => scoreRow({ s, meta: file.maps[s[S.MAP]], pos: ['top', 'pre'].includes(tab.slug) ? null : s[S.POS] }))}</div>`
+  const redraw = paginate(body.querySelector('#scores'), items, slice => (slice[0]
+    ? html`<div class="rows">${slice.map(s => scoreRow({
+      s, meta: view.file.maps[s[S.MAP]], pos: tab.slug === 'pre' ? null : s[S.POS], cat: tab.cats ? playCat.get(s) : null,
+    }))}</div>`
     : placeholderRows(slice.length)), 50, {
     page,
     onPage: n => {
       page = n;
       save();
-      if (partial) loadAll().then(ok => { if (ok) { items = visible(); redraw(items, true); } });
+      upgrade();
     },
     empty: () => emptyFiltered(q.value.trim()
       ? (onlyFirsts?.checked ? t('No play matches “{q}” among the #1s.', { q: q.value.trim() }) : t('No play matches “{q}”.', { q: q.value.trim() }))
       : t('No #1s in this list.')),
   });
   showCount(false);
+  // Swaps the head's first page for the whole list, staying on the same page.
+  function upgrade() {
+    if (partial) loadAll().then(ok => { if (ok) { items = visible(); redraw(items, true); showCount(false); } });
+  }
+  // A switch on the page to a list's later page or sort (Back, say) while only the head file is in.
+  if (needsAll(query)) upgrade();
+  // The whole file can be 500 KB: start it when the pointer or focus reaches the search, sort or pages, so it's
+  // usually in by the time they're used.
+  const intent = e => { if (e.target.closest?.('.toolbar, .pager')) upgrade(); };
+  body.addEventListener('pointerover', intent);
+  body.addEventListener('focusin', intent);
   const refilter = () => {
     if (partial) {
       count.textContent = t('Loading all plays…');
@@ -633,7 +711,7 @@ export default async function player(root, { params, query, isCurrent }) {
   q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refilter, 120); });
   sort.addEventListener('change', refilter);
   onlyFirsts?.addEventListener('change', refilter);
-  root.querySelector('#scores').addEventListener('click', e => {
+  body.querySelector('#scores').addEventListener('click', e => {
     if (!e.target.closest('[data-clear]')) return;
     q.value = '';
     if (onlyFirsts) onlyFirsts.checked = false;

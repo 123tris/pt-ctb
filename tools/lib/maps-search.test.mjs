@@ -64,12 +64,12 @@ test('header search: an exact beatmap id or osu! link finds that map, even one n
   assert.equal(beatmapIdOf('osu.ppy.sh/users/123'), null);
 });
 
-test('the search index keeps id, set, artist, title, difficulty, stars, players and mapper', () => {
+test('the search index keeps id, set, artist, title, difficulty, stars, category, players and mapper', () => {
   const rows = [
     [4172054, 2005921, 'WangleLine', 'Dice', 'Highroll', 6.43, 'c', 7, 13294871, 'Nao Tomori'],
     [4172053, 2005921, 'WangleLine', 'Dice', 'Lowroll', 5.12, 'c', 2, 3821475, 'Nao Tomori'],
     [5000000, 2400000, 'nanahira', 'Song', '[Rain]', 4.07, 'r', 3, 2788013, 'Ascendance'],
   ];
   const back = byId(decodeSearchMaps(JSON.parse(JSON.stringify(encodeSearchMaps(rows)))));
-  assert.deepEqual(back.map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[7], r[9]]), byId(rows).map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[7], r[9]]));
+  assert.deepEqual(back.map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[9]]), byId(rows).map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[9]]));
 });

@@ -97,15 +97,22 @@ export const PLAY_SOURCES = { r: [CAT.RANKED, CAT.CONVERT], c: [CAT.CONVERT], u:
 
 /**
  * One view of the top plays: of `rows` ([userId, category, ...score], best first), the first `cap` from `source` (a
- * PLAY_SOURCES key) whose mods match `filter` (a parseModFilter mask; null for any mods). The exporter keeps the union
- * of every view, so the site gets each one back exactly by filtering that list the same way.
+ * PLAY_SOURCES key) whose mods match `filter` (a parseModFilter mask; null for any mods). A player can have several
+ * rows on a map (each mod's best, say): a view takes only the first that matches, their best play there with those
+ * mods. The exporter keeps the union of every view, so the site gets each one back exactly by filtering that list the
+ * same way.
  */
 export function topPlaysView(rows, source, filter, cap) {
   const cats = PLAY_SOURCES[source];
   const out = [];
+  const taken = new Set();
   for (const row of rows) {
     if (out.length >= cap) break;
-    if (cats.includes(row[1]) && (filter === null || matchesModFilter(row[S.MODS + 2], filter))) out.push(row);
+    if (!cats.includes(row[1]) || (filter !== null && !matchesModFilter(row[S.MODS + 2], filter))) continue;
+    const key = `${row[0]}:${row[S.MAP + 2]}`;
+    if (taken.has(key)) continue;
+    taken.add(key);
+    out.push(row);
   }
   return out;
 }

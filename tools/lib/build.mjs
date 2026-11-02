@@ -258,11 +258,12 @@ export function neededMapIds(bot, homeCountry) {
   for (const p of bot.players) {
     if (p.country !== homeCountry || hidden.has(p.user_id)) continue;
     add(p.TopConvertedScores); add(p.TopUnrankedScores); add(p.RankedSpecificScores); add(p.PreRankScores);
+    add(p.ConvertModScores); add(p.UnrankedModScores); add(p.RankedModScores);
     for (const s of p.DanPasses || []) if (s) ids.add(s.beatmap_id);
   }
   for (const p of bot.ptCatch) {
     if (p.country !== homeCountry || hidden.has(p.user_id)) continue;
-    add(p.top_scores); add(p.community_scores);
+    add(p.top_scores); add(p.community_scores); add(p.mod_scores);
   }
   for (const m of [bot.hill?.current, ...(bot.hill?.months ?? [])]) for (const s of m?.slots ?? []) if (s?.beatmapId) ids.add(s.beatmapId);
   // Bounties can be on maps nobody here has played (a first pass).
@@ -315,7 +316,12 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   const people = new Map();
   const person = (id, name) => {
-    if (!people.has(id)) people.set(id, { id, name, raw: null, dump: null, lists: { c: [], u: [], r: [] }, ppOnly: [], dump_top: [], pre: [], early: [] });
+    if (!people.has(id)) {
+      people.set(id, {
+        id, name, raw: null, dump: null, lists: { c: [], u: [], r: [] }, ppOnly: [], dump_top: [], pre: [], early: [],
+        liveRanked: [], modPlays: { c: [], u: [], r: [] }, dump_mods: [],
+      });
+    }
     return people.get(id);
   };
   // A play from before its map was ranked counts toward nothing, wherever the bot filed it: it goes with the player's
@@ -327,6 +333,10 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       (setBeforeRanking(s, beatmaps.get(s.beatmap_id), onRankedBoard) ? p.early : kept).push(s);
     return kept.map(tuple);
   };
+  // Extra plays only the mod rankings and top plays read (below): one from before its map was ranked is dropped, as
+  // its board copy already went with the pre-rank plays.
+  const modFiled = (list, onRankedBoard) => (list || [])
+    .filter(s => playable(s) && !setBeforeRanking(s, beatmaps.get(s.beatmap_id), onRankedBoard)).map(tuple);
 
   for (const raw of bot.players) {
     if (raw.country !== homeCountry || hidden.has(raw.user_id)) continue;
@@ -337,7 +347,15 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     // none, which leaves every total as it was.
     p.lists.c.push(...filed(p, raw.ConvertPpScores, true));
     p.lists.u.push(...filed(p, raw.TopUnrankedScores, false));
-    p.lists.r.push(...filed(p, raw.RankedSpecificScores, true));
+    // The bot's own ranked plays, kept apart too: the dump's are merged into the board list below, which keeps one per map.
+    p.liveRanked = filed(p, raw.RankedSpecificScores, true);
+    p.lists.r.push(...p.liveRanked);
+    // Each mod's best play on a map, which the bot keeps beside the board and pp plays so its /modranking counts it (an
+    // HR play under a better HD one, say). Only the mod rankings and the top plays' mod filters read them; older bot
+    // data has none.
+    p.modPlays.c.push(...modFiled(raw.ConvertModScores, true));
+    p.modPlays.u.push(...modFiled(raw.UnrankedModScores, false));
+    p.modPlays.r.push(...modFiled(raw.RankedModScores, true));
     // Plays from before their map was ranked: shown for the record, counted nowhere (they're 0pp in the bot too).
     p.early.push(...(raw.PreRankScores || []).filter(playable));
   }
@@ -346,6 +364,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     const p = person(dump.user_id, dump.username);
     p.dump = dump;
     p.dump_top = filed(p, dump.top_scores, true).sort((a, b) => b[S.PP] - a[S.PP]);
+    // The dump's other ranked plays the mod rankings need besides each map's best (the bot's PtCatchPlayer.ModScores).
+    p.dump_mods = modFiled(dump.mod_scores, true);
     // Ranked specifics from the dump top the tracked list up; a player the bot never registered (it normally
     // does, after every import) still gets their dump plays filed by category.
     for (const s of p.raw ? dump.top_scores || [] : dump.community_scores || []) {
@@ -529,10 +549,16 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   // ---- Mod rankings ---------------------------------------------------------------------------------------------
 
-  // Ranked is the dump's plays, with osu!'s own pp. Players inactive on osu! aren't in the dump, so they fall back to
-  // the ranked plays and converts the bot keeps (what their estimated pp comes from) and stay on these boards too.
+  // The same plays the bot's /modranking ranks (ModRankingService.ScorePools), so the two agree: every play kept on a
+  // map, several per map where there are (the board play, a convert's pp play, each mod's best), and a player counts
+  // each map once, with their best play that includes the mods. Ranked is the dump's plays (osu!'s own pp) with the
+  // ranked plays and converts the bot keeps for a tracked player, so a play counts the day it's set, and players
+  // inactive on osu!, who aren't in the dump, stay on these boards too.
+  const convertPlays = p => [...p.lists.c, ...p.ppOnly, ...p.modPlays.c];
   const pools = {
-    r: p => (p.dump_top.length ? p.dump_top : bestPerMap([...p.lists.r, ...p.ppLists.c])), c: p => p.ppLists.c, u: p => p.lists.u,
+    r: p => [...p.dump_top, ...p.dump_mods, ...(p.raw ? [...convertPlays(p), ...p.liveRanked, ...p.modPlays.r] : [])],
+    c: convertPlays,
+    u: p => [...p.lists.u, ...p.modPlays.u],
   };
   const modRankings = { filters: MOD_FILTERS, sources: {} };
   const modMaps = [];
@@ -542,7 +568,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       const filter = parseModFilter(name);
       const rows = [];
       for (const p of people.values()) {
-        const matching = pool(p).filter(t => matchesModFilter(t[S.MODS], filter)).sort((a, b) => b[S.PP] - a[S.PP]);
+        const matching = bestPerMap(pool(p).filter(t => matchesModFilter(t[S.MODS], filter)));
         if (!matching.length) continue;
         rows.push([p.id, round(weightedTotal(matching.map(t => t[S.PP]))), matching.length, matching[0]]);
         modMaps.push(matching[0][S.MAP]);
@@ -559,8 +585,17 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   // plays are worth 0pp and left out.
   // A player's best-pp play on a convert map stands in for their board play there when it isn't the same play.
   const ppPlayOf = new Map([...people.values()].flatMap(p => p.ppOnly.map(t => [`${p.id}:${t[S.MAP]}`, t])));
+  // A mod filter takes each player's best play on a map that has the mods, as the bot's /modranking top plays do, so
+  // their other plays there are rows too: the board play a pp play stands in for, each mod's best, the dump's mod plays.
+  // topPlaysView keeps one row per player and map, the first (best) that matches.
+  const otherPlays = [...people.values()].flatMap(p => {
+    const replaced = p.lists.c.filter(t => ppPlayOf.has(`${p.id}:${t[S.MAP]}`));
+    return [...replaced, ...CATS.flatMap(cat => p.modPlays[cat]), ...p.dump_mods]
+      .map(t => [p.id, boards.get(t[S.MAP])?.cat, ...t]).filter(row => row[1]);
+  });
   const allPlays = [...boards]
     .flatMap(([id, b]) => b.entries.map(([uid, ...t]) => [uid, b.cat, ...(ppPlayOf.get(`${uid}:${id}`) ?? t)]))
+    .concat(otherPlays)
     .filter(row => row[S.PP + 2] > 0)
     .sort((a, b) => b[S.PP + 2] - a[S.PP + 2] || a[S.TIME + 2] - b[S.TIME + 2] || a[0] - b[0]);
   const shownPlays = new Set();

@@ -113,11 +113,43 @@ for (const file of codeFiles.filter(f => f.endsWith('.css'))) {
 }
 edit('index.html', s => s.replace(/((?:src|href)=")(assets\/(?:js|css|fonts)\/[^"?]+\.(?:js|css|woff2))"/g, `$1$2?v=${version}"`));
 
-// The CSP in _headers allows inline scripts only by hash: fill in the hashes of the ones the pages have right now.
+// Two things every page waits on, started by index.html itself as soon as it's read, instead of once all of app.js's
+// code has arrived and run (about half a second on a profile): meta.json, which any data needs first, and the open
+// page's own module with the imports app.js doesn't already preload. The meta.json request is an ordinary fetch with
+// core/data.js's own cache mode, which picks it up (globalThis.ptctbEarly), so it doesn't have the stale-copy problem of
+// a <link rel="preload"> above. Placed before the stylesheets: an inline script after them would wait for them.
+const preloaded = new Set(entries.flatMap(staticImports));
+const pageModules = {};
+const loaders = fs.readFileSync(path.join(dist, 'assets/js/app.js'), 'utf8');
+for (const [, pattern, page] of loaders.matchAll(/'([^']*)': \(\) => import\('\.\/pages\/([\w-]+)\.js/g)) {
+  const file = path.join(dist, 'assets/js/pages', `${page}.js`);
+  pageModules[pattern.split('/')[0]] = [file, ...staticImports(file).filter(f => !preloaded.has(f))]
+    .map(f => `${path.relative(dist, f).split(path.sep).join('/')}?v=${version}`);
+}
+if (!Object.keys(pageModules).length) throw new Error('build-site: found no page modules in app.js.');
+const early = [
+  '<script>',
+  '// Written by tools/build-site.mjs: starts meta.json and this page’s code before the rest of the code has loaded.',
+  /^https?:/.test(CONFIG.data)
+    ? `globalThis.ptctbEarly = { data: ${JSON.stringify(CONFIG.data)}, meta: fetch(${JSON.stringify(`${CONFIG.data}meta.json`)}, { cache: 'no-cache' }).then(r => (r.ok ? r.json() : null), () => null) };`
+    : '',
+  `for (const href of ${JSON.stringify(pageModules)}[location.pathname.split('/')[1]] ?? []) {`,
+  "  const link = document.createElement('link');",
+  "  link.rel = 'modulepreload';",
+  '  link.href = href;',
+  '  document.head.append(link);',
+  '}',
+  '</script>',
+].filter(Boolean);
+edit('index.html', s => s.replace(/^([ \t]*)(<link rel="stylesheet")/m,
+  (_, indent, tag) => `${early.map(l => `${indent}${l}${s.includes('\r\n') ? '\r\n' : '\n'}`).join('')}${indent}${tag}`));
+
+// The CSP in _headers allows inline scripts only by hash: fill in the hashes of the ones the built pages have
+// (index.html's early script above included).
 const sha256 = s => `'sha256-${crypto.createHash('sha256').update(s, 'utf8').digest('base64')}'`;
 const inline = { scripts: [], handlers: [] };
 for (const page of ['index.html', '404.html']) {
-  const source = fs.readFileSync(path.join(root, page), 'utf8');
+  const source = fs.readFileSync(path.join(dist, page), 'utf8');
   for (const [, body] of source.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) inline.scripts.push(body);
   for (const [, body] of source.matchAll(/\son[a-z]+="([^"]*)"/g)) inline.handlers.push(body);
 }

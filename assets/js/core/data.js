@@ -16,10 +16,13 @@ let loadedMeta = null;
 export class NotFound extends Error {}
 
 export function meta() {
-  metaPromise ??= fetch(`${CONFIG.data}meta.json`, { cache: 'no-cache' }).then(r => {
+  // The built index.html has already asked for it, before any code loaded (tools/build-site.mjs); that copy, unless
+  // it failed (null), or it's for other data.
+  const early = globalThis.ptctbEarly?.data === CONFIG.data ? globalThis.ptctbEarly.meta : null;
+  metaPromise ??= Promise.resolve(early).then(m => m ?? fetch(`${CONFIG.data}meta.json`, { cache: 'no-cache' }).then(r => {
     if (!r.ok) throw new Error('The site data hasn’t been generated yet.');
     return r.json();
-  }).then(m => (loadedMeta = m));
+  })).then(m => (loadedMeta = m));
   return metaPromise;
 }
 

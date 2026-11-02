@@ -47,6 +47,24 @@ function match(path) {
   return found && { ...found, load: LOADERS[found.pattern] };
 }
 
+/**
+ * Route params that only pick a view within a page: a profile's score list, a leaderboard, a challenge. Changing one
+ * keeps the page where it is: no scroll to the top, the old view (dimmed if the new one takes a moment) instead of the
+ * loader, and focus back on the tab that was picked. The profile redraws just its list (pages/player.js); the others
+ * redraw the page.
+ */
+const SUB_VIEWS = { 'player/:id/:tab?': 'tab', 'rankings/:board?': 'board', 'challenges/:tab?': 'tab' };
+
+/** Which page an address's path shows, the same for two paths that differ only in a sub-view. */
+function pageOf(pathname) {
+  const path = unmoved((pathname ?? '').replace(/^\/+/, ''));
+  const found = match(path);
+  const sub = found && SUB_VIEWS[found.pattern];
+  if (!sub) return path;
+  const { [sub]: _, ...rest } = found.params;
+  return `${found.pattern} ${JSON.stringify(rest)}`;
+}
+
 // Route parts that are ids, left out of the usage key so "which pages get used" doesn't split by player or map.
 const ID_PARAMS = new Set(['id', 'a', 'b', 'year']);
 
@@ -77,8 +95,9 @@ let current = 0;
 /**
  * Renders the page for the current hash. `newPage` (a different path, not just a new query) moves focus to the new
  * page's heading, so keyboard and screen-reader users land on it and hear it, instead of staying on the old link.
+ * `newView` is a switch of sub-view on the same page (SUB_VIEWS): counted as a view, but drawn in place.
  */
-async function route({ newPage = false } = {}) {
+async function route({ newPage = false, newView = false } = {}) {
   const ticket = ++current;
   const started = performance.now();
   let path = location.pathname.replace(/^\/+/, '');
@@ -98,15 +117,22 @@ async function route({ newPage = false } = {}) {
   if (!found) trackView('not-found');
   if (!found) return showError(t('Page not found'), `${pick(NOT_FOUND)} ${t('Try the search, or go back to the home page.')}`, { newPage, glyph: 'ש' });
 
-  const spinner = setTimeout(() => { if (ticket === current) root.innerHTML = String(loading()); }, 150);
+  const spinner = setTimeout(() => {
+    if (ticket !== current) return;
+    if (newView) root.classList.add('switching');
+    else root.innerHTML = String(loading());
+  }, 150);
+  const focused = newView && root.contains(document.activeElement);
   root.setAttribute('aria-busy', 'true');
   try {
     const page = (await found.load()).default;
     if (ticket !== current) return;
     await page(root, { params: found.params, query, isCurrent: () => ticket === current });
     if (ticket === current && newPage) focusHeading();
+    // A page that redrew itself whole took the picked tab (and its focus) with it: back to the new one.
+    if (ticket === current && focused && !root.contains(document.activeElement)) root.querySelector('.tabs [aria-current="page"]')?.focus({ preventScroll: true });
     // One view per page opened (a filter or sort that only changes the query isn't a new view).
-    if (ticket === current && (newPage || ticket === 1)) trackView(pageKey(found, path, query), { ms: performance.now() - started, obj: pageObject(found) });
+    if (ticket === current && (newPage || newView || ticket === 1)) trackView(pageKey(found, path, query), { ms: performance.now() - started, obj: pageObject(found) });
   } catch (e) {
     if (ticket !== current) return;
     console.error(e);
@@ -120,7 +146,10 @@ async function route({ newPage = false } = {}) {
     }
   } finally {
     clearTimeout(spinner);
-    if (ticket === current) root.removeAttribute('aria-busy');
+    if (ticket === current) {
+      root.removeAttribute('aria-busy');
+      root.classList.remove('switching');
+    }
   }
 }
 
@@ -249,10 +278,11 @@ window.addEventListener('hashchange', () => { if (fromHash()) window.dispatchEve
 let lastPath = null;
 window.addEventListener('routechange', () => {
   const path = location.pathname;
-  const newPage = path !== lastPath;
+  const newPage = path !== lastPath && pageOf(path) !== pageOf(lastPath);
+  const newView = path !== lastPath && !newPage;
   if (newPage) window.scrollTo({ top: 0, behavior: 'instant' });
   lastPath = path;
-  route({ newPage });
+  route({ newPage, newView });
 });
 lastPath = location.pathname;
 startTracking();

@@ -383,6 +383,8 @@ html[data-env] .brand::after {
 /* ---- Page frame --------------------------------------------------------------------------------- */
 
 .page { flex: 1; width: 100%; max-width: var(--page); margin: 0 auto; padding: var(--sp-8) var(--sp-4) var(--sp-12); outline: none; }
+/* Another tab of the same page on its way (app.js SUB_VIEWS): the old one stays, dimmed, instead of the loader. */
+.page.switching { opacity: .6; transition: opacity .2s; }
 /* The page is drawn after load: keep the footer below the fold meanwhile, so it doesn't jump down when the page fills. */
 main#content { min-height: 100vh; }
 .footer { border-top: 1px solid var(--border); color: var(--text-dim); font-size: var(--fs-sm); }

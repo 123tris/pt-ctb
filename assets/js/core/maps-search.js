@@ -101,7 +101,8 @@ export function rankMaps(rows, hay, text) {
 
 // ---- The header search's own index (search-maps.json) --------------------------------------------------------------
 // Only what the search shows and matches: id, set, artist, title, difficulty, stars (hundredths), mapper and players (for
-// ranking), stored by column like maps-search.json, for the maps SEARCH_MIN_PLAYERS or more players here have played.
+// ranking), plus the category, which lets the map quizzes (pages/games.js) use this instead of the whole index; stored
+// by column like maps-search.json, for the maps SEARCH_MIN_PLAYERS or more players here have played.
 // About 45% of the full index; a map outside it is still found by its id, and "Search all maps" searches every one.
 
 export const SEARCH_MIN_PLAYERS = 2;
@@ -109,10 +110,10 @@ export const SEARCH_MIN_PLAYERS = 2;
 /** Rows [id, setId, artist, title, version, stars, category, players, topPlayerId, mapper] → search-maps.json. */
 export function encodeSearchMaps(rows) {
   const sorted = [...rows].sort((a, b) => a[1] - b[1] || a[0] - b[0]);
-  const file = { v: 1, sets: [], mappers: [], id: [], set: [], ver: [], stars: [], n: [] };
+  const file = { v: 1, sets: [], mappers: [], id: [], set: [], ver: [], stars: [], cat: '', n: [] };
   const setNumber = new Map(), mapperNumber = new Map();
   let lastId = 0, lastSet = 0, lastSetId = 0;
-  for (const [id, setId, artist, title, version, stars, , players, , mapper = ''] of sorted) {
+  for (const [id, setId, artist, title, version, stars, cat, players, , mapper = ''] of sorted) {
     if (!mapperNumber.has(mapper)) { mapperNumber.set(mapper, file.mappers.length); file.mappers.push(mapper); }
     const key = `${setId}\u0000${artist}\u0000${title}\u0000${mapper}`;
     if (!setNumber.has(key)) {
@@ -127,12 +128,13 @@ export function encodeSearchMaps(rows) {
     lastSet = set;
     file.ver.push(version);
     file.stars.push(Math.round(stars * 100));
+    file.cat += cat;
     file.n.push(players);
   }
   return file;
 }
 
-/** search-maps.json → rows in the full index's shape ([…, players, null, mapper]; no category or #1). */
+/** search-maps.json → rows in the full index's shape ([…, players, null, mapper]; no #1, and '' for the category in a file from before it). */
 export function decodeSearchMaps(file) {
   const sets = [];
   let setId = 0;
@@ -146,7 +148,7 @@ export function decodeSearchMaps(file) {
     id += file.id[i];
     set += file.set[i];
     const [sid, artist, title, mapper] = sets[set];
-    rows[i] = [id, sid, artist, title, file.ver[i], file.stars[i] / 100, '', file.n[i], null, mapper];
+    rows[i] = [id, sid, artist, title, file.ver[i], file.stars[i] / 100, file.cat?.[i] ?? '', file.n[i], null, mapper];
   }
   return rows;
 }

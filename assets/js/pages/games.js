@@ -1,5 +1,5 @@
 import { html } from '../core/html.js';
-import { quiz, players, mapsIndex } from '../core/data.js';
+import { quiz, players, mapsIndex, searchMaps } from '../core/data.js';
 import { setTitle, avatar, coverUrl, prefs, starsBadge, catChip } from '../core/ui.js';
 import { BOSS_SETS, TUGA_SET, RIVALRIES, pick as stablePick } from '../core/lore.js';
 import { wysi, toast } from '../core/fun.js';
@@ -224,7 +224,10 @@ const QUIZ_MODES = {
 };
 
 async function quizGame(root, query, isCurrent) {
-  const rows = await mapsIndex();
+  // Every quiz draws from maps two or more players here have played: the header search's index, half the size of the
+  // whole one (and often loaded already). One from before it had the category needs the whole index.
+  let rows = await searchMaps();
+  if (rows.length && !rows[0][6]) rows = await mapsIndex();
   if (!isCurrent()) return;
   const mode = QUIZ_MODES[query.mode] ? query.mode : 'convert';
   const m = QUIZ_MODES[mode];

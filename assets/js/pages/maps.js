@@ -114,7 +114,8 @@ export default async function maps(root, { query, isCurrent }) {
     redraw(items);
     showCount(true);
   });
-  if (!full) for (const type of ['pointerdown', 'focusin', 'keydown']) root.addEventListener(type, loadAll, { once: true });
+  // `root` stays across pages: only while this page is still the one open.
+  if (!full) for (const type of ['pointerdown', 'focusin', 'keydown']) root.addEventListener(type, () => { if (isCurrent()) loadAll(); }, { once: true });
 
   let timer;
   q.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(refilter, 200); });
