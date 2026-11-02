@@ -15,7 +15,7 @@ const FALLBACK = [
     ['/compare [player]', t('Compares your score with the last one shown in the channel.')],
     ['/leaderboard', t('A map’s Portuguese leaderboard.')],
     ['/stats', t('Stats for the last map mentioned in the channel.')],
-    ['/addscore <link>', t('Adds a score from its osu! score link.')],
+    ['/addscore <link or map id>', t('Adds a score from its osu! score or map link, or just the map id.')],
     ['/addunrankedscore', t('Adds a loved/unranked score from its replay file.')],
   ]],
   [t('Profiles and tops'), [
