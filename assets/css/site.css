@@ -1626,6 +1626,11 @@ details[open] > summary .admin-chevron { transform: rotate(180deg); }
 .admin-changed .link-button { margin-left: var(--sp-2); font-weight: 500; }
 .admin-setting-field { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; justify-content: flex-end; }
 .admin-num { width: 110px; }
+/* A star band: the slider takes the field's width, its readout beside it. */
+.admin-range { grid-template-columns: minmax(0, 1fr) minmax(0, 380px); }
+.admin-range-name { color: var(--text); font-weight: 600; }
+.admin-range .admin-setting-field { flex-wrap: nowrap; }
+.admin-range .range { flex: 1 1 auto; min-width: 160px; }
 .admin-text { width: 200px; }
 .admin-list { display: flex; gap: var(--sp-2); }
 .admin-list .admin-num { width: 80px; }
@@ -1642,7 +1647,7 @@ details[open] > summary .admin-chevron { transform: rotate(180deg); }
 .admin-pending { font-weight: 500; }
 /* On a phone a setting's field goes under its text. */
 @media (max-width: 600px) {
-  .admin-setting { grid-template-columns: minmax(0, 1fr); }
+  .admin-setting, .admin-range { grid-template-columns: minmax(0, 1fr); }
   .admin-setting-field { justify-content: flex-start; }
   .admin-list .admin-num { width: 72px; }
 }

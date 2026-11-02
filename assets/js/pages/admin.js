@@ -5,7 +5,8 @@
 // The page reads admin.json (the bot's settings schema, current values and log: core/admin.js) and the admin's own
 // requests (/api/admin/requests), so a change shows as "waiting for the bot" until the bot's next pull and export.
 //   Settings  one card per group, each setting with its value as a typed field (number, toggle or list), the default,
-//             a "changed" mark and Reset when it's overridden, and when it takes effect. Each card saves on its own:
+//             a "changed" mark and Reset when it's overridden, and when it takes effect. A King of the hill slot and
+//             tier's star band (its Min and Max settings) is one row with a two-thumb slider. Each card saves on its own:
 //             "Review changes" lists old → new, and "Send" queues one admin.set (or admin.reset, back to the default)
 //             per changed key. Fields are checked against min, max, step and length first, for a clear error.
 //   Actions   King of the hill's pool (approve, reroll one slot and tier, redraft), cancelling a bounty with or without
@@ -21,10 +22,10 @@ import { GOAL_LABEL } from '../core/bounty.js';
 import { setTitle, pageHead, empty, announce, playerPicker, pickedPlayer, mapLabel } from '../core/ui.js';
 import { session, signInButton, mapIdFrom, closeOnEscape, bananas } from '../core/bananas.js';
 import {
-  adminPanel, isAdmin, myAdminRequests, sendAdmin, sentToast, GROUPS, groupName, EFFECTS, describe, valueText, actionText, refusalText,
+  adminPanel, isAdmin, myAdminRequests, sendAdmin, sentToast, GROUPS, groupName, EFFECTS, describe, starEdge, valueText, actionText, refusalText,
 } from '../core/admin.js';
 import * as fmt from '../core/fmt.js';
-import { t, th, tn } from '../core/i18n.js';
+import { t, th, tn, locale } from '../core/i18n.js';
 
 const LOG_LIMIT = 100;
 const LOG_SHOWN = 15; // log lines before "Show all"
@@ -81,6 +82,41 @@ function read(s, row) {
   return { value: n };
 }
 
+// ---- Star bands: a slot and tier's Min and Max settings on one two-thumb slider ------------------------------------------
+
+const starsText = ([lo, hi]) => `${lo.toLocaleString(locale)}★ – ${hi.toLocaleString(locale)}★`;
+
+/** The slider for a band, showing [lo, hi] on the settings' own scale and steps (the .range look of the Maps filter). */
+const rangeField = (min, max, [lo, hi]) => html`<div class="range admin-stars" role="group" aria-labelledby="set-${keyId(min.key)}-text">
+    <div class="range-track"><div class="range-fill"></div></div>
+    <input type="range" min="${min.min}" max="${min.max}" step="${min.step}" value="${lo}" aria-label="${t('Minimum stars')}">
+    <input type="range" min="${max.min}" max="${max.max}" step="${max.step}" value="${hi}" aria-label="${t('Maximum stars')}">
+  </div>
+  <output class="range-out on" data-out>${starsText([lo, hi])}</output>`;
+
+const thumbs = range => [...range.querySelectorAll('input')];
+
+/** Draws a slider's fill, readout and spoken values from its thumbs. */
+function paintRange(range) {
+  const [a, b] = thumbs(range);
+  const at = i => `${(Number(i.value) - Number(i.min)) / (Number(i.max) - Number(i.min)) * 100}%`;
+  range.style.setProperty('--lo', at(a));
+  range.style.setProperty('--hi', at(b));
+  for (const i of [a, b]) i.setAttribute('aria-valuetext', t('{n} stars', { n: Number(i.value).toLocaleString(locale) }));
+  range.parentElement.querySelector('[data-out]').textContent = starsText([Number(a.value), Number(b.value)]);
+}
+
+/** Moves one thumb to `v`, in steps and a step short of the other, so the band never turns upside down. */
+function moveThumb(input, v) {
+  const range = input.closest('.admin-stars');
+  const [a, b] = thumbs(range);
+  const step = Number(input.step) || 0.1;
+  const snap = x => Math.round(Math.min(Number(input.max), Math.max(Number(input.min), x)) / step) * step;
+  const value = input === a ? Math.min(snap(v), Number(b.value) - step) : Math.max(snap(v), Number(a.value) + step);
+  input.value = String(Math.round(value * 100) / 100);
+  paintRange(range);
+}
+
 // ---- The page -----------------------------------------------------------------------------------------------------------
 
 export default async function admin(root, { isCurrent }) {
@@ -125,6 +161,33 @@ export default async function admin(root, { isCurrent }) {
     </div>`;
   };
 
+  // A band's row: both settings, the slider, and one "waiting" line with the band as it will be.
+  const rangeRow = (min, max, { slot, tier }) => {
+    const id = `set-${keyId(min.key)}`;
+    const pending = [min, max].map(pendingFor);
+    const after = [min, max].map((s, i) => (!pending[i] ? s.value : pending[i].type === 'admin.reset' ? s.default : pending[i].payload.value));
+    const mod = slot === 'HR' || slot === 'DT' ? slot : null;
+    return html`<div class="admin-setting admin-range" data-key="${min.key}" data-max="${max.key}">
+      <div class="admin-setting-text">
+        <span class="admin-range-name" id="${id}-text">${SLOT_NAME[slot] ?? slot} · ${TIER_NAME[tier] ?? tier}</span>
+        <span class="admin-meta"><code>${min.key.replace('MinStars', '{Min,Max}Stars')}</code><span aria-hidden="true"> · </span>${mod ? html`${t('stars with {mod} on', { mod })}<span aria-hidden="true"> · </span>` : ''}${t('default {value}', { value: starsText([min.default, max.default]) })}<span aria-hidden="true"> · </span>${EFFECTS[min.effect] ?? min.effect}</span>
+        ${min.overridden || max.overridden ? html`<span class="admin-changed">${t('Changed from the default')} <button class="link-button" type="button" data-reset aria-label="${t('Reset {key} to its default', { key: `${SLOT_NAME[slot] ?? slot} · ${TIER_NAME[tier] ?? tier}` })}">${t('Reset')}</button></span>` : ''}
+        ${pending.some(Boolean) ? html`<span class="req-status">${t('Waiting for the bot: {value}', { value: starsText(after) })}</span>` : ''}
+      </div>
+      <div class="admin-setting-field">${rangeField(min, max, [min.value, max.value])}</div>
+      <p class="admin-error" role="alert" hidden></p>
+    </div>`;
+  };
+  // A group's rows: a band's Min and Max settings share one row; anything else is a row of its own.
+  const groupRows = g => settings.filter(s => s.group === g).map(s => {
+    const star = starEdge(s.key);
+    const min = star && byKey.get(s.key.replace(/MaxStars$/, 'MinStars'));
+    const max = star && byKey.get(s.key.replace(/MinStars$/, 'MaxStars'));
+    if (!min || !max || min === max) return settingRow(s);
+    return star.edge === 'Min' ? rangeRow(min, max, star) : '';
+  });
+  const rowSettings = row => [row.dataset.key, row.dataset.max].filter(Boolean).map(k => byKey.get(k));
+
   // Each group folds (closed to start), its summary saying what's changed, waiting or edited without being sent.
   const groupSummary = g => {
     const inGroup = settings.filter(s => s.group === g);
@@ -141,7 +204,7 @@ export default async function admin(root, { isCurrent }) {
   const groupCard = g => html`<details class="admin-group" data-group="${g}">
     <summary class="admin-group-head" id="g-${keyId(g)}">${groupSummary(g)}</summary>
     <div class="admin-group-body">
-      <div class="admin-settings">${settings.filter(s => s.group === g).map(settingRow)}</div>
+      <div class="admin-settings">${groupRows(g)}</div>
       <div class="admin-save">${saveStep()}</div>
     </div>
   </details>`;
@@ -291,8 +354,8 @@ export default async function admin(root, { isCurrent }) {
     for (const card of root.querySelectorAll('.admin-group')) {
       let hits = 0;
       for (const row of card.querySelectorAll('.admin-setting')) {
-        const s = byKey.get(row.dataset.key);
-        const hit = (!q || matches(`${describe(s)} ${s.key}`)) && (!only || s.overridden || row.classList.contains('admin-dirty'));
+        const all = rowSettings(row);
+        const hit = (!q || matches(all.map(s => `${describe(s)} ${s.key}`).join(' '))) && (!only || all.some(s => s.overridden) || row.classList.contains('admin-dirty'));
         row.hidden = !hit;
         hits += hit;
       }
@@ -305,9 +368,46 @@ export default async function admin(root, { isCurrent }) {
   find?.addEventListener('input', filter);
   changedOnly?.addEventListener('change', filter);
 
+  // ---- Star band sliders: a thumb never passes the other; a press anywhere on the track moves the nearer one ----
+
+  root.querySelectorAll('.admin-stars').forEach(paintRange);
+  // Capturing, so the thumb is in place before the group's own input listener counts the changes.
+  root.addEventListener('input', e => {
+    const input = e.target.closest?.('.admin-stars input');
+    if (input) moveThumb(input, Number(input.value));
+  }, true);
+  root.addEventListener('pointerdown', e => {
+    const range = e.target.closest?.('.admin-stars');
+    if (!range || e.button !== 0) return;
+    e.preventDefault();
+    const [a, b] = thumbs(range);
+    const track = range.querySelector('.range-track').getBoundingClientRect();
+    const at = x => Number(a.min) + (x - track.left) / track.width * (Number(a.max) - Number(a.min));
+    const v = at(e.clientX);
+    const [lo, hi] = [Number(a.value), Number(b.value)];
+    const input = v <= lo || (v < hi && v - lo < hi - v) ? a : b;
+    input.focus({ preventScroll: true });
+    const go = x => {
+      moveThumb(input, at(x));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    go(e.clientX);
+    range.setPointerCapture(e.pointerId);
+    const move = ev => go(ev.clientX);
+    const end = () => {
+      range.removeEventListener('pointermove', move);
+      range.removeEventListener('pointerup', end);
+      range.removeEventListener('pointercancel', end);
+    };
+    range.addEventListener('pointermove', move);
+    range.addEventListener('pointerup', end);
+    range.addEventListener('pointercancel', end);
+  });
+
   // ---- Settings: what changed, review, send ----
 
-  const changes = card => [...card.querySelectorAll('.admin-setting')].map(row => {
+  const changes = card => [...card.querySelectorAll('.admin-setting')].flatMap(row => {
+    if (row.dataset.max) return bandChanges(row);
     const s = byKey.get(row.dataset.key);
     const got = read(s, row);
     if (got.error) return { s, row, error: got.error };
@@ -316,6 +416,16 @@ export default async function admin(root, { isCurrent }) {
     const reset = s.overridden && same(got.value, s.default);
     return { s, row, value: got.value, reset };
   }).filter(Boolean);
+
+  // A band's edges that moved. The bot checks each against the other's current value, so a band moved up past its old
+  // top sends the new top first.
+  const bandChanges = row => {
+    const [min, max] = rowSettings(row);
+    const [lo, hi] = thumbs(row.querySelector('.admin-stars')).map(i => Number(i.value));
+    const list = [[min, lo], [max, hi]].filter(([s, v]) => !same(v, s.value) || resets.has(s.key))
+      .map(([s, v]) => ({ s, row, value: v, reset: s.overridden && same(v, s.default) }));
+    return list.length === 2 && lo >= max.value ? list.reverse() : list;
+  };
 
   const refresh = card => {
     const list = changes(card);
@@ -361,6 +471,15 @@ export default async function admin(root, { isCurrent }) {
         // Reset puts the default in the field; it's sent with the card's other changes.
         const row = resetBtn.closest('.admin-setting');
         const s = byKey.get(row.dataset.key);
+        if (row.dataset.max) {
+          const max = byKey.get(row.dataset.max);
+          for (const edge of [s, max]) if (edge.overridden) resets.add(edge.key);
+          row.querySelector('.admin-setting-field').innerHTML = String(rangeField(s, max, [s.default, max.default]));
+          paintRange(row.querySelector('.admin-stars'));
+          refresh(card);
+          row.querySelector('input')?.focus();
+          return;
+        }
         resets.add(s.key);
         row.querySelector('.admin-setting-field').innerHTML = String(field(s, s.default));
         refresh(card);
@@ -402,7 +521,8 @@ export default async function admin(root, { isCurrent }) {
         announce(tn(sent.length, '{n} change sent to the bot.', '{n} changes sent to the bot.'));
         // Every field goes back to the bot's value, with what was sent showing as waiting.
         const g = card.dataset.group;
-        card.querySelector('.admin-settings').innerHTML = String(html`${settings.filter(s => s.group === g).map(settingRow)}`);
+        card.querySelector('.admin-settings').innerHTML = String(html`${groupRows(g)}`);
+        card.querySelectorAll('.admin-stars').forEach(paintRange);
         card.querySelector('summary').innerHTML = String(groupSummary(g));
       }
       if (failed) {

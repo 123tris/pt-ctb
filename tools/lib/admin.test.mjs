@@ -15,7 +15,7 @@ test('no panel, no admin.json', () => {
 
 test('the sample panel (tools/admin-sample.json) comes through whole', () => {
   const file = adminFile(SAMPLE);
-  assert.equal(file.settings.length, 86);
+  assert.equal(file.settings.length, 106);
   assert.deepEqual(file.settings, SAMPLE.settings);
   assert.deepEqual(file.actions, SAMPLE.actions);
   assert.deepEqual(file.admins, SAMPLE.admins);

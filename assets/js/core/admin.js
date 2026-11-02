@@ -58,6 +58,7 @@ void SERVER_TEXT;
 
 export const GROUPS = {
   'King of the hill': t('King of the hill'),
+  'King of the hill: stars': t('King of the hill: stars'),
   'Bananas: earning': t('Bananas: earning'),
   'Bananas: bounties and tips': t('Bananas: bounties and tips'),
   'Bananas: shop': t('Bananas: shop'),
@@ -78,10 +79,6 @@ const SHOP_ITEM_NAMES = { title: t('Profile title'), signature: t('Signature pla
  * shows the bot's English description.
  */
 const DESCRIPTIONS = {
-  'Hill.OpenMinStars': t('The open tier’s lowest star rating (mod-adjusted for HR and DT).'),
-  'Hill.OpenMaxStars': t('The open tier’s star rating ceiling (not included).'),
-  'Hill.ChallengerMinStars': t('The challenger tier’s lowest star rating: the pool’s floor.'),
-  'Hill.ChallengerMaxStars': t('The challenger tier’s star rating ceiling (not included).'),
   'Hill.NoRepeatMonths': t('Months a pooled map sits out before it can be picked again.'),
   'Hill.FewPlayers': t('Maps at most this many PT players have played are picked first.'),
   'Hill.ModChecksPerSlot': t('Maps the HR and DT slots check against osu!’s modded stars (2 osu! requests each).'),
@@ -163,9 +160,20 @@ const ENTRY_DESCRIPTIONS = {
   'Bananas.ShopMaxPeriods': item => t('{item}: periods one purchase can buy.', { item }),
 };
 
+/** A King of the hill star band edge's key (Hill.HR.OpenMinStars) as { slot, tier, edge: 'Min' | 'Max' }, else null. */
+export function starEdge(key) {
+  const m = /^Hill\.([A-Z]{2})\.(Open|Challenger)(Min|Max)Stars$/.exec(key);
+  return m ? { slot: m[1], tier: m[2].toLowerCase(), edge: m[3] } : null;
+}
+
 /** A setting's description in the visitor's language, or the bot's English for a key the site doesn't know. */
 export function describe(s) {
   if (DESCRIPTIONS[s.key]) return DESCRIPTIONS[s.key];
+  const star = starEdge(s.key);
+  if (star) {
+    const named = { slot: SLOT_NAME[star.slot] ?? star.slot, tier: TIER_NAME[star.tier] ?? star.tier };
+    return star.edge === 'Min' ? t('{slot}, {tier}: minimum stars.', named) : t('{slot}, {tier}: maximum stars (not included).', named);
+  }
   const [section, prop, entry] = s.key.split('.');
   const many = ENTRY_DESCRIPTIONS[`${section}.${prop}`];
   return many && entry ? many(SHOP_ITEM_NAMES[entry.toLowerCase()] ?? entry) : s.description;
