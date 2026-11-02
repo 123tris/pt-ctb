@@ -88,9 +88,12 @@ edit('index.html', s => s.replace(/<html /, `<html data-v="${version}" `));
 
 // Preload app.js's whole static import graph (and moved.js's) from index.html, so the modules come in parallel instead
 // of one import level at a time. Added before the versioning below, which gives these the same ?v= as the imports.
+// From the root (/assets/…), unlike the page's other addresses: Pages also sends these as a Link header (Early Hints),
+// which functions/[[path]].js passes on with every page, and a header ignores <base>, so on /player/123 a relative
+// address meant /player/assets/… (a 404 for each, before the right file).
 const entries = ['assets/js/app.js', 'assets/js/moved.js'].map(f => path.join(dist, f));
 const preload = [...new Set(entries.flatMap(staticImports))].filter(f => !entries.includes(f))
-  .map(f => `<link rel="modulepreload" href="${path.relative(dist, f).split(path.sep).join('/')}">`);
+  .map(f => `<link rel="modulepreload" href="/${path.relative(dist, f).split(path.sep).join('/')}">`);
 // meta.json isn't preloaded: a <link rel="preload"> fetches it with the default cache mode, so on a repeat visit it came
 // straight from the browser cache, and data.js's fetch (cache: 'no-cache') then took that preloaded copy instead of
 // revalidating: returning visitors kept an old manifest, and with it old data. app.js asks for meta.json as soon as it
@@ -111,7 +114,7 @@ for (const file of codeFiles.filter(f => f.endsWith('.css'))) {
   const versioned = source.replace(FONT_URL, `$1$2?v=${version}$3`);
   if (versioned !== source) fs.writeFileSync(file, versioned);
 }
-edit('index.html', s => s.replace(/((?:src|href)=")(assets\/(?:js|css|fonts)\/[^"?]+\.(?:js|css|woff2))"/g, `$1$2?v=${version}"`));
+edit('index.html', s => s.replace(/((?:src|href)=")(\/?assets\/(?:js|css|fonts)\/[^"?]+\.(?:js|css|woff2))"/g, `$1$2?v=${version}"`));
 
 // Two things every page waits on, started by index.html itself as soon as it's read, instead of once all of app.js's
 // code has arrived and run (about half a second on a profile): meta.json, which any data needs first, and the open
