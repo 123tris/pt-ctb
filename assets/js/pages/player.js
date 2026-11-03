@@ -11,6 +11,7 @@ import { THRONE_PLAYER } from '../core/lore.js';
 import { jersey } from '../core/ladder.js';
 import { SLOT_NAME, TIER_NAME, titleName, titleWhen, slotTally } from '../core/hill.js';
 import { GOAL_LABEL } from '../core/bounty.js';
+import { provisionalTag, streakWords, deltaText } from '../core/duels.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
@@ -45,6 +46,46 @@ function trophies(crowns, claims, maps) {
       goal: GOAL_LABEL[goal], map: html`<a href="/map/${id}">${mapLabel(id, maps[id])}</a>`,
     })}${at ? html` <span class="faint">· ${fmt.date(at)}</span>` : ''}</p>`)}
     ${claims.length > CLAIMS_SHOWN ? html`<p class="small"><a href="/challenges/bounties">${t('{n} more in the hall of fame', { n: fmt.num(claims.length - CLAIMS_SHOWN) })}</a></p>` : ''}
+  </section>`;
+}
+
+/** How many duels the profile lists before the rest fold away. */
+const DUELS_SHOWN = 5;
+/** A duel's result from the profile's player's side: won, lost, or abandoned (counted for nobody). */
+const DUEL_RESULT = { w: t('Won'), l: t('Lost'), x: t('Abandoned') };
+
+/**
+ * Duels: the player's rating, place on the ladder and record, their latest duels (each linking to its page) and who
+ * they've played most. Nothing for a player with no duels. `duels` is the profile's slice (players/{id}.json `duels`,
+ * tools/lib/duels.mjs): `rating` is null until their first ranked duel.
+ */
+function duelSection(duels, index) {
+  if (!duels?.recent.length) return '';
+  const { rating: r, recent, h2h } = duels;
+  const name = id => html`<span class="${nameClass(index.get(id))}">${index.get(id)?.name ?? `#${id}`}</span>`;
+  const row = d => html`<a class="row card-link duel-mine ${d.res === 'x' ? 'duel-muted' : ''}" href="/duel/${d.id}">
+    <span class="duel-mine-vs"><span class="duel-result duel-result-${d.res}">${DUEL_RESULT[d.res]}</span>
+      ${th('vs {name}', { name: name(d.opp) })} <b>${fmt.num(d.s[0])}–${fmt.num(d.s[1])}</b>${d.ff ? html` <span class="faint">· ${t('Forfeit')}</span>` : ''}</span>
+    <span class="row-meta">${d.d !== undefined ? html`<span title="${t('Rating change')}">${deltaText(d.d)}</span><span class="sep"></span>`
+      : !d.ranked ? html`<span>${t('Unranked|duel')}</span><span class="sep"></span>` : ''}<span class="faint" title="${fmt.dateTime(d.t)}">${fmt.ago(d.t)}</span></span>
+  </a>`;
+  const standing = r && [
+    html`<span><b class="duel-big">${fmt.num(r.r)}</b> ${t('rating')}</span>`,
+    r.prov ? provisionalTag() : r.rank && html`<a href="/challenges/duels">${t('{rank} on the ladder', { rank: fmt.rank(r.rank) })}</a>`,
+    t('{wins}, {losses}', { wins: fmt.plural(r.w, 'win'), losses: fmt.plural(r.l, 'loss', 'losses') }),
+    r.peak > r.r && t('peak {rating}', { rating: fmt.num(r.peak) }),
+    streakWords(r.streak),
+  ].filter(Boolean);
+  return html`<section class="section card duels-card">
+    <h2 class="card-h">${t('Duels')}</h2>
+    ${standing ? html`<p class="duel-standing">${standing.map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>`
+      : html`<p class="small muted">${t('No ranked duels yet, so no rating.')}</p>`}
+    <div class="rows">${recent.slice(0, DUELS_SHOWN).map(row)}</div>
+    ${recent.length > DUELS_SHOWN ? html`<details class="duel-more"><summary>${t('Show {n} more', { n: fmt.num(recent.length - DUELS_SHOWN) })}</summary>
+      <div class="rows">${recent.slice(DUELS_SHOWN).map(row)}</div></details>` : ''}
+    ${h2h.length ? html`<p class="small muted mt-2">${th('Most played: {list}', {
+      list: html`${h2h.slice(0, 3).map(([opp, w, l], i) => html`${i ? ', ' : ''}<a href="/player/${opp}">${name(opp)}</a> ${fmt.num(w)}–${fmt.num(l)}`)}`,
+    })}</p>` : ''}
   </section>`;
 }
 
@@ -507,6 +548,8 @@ export default async function player(root, { params, query, isCurrent }) {
     </section>` : ''}
 
     ${trophies(file.crowns, (board?.hall ?? []).filter(r => r[4] === id && r[3] === 'claimed'), board?.maps ?? {})}
+
+    ${duelSection(file.duels, index)}
 
     ${bananaSection(p, wallet, file.ledger)}
 

@@ -5,6 +5,7 @@ import { S, MOD, DAN_STAGES } from './model.js';
 import { catChip, CAT_LABEL, mapLabel, modsBadges, ppText, playerName, nameClass } from './ui.js';
 import { QUIPS, THRONE_PLAYER, pick } from './lore.js';
 import { SLOT_NAME, TIER_NAME, monthLabel } from './hill.js';
+import { deltaText } from './duels.js';
 import * as fmt from './fmt.js';
 import { t, th } from './i18n.js';
 import { bananas, session } from './bananas.js';
@@ -15,6 +16,7 @@ export const danName = i => (i === 0 ? t('Zeroth Dan') : i <= 10 ? t('{nth} Dan'
 export const EVENT_KINDS = {
   snipe: { tag: t('#1 sniped'), label: t('Snipes') },
   crown: { tag: t('Crown'), label: t('Crowns') },
+  duel: { tag: t('Duel'), label: t('Duels') },
   bounty: { tag: t('Bounty claimed'), label: t('Bounties') },
   post: { tag: t('Bounty posted'), label: t('New bounties') },
   tip: { tag: t('Tip'), label: t('Tips') },
@@ -46,6 +48,14 @@ function describe(e, index, maps) {
       return e.mo
         ? { what: th('{who} is King of the hill for {month}, with {crowns}', { who: who(index, e.u), month: monthLabel(e.mo), crowns: fmt.plural(e.n, 'crown') }), where: '' }
         : { what: th('{who} took the {slot} crown from {other}', { who: who(index, e.u), slot: `${SLOT_NAME[e.h[0]]} · ${TIER_NAME[e.h[1]]}`, other: who(index, e.v) }), where: map };
+    case 'duel': {
+      // A ranked duel's result (tools/lib/duels.mjs): the winner, the score and their rating change.
+      const vars = { who: who(index, e.u), other: who(index, e.v), score: `${fmt.num(e.sc[0])}–${fmt.num(e.sc[1])}` };
+      return {
+        what: e.ff ? th('{who} won a ranked duel against {other}, who forfeited', vars) : th('{who} beat {other} {score} in a ranked duel', vars),
+        where: html`<a class="dim-link" href="/duel/${e.d}">${t('See the duel')}</a>${e.r !== undefined ? html` · ${th('{change} rating', { change: deltaText(e.r) })}` : ''}`,
+      };
+    }
     case 'bounty':
       return { what: th(BOUNTY_CLAIMED[e.g], { who: who(index, e.u) }), where: e.a ? html`${map} · ${t('{n} from the pot', { n: bananas(e.a) })}` : map };
     case 'post':
@@ -101,10 +111,10 @@ function quip(e) {
 }
 
 /**
- * Plays worth a tip: a snipe, a top play, a Dan pass, a crown or a claim. Only on the Activity page (`tips`), only for a
+ * Plays worth a tip: a snipe, a top play, a Dan pass, a crown, a duel won or a claim. Only on the Activity page (`tips`), only for a
  * signed-in player, never on their own.
  */
-const TIPPABLE = new Set(['snipe', 'top', 'dan', 'crown', 'bounty']);
+const TIPPABLE = new Set(['snipe', 'top', 'dan', 'crown', 'duel', 'bounty']);
 function tipLink(e, index) {
   const me = TIPPABLE.has(e.k) ? session() : null;
   return me && me.id !== e.u ? html`<a class="event-tip small" href="/player/${e.u}?tip=1" aria-label="${t('Tip {name}', { name: playerName(index, e.u) })}">${t('Tip')}</a>` : '';

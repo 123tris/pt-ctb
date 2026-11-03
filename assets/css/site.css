@@ -729,6 +729,79 @@ td.hill-king { color: var(--text); font-weight: 700; }
 @media (max-width: 600px) { .hill-kept .col-slot { width: 4.75rem; } }
 .hill-kept tbody th { background: transparent; color: var(--text); font-size: var(--fs-sm); font-weight: 700; text-transform: none; letter-spacing: 0; }
 .hill-kept tr:last-child th { border-bottom: 0; }
+/* Duels (pages/duels.js, pages/duel.js, core/duels.js): a duel in a list is one row, the two sides with the points
+   between them (the winner's name in bold, the loser's dim) and its format and time on the right. An abandoned duel is
+   muted and says so in words. A duel's own page leads with the scoreboard: both players either side of the score, the
+   one loud thing on the page. Its rounds are a fixed table, so a long map title ends in "…" rather than pushing the
+   scores off a phone. */
+.duel-line { display: inline-flex; align-items: center; gap: var(--sp-2) var(--sp-3); flex-wrap: wrap; min-width: 0; }
+.duel-side { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; color: var(--text-dim); font-weight: 500; }
+.duel-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.duel-winner .duel-name, .duel-winner > a { color: var(--text); font-weight: 700; }
+.duel-points { font-size: var(--fs-lg); font-weight: 700; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.duel-dash { margin: 0 .3em; color: var(--text-faint); font-weight: 400; }
+.duel-muted { opacity: .7; }
+.duel-live .duel-side { color: var(--text); }
+.duel-delta { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.duel-ladder td.duel-rating { font-weight: 700; color: var(--text); }
+.duel-ladder td.duel-rating small { font-weight: 400; }
+.duel-ladder tr.duel-prov td.duel-rating { font-weight: 500; color: var(--text-dim); }
+
+.duel-board {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--sp-4);
+  padding: var(--sp-6); border: 1px solid var(--border); border-radius: var(--r); background: var(--surface);
+}
+.duel-board-side { display: grid; justify-items: start; gap: var(--sp-2); min-width: 0; }
+.duel-board-side:last-child { justify-items: end; text-align: right; }
+.duel-board-player { display: inline-flex; align-items: center; gap: var(--sp-3); min-width: 0; color: var(--text-dim); font-size: var(--fs-lg); font-weight: 600; }
+.duel-board-side:last-child .duel-board-player { flex-direction: row-reverse; }
+.duel-board-player span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.duel-board-player:hover { color: var(--accent); text-decoration: none; }
+.duel-board .duel-winner .duel-board-player { color: var(--text); }
+.duel-board-rating { color: var(--text-dim); font-size: var(--fs-sm); white-space: nowrap; }
+.duel-board-rating b { color: var(--text); }
+.duel-board-score { font: 700 var(--fs-4xl)/1 var(--display); color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.duel-board-score .duel-dash { margin: 0 .2em; }
+.duel-facts { margin: var(--sp-3) 0 0; color: var(--text-dim); font-size: var(--fs-sm); }
+@media (max-width: 600px) {
+  .duel-board { padding: var(--sp-4) var(--sp-3); gap: var(--sp-2); }
+  .duel-board-player { flex-direction: column; gap: var(--sp-1); font-size: var(--fs-md); max-width: 100%; }
+  .duel-board-side:last-child .duel-board-player { flex-direction: column; }
+  .duel-board-side { justify-items: center; text-align: center; }
+  .duel-board-side:last-child { justify-items: center; text-align: center; }
+  .duel-board-score { font-size: var(--fs-3xl); }
+  .duel-board-rating { white-space: normal; }
+}
+
+.duel-rounds { table-layout: fixed; }
+.duel-rounds .col-n { width: 2.5rem; }
+.duel-rounds .col-p { width: 9.5rem; overflow: hidden; text-overflow: ellipsis; }
+.duel-rounds td { white-space: normal; vertical-align: top; }
+.duel-map .map { gap: var(--sp-2); }
+.duel-map .map-text { min-width: 0; }
+.duel-note { display: block; margin-top: var(--sp-1); color: var(--text-dim); font-size: var(--fs-xs); }
+.duel-score { color: var(--text-dim); }
+.duel-score-main { display: block; font-variant-numeric: tabular-nums; }
+.duel-score-sub { display: block; font-size: var(--fs-xs); color: var(--text-faint); }
+.duel-won .duel-score-main { color: var(--text); font-weight: 700; }
+.duel-check { margin-right: .3em; color: var(--gold); }
+.duel-void td { color: var(--text-faint); }
+.duel-void .duel-score-main { text-decoration: line-through; }
+@media (max-width: 600px) {
+  .duel-rounds .col-n { width: 1.75rem; }
+  .duel-rounds .col-p { width: 5.75rem; }
+  .duel-rounds .map-cover { display: none; }
+}
+
+/* A profile's duels (pages/player.js): the rating line, then the latest duels as rows, the rest folded away. */
+.duel-standing { margin: 0 0 var(--sp-3); color: var(--text-dim); }
+.duel-big { font-size: var(--fs-2xl); font-weight: 700; color: var(--text); }
+.duel-mine-vs { display: inline-flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap; color: var(--text-dim); min-width: 0; }
+.duel-mine-vs b { color: var(--text); }
+.duel-result { min-width: 5.5em; font-weight: 600; color: var(--text-dim); }
+.duel-result-w { color: var(--text); }
+.duel-more > summary { margin-top: var(--sp-2); color: var(--accent); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
+.duel-more[open] > summary { margin-bottom: var(--sp-1); }
 /* Linked badges (challenge chips) and pool player links get a 24px hit area. */
 a.badge { min-height: 24px; }
 /* A profile's trophies (pages/player.js): King of the hill's titles and Bounty hunter as chips, then a line each for
@@ -1205,6 +1278,7 @@ a.dan-stage:hover { text-decoration: none; }
 .event-play { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); font-size: var(--fs-sm); }
 .ev-snipe { --k: var(--text-faint); }
 .ev-crown { --k: var(--gold); }
+.ev-duel { --k: var(--gold); }
 .ev-bounty { --k: var(--gold); }
 .ev-post { --k: var(--gold); }
 .ev-tip { --k: var(--text-faint); }

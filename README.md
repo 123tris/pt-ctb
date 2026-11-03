@@ -39,6 +39,7 @@ and is imported by both the exporter and the pages, so the two can't drift apart
 | `/maps`, `/map/{id}` | Map search and per-map Portuguese leaderboards |
 | `/activity`, `/activity?view=plays` | Snipes, top plays, Dan passes, overtakes; recent plays |
 | `/challenges/{week,dan,targets}` | This week (map of the week); the Dan course (`?stage={n}`; old `/dan` links redirect here); snipe targets (vulnerable #1s, bounties, one-player maps, unclaimed) |
+| `/challenges/duels`, `/duel/{id}` | Duels: rated 1v1s played in osu! lobbies (the ladder, duels being played, the latest results), and each duel round by round, the link the bot posts with a result. Only once the bot writes `Duels/` |
 | `/glossary` | pp, converts, grades, mods and the community's words, for newcomers |
 | `/games/{guess,higher-lower}` | Guess the map from its cover; higher or lower |
 | `/calculator` | Catch pp calculator and "what if" pp gain |

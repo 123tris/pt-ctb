@@ -28,6 +28,7 @@ const LOADERS = {
   'map/:id': () => import('./pages/map.js'),
   'activity': () => import('./pages/activity.js'),
   'challenges/:tab?': () => import('./pages/challenges.js'),
+  'duel/:id': () => import('./pages/duel.js'),
   'games/:game?': () => import('./pages/games.js'),
   'calculator': () => import('./pages/calculator.js'),
   'compare/:a?/:b?': () => import('./pages/compare.js'),
@@ -138,6 +139,7 @@ async function route({ newPage = false, newView = false } = {}) {
     console.error(e);
     if (e instanceof NotFound) {
       if (section === 'player' || section === 'recap') showError(t('Never heard of them!'), t('There’s no Portuguese player with this id. They may not be tracked yet, or the link has a typo.'), { newPage, players: true });
+      else if (section === 'duel') showError(t('No such duel'), t('There’s no duel with this number. It may not be in the data yet, or the link has a typo.'), { newPage });
       else showError(t('Not found'), t('There’s no data for this. The map may not be tracked yet.'), { newPage });
     }
     else {

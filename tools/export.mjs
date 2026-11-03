@@ -17,7 +17,8 @@
 //
 // Only public osu! data leaves the bot's folder: usernames, scores and profile stats for home-country players, the
 // bounty board and Bananas' balances. The verification log and per-user settings are never read; Bounties.json has
-// Discord ids, which tools/lib/bounties.mjs leaves out, and tools/lib/economy.mjs builds its files field by field too. Files are only rewritten when their content changed, so an export with nothing new
+// Discord ids, which tools/lib/bounties.mjs leaves out, and tools/lib/economy.mjs builds its files field by field too, as does
+// tools/lib/duels.mjs (of Duels/state.json it reads only the duels being played). Files are only rewritten when their content changed, so an export with nothing new
 // leaves git clean.
 //
 // It also writes small WebP copies of the players' avatars (avatars/{id}-64.webp and -128.webp, tools/lib/avatars.mjs),
@@ -234,7 +235,7 @@ for (const [name, buf] of Object.entries(avatars.files)) {
   versions[name] = hash(buf);
 }
 const keep = new Set([...Object.keys(files), ...Object.keys(avatars.files)]);
-let removed = prune('players', keep) + prune('maps', keep) + prune('sets', keep) + prune('avatars', keep);
+let removed = prune('players', keep) + prune('maps', keep) + prune('sets', keep) + prune('duels', keep) + prune('avatars', keep);
 // Files earlier exports wrote that nothing reads any more.
 for (const name of RETIRED) {
   if (!fs.existsSync(path.join(outDir, name))) continue;

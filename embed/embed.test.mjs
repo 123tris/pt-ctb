@@ -50,6 +50,17 @@ test('a player, a map, a recap and a comparison name their subject', () => {
   assert.match(withData(describe('/recap/16589307'), { players: PLAYERS }).description, /^Rosa’s year in osu!catch/);
   assert.equal(withData(describe('/compare/19423459/16589307'), { players: PLAYERS }).title, '_wb vs Rosa · PT Catch');
 
+  const duel = {
+    id: 7, ranked: true, bestOf: 5, status: 'finished', stars: [5.9, 6.9], winner: 16589307,
+    players: [{ u: 19423459, name: 'old name', pts: 1 }, { u: 16589307, name: 'Rosa', pts: 3 }],
+  };
+  const duelEmbed = withData(describe('/duel/7'), { players: PLAYERS, duel });
+  assert.equal(duelEmbed.title, '_wb vs Rosa · PT Catch');
+  assert.match(duelEmbed.description, /^Rosa beat _wb 3–1 in a ranked best of 5 osu!catch duel at 5\.9–6\.9★\./);
+  assert.equal(duelEmbed.image, 'https://a.ppy.sh/16589307');
+  assert.match(withData(describe('/duel/7'), { players: PLAYERS, duel: { ...duel, status: 'abandoned', winner: null } }).description, /was abandoned at 1–3/);
+  assert.equal(describe('/duel/0').kind, undefined);
+
   // Unknown ids, or no data, keep the address-only text.
   assert.deepEqual(withData(describe('/player/5'), { players: PLAYERS }), describe('/player/5'));
   assert.deepEqual(withData(describe('/map/5'), {}), describe('/map/5'));

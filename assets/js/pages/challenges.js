@@ -1,5 +1,5 @@
 import { html, raw } from '../core/html.js';
-import { challenges, bounties, hill, playerIndex, dan, completion, meta } from '../core/data.js';
+import { challenges, bounties, hill, duels, playerIndex, dan, completion, meta } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
   setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, bannerArt, mapText, starsBadge, empty, osuMap, myId,
@@ -13,12 +13,13 @@ import { ANY_STARS, parseStars, formatStars, starsLabel, inStars, isAnyStars } f
 import { starSlider, bindStarSlider } from '../core/star-slider.js';
 import { renderDan, DAN_INTRO } from './dan.js';
 import { renderHill } from './hill.js';
+import { renderDuels } from './duels.js';
 import { timeLeft } from '../core/hill.js';
 import { runningNow, challengeChips } from '../core/challenge-chips.js';
 import * as fmt from '../core/fmt.js';
 import { t, th, tn } from '../core/i18n.js';
 
-// Six sub-pages with their own URLs (/challenges/week, /hill, /dan, /targets, /bounties, /completion). "Dan" keeps the
+// Seven sub-pages with their own URLs (/challenges/week, /hill, /duels, /dan, /targets, /bounties, /completion). "Dan" keeps the
 // community's own word. They're tabs, like the leaderboards', and each tab shows where that challenge stands right now.
 // The week, the month's King of the hill and the bounties are what's on now: a map in more than one of them carries
 // the others' chips (core/challenge-chips.js), here and on its map page.
@@ -26,6 +27,8 @@ const TABS = [
   { slug: 'week', label: t('This week'), intro: th('A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on {activity}.', { activity: html`<a href="/activity?view=week">${t('Activity')}</a>` }) },
   // Only once the export has hill.json (the bot started King of the hill): see `shown` below.
   { slug: 'hill', label: t('King of the hill'), intro: th('A pool of maps each month, one per slot, in an Open and an easier Challenger tier (from November 2026: 6–9★ and 4.5–6.5★). Hold a map’s best play when the month ends to keep its crown. {more}', { more: html`<a href="/glossary?at=crown">${t('How crowns work')}</a>` }) },
+  // Only once the export has duels.json (the bot started duels), like King of the hill.
+  { slug: 'duels', label: t('Duels'), intro: th('Rated 1v1s on random maps of the right difficulty, played in an osu! lobby. Type {command} on the Discord to challenge someone: the bot follows the lobby and scores every round.', { command: html`<code>/duel</code>` }) },
   { slug: 'dan', label: t('Dan course'), intro: DAN_INTRO },
   { slug: 'targets', label: t('Snipe targets'), intro: t('#1s that are begging to be sniped, maps with a single Portuguese player, and maps nobody in Portugal has played yet.') },
   { slug: 'bounties', label: t('Bounties'), intro: t('Prizes the community puts up for hard maps: full combo one, pass it first or take its #1, and the bot announces the claim on Discord.') },
@@ -33,15 +36,16 @@ const TABS = [
 ];
 
 /**
- * Each tab's figure: the map of the week's time left, the month's, Portugal's highest Dan, #1s up for grabs, open
- * bounties, the share cleared.
+ * Each tab's figure: the map of the week's time left, the month's, duels being played, Portugal's highest Dan, #1s up
+ * for grabs, open bounties, the share cleared.
  */
-function tabFigures(data, board, index, goal, month) {
+function tabFigures(data, board, index, goal, month, duelsNow) {
   const left = data.week ? Math.max(0, data.week.end - Date.now() / 1000) : 0;
   const top = topStage(passCounts(index.values()));
   return {
     week: data.week ? (left >= 86400 ? t('{n}d left', { n: Math.floor(left / 86400) }) : t('{n}h left', { n: Math.floor(left / 3600) })) : undefined,
     hill: month?.status === 'live' ? timeLeft(month.end) : undefined,
+    duels: duelsNow?.live ? t('{n} live', { n: fmt.num(duelsNow.live) }) : undefined,
     dan: top >= 0 ? danName(top) : undefined,
     targets: data.beatable.length,
     bounties: board ? board.open.length : undefined,
@@ -99,20 +103,21 @@ function weekSection(week, maps, index, me, now) {
 export default async function challengesPage(root, { params, query, isCurrent }) {
   const asked = params.tab;
   // challenges.json (about 12 KB) and bounties.json (smaller), both cached, come on every tab for the tabs' figures and
-  // chips; meta.json is already loaded, with the King of the hill month in brief. hill.json only comes for its tab.
-  const [data, board, index, danData, goalData, m, crowns, eco] = await Promise.all([
+  // chips; meta.json is already loaded, with the King of the hill month and the duels in brief. hill.json and duels.json
+  // only come for their tabs.
+  const [data, board, index, danData, goalData, m, crowns, eco, duelData] = await Promise.all([
     challenges(), bounties(), playerIndex(), asked === 'dan' ? dan() : null, asked === 'completion' ? completion() : null, meta(),
-    asked === 'hill' ? hill() : null, asked === 'bounties' ? economy().catch(() => null) : null,
+    asked === 'hill' ? hill() : null, asked === 'bounties' ? economy().catch(() => null) : null, asked === 'duels' ? duels() : null,
   ]);
   if (!isCurrent()) return;
-  const shown = TABS.filter(x => x.slug !== 'hill' || m.files?.['hill.json']);
+  const shown = TABS.filter(x => (x.slug !== 'hill' || m.files?.['hill.json']) && (x.slug !== 'duels' || m.files?.['duels.json']));
   const tab = shown.find(x => x.slug === asked) ?? shown[0];
   const goal = tab.slug === 'completion';
   const now = runningNow({ challenges: data, meta: m, bounties: board });
   setTitle(tab.slug === 'week' ? t('Challenges') : `${tab.label} · ${t('Challenges')}`);
   const me = myId();
   const maps = data.maps;
-  const figures = tabFigures(data, board, index, m.completion, m.hill);
+  const figures = tabFigures(data, board, index, m.completion, m.hill, m.duels);
 
   root.innerHTML = String(html`
     ${pageHead({ title: t('Challenges') })}
@@ -124,6 +129,7 @@ export default async function challengesPage(root, { params, query, isCurrent })
 
   if (tab.slug === 'bounties' && eco) wireBounties(root, board, eco, isCurrent);
   if (tab.slug === 'hill') renderHill(root.querySelector('#panel'), { hill: crowns, index, me, query, now });
+  if (tab.slug === 'duels') renderDuels(root.querySelector('#panel'), { duels: duelData, index, me, query, generatedAt: m.generatedAt });
   if (tab.slug === 'dan') renderDan(root.querySelector('#panel'), danData, index, query);
   if (goal) renderCompletion(root.querySelector('#panel'), goalData, index, query);
   if (tab.slug === 'week' && data.week) {
