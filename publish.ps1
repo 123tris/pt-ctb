@@ -24,13 +24,20 @@
     R2 keys: the user environment variables R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY
     (tools/set-r2-keys.ps1 sets them).
 
+    -Engine exports with the C# engine (engine/, about 4x faster) instead of tools/export.mjs. It writes the same files
+    byte for byte (npm run engine:parity checks it), but doesn't call the osu! API for missing titles or make avatar
+    thumbnails yet: those it has are kept, new ones wait for a run without -Engine. It's built once per engine version
+    (the git tree of engine/) into state/engine/ with the .NET 10 SDK.
+
 .EXAMPLE
     .\publish.ps1              # export and upload
     .\publish.ps1 -NoUpload    # export only (into data/), e.g. to look at it with npm run serve -- --local-data
+    .\publish.ps1 -Engine      # export with the C# engine, then upload
 #>
 param(
     [string]$DataRepo = (Join-Path (Split-Path $PSScriptRoot -Parent) 'PT-CTB-Bot-Data'),
-    [switch]$NoUpload
+    [switch]$NoUpload,
+    [switch]$Engine
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,15 +67,30 @@ if (-not $NoUpload) {
     Invoke-R2 'restore'
 }
 
-# sharp makes the avatar thumbnails (tools/lib/avatars.mjs). Without it the export still runs and keeps the thumbnails
-# it has, so a failed install only warns.
-if (-not (Test-Path 'node_modules/sharp')) {
-    npm ci --no-audit --no-fund
-    if ($LASTEXITCODE -ne 0) { Write-Warning 'npm ci failed: avatar thumbnails are not updated this run.' }
-}
+if ($Engine) {
+    # The engine, published once per version of engine/ (its git tree hash), older builds removed.
+    $tree = git rev-parse HEAD:engine
+    if ($LASTEXITCODE -ne 0) { throw 'This checkout has no engine/ folder.' }
+    $builds = Join-Path $PSScriptRoot 'state/engine'
+    $exe = Join-Path $builds "$tree/ptcatch-engine.exe"
+    if (-not (Test-Path $exe)) {
+        dotnet publish engine/src/PtCatch.Engine.Cli -c Release -r win-x64 --self-contained false --nologo -v q -o (Join-Path $builds $tree)
+        if ($LASTEXITCODE -ne 0) { throw 'Building the engine failed (needs the .NET 10 SDK); run without -Engine to use the Node exporter.' }
+        Get-ChildItem $builds -Directory | Where-Object Name -ne $tree | Remove-Item -Recurse -Force
+    }
+    & $exe export --data $DataRepo
+    if ($LASTEXITCODE -ne 0) { throw "Export failed (exit $LASTEXITCODE)" }
+} else {
+    # sharp makes the avatar thumbnails (tools/lib/avatars.mjs). Without it the export still runs and keeps the
+    # thumbnails it has, so a failed install only warns.
+    if (-not (Test-Path 'node_modules/sharp')) {
+        npm ci --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { Write-Warning 'npm ci failed: avatar thumbnails are not updated this run.' }
+    }
 
-node --max-old-space-size=4096 tools/export.mjs --data $DataRepo --fetch-titles
-if ($LASTEXITCODE -ne 0) { throw "Export failed (exit $LASTEXITCODE)" }
+    node --max-old-space-size=4096 tools/export.mjs --data $DataRepo --fetch-titles
+    if ($LASTEXITCODE -ne 0) { throw "Export failed (exit $LASTEXITCODE)" }
+}
 
 if ($NoUpload) {
     Write-Host 'Exported into data/; not uploaded.'

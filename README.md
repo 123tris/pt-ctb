@@ -64,7 +64,13 @@ node tools/i18n-check.mjs   # Portuguese strings that are missing or no longer u
 .\publish.ps1             # on main only: export (with --fetch-titles), upload what changed to R2
 .\install-publish-task.ps1   # run publish.ps1 every 15 minutes
 node tools/r2-sync.mjs status   # R2 usage against the free-tier caps
+npm run engine:parity     # the C# engine against tools/export.mjs, byte for byte (engine/README.md)
+.\publish.ps1 -Engine     # publish with the C# engine instead of the Node exporter
 ```
+
+`engine/` is the site's data engine in C# (.NET 10): the same export as `tools/export.mjs`, byte for byte, about 4x
+faster. It's the first step of the performance rebuild; [engine/README.md](engine/README.md) says how it's laid out and
+how it's kept in step with the Node exporter.
 
 Needs Node 18+. Settings that aren't data (the Discord invite link, the site's addresses) live in
 `assets/js/config.js`; the per-branch ones are filled in by the build.

@@ -7,7 +7,8 @@
     "export": "node --max-old-space-size=4096 tools/export.mjs",
     "serve": "node tools/serve.mjs",
     "test": "node --test embed/*.test.mjs signin/*.test.mjs usage/*.test.mjs economy/*.test.mjs tools/*.test.mjs tools/lib/*.test.mjs",
-    "build": "node tools/build-site.mjs"
+    "build": "node tools/build-site.mjs",
+    "engine:parity": "node tools/engine-parity.mjs"
   },
   "devDependencies": {
     "sharp": "^0.35.5"

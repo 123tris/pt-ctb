@@ -2,10 +2,13 @@
 // Builds the site's public data (data/*.json) from the PT-CTB bot's private data folder.
 //
 //   node --max-old-space-size=4096 tools/export.mjs [--data <bot data folder>] [--country PT] [--fetch-titles]
-//                                                   [--fetch-dates] [--out <folder>]
+//                                                   [--fetch-dates] [--out <folder>] [--now <unix seconds>] [--offline]
 //
 // --out writes the files somewhere other than data/ (a trial export), with the exporter state kept in that folder
 // too, so neither data/ nor state/state.json changes.
+//
+// --now runs the export as of that time, and --offline leaves avatars as they are on disk instead of asking osu!: with
+// both, two runs on the same data write the same bytes, which is how the C# engine (engine/) is checked against this.
 //
 // --fetch-titles looks up maps the bot's cache has no title for on the osu! API (with the bot's osu! app, from
 // OSU_CLIENT_ID/OSU_CLIENT_SECRET or the bot's user-secrets) and caches them in state/beatmaps.json, along with the
@@ -185,7 +188,7 @@ for (const id of noCatch) {
 if (withoutCatch) console.log(`  ${withoutCatch} converts have no catch star rating yet (the bot's cache or --fetch-titles fills them in)`);
 
 const previous = { ...readJsonOr(fs.existsSync(stateOut) ? stateOut : stateFile, {}), history: readJsonOr(path.join(outDir, 'history.json'), null) };
-const now = Math.floor(Date.now() / 1000);
+const now = arg('now', null) !== null ? Number(arg('now')) : Math.floor(Date.now() / 1000);
 // Players osu! reports as inactive (0pp, no rank) whose official pp we never saw live and who have no plays to
 // estimate it from: the last value in the data folder's git history is all there is (see build.mjs).
 const hasOfficialPlays = r => [...(r.TopConvertedScores || []), ...(r.RankedSpecificScores || [])].some(s => s?.pp > 0);
@@ -203,7 +206,9 @@ else if (fs.existsSync(path.join(dataRoot, 'commands.json'))) console.warn('  co
 
 // Avatar thumbnails for everyone on players.json (other ids the site shows, like a record's past holder, use a.ppy.sh).
 let resize = null;
-try { resize = await sharpResizer(); } catch { console.warn('  sharp isn’t installed (npm install): avatar thumbnails are only kept, not made'); }
+if (!process.argv.includes('--offline')) {
+  try { resize = await sharpResizer(); } catch { console.warn('  sharp isn’t installed (npm install): avatar thumbnails are only kept, not made'); }
+}
 const avatars = await updateAvatars({
   ids: files['players.json'].map(p => p.id).sort((a, b) => a - b),
   outDir,
