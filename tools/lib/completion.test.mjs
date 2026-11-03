@@ -172,3 +172,14 @@ test('the home page gets the easiest maps still to clear, one per set, and the n
   const none = homeGoal({ ...file, recent: [], left: [] });
   assert.deepEqual([none.next, none.sets, none.latest, none.maps], [[], {}, null, {}]);
 });
+
+test('each ranked year gets its total and clears, oldest first; a map without a ranked date is only in the totals', () => {
+  const maps = [
+    map(1, { approved_date: '2014-03-01T00:00:00Z' }), map(2, { approved_date: '2014-12-31T23:00:00Z' }),
+    map(3, { approved_date: '2021-06-01T00:00:00Z' }), map(4, { approved_date: null }),
+  ];
+  const { file } = goal(bot({ players: [player(10, { RankedSpecificScores: [play(2), play(3), play(4)] })] }), maps);
+  assert.deepEqual(file.years, [[2014, 2, 1], [2021, 1, 1]]);
+  assert.equal(file.total, 4);
+  assert.equal(file.cleared, 3);
+});

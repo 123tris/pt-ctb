@@ -215,11 +215,88 @@ function leftRow([id, set, version, stars, rankedDay, plays, length], sets) {
   </a>`;
 }
 
+/**
+ * A year's share as the strip's words say it: a whole year cleared is 100%, and anything short of it stops at 99.9%
+ * (99.96% would round up), so the words agree with the column's colour.
+ */
+const yearPct = (cleared, total, digits = 1) => {
+  if (cleared === total) return fmt.num(100, 0);
+  const step = 10 ** -digits;
+  return fmt.num(Math.min(100 - step, Math.round(percent(cleared, total) / step) * step), digits);
+};
+const yearFigures = ([year, total, cleared]) => ({ year, cleared: fmt.num(cleared), total: fmt.num(total), pct: yearPct(cleared, total) });
+const isFull = ([, total, cleared]) => total > 0 && cleared === total;
+/** A year's line under the strip: "2014: all 149 cleared", "2018: 696 of 709 cleared (98.1%)". */
+const yearText = y => (!y[1] ? t('{year}: no ranked maps', { year: y[0] })
+  : isFull(y) ? t('{year}: all {total} cleared', yearFigures(y)) : t('{year}: {cleared} of {total} cleared ({pct}%)', yearFigures(y)));
+/** The unfinished year furthest behind (the lowest share, then the most maps left), for the strip's line at rest. */
+const furthestBehind = years => years.filter(y => y[1] && !isFull(y)).reduce((a, b) => (!a || percent(b[2], b[1]) < percent(a[2], a[1])
+  || (percent(b[2], b[1]) === percent(a[2], a[1]) && b[1] - b[2] > a[1] - a[2]) ? b : a), null);
+
+/**
+ * How far each year's ranked maps are cleared, as a strip of thin columns under the goal's bar: kept short and
+ * unlabelled but for a few years, with one line that names the year furthest behind and, on hover or tap, the year
+ * under the pointer. A year cleared to the last map is gold (an honour, as everywhere on the site), and a year short of
+ * it always keeps a visible gap at the top, so 99% never passes for done and colour isn't the only signal. The line's
+ * small gold square is the legend. Data from before completion.json had `years` shows nothing.
+ */
+function yearStrip(years) {
+  if (!years || years.length < 2) return '';
+  const n = years.length, last = n - 1;
+  const labelled = years.map(([year], i) => i === 0 || i === last || (year % 5 === 0 && i > 2 && i < last - 2));
+  const full = years.filter(isFull).length;
+  const behind = furthestBehind(years);
+  const parts = [
+    full ? html`<span class="goal-years-full"><span class="goal-years-key"></span>${tn(full, '{n} year fully cleared', '{n} years fully cleared')}</span>` : '',
+    behind ? t('furthest behind is {year}, with {cleared} of {total} cleared ({pct}%)', yearFigures(behind)) : t('every year fully cleared'),
+  ].filter(Boolean);
+  return html`<div class="goal-years">
+    <div class="goal-years-cols" role="img" aria-label="${t('Share cleared by year ranked: {years}', { years: years.filter(y => y[1]).map(([y, total, cleared]) => `${y} ${yearPct(cleared, total, 0)}%`).join(', ') })}">
+      ${years.map((y, i) => html`<span class="goal-year${!y[1] ? ' is-none' : isFull(y) ? ' is-full' : ''}" data-i="${i}" style="--done:${percent(y[2], y[1]).toFixed(1)}%"></span>`)}
+    </div>
+    <div class="goal-years-axis" aria-hidden="true">${years.map(([year], i) => labelled[i] ? html`<span style="left:${(((i + 0.5) / n) * 100).toFixed(2)}%">${year}</span>` : '')}</div>
+    <p class="goal-years-note" aria-hidden="true"><span class="faint">${t('By year ranked:')}</span>
+      <span id="year-rest">${parts.map((part, i) => html`${i ? ' · ' : ''}${part}`)}</span><span id="year-pick" hidden></span></p>
+  </div>`;
+}
+
+function bindYearStrip(panel, years) {
+  const cols = panel.querySelector('.goal-years-cols');
+  if (!cols) return;
+  const rest = panel.querySelector('#year-rest'), picked = panel.querySelector('#year-pick');
+  let active = null;
+  const show = col => {
+    if (col === active) return;
+    active?.classList.remove('is-active');
+    active = col;
+    cols.classList.toggle('is-pointing', Boolean(col));
+    col?.classList.add('is-active');
+    if (col) picked.textContent = yearText(years[col.dataset.i]);
+    rest.hidden = Boolean(col);
+    picked.hidden = !col;
+  };
+  // Touch has no hover: a tap picks a year and it stays until the next tap.
+  const pick = e => show(e.target.closest('.goal-year') ?? active);
+  cols.addEventListener('pointermove', pick);
+  cols.addEventListener('pointerdown', pick);
+  cols.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') show(null); });
+}
+
+/** completion.json's years with the years between them that ranked nothing as [year, 0, 0], so the strip spaces evenly. */
+function everyYear(years) {
+  if (!years?.length) return years;
+  const by = new Map(years.map(y => [y[0], y]));
+  const out = [];
+  for (let year = years[0][0]; year <= years[years.length - 1][0]; year++) out.push(by.get(year) ?? [year, 0, 0]);
+  return out;
+}
+
 function renderCompletion(panel, goal, index, query) {
   if (!goal) {
     panel.innerHTML = String(empty(t('The completion goal arrives with the next data update.')));
     return;
   }
+  const years = everyYear(goal.years);
   const pct = percent(goal.cleared, goal.total);
   const conv = goal.converts;
   let stars = parseStars(query);
@@ -236,6 +313,7 @@ function renderCompletion(panel, goal, index, query) {
         : th('{cleared} of {total} ranked osu!catch maps cleared', { cleared: html`<b>${fmt.num(goal.cleared)}</b>`, total: html`<b>${fmt.num(goal.total)}</b>` })}</p>
       <div class="goal-bar" role="meter" aria-label="${t('Ranked osu!catch maps cleared')}" aria-valuemin="0" aria-valuemax="${goal.total}"
         aria-valuenow="${goal.cleared}" aria-valuetext="${t('{pct}% cleared', { pct: fmt.num(pct, 1) })}" style="--done:${pct.toFixed(2)}%"><span></span></div>
+      ${yearStrip(years)}
       ${conv?.total ? html`<p class="goal-aside">${t('Converts, the long road: {cleared} of {total} ranked osu!standard maps ({pct}%).', { cleared: fmt.num(conv.cleared), total: fmt.num(conv.total), pct: fmt.num(percent(conv.cleared, conv.total), 1) })}</p>` : ''}
     </section>
 
@@ -269,6 +347,7 @@ function renderCompletion(panel, goal, index, query) {
         <div id="left-list"></div>` : empty(t('Every ranked osu!catch map is cleared. Converts next?'))}
     </section>
   `);
+  bindYearStrip(panel, years);
   if (!goal.left.length) return;
 
   const sort = panel.querySelector('#left-sort');

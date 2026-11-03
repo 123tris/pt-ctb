@@ -1162,6 +1162,23 @@ a.dan-stage:hover { text-decoration: none; }
 .goal-bar { height: 6px; border-radius: var(--r-xs); background: var(--surface-3); overflow: hidden; }
 .goal-bar > span { display: block; width: var(--done, 0%); height: 100%; background: var(--accent); }
 .goal-aside { margin: var(--sp-3) 0 0; color: var(--text-faint); font-size: var(--fs-sm); }
+/* Under the bar, each ranked year's share cleared (challenges.js yearStrip): short columns in the bar's own colours, a few
+   year labels and one line of words, so the headline stays the bar. A year cleared to the last map is gold (honours);
+   one short of it keeps at least a 4px gap at the top, so 99% and 100% differ in shape as well as colour. */
+.goal-years { margin-top: var(--sp-4); }
+.goal-years-cols { display: flex; align-items: stretch; gap: 3px; height: 44px; touch-action: pan-y; }
+.goal-year { flex: 1; min-width: 0; border-radius: 1px; background: linear-gradient(to top, var(--accent) min(var(--done), calc(100% - 4px)), var(--surface-3) 0); opacity: .8; transition: opacity .12s; }
+.goal-year.is-full { background: var(--gold); opacity: .92; }
+.goal-year.is-none { background: none; border-bottom: 1px solid var(--border); }
+.goal-years-cols.is-pointing .goal-year { opacity: .4; }
+.goal-years-cols.is-pointing .goal-year.is-active { opacity: 1; }
+.goal-years-axis { position: relative; height: 1.4em; margin-top: var(--sp-1); color: var(--text-faint); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.goal-years-axis > span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.goal-years-axis > span:first-child { transform: none; left: 0 !important; }
+.goal-years-axis > span:last-child { transform: none; left: auto !important; right: 0; }
+.goal-years-note { margin: var(--sp-1) 0 0; color: var(--text-dim); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.goal-years-full { white-space: nowrap; }
+.goal-years-key { display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 1px; background: var(--gold); vertical-align: .08em; }
 .goal-who { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 .goal-who > .faint { min-width: 1.5em; }
 @media (max-width: 480px) { .goal-figure { font-size: var(--fs-3xl); } }
