@@ -7,6 +7,14 @@ import { avatar, nameClass, tipTag } from './ui.js';
 import * as fmt from './fmt.js';
 import { t, tn } from './i18n.js';
 
+/**
+ * Duels ship as an experiment: an "Experimental" tag beside their name wherever they appear (the Challenges tab, a
+ * duel's page, a profile's section) and a line saying what that means on the tab and the duel page. Remove both once
+ * duels are settled.
+ */
+export const experimentalTag = () => html`<span class="legend-tag exp-tag">${t('Experimental')}</span>`;
+export const experimentalNote = () => html`<p class="notice exp-note">${t('Duels are new and still being verified; ratings and results may be reset.')}</p>`;
+
 /** A duel's lobby on osu!. */
 export const matchUrl = id => `https://osu.ppy.sh/community/matches/${id}`;
 

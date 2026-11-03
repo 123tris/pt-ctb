@@ -14,6 +14,7 @@ import { starSlider, bindStarSlider } from '../core/star-slider.js';
 import { renderDan, DAN_INTRO } from './dan.js';
 import { renderHill } from './hill.js';
 import { renderDuels } from './duels.js';
+import { experimentalTag } from '../core/duels.js';
 import { timeLeft } from '../core/hill.js';
 import { runningNow, challengeChips } from '../core/challenge-chips.js';
 import * as fmt from '../core/fmt.js';
@@ -121,7 +122,9 @@ export default async function challengesPage(root, { params, query, isCurrent })
 
   root.innerHTML = String(html`
     ${pageHead({ title: t('Challenges') })}
-    ${tabs(shown.map(x => ({ href: `/challenges/${x.slug}`, label: x.label, count: figures[x.slug], active: x === tab })), t('Challenges'))}
+    ${tabs(shown.map(x => ({
+      href: `/challenges/${x.slug}`, label: x.slug === 'duels' ? html`${x.label} ${experimentalTag()}` : x.label, count: figures[x.slug], active: x === tab,
+    })), t('Challenges'))}
     <p class="muted tabs-intro">${tab.intro}</p>
     <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me, now) : tab.slug === 'targets' ? targetsPanel(data, maps, index)
       : tab.slug === 'bounties' ? bountiesPanel(board, data, index, now, eco) : ''}</div>

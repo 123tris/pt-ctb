@@ -3,7 +3,7 @@
 
 import { html } from '../core/html.js';
 import { playerLink, empty, emptyFiltered, paginate, writeQuery, announce, resultCount, chipGroup, setPressed, avatar, nameClass } from '../core/ui.js';
-import { matchUrl, provisionalTag, ratingText, recordText, streakText, streakWords, formatText, duelRow, duelist } from '../core/duels.js';
+import { experimentalNote, matchUrl, provisionalTag, ratingText, recordText, streakText, streakWords, formatText, duelRow, duelist } from '../core/duels.js';
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
 
@@ -62,6 +62,7 @@ export function renderDuels(root, { duels, index, me, query, generatedAt }) {
   const save = () => writeQuery({ duels: kind, page: page + 1 }, { duels: 'all', page: 1 });
 
   root.innerHTML = String(html`
+    ${experimentalNote()}
     ${live.length ? html`<section class="section">
       <div class="section-head"><h2>${t('Being played now')}</h2><span class="muted small">${t('As of the last data update, {ago}', { ago: fmt.ago(generatedAt) })}</span></div>
       <div class="rows">${live.map(d => liveRow(d, index))}</div>

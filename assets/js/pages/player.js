@@ -11,7 +11,7 @@ import { THRONE_PLAYER } from '../core/lore.js';
 import { jersey } from '../core/ladder.js';
 import { SLOT_NAME, TIER_NAME, titleName, titleWhen, slotTally } from '../core/hill.js';
 import { GOAL_LABEL } from '../core/bounty.js';
-import { provisionalTag, streakWords, deltaText } from '../core/duels.js';
+import { experimentalTag, provisionalTag, streakWords, deltaText } from '../core/duels.js';
 import {
   setTitle, tabs, avatar, stat, scoreRow, paginate, empty, mapText, prefs, osuUser, CAT_LABEL, SLUG_CAT,
   mapLink, scoreStats, catChip, writeQuery, announce, resultCount, emptyFiltered, isInactiveOnOsu, inactiveTag, officialPpNote,
@@ -77,7 +77,7 @@ function duelSection(duels, index) {
     streakWords(r.streak),
   ].filter(Boolean);
   return html`<section class="section card duels-card">
-    <h2 class="card-h">${t('Duels')}</h2>
+    <h2 class="card-h">${t('Duels')} ${experimentalTag()}</h2>
     ${standing ? html`<p class="duel-standing">${standing.map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>`
       : html`<p class="small muted">${t('No ranked duels yet, so no rating.')}</p>`}
     <div class="rows">${recent.slice(0, DUELS_SHOWN).map(row)}</div>

@@ -802,6 +802,11 @@ td.hill-king { color: var(--text); font-weight: 700; }
 .duel-result-w { color: var(--text); }
 .duel-more > summary { margin-top: var(--sp-2); color: var(--accent); font-size: var(--fs-sm); font-weight: 600; cursor: pointer; }
 .duel-more[open] > summary { margin-bottom: var(--sp-1); }
+/* "Experimental" beside Duels' name while they're new (core/duels.js experimentalTag): the legend tag, sized to sit in
+   a tab, a heading or a card title. */
+.exp-tag { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; letter-spacing: 0; text-transform: none; vertical-align: middle; }
+h1 .exp-tag { font-size: var(--fs-sm); }
+.exp-note { margin: 0 0 var(--sp-4); font-size: var(--fs-sm); }
 /* Linked badges (challenge chips) and pool player links get a 24px hit area. */
 a.badge { min-height: 24px; }
 /* A profile's trophies (pages/player.js): King of the hill's titles and Bounty hunter as chips, then a line each for

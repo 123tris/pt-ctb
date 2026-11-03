@@ -187,3 +187,51 @@ test('the export: duels.json, the duel pages, profiles, meta, Activity and the m
   assert.equal(without['duels.json'], undefined);
   assert.equal(without['meta.json'].duels, null);
 });
+
+test('before the bot has written any duels: an empty folder, empty files or junk all export, with nothing to show', async () => {
+  const { build } = await import('./build.mjs');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'duels-empty-'));
+  const write = (file, text) => fs.writeFileSync(path.join(root, 'Duels', file), text);
+  const states = [];
+  try {
+    fs.mkdirSync(path.join(root, 'Duels', 'matches'), { recursive: true });
+    states.push(loadDuels(root)); // empty folder, empty matches/
+    write('ratings.json', '');
+    write('state.json', '');
+    states.push(loadDuels(root)); // empty files
+    write('ratings.json', '{}');
+    write('state.json', '{"active":null}');
+    write('matches/2026-11.json', '{"duels":null}');
+    states.push(loadDuels(root));
+    write('ratings.json', '{"players":[]}');
+    write('matches/2026-11.json', '[]');
+    write('matches/2026-12.json', '{"duels":[null, 5, {"id":1}]}');
+    states.push(loadDuels(root));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+  for (const loaded of states) {
+    assert.deepEqual(loaded.ratings, {});
+    assert.deepEqual(loaded.active, []);
+    const block = duelsBlock(loaded, known);
+    assert.deepEqual(block.file, { ladder: [], live: [], recent: [], total: 0, maps: {} });
+    assert.deepEqual(block.pages, {});
+    assert.deepEqual(block.summary, { live: 0, players: 0, total: 0, leader: null });
+  }
+
+  // The whole export, with no folder and with an empty one: other files are unchanged by it.
+  const now = Date.UTC(2026, 10, 10) / 1000;
+  const bot = duels => ({
+    players: [{ user_id: 1, username: 'p1', country: 'PT', pp_raw: 1, pp_rank: 1, profile_updated: '2026-11-01T00:00:00Z',
+      TopConvertedScores: [], TopUnrankedScores: [], RankedSpecificScores: [], PreRankScores: [], DanPasses: [] }],
+    ptCatch: [], ptCatchState: {}, banned: new Set(), weekly: { weeks: [], current: null }, duels,
+  });
+  const none = build({ bot: bot(null), beatmaps: new Map(), homeCountry: 'PT', now, state: {} }).files;
+  const empty = build({ bot: bot(states[0]), beatmaps: new Map(), homeCountry: 'PT', now, state: {} }).files;
+  assert.equal(none['duels.json'], undefined);
+  assert.deepEqual(empty['duels.json'].ladder, []);
+  assert.equal(Object.keys(empty).some(f => f.startsWith('duels/')), false);
+  assert.equal(empty['players/1-head.json'].duels, undefined);
+  const others = files => Object.fromEntries(Object.entries(files).filter(([f]) => f !== 'duels.json' && f !== 'meta.json'));
+  assert.deepEqual(others(empty), others(none));
+});

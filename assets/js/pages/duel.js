@@ -6,7 +6,7 @@ import { html } from '../core/html.js';
 import { duel, playerIndex, NotFound } from '../core/data.js';
 import { M } from '../core/model.js';
 import { setTitle, avatar, nameClass, mapText, cover, starsBadge, empty, myId } from '../core/ui.js';
-import { matchUrl, deltaText, formatText, STATUS_TEXT, voidText, duelist } from '../core/duels.js';
+import { experimentalTag, experimentalNote, matchUrl, deltaText, formatText, STATUS_TEXT, voidText, duelist } from '../core/duels.js';
 import { bananas } from '../core/bananas.js';
 import * as fmt from '../core/fmt.js';
 import { t, th } from '../core/i18n.js';
@@ -78,8 +78,9 @@ export default async function duelPage(root, { params, isCurrent }) {
   root.innerHTML = String(html`
     <header class="page-head">
       <span class="eyebrow"><a href="/challenges/duels">${t('Duels')}</a> · ${t('Duel {code}', { code: d.code ?? `#${d.id}` })}</span>
-      <h1>${t('{a} vs {b}', names)}</h1>
+      <h1>${t('{a} vs {b}', names)} ${experimentalTag()}</h1>
     </header>
+    ${experimentalNote()}
 
     <section class="duel-board ${d.status === 'abandoned' ? 'duel-muted' : ''}" aria-label="${t('Final score')}">
       ${side(a, d, index, me)}

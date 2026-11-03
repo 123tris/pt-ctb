@@ -1654,6 +1654,8 @@ export const PT = {
   // ---- pages/duels.js, pages/duel.js and core/duels.js: Duels, rated 1v1s (duel → duelo, wager → aposta) ----------
   'Duels': 'Duelos',
   'Duel': 'Duelo',
+  'Experimental': 'Experimental',
+  'Duels are new and still being verified; ratings and results may be reset.': 'Os duelos são novos e ainda estão a ser verificados; os ratings e os resultados podem ser reiniciados.',
   'Rated 1v1s on random maps of the right difficulty, played in an osu! lobby. Type {command} on the Discord to challenge someone: the bot follows the lobby and scores every round.': 'Duelos 1v1 a contar para o rating, em mapas aleatórios da dificuldade certa, jogados num lobby do osu!. Escreve {command} no Discord para desafiar alguém: o bot segue o lobby e conta cada ronda.',
   '{n} live': '{n} a decorrer',
   'Being played now': 'A decorrer agora',
