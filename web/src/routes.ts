@@ -69,12 +69,13 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   { pattern: /^challenges(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: challengesJson(m[1]) }) },
   { pattern: /^dan$/, first: () => ({ packs: [CORE], json: challengesJson('dan') }) },
   // The games: Guess the map (daily or practice; old /games/daily links too) from quiz.json, which the paying daily
-  // doesn't need but a visitor signed out does; the map quizzes from the search pack; the hub (and any other address
-  // under /games) and Higher or lower draw players.
+  // doesn't need but a visitor signed out does; the map quizzes from the header search's maps (search-maps.json, less
+  // than half the search pack, and often cached by the search already); the hub (and any other address under /games)
+  // and Higher or lower draw players.
   {
     pattern: /^games(?:\/([^/]*))?$/,
     first: m => (m[1] === 'guess' || m[1] === 'daily' ? { packs: [], json: ['quiz.json'] }
-      : m[1] === 'quiz' ? { packs: [SEARCH], json: [] } : { packs: [CORE], json: [] }),
+      : m[1] === 'quiz' ? { packs: [], json: ['search-maps.json'] } : { packs: [CORE], json: [] }),
   },
   // The shop: the players (the visitor's name) and the wallets. The visitor's head file isn't known here: who's signed
   // in is the browser's to say.
