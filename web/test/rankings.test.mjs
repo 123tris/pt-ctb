@@ -28,7 +28,7 @@ const rowsOf = page => [...page.matchAll(/<tr( class="([^"]*)")? data-name="([^"
 test('which pages the new client draws, and their first data', () => {
   assert.deepEqual(firstData('/rankings'), { packs: ['packs/core.ptcb'], json: [] });
   assert.deepEqual(firstData('/rankings/ranked/'), { packs: ['packs/core.ptcb'], json: [] });
-  assert.equal(firstData('/rankings/mods'), null);
+  assert.deepEqual(firstData('/rankings/mods'), { packs: ['packs/core.ptcb'], json: ['modrankings.json'] });
   assert.equal(firstData('/nowhere/123'), null);
 });
 
@@ -82,4 +82,39 @@ test('Portuguese: the same board in the visitor’s language', { skip }, () => {
   const page = String(render(ctxFor('pt', core.info.generatedAt[0]), core, readState('converts', {})));
   assert.ok(page.includes(`<h1>${PT.Leaderboards}</h1>`));
   assert.ok(!page.includes('<h1>Leaderboards</h1>'));
+});
+
+test('Mods, Top plays and Star kings: the boards the JSON gives, in its order', { skip }, async () => {
+  const boards = await import('../src/views/boards.ts');
+  const kings = await import('../src/views/kings.ts');
+  const { topPlaysView, parseModFilter } = await import('../../assets/js/core/model.js');
+  const bytes = fs.readFileSync(path.join(dir, 'packs', 'core.ptcb'));
+  const core = readCore(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const json = name => JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+  const ctx = ctxFor('en', core.info.generatedAt[0]);
+  const ids = page => [...String(page).matchAll(/href="\/player\/(\d+)"/g)].map(m => Number(m[1]));
+
+  const mods = json('modrankings.json');
+  for (const [src, mod] of [['r', 'HD'], ['c', 'DT'], ['u', mods.filters.at(-1)]]) {
+    const data = { slug: 'mods', core, mods };
+    const page = boards.render(ctx, data, boards.readState(data, { src, mod }));
+    assert.deepEqual(ids(page), (mods.sources[src][mod] ?? []).map(r => r[0]), `mods ${src} ${mod}`);
+  }
+  const plays = fs.existsSync(path.join(dir, 'topplays.json')) ? json('topplays.json') : null;
+  if (plays) {
+    for (const [src, mod] of [['r', 'Any'], ['c', 'HR'], ['u', 'NM']]) {
+      const data = { slug: 'plays', core, plays };
+      const page = boards.render(ctx, data, boards.readState(data, { src, mod }));
+      const rows = topPlaysView(plays.plays, src, mod === 'Any' ? null : parseModFilter(mod), plays.cap);
+      assert.deepEqual(ids(page), rows.map(r => r[0]), `plays ${src} ${mod}`);
+    }
+  }
+  const records = json('records.json');
+  const all = String(kings.render(ctx, { core, kings: records.kings }, kings.readState(records.kings, {})));
+  assert.equal((all.match(/class="king-title"/g) ?? []).length, records.kings.catch.length + records.kings.converts.length);
+  const range = records.kings.catch.find(r => r.board?.length);
+  if (range) {
+    const one = kings.render(ctx, { core, kings: records.kings }, kings.readState(records.kings, { stars: String(range.stars) }));
+    assert.deepEqual(ids(one), range.board.map(([id]) => id));
+  }
 });

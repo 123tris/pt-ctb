@@ -11,8 +11,8 @@ export interface First {
 /** The pack with every player and board, which nearly every page needs (names, avatars, colours). */
 export const CORE = 'packs/core.ptcb';
 
-/** The Leaderboards tabs the old page still draws: they need data that isn't in packs yet. */
-const OLD_BOARDS = new Set(['mods', 'plays', 'kings']);
+/** The Leaderboards tabs that add a JSON file to the core pack (the others are the core pack alone). */
+const BOARD_JSON: Record<string, string> = { mods: 'modrankings.json', plays: 'topplays.json', kings: 'records.json' };
 
 /** A player's pack, all their plays and the maps they're on. */
 export const playerPack = (id: number | string) => `packs/player/${id}.ptcb`;
@@ -25,7 +25,7 @@ export const mapBucket = (id: number) => `maps/${id % 128}.json`;
  * match and the address's query.
  */
 const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchParams) => First | null }[] = [
-  { pattern: /^rankings(?:\/([^/]*))?$/, first: m => (OLD_BOARDS.has(m[1]) ? null : { packs: [CORE], json: [] }) },
+  { pattern: /^rankings(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: BOARD_JSON[m[1]] ? [BOARD_JSON[m[1]]] : [] }) },
   {
     pattern: /^calculator$/,
     first: (_, query) => ({ packs: [CORE], json: Number(query.get('map')) > 0 ? [mapBucket(Number(query.get('map')))] : [] }),

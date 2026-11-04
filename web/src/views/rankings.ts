@@ -14,8 +14,9 @@ export type Cat = 'c' | 'u' | 'r';
 /** The boards this view draws, by their address. */
 export const BOARD_CAT = { converts: 'c', loved: 'u', ranked: 'r' } as const;
 export type Slug = keyof typeof BOARD_CAT;
-/** Every tab on the page, in order, with the ones still drawn by the old page. */
-const SLUGS = ['converts', 'loved', 'ranked', 'mods', 'plays', 'kings'] as const;
+/** Every tab on the page, in order. */
+export const SLUGS = ['converts', 'loved', 'ranked', 'mods', 'plays', 'kings'] as const;
+export type Tab = typeof SLUGS[number];
 
 export interface State {
   slug: Slug;
@@ -30,17 +31,22 @@ export interface State {
 export const readState = (slug: Slug, query: Record<string, string | undefined>): State =>
   ({ slug, q: query.q || '', legends: query.legends !== '0', at: Number(query.at) || null });
 
-const labels = (ctx: Ctx) => ({
+const labels = (ctx: Ctx): Record<Tab, { label: string; board: string }> => ({
   converts: { label: ctx.t('Converts'), board: ctx.t('Converts leaderboard') },
   loved: { label: ctx.t('Loved'), board: ctx.t('Loved & Unranked leaderboard') },
   ranked: { label: ctx.t('Ranked'), board: ctx.t('Ranked (official) leaderboard') },
-  mods: { label: ctx.t('Mods'), board: '' },
-  plays: { label: ctx.t('Top plays'), board: '' },
-  kings: { label: ctx.t('Star kings'), board: '' },
+  mods: { label: ctx.t('Mods'), board: ctx.t('By mods leaderboard') },
+  plays: { label: ctx.t('Top plays'), board: ctx.t('Top plays') },
+  kings: { label: ctx.t('Star kings'), board: ctx.t('Star kings leaderboard') },
 });
 
 /** The page's title: the board's name. */
-export const title = (ctx: Ctx, slug: Slug) => labels(ctx)[slug].board;
+export const title = (ctx: Ctx, slug: Tab) => labels(ctx)[slug].board;
+
+/** The page's heading and its tabs, the same on every board. */
+export const head = (ctx: Ctx, slug: Tab): Safe => html`
+    ${pageHead({ title: ctx.t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${ctx.t('All players')}</a><a href="/compare">${ctx.t('Compare two players')}</a></p>` })}
+    ${tabs(SLUGS.map(s => ({ href: `/rankings/${s}`, label: labels(ctx)[s].label, active: s === slug })), ctx.t('Leaderboard type'))}`;
 
 /** The board's rows in players, best first. */
 export function boardRows(core: CorePack, cat: Cat): Uint16Array {
@@ -51,11 +57,11 @@ export function boardRows(core: CorePack, cat: Cat): Uint16Array {
  * How a board marks an inactive player: greyed out, and tagged "legend" or "inactive". On the official board only
  * being inactive on osu! counts.
  */
-function greyed(ctx: Ctx, players: Players, row: number, official: boolean): boolean {
+export function greyed(ctx: Ctx, players: Players, row: number, official: boolean): boolean {
   return official ? isInactiveOnOsu(players, row) : isInactive(ctx, players, row);
 }
 
-function tag(ctx: Ctx, players: Players, row: number, official: boolean): Safe | '' {
+export function tag(ctx: Ctx, players: Players, row: number, official: boolean): Safe | '' {
   if (!official) return statusTag(ctx, players, row);
   return isLegend(ctx, players, row) ? legendTag(ctx) : isInactiveOnOsu(players, row) ? inactiveTag(ctx, players, row) : '';
 }
@@ -162,9 +168,7 @@ export function render(ctx: Ctx, core: CorePack, state: State): Safe {
   const note = filterNote(ctx, rows.length, shownCount, state.q);
   const catLabel = { c: t('Converts'), u: t('Loved & Unranked'), r: t('Ranked') }[cat];
 
-  return html`
-    ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${t('All players')}</a><a href="/compare">${t('Compare two players')}</a></p>` })}
-    ${tabs(SLUGS.map(slug => ({ href: `/rankings/${slug}`, label: names[slug].label, active: slug === state.slug })), t('Leaderboard type'))}
+  return html`${head(ctx, state.slug)}
     <p class="muted">${intro}</p>
     <div class="toolbar">
       <input class="input" type="search" id="filter" placeholder="${t('Search players…')}" aria-label="${t('Search this leaderboard')}" value="${state.q}">

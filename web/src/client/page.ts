@@ -26,8 +26,13 @@ export interface PageSpec<D> {
   title(ctx: Ctx, data: D, args: PageArgs): string;
   /** The whole page, pure (the edge can draw it too). */
   render(ctx: Ctx, data: D, args: PageArgs): Safe;
-  /** The browser-only part: events, focus, anything that reads or changes the page after it's drawn. */
-  mount?(root: HTMLElement, ctx: Ctx, data: D, args: PageArgs): void;
+  /**
+   * The browser-only part: events, focus, anything that reads or changes the page after it's drawn. `before` is what
+   * `keep` took from the page that was there (to tell a move within the page from a new visit).
+   */
+  mount?(root: HTMLElement, ctx: Ctx, data: D, args: PageArgs, before: string | undefined): void;
+  /** Reads something off the page about to be replaced, for mount(). */
+  keep?(root: HTMLElement): string | undefined;
 }
 
 /** A page for the old router. */
@@ -46,8 +51,9 @@ export function page<D>(spec: PageSpec<D>): OldRouterPage {
     }
     if (!args.isCurrent()) return;
     if (data === null) return (await oldPage(spec.old))(root, args);
+    const before = spec.keep?.(root);
     setTitle(spec.title(ctx, data, args));
     root.innerHTML = String(spec.render(ctx, data, args));
-    spec.mount?.(root, ctx, data, args);
+    spec.mount?.(root, ctx, data, args, before);
   };
 }
