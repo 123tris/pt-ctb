@@ -4,8 +4,12 @@ The site is being rebuilt for speed one page at a time, in TypeScript, next to t
 the new client draws reads **packs**: binary columns the C# engine writes ([engine/README.md](../engine/README.md)).
 Everything else stays with the old client, which also keeps the header, menus, search and sign-in for now.
 
-Ported so far: the Converts, Loved and Ranked leaderboards (`/rankings/converts|loved|ranked`). The Mods, Top plays and
-Star kings tabs are still the old page's.
+Ported so far:
+- every Leaderboards tab (`/rankings/…`);
+- the calculator and compare (on player packs);
+- the players list, commands, glossary, privacy, how to join and Team Portugal.
+
+Each port is checked against the old page's output or logic on the same data (`test/`).
 
 ## How a page gets to the screen
 
@@ -98,6 +102,21 @@ Where the 54 ms of a redraw go:
 - 14 ms is style;
 - 21 ms is layout, for 109 rows and 1,514 elements.
 
-So the next gains are in the DOM, not the JavaScript. Two ways to get them:
-- draw the rows below the fold after the first paint;
-- render on the server (`edge/`), so the board arrives inside the HTML.
+So the gains are in the DOM, not the JavaScript. The boards now draw their first 30 rows, and add the rest 30 at a
+time, one batch per frame (`client/dom.ts` `addInFrames`):
+
+| Converts board, data in memory | Before | Now |
+|---|---|---|
+| Drawn before the first paint | 59.5 ms (whole board) | 14 ms (30 rows) |
+| Longest frame after it | none | about 13 ms (each batch of 30) |
+
+**Data a page downloads.** Compare and the calculator's "What if" read player packs. The old pages read whole player
+files: up to 457 KB brotli each, and about 13 ms of `JSON.parse`. A player pack is up to 347 KB, read in 0.5 ms. The
+"What if" also works its totals out with prefix sums (`ui/playerpack.ts` `WeightedTotals`) instead of sorting the
+player's whole list 41 times per change.
+
+**Rendering at the edge**, measured by `node tools/edge-bench.mjs <export>`: the leaderboards cost 2–3 ms of CPU warm,
+but 34–45 ms on a cold start (first-run compilation and setting up `Intl`), plus about 9 ms to load the code. Three
+times that is far over the free plan's 10 ms a request, which can't be caught (error 1102). So pages go out in inline
+mode (`edge/inline.ts`): their data slice and preloads, no markup. `edge/render.ts` is ready for the day it fits, or
+for drawing first views ahead of time, at publish.
