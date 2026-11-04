@@ -13,11 +13,16 @@ export interface Tab {
   href: string;
   label: string;
   active?: boolean;
+  /** A figure after the name, already formatted ("1,302", "2d left", "79.3%"). */
+  count?: string;
 }
 
-/** A strip of links between sibling pages (real addresses, so not an ARIA tablist); `label` names the landmark. */
+/**
+ * A strip of links between sibling pages (real addresses, so not an ARIA tablist); `label` names the landmark. A hidden
+ * comma keeps a tab's count apart from its name when read out ("Snipe targets, 30", not "Snipe targets30").
+ */
 export const tabs = (items: Tab[], label: string): Safe => html`<nav class="tabs" aria-label="${label}">${items.map(tab =>
-  html`<a href="${tab.href}" class="${tab.active ? 'active' : ''}" ${tab.active ? raw('aria-current="page"') : ''}>${tab.label}</a>`)}</nav>`;
+  html`<a href="${tab.href}" class="${tab.active ? 'active' : ''}" ${tab.active ? raw('aria-current="page"') : ''}>${tab.label}${tab.count !== undefined ? html`<span class="count"><span class="sr-only">, </span>${tab.count}</span>` : ''}</a>`)}</nav>`;
 
 export const empty = (text: Value): Safe => html`<div class="empty">${text}</div>`;
 

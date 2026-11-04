@@ -168,12 +168,12 @@ http.createServer(async (req, res) => {
       const base = localData ? `${url.origin}/data/` : CONFIG.data;
       const fetchJson = u => fetch(u).then(r => (r.ok ? r.json() : Promise.reject(new Error(`${r.status} ${u}`))));
       text = await pageFor(text, url.href, { ua: req.headers['user-agent'], base, fetchJson });
-      const need = manifestsFor(url.pathname);
+      const need = manifestsFor(url.pathname, url.search);
       const manifest = name => (localData
         ? Promise.resolve().then(() => JSON.parse(fs.readFileSync(path.join(dataDir, name), 'utf8')))
         : fetchJson(`${base}${name}`)).catch(() => null);
       const [packs, meta] = await Promise.all([need.packs ? manifest('packs.json') : null, need.meta ? manifest('meta.json') : null]);
-      text = inlineData(text, url.pathname, { packs, meta }, base);
+      text = inlineData(text, url.pathname, { packs, meta }, base, url.search);
       if (local) text = text.replace('</head>', '<script src="tools/local-review.js"></script>\n</head>');
     }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(page)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
@@ -195,11 +195,19 @@ http.createServer(async (req, res) => {
   fs.createReadStream(file).pipe(res);
 }).listen(port, () => console.log(`PT-CTB at http://localhost:${port}/${localData ? ` (data from ${path.relative(root, dataDir) || '.'})` : ''}${usage ? ' (usage counts on)' : ''}`));
 
-/** The new web client's bundle, rebuilt in memory when asked for (esbuild only rebuilds what changed). */
+/**
+ * The new web client's bundle, rebuilt in memory when asked for (esbuild only rebuilds what changed), and set up again
+ * when an entry is added or removed.
+ */
 let web = null;
+let webEntries = '';
 async function serveWeb(res, name) {
   try {
-    web ??= import('./web-build.mjs').then(m => m.webContext({ outdir: path.join(root, 'assets', 'web') }));
+    const build = await import('./web-build.mjs');
+    const now = JSON.stringify(build.entries());
+    if (web && now !== webEntries) { (await web).dispose(); web = null; }
+    webEntries = now;
+    web ??= build.webContext({ outdir: path.join(root, 'assets', 'web') });
     const { outputFiles } = await (await web).rebuild();
     const out = outputFiles.find(f => path.basename(f.path) === name);
     if (!out) { res.writeHead(404).end('Not found'); return; }

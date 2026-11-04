@@ -21,7 +21,7 @@ export async function onRequestGet({ request, env, next }) {
   const url = new URL(request.url);
   if (!describe(url.pathname)) return next();
   // A manifest that can't be had (no packs.json in data from before the packs) just means no slice of it.
-  const need = manifestsFor(url.pathname);
+  const need = manifestsFor(url.pathname, url.search);
   const manifests = Promise.all([
     need.packs ? fetchJson(`${CONFIG.data}packs.json`).catch(() => null) : null,
     need.meta ? fetchJson(`${CONFIG.data}meta.json`).catch(() => null) : null,
@@ -31,7 +31,7 @@ export async function onRequestGet({ request, env, next }) {
   let page = await pageFor(await index.text(), url.href, { ua: request.headers.get('User-Agent'), base: CONFIG.data, fetchJson });
   if (page === null) return next();
   const [packs, meta] = await manifests;
-  page = inlineData(page, url.pathname, { packs, meta }, CONFIG.data);
+  page = inlineData(page, url.pathname, { packs, meta }, CONFIG.data, url.search);
   // index.html's own headers (_headers' security headers and caching), for the same document with another <head>.
   const headers = new Headers(index.headers);
   headers.delete('Content-Length');

@@ -22,8 +22,8 @@ export interface Manifests {
 }
 
 /** Which manifests a page address needs fetched: none for a page the old app draws. */
-export function manifestsFor(pathname: string): { packs: boolean; meta: boolean } {
-  const first = firstData(pathname);
+export function manifestsFor(pathname: string, search = ''): { packs: boolean; meta: boolean } {
+  const first = firstData(pathname, search);
   return { packs: Boolean(first?.packs.length), meta: Boolean(first?.json.length) };
 }
 
@@ -35,8 +35,8 @@ const pick = (manifest: Manifest | null, names: string[]): Manifest | undefined 
 };
 
 /** The page with its data slice and preloads at the end of its <head>; as it is for a page the old app draws. */
-export function inlineData(page: string, pathname: string, manifests: Manifests, base: string): string {
-  const first = firstData(pathname);
+export function inlineData(page: string, pathname: string, manifests: Manifests, base: string, search = ''): string {
+  const first = firstData(pathname, search);
   if (!first || !page.includes('</head>')) return page;
   const slice = { packs: pick(manifests.packs, first.packs), meta: pick(manifests.meta, first.json) };
   if (!slice.packs && !slice.meta) return page;

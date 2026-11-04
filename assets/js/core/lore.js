@@ -5,6 +5,7 @@
 import { M } from './model.js';
 import { t } from './i18n.js';
 import * as fmt from './fmt.js';
+import { RIVALRY_LABELS } from './presets.js';
 
 /** Tris: the player the records page dares everyone to snipe. Defined in model.js, which the exporter shares. */
 export { THRONE_PLAYER } from './model.js';
@@ -118,19 +119,9 @@ export const BOSS_SETS = [158023, 41823, 432720, 502553, 406881];
 /** The Portuguese bonus round: Anjos - Eu estou aqui. */
 export const TUGA_SET = 958558;
 
-/** Calculator presets. */
-export const CALC_PRESETS = [
-  [2311555, 'Eu estou aqui'],
-  [553131, 'Everything Will Freeze'],
-  [933017, 'Image Material'],
-];
-
-/** Compare presets: rivalries the Discord has argued about for years. */
-export const RIVALRIES = [
-  [3821475, 3006672, t('The spinner war')],
-  [6205809, 7385703, t('Who’s the better HD player?')],
-  [4095868, 6205809, t('The official Yoxide snipe')],
-];
+/** Calculator and compare presets, in a file of their own that the new web client (web/) shares. */
+export { CALC_PRESETS } from './presets.js';
+export const RIVALRIES = RIVALRY_LABELS.map(([a, b, label]) => [a, b, t(label)]);
 
 /**
  * Portugal at the Catch World Cup (CWC) and its 4-digit edition (4CWC), as remembered on the Discord. Pieced
