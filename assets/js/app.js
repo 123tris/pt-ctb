@@ -27,7 +27,7 @@ const LOADERS = {
   'rankings/:board?': () => import('../web/rankings.js').catch(() => import('./pages/rankings.js')),
   'players': () => import('../web/players.js').catch(() => import('./pages/players.js')),
   'player/:id/:tab?': () => import('../web/player.js').catch(() => import('./pages/player.js')),
-  'maps': () => import('./pages/maps.js'),
+  'maps': () => import('../web/maps.js').catch(() => import('./pages/maps.js')),
   'map/:id': () => import('./pages/map.js'),
   'activity': () => import('../web/activity.js').catch(() => import('./pages/activity.js')),
   'challenges/:tab?': () => import('./pages/challenges.js'),
