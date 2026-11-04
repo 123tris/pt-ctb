@@ -11,7 +11,8 @@ export const pageHead = ({ title, intro, extra }: { title: string; intro?: Value
 
 export interface Tab {
   href: string;
-  label: string;
+  /** The tab's name: text, or markup (a tag beside the name). */
+  label: Value;
   active?: boolean;
   /** A figure after the label, already formatted: a count (ctx.fmt.num), or a short text ("2d left", "79.3%"). */
   count?: string;

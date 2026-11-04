@@ -31,7 +31,7 @@ const LOADERS = {
   'map/:id': () => import('../web/map.js').catch(() => import('./pages/map.js')),
   'activity': () => import('../web/activity.js').catch(() => import('./pages/activity.js')),
   'challenges/:tab?': () => import('../web/challenges.js').catch(() => import('./pages/challenges.js')),
-  'duel/:id': () => import('./pages/duel.js'),
+  'duel/:id': () => import('../web/duel.js').catch(() => import('./pages/duel.js')),
   'games/:game?': () => import('../web/games.js').catch(() => import('./pages/games.js')),
   'calculator': () => import('../web/calculator.js').catch(() => import('./pages/calculator.js')),
   'compare/:a?/:b?': () => import('../web/compare.js').catch(() => import('./pages/compare.js')),

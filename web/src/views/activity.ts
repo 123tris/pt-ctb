@@ -33,7 +33,7 @@ export interface State {
 /** The feed's filters: [key, label, the event kinds it shows]. */
 export const filters = ({ t }: Ctx): [string, string, string[]][] => [
   ['plays', t('Plays'), ['snipe', 'top', 'dan']],
-  ['challenges', t('Challenges'), ['crown', 'bounty', 'post']],
+  ['challenges', t('Challenges'), ['crown', 'duel', 'bounty', 'post']],
   ['boards', t('Leaderboards'), ['pass', 'mile', 'join']],
   ['tips', t('Tips'), ['tip']],
 ];
@@ -54,7 +54,7 @@ export function readState(ctx: Ctx, data: Data, query: Record<string, string | u
   const view = query.view === 'plays' ? 'plays' : query.view === 'week' && weeklyOf(data) ? 'week' : 'events';
   // An old ?kind=snipe link picks its group.
   const asked = filters(ctx).find(([key, , ks]) => key === query.kind || ks.includes(query.kind ?? ''));
-  const kind = asked && groupsOf(ctx, data).includes(asked) ? asked[0] : '';
+  const kind = asked && groupsOf(ctx, data).some(([key]) => key === asked[0]) ? asked[0] : '';
   return { view, kind };
 }
 

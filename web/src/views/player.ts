@@ -1,5 +1,5 @@
 // A player's profile (/player/:id/:tab?), the same page as assets/js/pages/player.js drew: the head with its stats, the
-// signature play, trophies, Bananas, the pp chart and the score lists. The player is a row in the core pack; the rest
+// signature play, trophies, duels, Bananas, the pp chart and the score lists. The player is a row in the core pack; the rest
 // is the JSON the old page reads: their file (the small head file first, the whole one when a list needs it),
 // bounties.json, economy.json, records.json (badges, only without a head file) and history.json (the chart, only once
 // it's opened: it's every player's).
@@ -13,7 +13,7 @@ import type { Ctx } from '../kernel/ctx.ts';
 import type { CorePack } from '../gen/packs.ts';
 import { S, CATS, PLAY_SOURCES, DAN_STAGES, DAN_MAPS, HILL_SLOTS, HILL_TIERS, THRONE_PLAYER, danRole } from '../kernel/model.ts';
 import { tabs, stat, empty, emptyFiltered, resultCount, chipGroup, placeholderRows, paged } from '../ui/page.ts';
-import { avatar, nameClass, isLegend, legendTag, isInactiveOnOsu, inactiveTag, officialPpNote, type Players } from '../ui/players.ts';
+import { avatar, nameClass, isLegend, legendTag, isInactiveOnOsu, inactiveTag, officialPpNote, playerName, type Players } from '../ui/players.ts';
 import { mapLink, mapText, mapLabel, osuUser, osuMap, type MapMeta } from '../ui/maps.ts';
 import { scoreRow, scoreStats, scoreUrl, catChip, catLabel, gradeBadge, SLUG_CAT, type Play, type Cat } from '../ui/scores.ts';
 import { playerBadges, localBadge, era, localEra, signatureMap, type Badge, type BadgeRecords, type Signature } from '../ui/badges.ts';
@@ -21,6 +21,7 @@ import { danName } from '../ui/events.ts';
 import { jersey, danPasses } from '../ui/ladder.ts';
 import { slotName, tierName, titleName, titleWhen, slotTally, type HillTitle } from '../ui/hill.ts';
 import { goalLabel, type Goal } from '../ui/bounty.ts';
+import { deltaText, duelistClass, experimentalTag, provisionalTag, recordWords, streakWords, type ProfileDuel, type ProfileDuels } from '../ui/duels.ts';
 import { RULES, bananas, ledgerList, signInButton, type Wallet, type LedgerRow } from '../ui/bananas.ts';
 import { lineChart } from '../ui/charts.ts';
 
@@ -45,6 +46,8 @@ export interface PlayerFile {
   pinned?: [Cat, ...unknown[]];
   /** King of the hill (tools/lib/hill.mjs): crowns by slot, titles, and the slots held this month ([slot, tier, map]). */
   crowns?: { total: number; slots: number[]; titles: HillTitle[]; holding: [string, string, number][] };
+  /** Duels (tools/lib/duels.mjs): their rating and place, their latest duels and who they've played most. */
+  duels?: ProfileDuels;
   extras?: { badges: Badge[]; era: string | null; signature: Signature | null };
 }
 
@@ -592,6 +595,47 @@ function trophies(ctx: Ctx, crowns: PlayerFile['crowns'], claims: NonNullable<Bo
   </section>`;
 }
 
+/** How many duels the profile lists before the rest fold away. */
+const DUELS_SHOWN = 5;
+
+/**
+ * Duels: the player's rating, place on the ladder and record, their latest duels (each linking to its page) and who
+ * they've played most. Nothing for a player with no duels. `duels` is the file's slice: `rating` is null until their
+ * first ranked duel.
+ */
+function duelSection(ctx: Ctx, duels: PlayerFile['duels'], players: Players): Safe | '' {
+  if (!duels?.recent.length) return '';
+  const { t, th, fmt } = ctx;
+  const { rating: r, recent, h2h } = duels;
+  // A duel's result from this player's side: won, lost, or abandoned (counted for nobody).
+  const result = { w: t('Won'), l: t('Lost'), x: t('Abandoned') };
+  const name = (id: number) => html`<span class="${duelistClass(ctx, players, id)}">${playerName(players, id)}</span>`;
+  const row = (d: ProfileDuel) => html`<a class="row card-link duel-mine ${d.res === 'x' ? 'duel-muted' : ''}" href="/duel/${d.id}">
+    <span class="duel-mine-vs"><span class="duel-result duel-result-${d.res}">${result[d.res]}</span>
+      ${th('vs {name}', { name: name(d.opp) })} <b>${fmt.num(d.s[0])}–${fmt.num(d.s[1])}</b>${d.ff ? html` <span class="faint">· ${t('Forfeit')}</span>` : ''}</span>
+    <span class="row-meta">${d.d !== undefined ? html`<span title="${t('Rating change')}">${deltaText(ctx, d.d)}</span><span class="sep"></span>`
+      : !d.ranked ? html`<span>${t('Unranked|duel')}</span><span class="sep"></span>` : ''}<span class="faint" title="${fmt.dateTime(d.t)}">${fmt.ago(d.t)}</span></span>
+  </a>`;
+  const standing = r && [
+    html`<span><b class="duel-big">${fmt.num(r.r)}</b> ${t('rating')}</span>`,
+    r.prov ? provisionalTag(ctx) : r.rank && html`<a href="/challenges/duels">${t('{rank} on the ladder', { rank: fmt.rank(r.rank) })}</a>`,
+    recordWords(ctx, r.w, r.l),
+    r.peak > r.r && t('peak {rating}', { rating: fmt.num(r.peak) }),
+    streakWords(ctx, r.streak),
+  ].filter(Boolean);
+  return html`<section class="section card duels-card">
+    <h2 class="card-h">${t('Duels')} ${experimentalTag(ctx)}</h2>
+    ${standing ? html`<p class="duel-standing">${standing.map((part, i) => html`${i ? html`<span class="sep-dot" aria-hidden="true"> · </span>` : ''}${part}`)}</p>`
+      : html`<p class="small muted">${t('No ranked duels yet, so no rating.')}</p>`}
+    <div class="rows">${recent.slice(0, DUELS_SHOWN).map(row)}</div>
+    ${recent.length > DUELS_SHOWN ? html`<details class="duel-more"><summary>${t('Show {n} more', { n: fmt.num(recent.length - DUELS_SHOWN) })}</summary>
+      <div class="rows">${recent.slice(DUELS_SHOWN).map(row)}</div></details>` : ''}
+    ${h2h.length ? html`<p class="small muted mt-2">${th('Most played: {list}', {
+      list: html`${h2h.slice(0, 3).map(([opp, w, l], i) => html`${i ? ', ' : ''}<a href="/player/${opp}">${name(opp)}</a> ${fmt.num(w)}–${fmt.num(l)}`)}`,
+    })}</p>` : ''}
+  </section>`;
+}
+
 /**
  * Bananas: the player's wallet (economy.json) with its latest lines (the file's `ledger`), or their pouch while they've
  * never signed in. Their own profile, signed in, adds their requests and the snipe shield; someone else's, a tip form
@@ -694,6 +738,8 @@ export function render(ctx: Ctx, data: Data, state: State): Safe {
     ${file.pinned ? pinnedPlay(ctx, file.pinned, file.maps) : signature ? signatureSection(ctx, signature) : ''}
 
     ${trophies(ctx, file.crowns, claims, data.bounties?.maps ?? {})}
+
+    ${duelSection(ctx, file.duels, players)}
 
     ${bananaSection(ctx, id, name, wallet, file.ledger, state)}
 

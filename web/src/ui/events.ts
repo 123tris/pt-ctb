@@ -9,6 +9,7 @@ import { catChip, catLabel, modsBadges, type Cat, type Play } from './scores.ts'
 import { nameClass, playerName, ppText, rowOf, type Players } from './players.ts';
 import { monthLabel, slotName, tierName } from './hill.ts';
 import { bananas } from './bananas.ts';
+import { deltaText } from './duels.ts';
 import { pick, quips } from './lore.ts';
 
 /** "Zeroth Dan", "7th Dan", "Aleph". */
@@ -18,6 +19,7 @@ export const danName = (ctx: Ctx, i: number): string =>
 export const eventKinds = ({ t }: Ctx): Record<string, { tag: string; label: string }> => ({
   snipe: { tag: t('#1 sniped'), label: t('Snipes') },
   crown: { tag: t('Crown'), label: t('Crowns') },
+  duel: { tag: t('Duel'), label: t('Duels') },
   bounty: { tag: t('Bounty claimed'), label: t('Bounties') },
   post: { tag: t('Bounty posted'), label: t('New bounties') },
   tip: { tag: t('Tip'), label: t('Tips') },
@@ -38,9 +40,15 @@ export interface ActivityEvent {
   s?: Play;
   m?: number;
   pp?: number;
+  /** A climb's new rank, or a duel's rating change. */
   r?: number;
   i?: number;
+  /** A Dan pass's stage, or a duel's id. */
   d?: number;
+  /** A duel's score, the winner's first. */
+  sc?: [number, number];
+  /** A duel won by forfeit. */
+  ff?: number;
   g?: string;
   a?: number;
   n?: string | number;
@@ -75,6 +83,14 @@ function describe(ctx: Ctx, e: ActivityEvent, players: Players, maps: Record<str
       return e.mo
         ? { what: th('{who} is King of the hill for {month}, with {crowns}', { who: by, month: monthLabel(ctx, e.mo), crowns: fmt.plural(e.n as number, 'crown') }), where: '' }
         : { what: th('{who} took the {slot} crown from {other}', { who: by, slot: `${slotName(ctx, e.h![0])} · ${tierName(ctx, e.h![1])}`, other: one(e.v) }), where: map };
+    case 'duel': {
+      // A ranked duel's result (tools/lib/duels.mjs): the winner, the score and their rating change.
+      const vars = { who: by, other: one(e.v), score: `${fmt.num(e.sc![0])}–${fmt.num(e.sc![1])}` };
+      return {
+        what: e.ff ? th('{who} won a ranked duel against {other}, who forfeited', vars) : th('{who} beat {other} {score} in a ranked duel', vars),
+        where: html`<a class="dim-link" href="/duel/${e.d}">${t('See the duel')}</a>${e.r !== undefined ? html` · ${th('{change} rating', { change: deltaText(ctx, e.r) })}` : ''}`,
+      };
+    }
     case 'bounty':
       return { what: th(BOUNTY_CLAIMED[e.g!], { who: by }), where: e.a ? html`${map} · ${t('{n} from the pot', { n: bananas(ctx, e.a) })}` : map };
     case 'post':
@@ -129,8 +145,11 @@ function quip(ctx: Ctx, e: ActivityEvent): string | null {
   }
 }
 
-/** Plays worth a tip (a snipe, top play, Dan, crown or claim): on the Activity page, for a signed-in player, never their own. */
-const TIPPABLE = new Set(['snipe', 'top', 'dan', 'crown', 'bounty']);
+/**
+ * Plays worth a tip (a snipe, top play, Dan, crown, duel won or claim): on the Activity page, for a signed-in player,
+ * never their own.
+ */
+const TIPPABLE = new Set(['snipe', 'top', 'dan', 'crown', 'duel', 'bounty']);
 const tipLink = (ctx: Ctx, e: ActivityEvent, players: Players): Safe | '' => (TIPPABLE.has(e.k) && ctx.me !== null && ctx.me !== e.u
   ? html`<a class="event-tip small" href="/player/${e.u}?tip=1" aria-label="${ctx.t('Tip {name}', { name: playerName(players, e.u) })}">${ctx.t('Tip')}</a>`
   : '');

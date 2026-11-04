@@ -22,9 +22,11 @@ Ported so far:
   same order (`test/maps.test.mjs` checks them against the old search's). A first visit draws its first page from
   maps-top.json (43 KB), as the old page did, while the pack (about 850 KB brotli) loads; a repeat visit draws from the
   pack in the browser's cache.
-- Challenges, every tab (`/challenges/:tab?`: the week, King of the hill, the Dan course, snipe targets, bounties with
-  their Bananas, completion): players from the core pack, the rest from the JSON the old page reads, the tab's own file
-  only on that tab. Its figures and chips still read meta.json (King of the hill's month and the goal in brief).
+- Challenges, every tab (`/challenges/:tab?`: the week, King of the hill, duels, the Dan course, snipe targets, bounties
+  with their Bananas, completion with its years): players from the core pack, the rest from the JSON the old page
+  reads, the tab's own file only on that tab. Its figures and chips still read meta.json (King of the hill's month, the
+  duels and the goal in brief).
+- a duel's page (`/duel/:id`), from its file (`duels/<n>.json`) and the core pack.
 - the admin panel (`/admin`): the players from the core pack (names, the player picker), the rest from the JSON the
   old page reads (admin.json, hill.json, bounties.json) and the admin's own requests from the site's endpoints. Signed
   out, it loads nothing.
