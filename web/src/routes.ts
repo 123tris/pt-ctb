@@ -68,6 +68,14 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   // ask meta.json. /dan is the Dan tab's old address, which the old router moves there.
   { pattern: /^challenges(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: challengesJson(m[1]) }) },
   { pattern: /^dan$/, first: () => ({ packs: [CORE], json: challengesJson('dan') }) },
+  // The games: Guess the map (daily or practice; old /games/daily links too) from quiz.json, which the paying daily
+  // doesn't need but a visitor signed out does; the map quizzes from the search pack; the hub (and any other address
+  // under /games) and Higher or lower draw players.
+  {
+    pattern: /^games(?:\/([^/]*))?$/,
+    first: m => (m[1] === 'guess' || m[1] === 'daily' ? { packs: [], json: ['quiz.json'] }
+      : m[1] === 'quiz' ? { packs: [SEARCH], json: [] } : { packs: [CORE], json: [] }),
+  },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */

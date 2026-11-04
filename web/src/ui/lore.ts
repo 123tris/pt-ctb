@@ -134,3 +134,8 @@ export const first10k = ({ t }: Ctx): [string, string, number | null, string][] 
   ['2021-11-24', 'Airdown', 2788013, t('night birds [Starry Night] with HR')],
   ['2023-06-12', 'Hiroto', null, 'XIII Charlotte [Resonance]'],
 ];
+
+/** Boss maps for the games' boss round (beatmapset ids), as lore.js BOSS_SETS. */
+export const BOSS_SETS: readonly number[] = [158023, 41823, 432720, 502553, 406881];
+/** The Portuguese bonus round: Anjos - Eu estou aqui (lore.js TUGA_SET). */
+export const TUGA_SET = 958558;
