@@ -78,8 +78,8 @@ function boardOf(page, view) {
 }
 const count = (page, pattern) => [...page.matchAll(pattern)].length;
 
-test('a map is drawn by the new client, with the core pack and the map’s bucket first', () => {
-  assert.deepEqual(firstData(`/map/${BIG}`), { packs: ['packs/core.ptcb'], json: [`maps/${BIG % 128}.json`] });
+test('a map is drawn by the new client, with the core pack, the map’s bucket and the bounties first', () => {
+  assert.deepEqual(firstData(`/map/${BIG}`), { packs: ['packs/core.ptcb'], json: [`maps/${BIG % 128}.json`, 'bounties.json'] });
   assert.deepEqual(firstData('/map/17908/'), { packs: ['packs/core.ptcb'], json: ['maps/116.json', 'bounties.json'] });
   assert.equal(firstData('/map/abc'), null);
   assert.equal(firstData('/map/1/2'), null);
