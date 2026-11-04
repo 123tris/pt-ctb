@@ -37,7 +37,7 @@ const LOADERS = {
   'compare/:a?/:b?': () => import('../web/compare.js').catch(() => import('./pages/compare.js')),
   'records': () => import('../web/records.js').catch(() => import('./pages/records.js')),
   'shop': () => import('../web/shop.js').catch(() => import('./pages/shop.js')),
-  'admin': () => import('./pages/admin.js'),
+  'admin': () => import('../web/admin.js').catch(() => import('./pages/admin.js')),
   'recap/:id/:year?': () => import('../web/recap.js').catch(() => import('./pages/wrapped.js')),
   'commands': () => import('../web/commands.js').catch(() => import('./pages/commands.js')),
   'join': () => import('../web/join.js').catch(() => import('./pages/join.js')),
