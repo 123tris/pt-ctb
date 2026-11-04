@@ -23,11 +23,12 @@ public sealed partial class Build
 
     /// <summary>
     /// The PTCB packs (Packs/Schemas.cs) from what the systems worked out: the same data as the JSON files, by column.
-    /// Runs after <see cref="Run"/>.
+    /// Runs after <see cref="Run"/>. <paramref name="fileHash"/> gives a published file's hash (the avatar thumbnails'),
+    /// or null when there's no such file.
     /// </summary>
-    public List<(string Name, byte[] Bytes)> Packs()
+    public List<(string Name, byte[] Bytes)> Packs(Func<string, string> fileHash)
     {
-        var packs = new List<(string, byte[])> { ("packs/core.ptcb", CorePack()), ("packs/search.ptcb", SearchPack()) };
+        var packs = new List<(string, byte[])> { ("packs/core.ptcb", CorePack(fileHash)), ("packs/search.ptcb", SearchPack()) };
         var files = playerFiles.Values.ToList();
         var bytes = new byte[files.Count][];
         System.Threading.Tasks.Parallel.For(0, files.Count, i => bytes[i] = PlayerPack(files[i]));
@@ -38,7 +39,7 @@ public sealed partial class Build
         return packs;
     }
 
-    private byte[] CorePack()
+    private byte[] CorePack(Func<string, string> fileHash)
     {
         var n = players.Count;
         var id = new uint[n];
@@ -70,6 +71,8 @@ public sealed partial class Build
         var last = new uint[n];
         var colour = new byte[n];
         var colourUntil = new uint[n];
+        var avatar64 = new string[n];
+        var avatar128 = new string[n];
         var rowOf = new Dictionary<int, ushort>();
         for (var i = 0; i < n; i++)
         {
@@ -110,6 +113,8 @@ public sealed partial class Build
                 colour[i] = (byte)Math.Max(0, Array.IndexOf(Schemas.Colours, p["nc"].Text));
                 colourUntil[i] = TimeOrZero(p["ncu"].ToNumber());
             }
+            avatar64[i] = fileHash($"avatars/{id[i]}-64.webp") ?? "";
+            avatar128[i] = fileHash($"avatars/{id[i]}-128.webp") ?? "";
         }
         var w = new PackWriter(Schemas.Core);
         w.Table("info", 1)
@@ -117,7 +122,8 @@ public sealed partial class Build
             .Column("info", "scores", new[] { (uint)records["totals"]["scores"].Number })
             .Column("info", "maps", new[] { (uint)boards.Count })
             .Column("info", "cleared", new[] { (uint)completionFile["cleared"].Number })
-            .Column("info", "total", new[] { (uint)completionFile["total"].Number });
+            .Column("info", "total", new[] { (uint)completionFile["total"].Number })
+            .Column("info", "dump", new[] { bot.LastImportedDump ?? "" });
         w.Table("players", n);
         foreach (var (col, values) in new (string, Array)[]
         {
@@ -125,17 +131,42 @@ public sealed partial class Build
             ("global", global), ("country", country), ("ppSource", ppSource), ("ppSeen", ppSeen), ("acc", acc), ("level", level),
             ("plays", plays), ("ss", ss), ("s", s), ("a", a), ("countC", countC), ("countU", countU), ("countR", countR),
             ("firstsC", firstsC), ("firstsU", firstsU), ("firstsR", firstsR), ("danScore", danScore), ("dan", dan), ("last", last),
-            ("colour", colour), ("colourUntil", colourUntil),
+            ("colour", colour), ("colourUntil", colourUntil), ("avatar64", avatar64), ("avatar128", avatar128),
         })
         {
             w.Column("players", col, values);
         }
-        foreach (var (table, cat) in new[] { ("boardC", Cat.Convert), ("boardU", Cat.Loved), ("boardR", Cat.Ranked) })
+        foreach (var (table, cat) in new[] { ("boardC", Cat.Convert), ("boardU", Cat.Loved) })
         {
             var rows = order[cat].Select(p => rowOf[p.Id]).ToArray();
             w.Table(table, rows.Length).Column(table, "row", rows);
         }
+        var shown = OfficialBoard(rankR, ppSource, pp);
+        w.Table("boardR", shown.Length).Column("boardR", "row", shown);
         return w.ToArray();
+    }
+
+    /// <summary>
+    /// The ranked page's board (assets/js/pages/rankings.js): everyone with an osu! rank, and players inactive on osu!
+    /// (who keep their official pp) with pp above 0, by pp, then osu! rank, else in players.json order.
+    /// </summary>
+    private static ushort[] OfficialBoard(ushort[] rank, byte[] ppSource, int[] pp)
+    {
+        var rows = new List<ushort>();
+        for (var i = 0; i < rank.Length; i++)
+        {
+            if (rank[i] > 0 || (ppSource[i] > 0 && pp[i] > 0))
+            {
+                rows.Add((ushort)i);
+            }
+        }
+        var noRank = int.MaxValue;
+        JsSort.Stable(rows, (a, b) =>
+        {
+            var byPp = pp[b].CompareTo(pp[a]);
+            return byPp != 0 ? byPp : (rank[a] > 0 ? rank[a] : noRank).CompareTo(rank[b] > 0 ? rank[b] : noRank);
+        });
+        return rows.ToArray();
     }
 
     /// <summary>A list of plays as a table of score columns (with each play's position on its map when asked).</summary>

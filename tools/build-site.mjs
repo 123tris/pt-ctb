@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Copies the public part of the repo into dist/ for Cloudflare Pages (build command: node tools/build-site.mjs,
 // output directory: dist). Only what's listed in PUBLIC is published, so tools/, scripts and docs never are;
-// functions/ (the sign-in endpoints) stays at the repo root, where Pages looks for it. No dependencies.
+// functions/ (the sign-in endpoints) stays at the repo root, where Pages looks for it. The new web client (web/) is
+// bundled into dist/assets/web/ with esbuild (tools/web-build.mjs), the only dependency.
 // PUBLIC lists whole folders, so new pages, modules, images or fonts under assets/ are picked up by themselves; only
 // a new top-level folder the site loads at runtime has to be added here. The data isn't part of the site: both sites
 // read it from R2 at CONFIG.data (https://data.ptcatch.com), which publish.ps1 updates without a build.
@@ -39,6 +40,12 @@ if (settings) settings.signIn = process.env.SIGN_IN !== '0';
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist);
 for (const entry of PUBLIC) fs.cpSync(path.join(root, entry), path.join(dist, entry), { recursive: true });
+
+// The new web client (web/src, TypeScript) as dist/assets/web/, before the versioning below, which then covers it like
+// the rest of the code. esbuild is the build's one dependency (npm ci, which Cloudflare Pages runs first).
+const { buildWeb } = await import('./web-build.mjs');
+const web = await buildWeb({ outdir: path.join(dist, 'assets', 'web') });
+const webBytes = Object.values(web.metafile.outputs).reduce((n, o) => n + o.bytes, 0);
 
 const edit = (file, change) => {
   const target = path.join(dist, file);
@@ -124,8 +131,9 @@ edit('index.html', s => s.replace(/((?:src|href)=")(\/?assets\/(?:js|css|fonts)\
 const preloaded = new Set(entries.flatMap(staticImports));
 const pageModules = {};
 const loaders = fs.readFileSync(path.join(dist, 'assets/js/app.js'), 'utf8');
-for (const [, pattern, page] of loaders.matchAll(/'([^']*)': \(\) => import\('\.\/pages\/([\w-]+)\.js/g)) {
-  const file = path.join(dist, 'assets/js/pages', `${page}.js`);
+for (const [, pattern, folder, page] of loaders.matchAll(/'([^']*)': \(\) => import\('(\.\/pages|\.\.\/web)\/([\w-]+)\.js/g)) {
+  // An old page (./pages/x.js) or the new client's (../web/x.js, with its shared chunks).
+  const file = path.join(dist, folder === '../web' ? 'assets/web' : 'assets/js/pages', `${page}.js`);
   pageModules[pattern.split('/')[0]] = [file, ...staticImports(file).filter(f => !preloaded.has(f))]
     .map(f => `${path.relative(dist, f).split(path.sep).join('/')}?v=${version}`);
 }
@@ -178,6 +186,7 @@ walk(dist);
 
 const mb = n => (n / 1024 / 1024).toFixed(1);
 console.log(`dist/ for ${branch ? `branch "${branch}"` : 'a local build'}: ${files} files, ${mb(bytes)} MiB; largest ${largest.file} (${mb(largest.size)} MiB); code version ${version}`);
+console.log(`web client: ${Object.keys(web.metafile.outputs).length} files, ${(webBytes / 1024).toFixed(1)} KB in assets/web/`);
 if (settings) console.log(`settings: ${JSON.stringify(settings)}`);
 if (files > MAX_FILES) throw new Error(`${files} files is over Cloudflare Pages' limit of ${MAX_FILES}.`);
 if (largest.size > MAX_FILE_BYTES) throw new Error(`${largest.file} is over Cloudflare Pages' 25 MiB per-file limit.`);

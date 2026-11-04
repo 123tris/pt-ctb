@@ -20,7 +20,8 @@ const CALLS = [
   new RegExp(String.raw`\b(?:t|th)\(\s*(${STRING})`, 'g'),
   new RegExp(String.raw`\btn\([^,()]+(?:\([^()]*\))?[^,()]*,\s*(${STRING})`, 'g'),
   new RegExp(String.raw`\bplural\([^,()]+(?:\([^()]*\))?[^,()]*,\s*(${STRING})`, 'g'),
-  new RegExp(String.raw`\bresultCount\((?:[^,()]+(?:\([^()]*\))?[^,()]*,\s*){2}(${STRING})`, 'g'),
+  // resultCount(shown, total, '…'), or with the new client's ctx first.
+  new RegExp(String.raw`\bresultCount\((?:[^,()]+(?:\([^()]*\))?[^,()]*,\s*){2,3}(${STRING})`, 'g'),
 ];
 
 const used = new Map(); // English → first place it's used
@@ -48,7 +49,12 @@ function markedStrings(source) {
 }
 
 const lineOf = (source, index) => source.slice(0, index).split('\n').length;
-for (const file of walk(path.join(root, 'assets/js')).filter(f => f.endsWith('.js') && !['pt.js', 'i18n.js'].includes(path.basename(f)))) {
+// The old site's code and the new client's (web/src, which shares pt.js).
+const code = [
+  ...walk(path.join(root, 'assets/js')).filter(f => f.endsWith('.js') && !['pt.js', 'i18n.js'].includes(path.basename(f))),
+  ...walk(path.join(root, 'web/src')).filter(f => f.endsWith('.ts') && path.basename(f) !== 'i18n.ts'),
+];
+for (const file of code) {
   const source = fs.readFileSync(file, 'utf8');
   const rel = path.relative(root, file).replaceAll('\\', '/');
   for (const pattern of CALLS) for (const m of source.matchAll(pattern)) use(literal(m[1]), `${rel}:${lineOf(source, m.index)}`);

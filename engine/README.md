@@ -62,7 +62,7 @@ is written exactly as the Node exporter writes it), so switching back and forth 
 
 ## Packs: the data the new web client reads
 
-The JSON files are what today's site reads. The rebuilt client (`web/`) will read **packs** instead.
+The JSON files are what the old pages read. The rebuilt client (`web/`) reads **packs** instead.
 - **Format.** A pack is a short JSON header and then columns. The browser wraps each column in a typed array over the
   bytes it downloaded: no `JSON.parse`, no object per row. Strings are decoded only when shown.
 - **Layout.** `Packs/Schemas.cs` defines every pack. `ptcatch-engine gen-ts` (`npm run gen`) turns it into
@@ -73,7 +73,11 @@ The JSON files are what today's site reads. The rebuilt client (`web/`) will rea
   compress several times better than the values themselves.
 - **Checked.** `web/test/packs.test.mjs` reads every pack with the client's own reader and compares it, value by value,
   with the JSON of the same export. `npm run engine:parity` runs it.
-- **Not published yet.** The packs aren't in `meta.json`, and nothing uploads them until the client reads them.
+- **Published with the JSON.** `--packs` (which `publish.ps1` passes) writes `packs/*.ptcb` and their manifest,
+  `packs.json`: each pack's content hash, in the shape of `meta.json`, which stays the JSON's alone (so it's still the
+  same as the Node exporter's). `tools/r2-sync.mjs` uploads the packs under hashed names (`packs/core.<hash>.ptcb`),
+  then `packs.json` after `meta.json`, and keeps them a day after the manifest stops naming them, as it does the JSON.
+  An export without packs (`publish.ps1 -Node`) leaves R2's `packs.json`, and its packs, as they were.
 
 | | JSON, brotli | Pack, brotli | Read: JSON.parse vs pack |
 |---|---|---|---|

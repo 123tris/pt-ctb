@@ -1,0 +1,21 @@
+{
+  // Type-checking only (npm run typecheck): esbuild builds the bundle (tools/web-build.mjs) and Node runs edge/ and the
+  // tests as they are, so the code keeps to TypeScript that only needs its types erased.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "noUnusedLocals": true,
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts", "edge/**/*.ts"]
+}

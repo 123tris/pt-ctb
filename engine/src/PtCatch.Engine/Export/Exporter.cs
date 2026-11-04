@@ -245,11 +245,26 @@ public static class Exporter
 
         if (o.Packs)
         {
-            // The binary packs (Packs/Schemas.cs) beside the JSON, under packs/. They aren't in meta.json, which stays the
-            // JSON's manifest, and nothing publishes them yet: the new web client will be their first reader.
-            var packs = build.Packs();
+            // The binary packs (Packs/Schemas.cs) beside the JSON, under packs/, for the new web client (web/). meta.json
+            // stays the JSON's manifest, the same as the Node exporter's; packs.json is the packs' own, in the same shape:
+            // each pack's hash, which goes into its name on R2 (packs/core.ptcb → packs/core.<hash>.ptcb).
+            var packs = build.Packs(name => versions[name].IsString ? versions[name].Text : null);
             var packDir = Path.Combine(outDir, "packs");
-            Parallel.ForEach(packs, p => WriteIfChanged(Path.Combine(outDir, p.Name), p.Bytes));
+            var packHashes = new string[packs.Count];
+            Parallel.For(0, packs.Count, i =>
+            {
+                packHashes[i] = Hash(packs[i].Bytes);
+                WriteIfChanged(Path.Combine(outDir, packs[i].Name), packs[i].Bytes);
+            });
+            var packFiles = JsNode.Object();
+            for (var i = 0; i < packs.Count; i++)
+            {
+                packFiles.Set(packs[i].Name, packHashes[i]);
+            }
+            WriteIfChanged(Path.Combine(outDir, "packs.json"), Encoding.UTF8.GetBytes(JsNode.Object()
+                .Set("generatedAt", JsNode.Num(now))
+                .Set("files", packFiles)
+                .Stringify()));
             var wanted = new HashSet<string>(packs.Select(p => Path.GetFullPath(Path.Combine(outDir, p.Name))), StringComparer.OrdinalIgnoreCase);
             foreach (var file in Directory.GetFiles(packDir, "*.ptcb", SearchOption.AllDirectories))
             {

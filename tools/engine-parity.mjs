@@ -80,8 +80,9 @@ for (let day = 0; day < days; day++) {
   execFileSync(engine, ['export', '--repo', repo, '--data', data, '--out', out.engine, '--now', now, '--offline', '--packs'], { stdio: 'ignore' });
   const engineTime = engineDone();
 
-  // The binary packs are the engine's alone: they're checked against its JSON (web/test/packs.test.mjs) below.
-  const a = files(out.node), b = files(out.engine).filter(f => !f.startsWith('packs/'));
+  // The binary packs and their packs.json are the engine's alone: they're checked against its JSON
+  // (web/test/packs.test.mjs) below.
+  const a = files(out.node), b = files(out.engine).filter(f => !f.startsWith('packs/') && f !== 'packs.json');
   const missing = a.filter(f => !b.includes(f)), extra = b.filter(f => !a.includes(f));
   const differ = a.filter(f => b.includes(f) && !fs.readFileSync(path.join(out.node, f)).equals(fs.readFileSync(path.join(out.engine, f))));
   console.log(`day ${day + 1} (now ${now}): ${a.length - differ.length - missing.length} of ${a.length} files identical; ${nodeTime}, ${engineTime}`);

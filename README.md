@@ -10,9 +10,13 @@ European Portuguese for visitors who pick PT in the header (`assets/js/core/i18n
 ## How it works
 
 ```
-PT-CTB-Bot-Data (private)  ──engine/ (C#)──►  data/*.json  ──publish.ps1 (R2)──►  https://data.ptcatch.com
-                                                    site code  ──Cloudflare Pages──►  https://ptcatch.com (reads the data)
+PT-CTB-Bot-Data (private)  ──engine/ (C#)──►  data/*.json, data/packs/  ──publish.ps1 (R2)──►  https://data.ptcatch.com
+                                                     site code  ──Cloudflare Pages──►  https://ptcatch.com (reads the data)
 ```
+
+The site is being rebuilt for speed, page by page, beside the old one: a new TypeScript client (`web/`,
+[web/README.md](web/README.md)) reads binary packs the engine writes, and draws the pages ported so far (the
+Converts, Loved and Ranked leaderboards); `assets/js` draws the rest and keeps the header, menus and sign-in.
 
 - The data engine (`engine/`, C#) reads the bot's private data folder (`../PT-CTB-Bot-Data` by default) and writes
   the public JSON under `data/`. `tools/export.mjs` writes the same files in Node: it's the original, and the two are
@@ -58,9 +62,10 @@ link posted on Discord previews that page: a player's rank and pp, a map's stars
 
 ```powershell
 npm run export            # node --max-old-space-size=4096 tools/export.mjs
-npm run serve             # http://localhost:8080/ (live data; add -- --local-data for data/)
-npm run build             # dist/: what Cloudflare Pages publishes (tools/build-site.mjs)
+npm run serve             # http://localhost:8080/ (live data; add -- --local-data for data/, or -- --local-data <export folder>)
+npm run build             # dist/: what Cloudflare Pages publishes (tools/build-site.mjs, with the web client)
 npm test                  # all tests
+npm run typecheck         # the web client's TypeScript
 node tools/i18n-check.mjs   # Portuguese strings that are missing or no longer used
 .\publish.ps1             # on main only: export (with --fetch-titles), upload what changed to R2
 .\install-publish-task.ps1   # run publish.ps1 every 15 minutes

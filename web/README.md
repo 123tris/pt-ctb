@@ -1,0 +1,92 @@
+# The new web client
+
+The site is being rebuilt for speed one page at a time, in TypeScript, next to the old client in `assets/js`. A page
+the new client draws reads **packs**: binary columns the C# engine writes ([engine/README.md](../engine/README.md)).
+Everything else stays with the old client, which also keeps the header, menus, search and sign-in for now.
+
+Ported so far: the Converts, Loved and Ranked leaderboards (`/rankings/converts|loved|ranked`). The Mods, Top plays and
+Star kings tabs are still the old page's.
+
+## How a page gets to the screen
+
+1. **The edge.** `functions/[[path]].js` sends `index.html` as before. For a page the new client draws, it also writes
+   in that page's slice of `packs.json` and a preload of its first pack (`edge/inline.ts`). The browser starts on the
+   data while it reads the page. The old pages wait for `meta.json`, and only then fetch their data.
+2. **The old router** (`assets/js/app.js`) loads `assets/web/<page>.js`, the page's entry.
+3. **The entry** (`src/entries/`) loads the pack (`src/kernel/packs.ts`), draws the page with the view's `render()`,
+   then `mount()` wires it up. When the data has no packs, or a pack of another layout than the code reads, the old
+   page draws it from the JSON instead.
+
+## Layout
+
+| Folder | What |
+|---|---|
+| `src/kernel` | The base every page uses. `ptcb.ts` reads packs. `packs.ts` loads them by name, by hash. `html.ts` is the escaping template tag. `i18n.ts` and `fmt.ts` handle text and numbers for one language. `ctx.ts` is what a view is drawn with |
+| `src/gen` | `packs.ts`: each pack's types, generated from the engine's schemas (`npm run gen`). Don't edit it |
+| `src/ui` | Shared markup, as `assets/js/core/ui.js` has it, over pack columns: players, tags, tabs, tables |
+| `src/views` | One page each. `x.ts` holds `render(ctx, data, state)`, which is pure and so can run at the edge too. `x.mount.ts` holds the browser-only half |
+| `src/entries` | Each page's module for the old router: the bundle's entry points (`tools/web-build.mjs`) |
+| `src/client` | The browser's side. `boot.ts` builds the visitor's `Ctx` and the pack loader. `legacy.ts` is everything still taken from `assets/js`, kept in one file |
+| `src/routes.ts` | Which addresses the new client draws, and the packs each one's first view needs |
+| `edge` | What the Cloudflare Function runs: the packs slice now, server rendering later |
+| `test` | `node --test`: packs against the JSON, views drawn in Node |
+
+**Data-oriented.** A view works over the pack's columns and row numbers. A player is a row in `core.players`, and a
+board is a list of rows. Nothing builds an object per player or parses JSON. Strings are decoded only when shown.
+
+**Sharing the old site's modules.** An import of anything under `assets/js` stays an import of that same file:
+`tools/web-build.mjs` keeps it out of the bundle. So the new code uses the very modules the old app has already
+loaded: its settings, its language and strings (`assets/js/core/pt.js`, which `node tools/i18n-check.mjs` also checks
+against `src/`), and its sign-in. Only `src/client/legacy.ts` imports browser code from there. Views take their
+browser parts through it, so they stay pure.
+
+## Porting a page
+
+1. If the page needs data the packs don't have yet, add it to `engine/src/PtCatch.Engine/Packs/Schemas.cs` and
+   `Export/Build.Packs.cs`. Then run `npm run gen`, and extend `test/packs.test.mjs` to compare it with the JSON.
+2. Write `src/views/<page>.ts` (`render`) and `<page>.mount.ts` from the old `assets/js/pages/<page>.js`. Keep its
+   markup and classes, so `site.css` styles it the same, and keep its strings, so `pt.js` already has them.
+3. Add `src/entries/<page>.ts` to `ENTRIES` in `tools/web-build.mjs`, and the page's first packs to `src/routes.ts`.
+4. Point the page's line in `assets/js/app.js` at `../web/<page>.js`, with the old page as the fallback.
+5. Test it: a view test in `test/`, `npm run typecheck`, `node tools/i18n-check.mjs`. Then check it in the browser
+   with `npm run serve -- --local-data <export folder with packs>`, in both languages, at phone width and with the
+   keyboard.
+
+## Running it
+
+```powershell
+npm run serve -- --local-data <folder>   # the bundle is rebuilt in memory on each request; the edge's slice too
+npm run typecheck                        # tsc -p web (checks only; esbuild builds)
+npm run build                            # dist/, with the bundle in dist/assets/web/
+node --test web/test/                    # with PTCATCH_DATA=<folder> for the tests that need packs
+```
+
+An export with packs: `ptcatch-engine export --out <folder> --packs` (copy `data/avatars` into the folder first to keep
+the thumbnails).
+
+## Measured (2026-11-04, this desktop)
+
+Lab: the production build served locally, with every request held back 80 ms to stand in for a phone's round trip to
+the edge. Same machine, same data.
+
+| Converts leaderboard | Old page | New |
+|---|---|---|
+| Repeat visit, until the board shows | 266 ms | 156 ms |
+| First visit (cold cache) | 821 ms | 650 ms |
+| Round trips before the board can draw, repeat visit | HTML, then `meta.json` | HTML only |
+| Data parsed | `players.json` (`JSON.parse`) | `core` pack (typed arrays, 7 KB brotli) |
+| Redrawing the board, data in memory | 60 ms | 54 ms |
+
+The repeat visit is the fair comparison: the code comes from the cache in both, so only the round trips differ. The
+lab server speaks HTTP/1.1, which queues the old site's ~25 modules on 6 connections, so both first visits are slower
+than over Cloudflare's HTTP/2.
+
+Where the 54 ms of a redraw go:
+- 7 ms is the view's JavaScript;
+- 12 ms is parsing 94 KB of markup;
+- 14 ms is style;
+- 21 ms is layout, for 109 rows and 1,514 elements.
+
+So the next gains are in the DOM, not the JavaScript. Two ways to get them:
+- draw the rows below the fold after the first paint;
+- render on the server (`edge/`), so the board arrives inside the HTML.

@@ -18,10 +18,13 @@ import { CONFIG } from './config.js';
 import { matchPage, unmoved } from './core/routes.js';
 import { here, go } from './core/ui.js';
 
-/** Each page in core/routes.js and its module. */
+/**
+ * Each page in core/routes.js and its module. Pages under ../web/ are the new client's (web/src/entries, built by
+ * tools/web-build.mjs); where that build isn't there (the github.io copy, served from the repo as it is), the old page.
+ */
 const LOADERS = {
   '': () => import('./pages/home.js'),
-  'rankings/:board?': () => import('./pages/rankings.js'),
+  'rankings/:board?': () => import('../web/rankings.js').catch(() => import('./pages/rankings.js')),
   'players': () => import('./pages/players.js'),
   'player/:id/:tab?': () => import('./pages/player.js'),
   'maps': () => import('./pages/maps.js'),

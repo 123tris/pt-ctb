@@ -228,7 +228,8 @@ export function loadEconomy(root) {
   const ledger = [];
   const ledgerFile = path.join(dir, 'ledger.jsonl');
   if (fs.existsSync(ledgerFile)) {
-    for (const text of fs.readFileSync(ledgerFile, 'utf8').split(/\r?\n/)) {
+    // The bot writes the file with a byte order mark, which JSON.parse would take for part of the first line.
+    for (const text of fs.readFileSync(ledgerFile, 'utf8').replace(/^﻿/, '').split(/\r?\n/)) {
       if (!text.trim()) continue;
       try { ledger.push(JSON.parse(text)); } catch { /* a half-written last line: the next export reads it */ }
     }

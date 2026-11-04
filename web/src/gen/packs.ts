@@ -24,6 +24,8 @@ export interface CorePack {
     cleared: Uint32Array;
     /** Ranked catch maps */
     total: Uint32Array;
+    /** The osu! data dump plays were imported from, as 2026_10_01 ('' none) */
+    dump: StrColumn;
   };
   /** players.json, by column, in name order */
   players: {
@@ -86,6 +88,10 @@ export interface CorePack {
     colour: Uint8Array;
     /** When it ends, unix seconds (0 open-ended) */
     colourUntil: Uint32Array;
+    /** Hash in the name of their 64 px avatar thumbnail, avatars/{id}-64.{hash}.webp ('' none) */
+    avatar64: StrColumn;
+    /** Hash in the name of their 128 px thumbnail ('' none) */
+    avatar128: StrColumn;
   };
   /** The converts board: rows of players, best first */
   boardC: {
@@ -99,7 +105,7 @@ export interface CorePack {
     /** Row in players */
     row: Uint16Array;
   };
-  /** The ranked (official pp) board */
+  /** The ranked (official pp) board as shown: everyone with an osu! rank, and players inactive on osu! with pp, by pp */
   boardR: {
     rows: number;
     /** Row in players */
@@ -107,7 +113,7 @@ export interface CorePack {
   };
 }
 
-export const CORE_HASH = '502743bf';
+export const CORE_HASH = 'f20ac9e8';
 
 /** Reads a core pack, refusing one of another layout. */
 export const readCore = (buffer: ArrayBuffer): CorePack =>

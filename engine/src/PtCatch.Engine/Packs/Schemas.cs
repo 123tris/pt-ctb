@@ -63,6 +63,7 @@ public static class Schemas
             new("maps", ColKind.U32, "Maps with Portuguese plays"),
             new("cleared", ColKind.U32, "Ranked catch maps cleared"),
             new("total", ColKind.U32, "Ranked catch maps"),
+            new("dump", ColKind.Str, "The osu! data dump plays were imported from, as 2026_10_01 ('' none)"),
         ]),
         new("players", "players.json, by column, in name order", [
             new("id", ColKind.U32, "osu! id"),
@@ -94,10 +95,13 @@ public static class Schemas
             new("last", ColKind.U32, "Newest play, unix seconds (0 none)"),
             new("colour", ColKind.U8, "Bought name colour (Schemas.Colours, 0 none)"),
             new("colourUntil", ColKind.U32, "When it ends, unix seconds (0 open-ended)"),
+            new("avatar64", ColKind.Str, "Hash in the name of their 64 px avatar thumbnail, avatars/{id}-64.{hash}.webp ('' none)"),
+            new("avatar128", ColKind.Str, "Hash in the name of their 128 px thumbnail ('' none)"),
         ]),
         new("boardC", "The converts board: rows of players, best first", [new("row", ColKind.U16, "Row in players")]),
         new("boardU", "The loved board", [new("row", ColKind.U16, "Row in players")]),
-        new("boardR", "The ranked (official pp) board", [new("row", ColKind.U16, "Row in players")]),
+        new("boardR", "The ranked (official pp) board as shown: everyone with an osu! rank, and players inactive on osu! with pp, by pp",
+            [new("row", ColKind.U16, "Row in players")]),
     ]);
 
     public static readonly PackSchema Player = new("player", "One player's file: every list of plays and the maps they're on.",

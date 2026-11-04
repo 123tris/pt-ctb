@@ -25,6 +25,8 @@ const hundredths = v => Math.round((v ?? 0) * 100);
 test('core: players.json by column, and the three boards', { skip }, () => {
   const core = readCore(pack('core.ptcb'));
   const players = json('players.json');
+  const meta = json('meta.json');
+  assert.equal(core.info.dump.at(0), meta.dump ?? '');
   assert.equal(core.players.rows, players.length);
   players.forEach((p, i) => {
     const t = core.players;
@@ -42,10 +44,25 @@ test('core: players.json by column, and the three boards', { skip }, () => {
     assert.equal(t.dan[i], p.dan.reduce((mask, stage) => mask | (1 << stage), 0) >>> 0);
     assert.equal(t.last[i], p.last ?? 0);
     assert.equal(COLOURS[t.colour[i]], p.nc ?? '');
+    assert.deepEqual([t.avatar64.at(i), t.avatar128.at(i)], [meta.files[`avatars/${p.id}-64.webp`] ?? '', meta.files[`avatars/${p.id}-128.webp`] ?? '']);
   });
-  for (const [table, key, value] of [['boardC', 'c', 'cv'], ['boardU', 'u', 'ul'], ['boardR', 'r', 'pp']]) {
+  for (const [table, key, value] of [['boardC', 'c', 'cv'], ['boardU', 'u', 'ul']]) {
     const order = [...core[table].row].map(row => players[row]);
     assert.deepEqual(order.map(p => p.rank[key]), order.map((_, i) => i + 1), `${table} is the ${value} board in rank order`);
+  }
+  // The ranked page's board as assets/js/pages/rankings.js draws it from players.json.
+  const official = players.filter(p => p.rank.r || (p.inactive && p.pp > 0)).sort((a, b) => b.pp - a.pp || (a.rank.r ?? Infinity) - (b.rank.r ?? Infinity));
+  assert.deepEqual([...core.boardR.row].map(row => players[row].id), official.map(p => p.id), 'boardR is the ranked page’s board');
+});
+
+test('packs.json: every pack’s hash', { skip }, async () => {
+  const { createHash } = await import('node:crypto');
+  const manifest = json('packs.json');
+  const files = Object.keys(manifest.files);
+  assert.ok(files.includes('packs/core.ptcb') && files.includes('packs/search.ptcb'));
+  for (const name of files) {
+    const digest = createHash('sha256').update(fs.readFileSync(path.join(dir, name))).digest('base64url').slice(0, 10);
+    assert.equal(manifest.files[name], digest, name);
   }
 });
 

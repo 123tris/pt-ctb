@@ -7,9 +7,10 @@
     2. Exports with the C# engine (engine/) from the bot's data folder, fetching titles for any new maps from the osu!
        API and refreshing the avatar thumbnails. It writes what tools/export.mjs writes, byte for byte (npm run
        engine:parity checks it), about 4x faster. It's built once per engine version (the git tree of engine/) into
-       state/engine/ with the .NET 10 SDK; -Node exports with tools/export.mjs instead, as before.
-    3. Uploads what changed to R2 (tools/r2-sync.mjs): new files under content-hashed names, then meta.json, then files
-       no manifest has used for a day are deleted; state/ goes to a private bucket. Both sites read
+       state/engine/ with the .NET 10 SDK. It also writes the binary packs the new web client reads (packs/, packs.json).
+       -Node exports with tools/export.mjs instead, as before, without packs.
+    3. Uploads what changed to R2 (tools/r2-sync.mjs): new files under content-hashed names, then meta.json and
+       packs.json, then files no manifest has used for a day are deleted; state/ goes to a private bucket. Both sites read
        https://data.ptcatch.com, so the data is live as soon as meta.json is, with no git commit and no Pages build.
 
     Nothing is committed: data/ and state/ aren't in git any more. An unchanged run sends three small requests, so this
@@ -76,7 +77,7 @@ if (-not $Node) {
         if ($LASTEXITCODE -ne 0) { throw 'Building the engine failed (needs the .NET 10 SDK); publish.ps1 -Node uses the Node exporter instead.' }
         Get-ChildItem $builds -Directory | Where-Object Name -ne $tree | Remove-Item -Recurse -Force
     }
-    & $exe export --data $DataRepo --fetch-titles
+    & $exe export --data $DataRepo --fetch-titles --packs
     if ($LASTEXITCODE -ne 0) { throw "Export failed (exit $LASTEXITCODE)" }
 } else {
     # sharp makes the avatar thumbnails (tools/lib/avatars.mjs). Without it the export still runs and keeps the
