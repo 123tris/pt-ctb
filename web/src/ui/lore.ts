@@ -3,6 +3,8 @@
 // pt.js translates. Keep the two in step until the old pages that read lore.js are gone.
 
 import type { Ctx } from '../kernel/ctx.ts';
+import { M } from '../kernel/model.ts';
+import type { MapMeta } from './maps.ts';
 
 /**
  * Portugal at the Catch World Cup (CWC) and its 4-digit edition (4CWC), as remembered on the Discord: [year, title,
@@ -44,6 +46,67 @@ export const quips = ({ t }: Ctx) => ({
   christmas: t('An early Christmas present.'),
   throne: t('The throne wobbles.'),
 });
+
+/** A map with a story: its card's title and text, and whether it's a Portuguese song or meme map ("tuga certified"). */
+export interface MapLore {
+  title: string;
+  /** The card's text, from the diff's Portuguese board: `n` players, `top` the best play's pp. */
+  text(n: number, top: number): string;
+  tuga?: boolean;
+}
+
+/** Maps with a story (lore.js MAP_LORE). `match` gets the map's tuple; the first hit wins. */
+const mapStories = ({ t, fmt }: Ctx): (MapLore & { match(m: NonNullable<MapMeta>): boolean })[] => [
+  {
+    match: m => /everything will freeze/i.test(m[M.TITLE]) && /undead corporation/i.test(m[M.ARTIST]),
+    title: t('The eternal grind'),
+    text: n => t('Everything Will Freeze: retry-spammed by every era of PT-CTB since 2018. {n} Portuguese players on this diff alone.', { n: fmt.num(n) }),
+  },
+  {
+    match: m => /eu estou aqui/i.test(m[M.TITLE]) && /anjos/i.test(m[M.ARTIST]),
+    title: t('Eu estou aqui… are you?'), // PT text (intentional): the song title
+    text: (n, top) => `${t('A Portuguese pop song turned meme map, and {n} Portuguese players have been here.', { n: fmt.num(n) })} ${top >= 100
+      ? t('“Faz o 100pp do eu estou aqui”? Done: the best play on this diff is worth {pp} pp.', { pp: fmt.num(Math.round(top)) })
+      : t('The 100pp play is still waiting.')}`,
+    tuga: true,
+  },
+  {
+    match: m => /quim barreiros/i.test(m[M.ARTIST]),
+    title: t('A Portuguese classic, in fruit form'),
+    text: () => t('Quim Barreiros on osu!catch. Of course someone mapped it.'),
+    tuga: true,
+  },
+  {
+    match: m => /ronaldo/i.test(m[M.TITLE]),
+    title: t('Ronaldo, but catch'),
+    text: () => t('A Portuguese meme map, with diffs named by the people who play it.'),
+    tuga: true,
+  },
+  {
+    match: m => /the big black/i.test(m[M.TITLE]),
+    title: t('The benchmark'),
+    text: () => t('If you FC the Big Black, you can call it a farm map.'),
+  },
+  {
+    match: m => /image -material-/i.test(m[M.TITLE]),
+    title: t('The consistency exam'),
+    text: () => t('Seven minutes long, one choke away from glory. Every era measures itself against this one.'),
+  },
+  {
+    match: m => /inferno/i.test(m[M.TITLE]) && /9mm parabellum/i.test(m[M.ARTIST]),
+    title: t('Rocking out in hell'),
+    text: () => t('The map behind the 2018 "FC INFERNO" retry diary. Retry #30: almost a clear.'),
+  },
+  {
+    match: m => /der wald/i.test(m[M.TITLE]),
+    title: t('Devastating, as advertised'),
+    text: () => t('Good luck getting a B.'),
+  },
+];
+
+/** The story of the map with this tuple, or null for most maps (and a map without details). */
+export const mapLore = (ctx: Ctx, meta: MapMeta): MapLore | null =>
+  (meta ? mapStories(ctx).find(l => l.match(meta)) ?? null : null);
 
 /** The home page's "Since 2018": [year, text]. */
 export const history = ({ t }: Ctx): [number, string][] => [

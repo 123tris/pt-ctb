@@ -16,6 +16,8 @@ export interface Fmt {
   monthYear(t: number): string;
   /** "3 days ago", "yesterday", "just now". */
   ago(t: number): string;
+  /** 2:41 for a length in seconds. */
+  duration(s: number): string;
   /** "1 player" / "3 players"; `many` defaults to `one` + "s", translated by pt.js. */
   plural(n: number, one: string, many?: string): string;
   /** 1st, 2nd, 3rd, 11th; in Portuguese 1.º, or 1.ª where the noun is feminine (jogada, posição, etapa). */
@@ -66,6 +68,7 @@ export function makeFmt(text: Text, { timeZone, now }: { timeZone?: string; now:
       }
       return lang === 'pt' ? 'agora mesmo' : 'just now';
     },
+    duration: s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`,
     plural: (n, one, many = `${one}s`) => `${num(n)} ${tn(n, one, many)}`,
     ordinal(n, { feminine = false } = {}) {
       if (lang === 'pt') return `${n}.${feminine ? 'ª' : 'º'}`;

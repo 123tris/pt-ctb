@@ -28,7 +28,7 @@ const LOADERS = {
   'players': () => import('../web/players.js').catch(() => import('./pages/players.js')),
   'player/:id/:tab?': () => import('../web/player.js').catch(() => import('./pages/player.js')),
   'maps': () => import('./pages/maps.js'),
-  'map/:id': () => import('./pages/map.js'),
+  'map/:id': () => import('../web/map.js').catch(() => import('./pages/map.js')),
   'activity': () => import('./pages/activity.js'),
   'challenges/:tab?': () => import('./pages/challenges.js'),
   'games/:game?': () => import('./pages/games.js'),

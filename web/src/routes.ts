@@ -41,6 +41,8 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   { pattern: /^(?:glossary|privacy|join|team)$/, first: () => ({ packs: [], json: [] }) },
   // A profile, every tab: the players and the player's head file (their whole file comes when a list needs it).
   { pattern: /^player\/(\d+)(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: [`players/${m[1]}-head.json`] }) },
+  // A map: the players and the map's bucket, with its details and board (the set's file comes once the bucket names it).
+  { pattern: /^map\/(\d+)$/, first: m => ({ packs: [CORE], json: [mapBucket(Number(m[1]))] }) },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */
