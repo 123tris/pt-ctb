@@ -14,6 +14,9 @@ export const CORE = 'packs/core.ptcb';
 /** The Leaderboards tabs that add a JSON file to the core pack (the others are the core pack alone). */
 const BOARD_JSON: Record<string, string> = { mods: 'modrankings.json', plays: 'topplays.json', kings: 'records.json' };
 
+/** What the home page shows beyond the players: a small JSON file the engine writes with the packs. */
+export const HOME = 'packs/home.json';
+
 /** A player's pack, all their plays and the maps they're on. */
 export const playerPack = (id: number | string) => `packs/player/${id}.ptcb`;
 
@@ -25,6 +28,7 @@ export const mapBucket = (id: number) => `maps/${id % 128}.json`;
  * match and the address's query.
  */
 const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchParams) => First | null }[] = [
+  { pattern: /^$/, first: () => ({ packs: [CORE, HOME], json: [] }) },
   { pattern: /^rankings(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: BOARD_JSON[m[1]] ? [BOARD_JSON[m[1]]] : [] }) },
   {
     pattern: /^calculator$/,

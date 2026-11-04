@@ -66,10 +66,12 @@ if (settings) {
 // Pages have paths (/player/123), which functions/[[path]].js answers with index.html and the page's link preview. The
 // page's addresses are relative (assets/…, kept so for the github.io copy, which lives under /pt-ctb/), so they need
 // <base href="/"> here, including on the front page, which the router can leave for /player/123 without a reload.
-// _routes.json keeps the Functions to the page addresses and the endpoints: the site's own files and the front page
-// are served as they are, without counting against the Functions' free requests.
+// _routes.json keeps the Functions to the page addresses and the endpoints: the site's own files are served as they
+// are, without counting against the Functions' free requests (100,000 a day). The front page goes through the Function
+// too: the new client draws it (web/), and the Function puts its data's addresses in the page, which saves a round trip
+// to packs.json before anything shows (web/edge/inline.ts). Listing '/' in `exclude` again makes it static.
 edit('index.html', s => s.replace(/<meta charset="utf-8">(\r?\n)/, '<meta charset="utf-8">$1<base href="/">$1'));
-fs.writeFileSync(path.join(dist, '_routes.json'), `${JSON.stringify({ version: 1, include: ['/*'], exclude: ['/', '/assets/*', '/404.html'] }, null, 2)}\n`);
+fs.writeFileSync(path.join(dist, '_routes.json'), `${JSON.stringify({ version: 1, include: ['/*'], exclude: ['/assets/*', '/404.html'] }, null, 2)}\n`);
 
 // Every JS, CSS and font address gets ?v=<hash of all the code and fonts>, in index.html, in every import and in the
 // CSS. _headers lets browsers keep them for a year, and a stale module next to fresh ones breaks the page ("does not

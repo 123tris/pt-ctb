@@ -23,7 +23,7 @@ import { here, go } from './core/ui.js';
  * tools/web-build.mjs); where that build isn't there (the github.io copy, served from the repo as it is), the old page.
  */
 const LOADERS = {
-  '': () => import('./pages/home.js'),
+  '': () => import('../web/home.js').catch(() => import('./pages/home.js')),
   'rankings/:board?': () => import('../web/rankings.js').catch(() => import('./pages/rankings.js')),
   'players': () => import('../web/players.js').catch(() => import('./pages/players.js')),
   'player/:id/:tab?': () => import('../web/player.js').catch(() => import('./pages/player.js')),
