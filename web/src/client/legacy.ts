@@ -5,8 +5,9 @@
 export { CONFIG } from '../../../assets/js/config.js';
 export { lang } from '../../../assets/js/core/i18n.js';
 export { NotFound } from '../../../assets/js/core/data.js';
+// Not paginate(): its markup is the old html tag's, which escapes this client's. client/dom.ts has its own.
 export {
-  announce, writeQuery, readQuery, setTitle, myId, prefs, go, here, openSearch, scrollBehavior, reducedMotion, paginate,
+  announce, writeQuery, readQuery, setTitle, myId, prefs, go, here, openSearch, scrollBehavior, reducedMotion,
 } from '../../../assets/js/core/ui.js';
 
 /** The Portuguese strings (already loaded by the old app when the page is in Portuguese). */
