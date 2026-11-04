@@ -32,11 +32,11 @@ is written exactly as the Node exporter writes it), so switching back and forth 
 
 | Folder | What |
 |---|---|
-| `src/PtCatch.Engine/Js` | JavaScript's semantics where the bytes depend on them. `JsJsonWriter` writes what `JSON.stringify` writes: V8's number formatting and its string escaping. `JsMath` holds `Math.round` (halves up). `JsDate` holds `Date.parse` and Lisbon calendar fields. `JsSort` holds the stable sort and `localeCompare`. `JsNode` is a JSON tree that lists keys as JavaScript does |
+| `src/PtCatch.Engine/Js` | JavaScript's semantics where the bytes depend on them. `JsJsonWriter` writes what `JSON.stringify` writes: V8's number formatting and its string escaping. `JsMath` holds `Math.round` (halves up). `JsDate` holds `Date.parse` and Lisbon calendar fields. `JsSort` holds the stable sort and `localeCompare`. `JsString` holds `trim`. `JsNode` is a JSON tree that lists keys as JavaScript does |
 | `src/PtCatch.Engine/World` | The data as columns: `Beatmaps`, `RawScores` (every score in the bot's files), `Tuples` (the site's score tuples), `BotData` |
 | `src/PtCatch.Engine/Ingest` | Readers. Player files are read in parallel straight into columns. The 171 MB beatmap cache is kept as a binary column file, `state/beatmaps.ptcb`, reused while the source file is unchanged. Also the exporter's osu! API cache |
 | `src/PtCatch.Engine/Osu` | The osu! API lookups and the avatar thumbnails (`tools/lib/osu-api.mjs`, `tools/lib/avatars.mjs`). A new avatar's WebP bytes differ from sharp's; an unchanged one keeps its file, and so its name |
-| `src/PtCatch.Engine/Export` | `Build.*.cs` ports `tools/lib/build.mjs` and its libraries, one partial file per system (people, boards, maps, rankings, records, activity, challenges, completion, history, heads…). `Exporter.cs` ports `tools/export.mjs` |
+| `src/PtCatch.Engine/Export` | `Build.*.cs` ports `tools/lib/build.mjs` and its libraries, one partial file per system (people, boards, maps, rankings, records, activity, challenges, completion, hill, duels, history, heads…). `Exporter.cs` ports `tools/export.mjs` |
 | `src/PtCatch.Engine/Packs` | The PTCB pack format (`Ptcb.cs`), every pack's layout (`Schemas.cs`) and the TypeScript it generates (`GenTs.cs`). `Export/Build.Packs.cs` fills the packs from the systems' results |
 | `src/PtCatch.Engine.Cli` | The `ptcatch-engine` command |
 | `tests/PtCatch.Engine.Tests` | xUnit. The expected values are what Node gave for the same inputs |

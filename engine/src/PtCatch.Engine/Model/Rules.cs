@@ -52,6 +52,15 @@ public static class Rules
         (30, "Dan Skrub"), (80, "Dan Intermed"), (120, "Dan Expert"), (250, "Dan Beast"), (1000, "PT Best Player"),
     ];
 
+    /// <summary>Duels: a rating is provisional while its deviation is this or more (DUEL_PROVISIONAL_RD).</summary>
+    public const double DuelProvisionalRd = 110;
+
+    /// <summary>Duel ids per duels/&lt;n&gt;.json (DUELS_PER_FILE).</summary>
+    public const double DuelsPerFile = 100;
+
+    /// <summary>The file a duel's own page reads (duelFile): duel 1234 is in duels/12.json.</summary>
+    public static string DuelFile(double id) => $"duels/{Js.JsMath.ToString(Math.Floor(id / DuelsPerFile))}.json";
+
     public static readonly string[] HillSlots = ["NM", "HD", "HR", "DT", "FM", "CV"];
     public static readonly string[] HillModStars = ["HR", "DT"];
     public static readonly string[] HillTiers = ["open", "challenger"];

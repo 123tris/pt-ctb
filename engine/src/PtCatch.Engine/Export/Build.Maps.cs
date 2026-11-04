@@ -19,6 +19,8 @@ internal sealed class PlayerFile
     public Person Person;
     public SortedSet<int> MapIds = new();
     public JsNode Crowns;
+    /// <summary>The duelist's slice (duels.mjs profiles), or null.</summary>
+    public JsNode Duels;
     public JsNode Ledger;
     /// <summary>The pinned play: (category letter, tuple), or null.</summary>
     public (string Cat, int Tuple)? Pinned;
@@ -213,6 +215,11 @@ public sealed partial class Build
         {
             w.Key("crowns");
             w.Node(file.Crowns);
+        }
+        if (file.Duels != null)
+        {
+            w.Key("duels");
+            w.Node(file.Duels);
         }
         if (file.Ledger != null)
         {

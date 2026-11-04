@@ -217,6 +217,14 @@ public sealed partial class Build
                 }
             }
         }
+        foreach (var id in DuelMapIds(bot.Duels))
+        {
+            // A map id past int's range is on no cached map (osu!'s ids are far below it).
+            if (id <= int.MaxValue)
+            {
+                One((int)id);
+            }
+        }
         foreach (var b in bot.Bounties.Items)
         {
             var map = b["map"];
@@ -256,6 +264,7 @@ public sealed partial class Build
         Step("players", BuildPlayersFile);
         Step("player files", BuildPlayerFiles);
         Step("hill", BuildHill);
+        Step("duels", BuildDuels);
         Step("map buckets", BuildMapBuckets);
         Step("mod rankings", BuildModRankings);
         Step("top plays", BuildTopPlays);
