@@ -13,7 +13,7 @@ export interface Tab {
   href: string;
   label: string;
   active?: boolean;
-  /** A figure after the name, already formatted ("1,302", "2d left", "79.3%"). */
+  /** A figure after the label, already formatted: a count (ctx.fmt.num), or a short text ("2d left", "79.3%"). */
   count?: string;
 }
 
@@ -22,7 +22,8 @@ export interface Tab {
  * comma keeps a tab's count apart from its name when read out ("Snipe targets, 30", not "Snipe targets30").
  */
 export const tabs = (items: Tab[], label: string): Safe => html`<nav class="tabs" aria-label="${label}">${items.map(tab =>
-  html`<a href="${tab.href}" class="${tab.active ? 'active' : ''}" ${tab.active ? raw('aria-current="page"') : ''}>${tab.label}${tab.count !== undefined ? html`<span class="count"><span class="sr-only">, </span>${tab.count}</span>` : ''}</a>`)}</nav>`;
+  html`<a href="${tab.href}" class="${tab.active ? 'active' : ''}" ${tab.active ? raw('aria-current="page"') : ''}>${tab.label}${tab.count !== undefined
+    ? html`<span class="count"><span class="sr-only">, </span>${tab.count}</span>` : ''}</a>`)}</nav>`;
 
 export const empty = (text: Value): Safe => html`<div class="empty">${text}</div>`;
 
@@ -59,6 +60,28 @@ export const chipGroup = (label: string, attr: string, items: [string, Value][],
   <span class="chips-label" aria-hidden="true">${label}</span>
   ${items.map(([value, text]) => html`<button class="chip ${value === current ? 'active' : ''}" type="button" data-${raw(attr)}="${value}" aria-pressed="${String(value === current)}">${text}</button>`)}
 </div>`;
+
+/** How many pages `n` items take at `size` a page: one at least, for the empty list. */
+export const pageCount = (n: number, size: number): number => Math.max(1, Math.ceil(n / size));
+
+/**
+ * One page of `items` (`page`, 0-based, kept within the list) and the previous/next pager under it: what
+ * client/dom.ts paginate() draws on each page, so a view can draw the address's page itself and paginate() take over.
+ * `render(slice, offset)` gives the page's markup; `empty()` what to show when there's nothing.
+ */
+export function paged<T>(ctx: Ctx, items: readonly T[], render: (slice: readonly T[], offset: number) => Value,
+  { size = 50, page = 0, empty: emptyView }: { size?: number; page?: number; empty?: () => Value } = {}): Safe {
+  const { t, fmt } = ctx;
+  const pages = pageCount(items.length, size);
+  page = Math.min(Math.max(0, page), pages - 1);
+  const slice = items.slice(page * size, page * size + size);
+  return html`${slice.length ? render(slice, page * size) : emptyView?.() ?? empty(t('Nothing to show.'))}
+      ${pages > 1 ? html`<nav class="pager" aria-label="${t('Pages')}">
+        <button class="btn btn-small" type="button" data-page="prev" ${page === 0 ? raw('disabled') : ''}>← ${t('Previous')}</button>
+        <span>${t('Page {page} of {pages}', { page: fmt.num(page + 1), pages: fmt.num(pages) })}</span>
+        <button class="btn btn-small" type="button" data-page="next" ${page >= pages - 1 ? raw('disabled') : ''}>${t('Next')}</button>
+      </nav>` : ''}`;
+}
 
 /** Grey rows the height of real ones, while a list loads. */
 export const placeholderRows = (n = 6): Safe =>

@@ -39,6 +39,8 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   { pattern: /^commands$/, first: () => ({ packs: [], json: ['commands.json'] }) },
   // Text only: nothing to fetch, so nothing for the edge to add.
   { pattern: /^(?:glossary|privacy|join|team)$/, first: () => ({ packs: [], json: [] }) },
+  // A profile, every tab: the players and the player's head file (their whole file comes when a list needs it).
+  { pattern: /^player\/(\d+)(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: [`players/${m[1]}-head.json`] }) },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */
