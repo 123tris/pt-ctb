@@ -40,6 +40,7 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   },
   { pattern: /^players$/, first: () => ({ packs: [CORE], json: [] }) },
   { pattern: /^activity$/, first: () => ({ packs: [CORE], json: ['activity.json', 'challenges.json'] }) },
+  { pattern: /^records$/, first: () => ({ packs: [CORE], json: ['records.json', 'economy.json'] }) },
   // The bot's list; an export without one shows the hand-written list.
   { pattern: /^commands$/, first: () => ({ packs: [], json: ['commands.json'] }) },
   // Text only: nothing to fetch, so nothing for the edge to add.

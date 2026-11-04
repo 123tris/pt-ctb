@@ -14,6 +14,8 @@ export interface Fmt {
   dateTime(t: number): string;
   /** "Wednesday, 4 November". */
   day(t: number): string;
+  /** 2:41 for a length in seconds. */
+  duration(s: number): string;
   /** "Mar 2019", in UTC (monthly points are stamped 00:00 UTC on the 1st, which is still the month before in the Americas). */
   monthYear(t: number): string;
   /** "3 days ago", "yesterday", "just now". */
@@ -61,6 +63,7 @@ export function makeFmt(text: Text, { timeZone, now }: { timeZone?: string; now:
     rank: n => (n ? `#${num(n)}` : '—'),
     date: t => (dateFormat ??= dateFormatOf({ day: 'numeric', month: 'short', year: 'numeric' })).format(new Date(t * 1000)),
     dateTime: t => (dateTimeFormat ??= dateFormatOf({ day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })).format(new Date(t * 1000)),
+    duration: s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`,
     day: t => (dayFormat ??= new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone })).format(new Date(t * 1000)),
     monthYear: t => (monthYearFormat ??= dateFormatOf({ month: 'short', year: 'numeric', timeZone: 'UTC' })).format(new Date(t * 1000)),
     ago(t) {

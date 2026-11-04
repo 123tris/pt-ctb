@@ -34,7 +34,7 @@ const LOADERS = {
   'games/:game?': () => import('./pages/games.js'),
   'calculator': () => import('../web/calculator.js').catch(() => import('./pages/calculator.js')),
   'compare/:a?/:b?': () => import('../web/compare.js').catch(() => import('./pages/compare.js')),
-  'records': () => import('./pages/records.js'),
+  'records': () => import('../web/records.js').catch(() => import('./pages/records.js')),
   'shop': () => import('./pages/shop.js'),
   'admin': () => import('./pages/admin.js'),
   'recap/:id/:year?': () => import('./pages/wrapped.js'),

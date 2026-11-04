@@ -53,3 +53,12 @@ export const history = ({ t }: Ctx): [number, string][] => [
   [2025, t('40th in the CWC qualifiers. Bulgaria was 41st. WE BEAT 41.')],
   [2026, t('The first series win in Portugal’s CWC history. Alphonse wakes up again two weeks later.')],
 ];
+
+/** The first Portuguese players past 10k pp: [day, name, osu! id (null when not tracked), the play that did it]. */
+export const first10k = ({ t }: Ctx): [string, string, number | null, string][] => [
+  ['2018-09-02', 'Buffow', 4427038, t('Oriental Blossom [Oriental] with HDHR')],
+  ['2019-09-17', 'gold801', 3006672, 'Chroma - I [LACRIMA’S MAXIMUM]'],
+  ['2020-04-16', 'Tris', 3821475, t('iLLness LiLin [NELLY’S GRAVITY], nomod with one miss')],
+  ['2021-11-24', 'Airdown', 2788013, t('night birds [Starry Night] with HR')],
+  ['2023-06-12', 'Hiroto', null, 'XIII Charlotte [Resonance]'],
+];

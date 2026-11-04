@@ -87,3 +87,31 @@ export function lineChart(ctx: Ctx, series: readonly Series[], { height = 240, f
   }
   return raw(`${svg}</svg>`);
 }
+
+/** A bar of barChart(): its label under the axis, its value, and the hover text (default "label: value"). */
+export interface Bar {
+  label: string;
+  value: number;
+  title?: string;
+}
+
+/** Bars over equal slots, labelled every `every` bars (charts.js barChart): a short list, such as the hours of a day. */
+export function barChart(ctx: Ctx, bars: readonly Bar[], { height = 200, color = 'var(--accent)', every = 1, label }: { height?: number; color?: string; every?: number; label?: string } = {}): Safe {
+  if (!bars.length) return raw('');
+  const pad = { l: 8, r: 8, t: 10, b: 24 };
+  const max = Math.max(...bars.map(b => b.value), 1);
+  const slot = (W - pad.l - pad.r) / bars.length;
+  const width = Math.max(2, slot * 0.72);
+  // The chart's text alternative: the caller's summary, or every bar's value (they're short lists: hours, months).
+  const alt = label ?? bars.map(b => `${b.label}: ${ctx.fmt.num(b.value)}`).join(', ');
+  let svg = `<svg class="chart" viewBox="0 0 ${W} ${height}" role="img" aria-label="${escape(alt)}">`;
+  bars.forEach((b, i) => {
+    const h = (b.value / max) * (height - pad.t - pad.b);
+    const bx = pad.l + i * slot + (slot - width) / 2;
+    svg += `<rect class="bar" x="${bx}" y="${height - pad.b - h}" width="${width}" height="${h}" rx="1" style="fill:${color}">` +
+      `<title>${escape(b.title ?? `${b.label}: ${ctx.fmt.num(b.value)}`)}</title></rect>`;
+    if (i % every === 0)
+      svg += `<text x="${bx + width / 2}" y="${height - 8}" text-anchor="middle">${escape(b.label)}</text>`;
+  });
+  return raw(`${svg}</svg>`);
+}

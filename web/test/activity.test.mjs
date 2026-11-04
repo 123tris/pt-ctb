@@ -37,3 +37,19 @@ test('Activity: the feed a page at a time, each filter, recent plays and the wee
     if (data.challenges.weekly) assert.match(String(render(ctx, data, readState(ctx, data, { view: 'week' }))), /<h2>/);
   }
 });
+
+test('Records: every section the data has, drawn in Node', { skip }, async () => {
+  const { render: renderRecords } = await import('../src/views/records.ts');
+  const bytes = fs.readFileSync(path.join(dir, 'packs', 'core.ptcb'));
+  const core = readCore(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const records = json('records.json');
+  const economy = fs.existsSync(path.join(dir, 'economy.json')) ? json('economy.json') : null;
+  const text = makeText('en', {});
+  const now = core.info.generatedAt[0];
+  const ctx = { ...text, fmt: makeFmt(text, { now: () => now }), now: () => now, data: 'https://data.example/', me: null };
+  const page = String(renderRecords(ctx, { core, records, economy }));
+  for (const id of ['legendary', 'first10k', 'collectors', 'when', ...(records.throne ? ['throne'] : []), ...(economy ? ['economy'] : [])]) {
+    assert.ok(page.includes(`id="${id}"`), id);
+  }
+  assert.equal((page.match(/<rect class="bar"/g) ?? []).length, 24, 'a bar per hour');
+});
