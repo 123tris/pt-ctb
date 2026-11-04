@@ -29,7 +29,7 @@ const LOADERS = {
   'player/:id/:tab?': () => import('../web/player.js').catch(() => import('./pages/player.js')),
   'maps': () => import('./pages/maps.js'),
   'map/:id': () => import('./pages/map.js'),
-  'activity': () => import('./pages/activity.js'),
+  'activity': () => import('../web/activity.js').catch(() => import('./pages/activity.js')),
   'challenges/:tab?': () => import('./pages/challenges.js'),
   'games/:game?': () => import('./pages/games.js'),
   'calculator': () => import('../web/calculator.js').catch(() => import('./pages/calculator.js')),

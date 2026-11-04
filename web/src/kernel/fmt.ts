@@ -12,6 +12,8 @@ export interface Fmt {
   rank(n: number | null | undefined): string;
   date(t: number): string;
   dateTime(t: number): string;
+  /** "Wednesday, 4 November". */
+  day(t: number): string;
   /** "Mar 2019", in UTC (monthly points are stamped 00:00 UTC on the 1st, which is still the month before in the Americas). */
   monthYear(t: number): string;
   /** "3 days ago", "yesterday", "just now". */
@@ -48,6 +50,7 @@ export function makeFmt(text: Text, { timeZone, now }: { timeZone?: string; now:
   let dateFormat: Formatter | undefined;
   let dateTimeFormat: Formatter | undefined;
   let monthYearFormat: Formatter | undefined;
+  let dayFormat: Intl.DateTimeFormat | undefined;
   let relative: Intl.RelativeTimeFormat | undefined;
 
   const num = (n: number | null | undefined, digits = 0) => (n === null || n === undefined || Number.isNaN(n) ? '—' : numberFormat(digits).format(n));
@@ -58,6 +61,7 @@ export function makeFmt(text: Text, { timeZone, now }: { timeZone?: string; now:
     rank: n => (n ? `#${num(n)}` : '—'),
     date: t => (dateFormat ??= dateFormatOf({ day: 'numeric', month: 'short', year: 'numeric' })).format(new Date(t * 1000)),
     dateTime: t => (dateTimeFormat ??= dateFormatOf({ day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })).format(new Date(t * 1000)),
+    day: t => (dayFormat ??= new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone })).format(new Date(t * 1000)),
     monthYear: t => (monthYearFormat ??= dateFormatOf({ month: 'short', year: 'numeric', timeZone: 'UTC' })).format(new Date(t * 1000)),
     ago(t) {
       const diff = t - now();
