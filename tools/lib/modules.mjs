@@ -6,7 +6,7 @@ import path from 'node:path';
 
 // `import x from './a.js'`, `export { y } from './b.js'` and `import './c.js'`; not `import('./page.js')`, which is a
 // lazy page load. A match inside a comment at worst preloads a module that exists anyway (missing files are skipped).
-const STATIC = /\bfrom\s*(['"])(\.{1,2}\/[^'"?]+\.js)(?:\?[^'"]*)?\1|\bimport\s+(['"])(\.{1,2}\/[^'"?]+\.js)(?:\?[^'"]*)?\3/g;
+const STATIC = /\bfrom\s*(['"])(\.{1,2}\/[^'"?]+\.js)(?:\?[^'"]*)?\1|\bimport\s*(['"])(\.{1,2}\/[^'"?]+\.js)(?:\?[^'"]*)?\3/g;
 
 /** Every module `entry` loads statically, directly or not, as absolute paths in a stable order (the entry left out). */
 export function staticImports(entry) {

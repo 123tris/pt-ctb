@@ -110,7 +110,7 @@ const preload = [...new Set(entries.flatMap(staticImports))].filter(f => !entrie
 if (/^https?:/.test(CONFIG.data)) preload.push(`<link rel="preconnect" href="${new URL(CONFIG.data).origin}" crossorigin>`);
 edit('index.html', s => s.replace(/^([ \t]*)(<script type="module" src="assets\/js\/moved\.js")/m,
   (_, indent, tag) => `${preload.map(l => `${indent}${l}${s.includes('\r\n') ? '\r\n' : '\n'}`).join('')}${indent}${tag}`));
-const IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"?]+\.js)\2/g;
+const IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)(['"])(\.{1,2}\/[^'"?]+\.js)\2/g;
 for (const file of codeFiles.filter(f => f.endsWith('.js'))) {
   const source = fs.readFileSync(file, 'utf8');
   const versioned = source.replace(IMPORT, `$1$2$3?v=${version}$2`);
