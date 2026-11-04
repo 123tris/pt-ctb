@@ -16,9 +16,9 @@ Ported so far:
 - Activity and Records;
 - the players list, commands, glossary, privacy, how to join and Team Portugal;
 - the maps list (`/maps`), from the search pack: a search takes 1–5 ms instead of 20–60, with the same results in the
-  same order (`test/maps.test.mjs` checks them against the old search's). Its first visit waits for the whole pack
-  (about 850 KB brotli) where the old page drew from maps-top.json (43 KB) and fetched the index on the first search.
-  Drawing the first page from maps-top.json while the pack loads would bring that back.
+  same order (`test/maps.test.mjs` checks them against the old search's). A first visit draws its first page from
+  maps-top.json (43 KB), as the old page did, while the pack (about 850 KB brotli) loads; a repeat visit draws from the
+  pack in the browser's cache.
 
 Still the old client's: challenges (with the Dan course, King of the hill, bounties and completion), games, the
 yearly recap, the shop and admin; then the header, menus, search and sign-in, and the endpoints.
