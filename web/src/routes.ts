@@ -55,6 +55,14 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   // A map: the players, the map's bucket with its details and board, and the open bounties (the set's file comes once
   // the bucket names it).
   { pattern: /^map\/(\d+)$/, first: m => ({ packs: [CORE], json: [mapBucket(Number(m[1])), 'bounties.json'] }) },
+  // The games: Guess the map (daily or practice; old /games/daily links too) from quiz.json, which the paying daily
+  // doesn't need but a visitor signed out does; the map quizzes from the search pack; the hub (and any other address
+  // under /games) and Higher or lower draw players.
+  {
+    pattern: /^games(?:\/([^/]*))?$/,
+    first: m => (m[1] === 'guess' || m[1] === 'daily' ? { packs: [], json: ['quiz.json'] }
+      : m[1] === 'quiz' ? { packs: [SEARCH], json: [] } : { packs: [CORE], json: [] }),
+  },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */
