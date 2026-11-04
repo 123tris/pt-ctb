@@ -32,6 +32,7 @@ export function loadBotData(root) {
     banned: new Set(readJsonOr(path.join(root, 'BannedMaps.json'), [])),
     weekly: loadWeekly(root),
     hill: loadHill(root),
+    duels: loadDuels(root),
     plays: loadPlays(root),
   };
 }
@@ -119,6 +120,39 @@ export function loadHill(root) {
   };
   const months = fs.readdirSync(dir).filter(file => /^\d{4}-\d\d\.json$/.test(file)).map(read).filter(Boolean);
   return { months, current: read('current.json'), crowns: read('crowns.json') };
+}
+
+/**
+ * Duels, as the bot keeps them in Duels/: the ratings (ratings.json `players`, by osu! id), every finished duel with its
+ * rounds (matches/2026-11.json… `duels`, oldest month first) and the duels being played now (state.json's `active`
+ * list, and nothing else from that file: the rest is the bot's own, Discord ids included). tools/lib/duels.mjs copies
+ * what the site shows field by field. Null when there's no Duels/ folder (the bot hasn't started duels); a file that
+ * won't parse is skipped.
+ */
+export function loadDuels(root) {
+  const dir = path.join(root, 'Duels');
+  if (!fs.existsSync(dir)) return null;
+  const read = file => {
+    try {
+      return readJsonOr(path.join(dir, file), null);
+    } catch (e) {
+      console.warn(`  skipped Duels/${file}: ${e.message}`);
+      return null;
+    }
+  };
+  const players = read('ratings.json')?.players;
+  const months = fs.existsSync(path.join(dir, 'matches'))
+    ? fs.readdirSync(path.join(dir, 'matches')).filter(file => /^\d{4}-\d\d\.json$/.test(file)).sort() : [];
+  const matches = months.flatMap(file => {
+    const duels = read(`matches/${file}`)?.duels;
+    return Array.isArray(duels) ? duels : [];
+  });
+  const active = read('state.json')?.active;
+  return {
+    ratings: players && typeof players === 'object' && !Array.isArray(players) ? players : {},
+    matches,
+    active: Array.isArray(active) ? active : [],
+  };
 }
 
 /**

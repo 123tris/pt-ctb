@@ -1,5 +1,5 @@
 import { html, raw } from '../core/html.js';
-import { challenges, bounties, hill, playerIndex, dan, completion, meta } from '../core/data.js';
+import { challenges, bounties, hill, duels, playerIndex, dan, completion, meta } from '../core/data.js';
 import { S, M } from '../core/model.js';
 import {
   setTitle, mapLink, playerLink, scoreStats, ppText, posBadge, catChip, bannerArt, mapText, starsBadge, empty, osuMap, myId,
@@ -13,12 +13,14 @@ import { ANY_STARS, parseStars, formatStars, starsLabel, inStars, isAnyStars } f
 import { starSlider, bindStarSlider } from '../core/star-slider.js';
 import { renderDan, DAN_INTRO } from './dan.js';
 import { renderHill } from './hill.js';
+import { renderDuels } from './duels.js';
+import { experimentalTag } from '../core/duels.js';
 import { timeLeft } from '../core/hill.js';
 import { runningNow, challengeChips } from '../core/challenge-chips.js';
 import * as fmt from '../core/fmt.js';
 import { t, th, tn } from '../core/i18n.js';
 
-// Six sub-pages with their own URLs (/challenges/week, /hill, /dan, /targets, /bounties, /completion). "Dan" keeps the
+// Seven sub-pages with their own URLs (/challenges/week, /hill, /duels, /dan, /targets, /bounties, /completion). "Dan" keeps the
 // community's own word. They're tabs, like the leaderboards', and each tab shows where that challenge stands right now.
 // The week, the month's King of the hill and the bounties are what's on now: a map in more than one of them carries
 // the others' chips (core/challenge-chips.js), here and on its map page.
@@ -26,6 +28,8 @@ const TABS = [
   { slug: 'week', label: t('This week'), intro: th('A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on {activity}.', { activity: html`<a href="/activity?view=week">${t('Activity')}</a>` }) },
   // Only once the export has hill.json (the bot started King of the hill): see `shown` below.
   { slug: 'hill', label: t('King of the hill'), intro: th('A pool of maps each month, one per slot, in an Open and an easier Challenger tier (from November 2026: 6–9★ and 4.5–6.5★). Hold a map’s best play when the month ends to keep its crown. {more}', { more: html`<a href="/glossary?at=crown">${t('How crowns work')}</a>` }) },
+  // Only once the export has duels.json (the bot started duels), like King of the hill.
+  { slug: 'duels', label: t('Duels'), intro: th('Rated 1v1s on random maps of the right difficulty, played in an osu! lobby. Type {command} on the Discord to challenge someone: the bot follows the lobby and scores every round.', { command: html`<code>/duel</code>` }) },
   { slug: 'dan', label: t('Dan course'), intro: DAN_INTRO },
   { slug: 'targets', label: t('Snipe targets'), intro: t('#1s that are begging to be sniped, maps with a single Portuguese player, and maps nobody in Portugal has played yet.') },
   { slug: 'bounties', label: t('Bounties'), intro: t('Prizes the community puts up for hard maps: full combo one, pass it first or take its #1, and the bot announces the claim on Discord.') },
@@ -33,15 +37,16 @@ const TABS = [
 ];
 
 /**
- * Each tab's figure: the map of the week's time left, the month's, Portugal's highest Dan, #1s up for grabs, open
- * bounties, the share cleared.
+ * Each tab's figure: the map of the week's time left, the month's, duels being played, Portugal's highest Dan, #1s up
+ * for grabs, open bounties, the share cleared.
  */
-function tabFigures(data, board, index, goal, month) {
+function tabFigures(data, board, index, goal, month, duelsNow) {
   const left = data.week ? Math.max(0, data.week.end - Date.now() / 1000) : 0;
   const top = topStage(passCounts(index.values()));
   return {
     week: data.week ? (left >= 86400 ? t('{n}d left', { n: Math.floor(left / 86400) }) : t('{n}h left', { n: Math.floor(left / 3600) })) : undefined,
     hill: month?.status === 'live' ? timeLeft(month.end) : undefined,
+    duels: duelsNow?.live ? t('{n} live', { n: fmt.num(duelsNow.live) }) : undefined,
     dan: top >= 0 ? danName(top) : undefined,
     targets: data.beatable.length,
     bounties: board ? board.open.length : undefined,
@@ -99,24 +104,27 @@ function weekSection(week, maps, index, me, now) {
 export default async function challengesPage(root, { params, query, isCurrent }) {
   const asked = params.tab;
   // challenges.json (about 12 KB) and bounties.json (smaller), both cached, come on every tab for the tabs' figures and
-  // chips; meta.json is already loaded, with the King of the hill month in brief. hill.json only comes for its tab.
-  const [data, board, index, danData, goalData, m, crowns, eco] = await Promise.all([
+  // chips; meta.json is already loaded, with the King of the hill month and the duels in brief. hill.json and duels.json
+  // only come for their tabs.
+  const [data, board, index, danData, goalData, m, crowns, eco, duelData] = await Promise.all([
     challenges(), bounties(), playerIndex(), asked === 'dan' ? dan() : null, asked === 'completion' ? completion() : null, meta(),
-    asked === 'hill' ? hill() : null, asked === 'bounties' ? economy().catch(() => null) : null,
+    asked === 'hill' ? hill() : null, asked === 'bounties' ? economy().catch(() => null) : null, asked === 'duels' ? duels() : null,
   ]);
   if (!isCurrent()) return;
-  const shown = TABS.filter(x => x.slug !== 'hill' || m.files?.['hill.json']);
+  const shown = TABS.filter(x => (x.slug !== 'hill' || m.files?.['hill.json']) && (x.slug !== 'duels' || m.files?.['duels.json']));
   const tab = shown.find(x => x.slug === asked) ?? shown[0];
   const goal = tab.slug === 'completion';
   const now = runningNow({ challenges: data, meta: m, bounties: board });
   setTitle(tab.slug === 'week' ? t('Challenges') : `${tab.label} · ${t('Challenges')}`);
   const me = myId();
   const maps = data.maps;
-  const figures = tabFigures(data, board, index, m.completion, m.hill);
+  const figures = tabFigures(data, board, index, m.completion, m.hill, m.duels);
 
   root.innerHTML = String(html`
     ${pageHead({ title: t('Challenges') })}
-    ${tabs(shown.map(x => ({ href: `/challenges/${x.slug}`, label: x.label, count: figures[x.slug], active: x === tab })), t('Challenges'))}
+    ${tabs(shown.map(x => ({
+      href: `/challenges/${x.slug}`, label: x.slug === 'duels' ? html`${x.label} ${experimentalTag()}` : x.label, count: figures[x.slug], active: x === tab,
+    })), t('Challenges'))}
     <p class="muted tabs-intro">${tab.intro}</p>
     <div id="panel">${tab.slug === 'week' ? weekPanel(data, maps, index, me, now) : tab.slug === 'targets' ? targetsPanel(data, maps, index)
       : tab.slug === 'bounties' ? bountiesPanel(board, data, index, now, eco) : ''}</div>
@@ -124,6 +132,7 @@ export default async function challengesPage(root, { params, query, isCurrent })
 
   if (tab.slug === 'bounties' && eco) wireBounties(root, board, eco, isCurrent);
   if (tab.slug === 'hill') renderHill(root.querySelector('#panel'), { hill: crowns, index, me, query, now });
+  if (tab.slug === 'duels') renderDuels(root.querySelector('#panel'), { duels: duelData, index, me, query, generatedAt: m.generatedAt });
   if (tab.slug === 'dan') renderDan(root.querySelector('#panel'), danData, index, query);
   if (goal) renderCompletion(root.querySelector('#panel'), goalData, index, query);
   if (tab.slug === 'week' && data.week) {
@@ -195,6 +204,8 @@ const LEFT_SORTS = {
 };
 const LEFT_PAGE = 50;
 const percent = (n, total) => (total ? (n / total) * 100 : 0);
+/** The UTC year a `left` row's map was ranked (as completion.json's `years` counts it), or null when unknown. */
+const rankedYear = day => (day == null ? null : new Date(day * 86400000).getUTCFullYear());
 
 function leftRow([id, set, version, stars, rankedDay, plays, length], sets) {
   const named = sets[set];
@@ -215,11 +226,115 @@ function leftRow([id, set, version, stars, rankedDay, plays, length], sets) {
   </a>`;
 }
 
+/**
+ * A year's share as the strip's words say it: a whole year cleared is 100%, and anything short of it stops at 99.9%
+ * (99.96% would round up), so the words agree with the column's colour.
+ */
+const yearPct = (cleared, total, digits = 1) => {
+  if (cleared === total) return fmt.num(100, 0);
+  const step = 10 ** -digits;
+  return fmt.num(Math.min(100 - step, Math.round(percent(cleared, total) / step) * step), digits);
+};
+const yearFigures = ([year, total, cleared]) => ({ year, cleared: fmt.num(cleared), total: fmt.num(total), pct: yearPct(cleared, total) });
+const isFull = ([, total, cleared]) => total > 0 && cleared === total;
+/** A year's line under the strip: "2014: all 149 cleared", "2018: 696 of 709 cleared (98.1%)". */
+const yearText = y => (!y[1] ? t('{year}: no ranked maps', { year: y[0] })
+  : isFull(y) ? t('{year}: all {total} cleared', yearFigures(y)) : t('{year}: {cleared} of {total} cleared ({pct}%)', yearFigures(y)));
+/** The unfinished year furthest behind (the lowest share, then the most maps left), for the strip's line at rest. */
+const furthestBehind = years => years.filter(y => y[1] && !isFull(y)).reduce((a, b) => (!a || percent(b[2], b[1]) < percent(a[2], a[1])
+  || (percent(b[2], b[1]) === percent(a[2], a[1]) && b[1] - b[2] > a[1] - a[2]) ? b : a), null);
+
+/**
+ * How far each year's ranked maps are cleared, as a strip of thin columns under the goal's bar: kept short and
+ * unlabelled but for a few years, with one line that names the year furthest behind and, on hover or tap, the year
+ * under the pointer. A year cleared to the last map is gold (an honour, as everywhere on the site), and a year short of
+ * it always keeps a visible gap at the top, so 99% never passes for done and colour isn't the only signal. The line's
+ * small gold square is the legend. Data from before completion.json had `years` shows nothing.
+ */
+function yearStrip(years) {
+  if (!years || years.length < 2) return '';
+  const n = years.length, last = n - 1;
+  const labelled = years.map(([year], i) => i === 0 || i === last || (year % 5 === 0 && i > 2 && i < last - 2));
+  const full = years.filter(isFull).length;
+  const behind = furthestBehind(years);
+  const parts = [
+    full ? html`<span class="goal-years-full"><span class="goal-years-key"></span>${tn(full, '{n} year fully cleared', '{n} years fully cleared')}</span>` : '',
+    behind ? t('furthest behind is {year}, with {cleared} of {total} cleared ({pct}%)', yearFigures(behind)) : t('every year fully cleared'),
+  ].filter(Boolean);
+  return html`<div class="goal-years">
+    <div class="goal-years-cols" role="img" aria-label="${t('Share cleared by year ranked: {years}', { years: years.filter(y => y[1]).map(([y, total, cleared]) => `${y} ${yearPct(cleared, total, 0)}%`).join(', ') })}">
+      ${years.map((y, i) => html`<span class="goal-year${!y[1] ? ' is-none' : isFull(y) ? ' is-full' : ' is-open'}" data-i="${i}" style="--done:${percent(y[2], y[1]).toFixed(1)}%"></span>`)}
+    </div>
+    <div class="goal-years-axis" aria-hidden="true">${years.map(([year], i) => labelled[i] ? html`<span style="left:${(((i + 0.5) / n) * 100).toFixed(2)}%">${year}</span>` : '')}</div>
+    <p class="goal-years-note" aria-hidden="true"><span class="faint">${t('By year ranked:')}</span>
+      <span id="year-rest">${parts.map((part, i) => html`${i ? ' · ' : ''}${part}`)}</span><span id="year-pick" hidden></span></p>
+  </div>`;
+}
+
+/**
+ * The strip's hover and tap. With `choose` (the page has maps left to list), a year that isn't fully cleared also
+ * lists its maps left: a click, or on touch a second tap on the year already picked (the first only names it, as
+ * before). Choosing the chosen year again lists every year. Returns `mark(year)`, which outlines the year listed.
+ */
+function bindYearStrip(panel, years, { chosen = () => null, choose = null } = {}) {
+  const cols = panel.querySelector('.goal-years-cols');
+  if (!cols) return { mark() {} };
+  const rest = panel.querySelector('#year-rest'), picked = panel.querySelector('#year-pick');
+  const open = y => Boolean(choose) && y[1] > y[2];
+  let active = null, touch = false, wasActive = false;
+  const line = col => {
+    const y = years[col.dataset.i];
+    if (!open(y)) return yearText(y);
+    const hint = chosen() === y[0] ? t('its maps left are listed below') : touch ? t('tap again to list its maps left') : t('click to list its maps left');
+    return `${yearText(y)} · ${hint}`;
+  };
+  const show = col => {
+    if (col === active) return;
+    active?.classList.remove('is-active');
+    active = col;
+    cols.classList.toggle('is-pointing', Boolean(col));
+    col?.classList.add('is-active');
+    if (col) picked.textContent = line(col);
+    rest.hidden = Boolean(col);
+    picked.hidden = !col;
+  };
+  // Touch has no hover: a tap picks a year and it stays until the next tap.
+  const pick = e => show(e.target.closest('.goal-year') ?? active);
+  cols.addEventListener('pointermove', pick);
+  cols.addEventListener('pointerdown', e => {
+    touch = e.pointerType !== 'mouse';
+    wasActive = Boolean(active) && e.target.closest('.goal-year') === active;
+    pick(e);
+  });
+  cols.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') show(null); });
+  cols.classList.toggle('is-listable', Boolean(choose));
+  cols.addEventListener('click', e => {
+    const col = e.target.closest('.goal-year');
+    if (!col || !open(years[col.dataset.i]) || (touch && !wasActive)) return;
+    const year = years[col.dataset.i][0];
+    choose(chosen() === year ? null : year);
+    picked.textContent = line(col);
+  });
+  const mark = year => cols.querySelectorAll('.goal-year').forEach((col, i) => col.classList.toggle('is-chosen', years[i][0] === year));
+  mark(chosen());
+  return { mark };
+}
+
+/** completion.json's years with the years between them that ranked nothing as [year, 0, 0], so the strip spaces evenly. */
+function everyYear(years) {
+  if (!years?.length) return years;
+  const by = new Map(years.map(y => [y[0], y]));
+  const out = [];
+  for (let year = years[0][0]; year <= years[years.length - 1][0]; year++) out.push(by.get(year) ?? [year, 0, 0]);
+  return out;
+}
+
 function renderCompletion(panel, goal, index, query) {
   if (!goal) {
     panel.innerHTML = String(empty(t('The completion goal arrives with the next data update.')));
     return;
   }
+  const years = everyYear(goal.years);
   const pct = percent(goal.cleared, goal.total);
   const conv = goal.converts;
   let stars = parseStars(query);
@@ -227,6 +342,12 @@ function renderCompletion(panel, goal, index, query) {
   const sorts = Object.entries(LEFT_SORTS).filter(([, [, , needsLength]]) => timed || !needsLength);
   let sortKey = sorts.some(([k]) => k === query.sort) ? query.sort : 'popular';
   let page = Math.max(0, (Number(query.page) || 1) - 1);
+  const leftByYear = new Map();
+  for (const r of goal.left) {
+    const y = rankedYear(r[4]);
+    if (y !== null) leftByYear.set(y, (leftByYear.get(y) ?? 0) + 1);
+  }
+  let year = leftByYear.has(Number(query.year)) ? Number(query.year) : null;
 
   panel.innerHTML = String(html`
     <section class="goal">
@@ -236,6 +357,7 @@ function renderCompletion(panel, goal, index, query) {
         : th('{cleared} of {total} ranked osu!catch maps cleared', { cleared: html`<b>${fmt.num(goal.cleared)}</b>`, total: html`<b>${fmt.num(goal.total)}</b>` })}</p>
       <div class="goal-bar" role="meter" aria-label="${t('Ranked osu!catch maps cleared')}" aria-valuemin="0" aria-valuemax="${goal.total}"
         aria-valuenow="${goal.cleared}" aria-valuetext="${t('{pct}% cleared', { pct: fmt.num(pct, 1) })}" style="--done:${pct.toFixed(2)}%"><span></span></div>
+      ${yearStrip(years)}
       ${conv?.total ? html`<p class="goal-aside">${t('Converts, the long road: {cleared} of {total} ranked osu!standard maps ({pct}%).', { cleared: fmt.num(conv.cleared), total: fmt.num(conv.total), pct: fmt.num(percent(conv.cleared, conv.total), 1) })}</p>` : ''}
     </section>
 
@@ -259,22 +381,30 @@ function renderCompletion(panel, goal, index, query) {
     </section>` : ''}
 
     <section class="section">
-      <div class="section-head"><h2>${t('Not cleared yet')}</h2><span class="muted small">${t('Ranked maps no Portuguese player has passed.')}</span></div>
+      <div class="section-head" id="left-head"><h2>${t('Not cleared yet')}</h2><span class="muted small">${t('Ranked maps no Portuguese player has passed.')}</span></div>
       ${goal.left.length ? html`
         <div class="toolbar">
           <select class="select" id="left-sort" aria-label="${t('Sort')}">${sorts.map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>
+          ${leftByYear.size ? html`<select class="select" id="left-year" aria-label="${t('Year ranked')}">
+            <option value="">${t('Every year')}</option>
+            ${[...leftByYear].sort((a, b) => a[0] - b[0]).map(([y, n]) => html`<option value="${y}" ${y === year ? raw('selected') : ''}>${t('Ranked in {year} ({n} left)', { year: y, n: fmt.num(n) })}</option>`)}
+          </select>` : ''}
         </div>
         ${starSlider(stars)}
         <p class="result-count" id="left-count"></p>
         <div id="left-list"></div>` : empty(t('Every ranked osu!catch map is cleared. Converts next?'))}
     </section>
   `);
-  if (!goal.left.length) return;
+  if (!goal.left.length) {
+    bindYearStrip(panel, years);
+    return;
+  }
 
   const sort = panel.querySelector('#left-sort');
+  const yearSelect = panel.querySelector('#left-year');
   const count = panel.querySelector('#left-count');
-  const visible = () => goal.left.filter(r => inStars(r[3], stars)).sort(LEFT_SORTS[sortKey][1]);
-  const save = () => writeQuery({ sort: sortKey, stars: formatStars(stars), page: page + 1 }, { sort: 'popular', page: 1 });
+  const visible = () => goal.left.filter(r => inStars(r[3], stars) && (year === null || rankedYear(r[4]) === year)).sort(LEFT_SORTS[sortKey][1]);
+  const save = () => writeQuery({ sort: sortKey, year: year ?? '', stars: formatStars(stars), page: page + 1 }, { sort: 'popular', page: 1 });
   let items = visible();
   const showCount = speak => {
     count.textContent = resultCount(items.length, goal.left.length, 'map');
@@ -283,7 +413,8 @@ function renderCompletion(panel, goal, index, query) {
   const redraw = paginate(panel.querySelector('#left-list'), items, slice => html`<div class="rows">${slice.map(r => leftRow(r, goal.sets))}</div>`, LEFT_PAGE, {
     page,
     onPage: p => { page = p; save(); },
-    empty: () => emptyFiltered(t('No uncleared maps at {stars}.', { stars: starsLabel(stars) })),
+    empty: () => emptyFiltered(year === null ? t('No uncleared maps at {stars}.', { stars: starsLabel(stars) })
+      : t('No uncleared maps ranked in {year} at {stars}.', { year, stars: starsLabel(stars) })),
   });
   showCount(false);
   // A new sort or range starts again from the first page (paginate's redraw, which saves it).
@@ -294,10 +425,25 @@ function renderCompletion(panel, goal, index, query) {
   };
   sort.addEventListener('change', () => { sortKey = sort.value; refilter(); });
   const slider = bindStarSlider(panel, stars, next => { stars = next; refilter(); });
+  // A year from the select or the strip above; the strip also brings the list into view.
+  const setYear = next => {
+    year = next;
+    if (yearSelect) yearSelect.value = year ?? '';
+    strip.mark(year);
+    refilter();
+  };
+  const strip = bindYearStrip(panel, years, {
+    chosen: () => year,
+    choose: next => {
+      setYear(next);
+      if (next !== null) panel.querySelector('#left-head').scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+    },
+  });
+  yearSelect?.addEventListener('change', () => setYear(yearSelect.value ? Number(yearSelect.value) : null));
   panel.querySelector('#left-list').addEventListener('click', e => {
     if (!e.target.closest('[data-clear]')) return;
     stars = [...ANY_STARS];
     slider.set(stars);
-    refilter();
+    setYear(null);
   });
 }

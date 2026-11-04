@@ -7,6 +7,7 @@
 
 import { matchPage, unmoved } from '../assets/js/core/routes.js';
 import { hashedName } from '../assets/js/core/data-name.js';
+import { duelFile } from '../assets/js/core/model.js';
 
 export const SITE = 'PT Catch';
 export const HOME_DESCRIPTION = 'Portugal’s osu!catch community: leaderboards, player profiles, the Dan course, weekly challenges and games.';
@@ -23,6 +24,7 @@ const BOARDS = {
 const CHALLENGES = {
   week: ['Challenges', 'Map of the week, king of the hill, the Dan course, snipe targets, bounties and the completion goal for Portugal’s osu!catch players.'],
   hill: ['King of the hill · Challenges', 'A pool of osu!catch maps each month, one per mod slot, in an Open and a Challenger tier. Hold a map’s best play when the month ends to keep its crown.'],
+  duels: ['Duels · Challenges', 'Rated 1v1 osu!catch duels between Portuguese players, played in osu! lobbies: the ladder, the duels being played and the latest results.'],
   dan: ['Dan course · Challenges', 'Portugal’s osu!catch Dan course: stages of maps to pass in order, each harder than the last.'],
   targets: ['Snipe targets · Challenges', '#1s that are begging to be sniped, maps with a single Portuguese player, and maps nobody in Portugal has played yet.'],
   bounties: ['Bounties · Challenges', 'Prizes Portugal’s osu!catch community puts up for hard maps: full combo one, pass it first or take its #1.'],
@@ -54,6 +56,7 @@ const PAGES = {
   glossary: ['Glossary', 'What the words on PT Catch mean: pp, converts, crowns, snipes, bananas and the rest.'],
   privacy: ['Privacy', 'What PT Catch counts about visits, what it never records, and how to see or delete it.'],
   recap: ['Recap', 'A Portuguese osu!catch player’s year in plays, #1s and milestones.'],
+  duel: ['Duel', 'A rated 1v1 osu!catch duel between two Portuguese players, round by round.'],
 };
 
 /**
@@ -82,6 +85,9 @@ export function describe(pathname) {
   if (section === 'recap') {
     return { ...pair(PAGES.recap), ...(isId(params.id) && { kind: 'recap', id: Number(params.id), year: isId(params.year) ? Number(params.year) : null }) };
   }
+  if (section === 'duel') {
+    return { ...pair(PAGES.duel), ...(isId(params.id) && Number(params.id) > 0 && { kind: 'duel', id: Number(params.id) }) };
+  }
   if (section === 'compare') {
     return { ...pair(PAGES.compare), ...(isId(params.a) && { kind: 'compare', a: Number(params.a), b: isId(params.b) ? Number(params.b) : null }) };
   }
@@ -100,10 +106,10 @@ function playerLine(p) {
 
 /**
  * The preview with what the data says about its subject. `data` has what was fetched for `embed.kind`:
- * `players` (players.json's list) and, for a map, `map` (its entry in maps/<id % 128>.json). Missing data leaves the
- * address-only text.
+ * `players` (players.json's list), for a map `map` (its entry in maps/<id % 128>.json) and for a duel `duel` (its
+ * entry in duels/<n>.json). Missing data leaves the address-only text.
  */
-export function withData(embed, { players = null, map = null } = {}) {
+export function withData(embed, { players = null, map = null, duel = null } = {}) {
   if (!embed?.kind) return embed;
   const byId = new Map((Array.isArray(players) ? players : []).map(p => [p.id, p]));
   const out = { ...embed };
@@ -132,6 +138,19 @@ export function withData(embed, { players = null, map = null } = {}) {
       out.image = avatarUrl(a.id);
     }
   }
+  if (embed.kind === 'duel' && Array.isArray(duel?.players) && duel.players.length === 2) {
+    const [a, b] = duel.players.map(s => byId.get(s.u)?.name ?? s.name);
+    const [pa, pb] = duel.players.map(s => s.pts);
+    out.title = `${a} vs ${b} · ${SITE}`;
+    const format = [duel.ranked ? 'ranked' : 'unranked', duel.bestOf ? `best of ${duel.bestOf}` : ''].filter(Boolean).join(' ');
+    const stars = Array.isArray(duel.stars) ? ` at ${num(duel.stars[0], 1)}–${num(duel.stars[1], 1)}★` : '';
+    const winner = duel.players.find(s => s.u === duel.winner);
+    const result = duel.status === 'abandoned' ? `${a} and ${b}’s ${format} osu!catch duel${stars} was abandoned at ${pa}–${pb}.`
+      : winner ? `${winner === duel.players[0] ? a : b} beat ${winner === duel.players[0] ? b : a} ${Math.max(pa, pb)}–${Math.min(pa, pb)}${duel.status === 'forfeit' ? ' by forfeit' : ''} in a ${format} osu!catch duel${stars}.`
+        : `${a} against ${b}, ${pa}–${pb}, in a ${format} osu!catch duel${stars}.`;
+    out.description = `${result} Every round, map by map.`;
+    if (winner) out.image = avatarUrl(winner.u);
+  }
   if (embed.kind === 'map' && map?.m) {
     const [artist, title, version, set, stars, , , , , , , , , , creator] = map.m;
     const scores = Array.isArray(map.s) ? map.s : [];
@@ -158,8 +177,9 @@ export async function dataFor(embed, base, fetchJson) {
     const meta = await fetchJson(new URL('meta.json', base).href);
     const file = path => (meta?.files?.[path] ? new URL(hashedName(path, meta.files[path]), base).href : null);
     const get = path => (file(path) ? fetchJson(file(path)).catch(() => null) : null);
-    const [players, bucket] = await Promise.all([get('players.json'), embed.kind === 'map' ? get(`maps/${embed.id % 128}.json`) : null]);
-    return { players, map: bucket?.[embed.id] ?? null };
+    const [players, bucket] = await Promise.all([get('players.json'), embed.kind === 'map' ? get(`maps/${embed.id % 128}.json`)
+      : embed.kind === 'duel' ? get(duelFile(embed.id)) : null]);
+    return { players, map: embed.kind === 'map' ? bucket?.[embed.id] ?? null : null, duel: embed.kind === 'duel' ? bucket?.duels?.[embed.id] ?? null : null };
   } catch {
     return {};
   }

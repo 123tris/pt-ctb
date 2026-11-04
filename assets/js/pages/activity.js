@@ -10,7 +10,7 @@ import { t, tn } from '../core/i18n.js';
 /** The feed's filters: [key, label, the event kinds it shows]. */
 const FILTERS = [
   ['plays', t('Plays'), ['snipe', 'top', 'dan']],
-  ['challenges', t('Challenges'), ['crown', 'bounty', 'post']],
+  ['challenges', t('Challenges'), ['crown', 'duel', 'bounty', 'post']],
   ['boards', t('Leaderboards'), ['pass', 'mile', 'join']],
   ['tips', t('Tips'), ['tip']],
 ];

@@ -11,6 +11,7 @@ export const PAGES = [
   'map/:id',
   'activity',
   'challenges/:tab?',
+  'duel/:id',
   'games/:game?',
   'calculator',
   'compare/:a?/:b?',

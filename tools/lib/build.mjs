@@ -12,6 +12,7 @@ import { completion, homeGoal } from './completion.mjs';
 import { starKings } from './star-kings.mjs';
 import { hillBlock, hillNow } from './hill.mjs';
 import { bountyBoard } from './bounties.mjs';
+import { duelsBlock, duelMapIds } from './duels.mjs';
 import { economyBlock, unlocks } from './economy.mjs';
 import { adminFile } from './admin.mjs';
 
@@ -266,6 +267,7 @@ export function neededMapIds(bot, homeCountry) {
     add(p.top_scores); add(p.community_scores); add(p.mod_scores);
   }
   for (const m of [bot.hill?.current, ...(bot.hill?.months ?? [])]) for (const s of m?.slots ?? []) if (s?.beatmapId) ids.add(s.beatmapId);
+  for (const id of duelMapIds(bot.duels)) ids.add(id);
   // Bounties can be on maps nobody here has played (a first pass).
   for (const b of bot.bounties || []) if (Number.isSafeInteger(b?.map)) ids.add(b.map);
   return ids;
@@ -514,6 +516,16 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
   if (hill.file) for (const id of hill.mapIds) hill.file.maps[id] = mapTuple(id) ?? hill.file.maps[id];
   for (const [id, crowns] of hill.profiles) if (playerFiles[id]) playerFiles[id].crowns = crowns;
 
+  // ---- Duels ---------------------------------------------------------------------------------------------------------
+  // Rated 1v1s (tools/lib/duels.mjs): duels.json for Challenges' Duels tab, a file per hundred duels for their own pages,
+  // each duelist's rating and last duels on their profile, and ranked results in the Activity feed. Nothing until the
+  // bot writes a Duels/ folder.
+
+  const duels = duelsBlock(bot.duels, id => people.has(id));
+  if (duels.file) for (const id in duels.file.maps) duels.file.maps[id] = mapTuple(Number(id));
+  for (const page of Object.values(duels.pages)) for (const id in page.maps) page.maps[id] = mapTuple(Number(id));
+  for (const [id, slice] of duels.profiles) if (playerFiles[id]) playerFiles[id].duels = slice;
+
   // ---- Map buckets + search index -------------------------------------------------------------------------------
 
   // The "played before ranked" list per map: [uid, ...tuple], best score first. Not a board - nothing is ranked on it.
@@ -688,7 +700,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
 
   // The competitive layer's moments: crowns taken on King of the hill and its months' Kings (hill.mjs), and bounties
   // claimed after they were posted. They name a map (`m`) rather than carry a play.
-  for (const e of hill.events) if (e.t >= since) derived.push(e);
+  for (const e of [...hill.events, ...duels.events]) if (e.t >= since) derived.push(e);
   for (const [map, cat, goal, status, uid, at, , , , , , payout] of board.file.hall) {
     if (status === 'claimed' && at >= since) derived.push({ t: at, k: 'bounty', u: uid, m: map, c: cat, g: goal, ...(payout ? { a: payout } : {}) });
   }
@@ -1020,6 +1032,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       scores, top, dan: file.dan,
       ...(pre ? { pre } : {}),
       ...(file.crowns ? { crowns: file.crowns } : {}),
+      ...(file.duels ? { duels: file.duels } : {}),
       ...(file.pinned ? { pinned: file.pinned } : {}),
       ...(file.ledger ? { ledger: file.ledger } : {}),
       maps: Object.fromEntries([...shown.map(t => t[S.MAP]), ...(file.pinned ? [file.pinned[S.MAP + 1]] : [])].sort((a, b) => a - b)
@@ -1049,6 +1062,8 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
     completion: homeGoal(goal.file),
     // King of the hill's running month in brief (hill.mjs hillNow), or null.
     hill: hillNow(hill.file),
+    // Duels in brief (duels.mjs summary): how many are being played now, rated players, duels in all; null before them.
+    duels: duels.summary,
     // The map of the week in brief, for the map page's chip, so it doesn't load challenges.json for it.
     week: challenges.week ? { map: challenges.week.map, end: challenges.week.end } : null,
   };
@@ -1087,6 +1102,7 @@ export function build({ bot, beatmaps, homeCountry, now, state: previous, pastOf
       'completion.json': goal.file,
       'quiz.json': quiz,
       ...(hill.file ? { 'hill.json': hill.file } : {}),
+      ...(duels.file ? { 'duels.json': duels.file, ...duels.pages } : {}),
       ...(economy.file ? { 'economy.json': economy.file } : {}),
       // The admin panel's settings and log (admin.mjs), only once the bot writes Admin/panel.json.
       ...(admin ? { 'admin.json': admin } : {}),

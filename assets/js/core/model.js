@@ -39,6 +39,12 @@ export const HILL_SLOTS = ['NM', 'HD', 'HR', 'DT', 'FM', 'CV'];
 export const HILL_MOD_STARS = ['HR', 'DT'];
 export const HILL_TIERS = ['open', 'challenger'];
 
+/** Duels (tools/lib/duels.mjs): a rating is provisional while its deviation is this or more (about the first five duels). */
+export const DUEL_PROVISIONAL_RD = 110;
+/** Duel ids per duels/<n>.json, the file a duel's own page reads: duel 1234 is in duels/12.json. */
+export const DUELS_PER_FILE = 100;
+export const duelFile = id => `duels/${Math.floor(id / DUELS_PER_FILE)}.json`;
+
 /** Tris: the player whose #1s the records page dares everyone to take (he keeps asking to be sniped). */
 export const THRONE_PLAYER = 3821475;
 

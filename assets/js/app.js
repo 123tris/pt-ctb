@@ -31,6 +31,7 @@ const LOADERS = {
   'map/:id': () => import('../web/map.js').catch(() => import('./pages/map.js')),
   'activity': () => import('../web/activity.js').catch(() => import('./pages/activity.js')),
   'challenges/:tab?': () => import('../web/challenges.js').catch(() => import('./pages/challenges.js')),
+  'duel/:id': () => import('./pages/duel.js'),
   'games/:game?': () => import('../web/games.js').catch(() => import('./pages/games.js')),
   'calculator': () => import('../web/calculator.js').catch(() => import('./pages/calculator.js')),
   'compare/:a?/:b?': () => import('../web/compare.js').catch(() => import('./pages/compare.js')),
@@ -141,6 +142,7 @@ async function route({ newPage = false, newView = false } = {}) {
     console.error(e);
     if (e instanceof NotFound) {
       if (section === 'player' || section === 'recap') showError(t('Never heard of them!'), t('There’s no Portuguese player with this id. They may not be tracked yet, or the link has a typo.'), { newPage, players: true });
+      else if (section === 'duel') showError(t('No such duel'), t('There’s no duel with this number. It may not be in the data yet, or the link has a typo.'), { newPage });
       else showError(t('Not found'), t('There’s no data for this. The map may not be tracked yet.'), { newPage });
     }
     else {

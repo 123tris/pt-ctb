@@ -109,6 +109,8 @@ function setTitles(maps) {
  *   total, cleared        ranked catch-specific maps, and how many of them are cleared
  *   converts              { total, cleared }, the same for ranked converts
  *   players               how many players have cleared at least one of the maps
+ *   years                 [[year, total, cleared]]: the same per year the maps were ranked (UTC), oldest first; maps
+ *                         without a ranked date are only in the totals
  *   recent                [[mapId, userId, time]]: the latest first clears, newest first
  *   sole                  [[userId, maps]]: the most maps only that player has cleared
  *   maps                  { mapId: beatmap tuple } for `recent` (filled in by build.mjs)
@@ -159,6 +161,16 @@ export function completion({ bot, beatmaps, homeCountry, previous = {}, extraTit
     if (title) sets[raw.beatmapset_id] = title.slice(0, 2);
   }
 
+  const years = new Map();
+  for (const raw of specifics) {
+    const ranked = rankedAt(raw);
+    if (ranked === null) continue;
+    const year = new Date(ranked * 1000).getUTCFullYear();
+    const row = years.get(year) ?? years.set(year, [year, 0, 0]).get(year);
+    row[1]++;
+    if (firsts[raw.beatmap_id]) row[2]++;
+  }
+
   const recent = Object.entries(firsts)
     .filter(([, [, t]]) => t > 0)
     .map(([id, [uid, t]]) => [Number(id), uid, t])
@@ -170,6 +182,7 @@ export function completion({ bot, beatmaps, homeCountry, previous = {}, extraTit
     cleared: Object.keys(firsts).length,
     converts: { total: converts.length, cleared: converts.filter(raw => byMap.has(raw.beatmap_id)).length },
     players: contributors.size,
+    years: [...years.values()].sort((a, b) => a[0] - b[0]),
     recent,
     sole: [...sole].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, SOLE),
     maps: {},

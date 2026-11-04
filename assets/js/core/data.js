@@ -7,6 +7,7 @@
 import { CONFIG } from '../config.js';
 import { decodeMapsSearch, decodeSearchMaps } from './maps-search.js';
 import { hashedName } from './data-name.js';
+import { duelFile } from './model.js';
 
 const cache = new Map();
 let metaPromise = null;
@@ -105,6 +106,19 @@ export const completion = () => load('completion.json').catch(e => (e instanceof
  * none (the bot hasn't started it).
  */
 export const hill = async () => ((await meta()).files?.['hill.json'] ? load('hill.json') : null);
+/**
+ * Duels (tools/lib/duels.mjs): { ladder, live, recent, total, maps }; null when the export has none (the bot hasn't
+ * started them).
+ */
+export const duels = async () => ((await meta()).files?.['duels.json'] ? load('duels.json') : null);
+/** One duel and its maps, { duel, maps }, from its file (duels/<n>.json, model.js duelFile); NotFound for no such duel. */
+export async function duel(id) {
+  const path = duelFile(id);
+  if (!(await meta()).files?.[path]) throw new NotFound(path);
+  const file = await load(path);
+  if (!file.duels[id]) throw new NotFound(path);
+  return { duel: file.duels[id], maps: file.maps };
+}
 export const quiz = () => load('quiz.json');
 export const history = () => load('history.json');
 
