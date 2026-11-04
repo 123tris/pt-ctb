@@ -9,6 +9,8 @@ export { NotFound } from '../../../assets/js/core/data.js';
 export {
   announce, writeQuery, readQuery, setTitle, myId, prefs, go, here, openSearch, scrollBehavior, reducedMotion,
 } from '../../../assets/js/core/ui.js';
+// The usage counts' switch in this browser (the privacy page).
+export { trackingBlock, optOut, optIn } from '../../../assets/js/core/track.js';
 
 /** The Portuguese strings (already loaded by the old app when the page is in Portuguese). */
 export const portuguese = () => import('../../../assets/js/core/pt.js').then(m => m.PT);
