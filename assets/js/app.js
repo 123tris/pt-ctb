@@ -25,7 +25,7 @@ import { here, go } from './core/ui.js';
 const LOADERS = {
   '': () => import('./pages/home.js'),
   'rankings/:board?': () => import('../web/rankings.js').catch(() => import('./pages/rankings.js')),
-  'players': () => import('./pages/players.js'),
+  'players': () => import('../web/players.js').catch(() => import('./pages/players.js')),
   'player/:id/:tab?': () => import('./pages/player.js'),
   'maps': () => import('./pages/maps.js'),
   'map/:id': () => import('./pages/map.js'),
@@ -38,11 +38,11 @@ const LOADERS = {
   'shop': () => import('./pages/shop.js'),
   'admin': () => import('./pages/admin.js'),
   'recap/:id/:year?': () => import('./pages/wrapped.js'),
-  'commands': () => import('./pages/commands.js'),
-  'join': () => import('./pages/join.js'),
-  'team': () => import('./pages/team.js'),
-  'glossary': () => import('./pages/glossary.js'),
-  'privacy': () => import('./pages/privacy.js'),
+  'commands': () => import('../web/commands.js').catch(() => import('./pages/commands.js')),
+  'join': () => import('../web/join.js').catch(() => import('./pages/join.js')),
+  'team': () => import('../web/team.js').catch(() => import('./pages/team.js')),
+  'glossary': () => import('../web/glossary.js').catch(() => import('./pages/glossary.js')),
+  'privacy': () => import('../web/privacy.js').catch(() => import('./pages/privacy.js')),
 };
 
 function match(path) {
