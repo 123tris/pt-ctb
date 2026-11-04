@@ -21,6 +21,7 @@ public sealed partial class Build
             .Set("totals", records["totals"])
             .Set("completion", HomeGoal())
             .Set("hill", HillNow())
+            .Set("duels", duelsSummary)
             .Set("week", week.Truthy ? JsNode.Object().Set("map", week["map"]).Set("end", week["end"]) : JsNode.NullValue);
 
         var boardsNode = JsNode.Object();
@@ -95,6 +96,15 @@ public sealed partial class Build
         if (hillFile != null)
         {
             jobs.Add(("hill.json", w => NodeBytes(hillFile, w)));
+        }
+        if (duelsFile != null)
+        {
+            // duels.json, then a file per hundred duel ids (duels/<n>.json), newest duel's file first.
+            jobs.Add(("duels.json", w => NodeBytes(duelsFile, w)));
+            foreach (var (name, page) in JsNode.OrderedProps(duelPages))
+            {
+                jobs.Add((name, w => NodeBytes(page, w)));
+            }
         }
         if (economyFile != null)
         {

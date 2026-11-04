@@ -102,6 +102,26 @@ public sealed partial class Build
         return first.Value;
     }
 
+    /// <summary>
+    /// completion.json's <c>years</c>: [year, total, cleared] by the UTC year each map was ranked (its ranked time in unix
+    /// seconds, NaN for none), oldest first; a map without a ranked date is only in the totals.
+    /// </summary>
+    internal static JsNode CompletionYears(IEnumerable<(double RankedAt, bool Cleared)> specifics)
+    {
+        var years = new SortedDictionary<long, (int Total, int Cleared)>();
+        foreach (var (ranked, isCleared) in specifics)
+        {
+            if (double.IsNaN(ranked))
+            {
+                continue;
+            }
+            var year = JsDate.CivilFromDays((long)Math.Floor(ranked / Day)).Year;
+            var (total, cleared) = years.GetValueOrDefault(year);
+            years[year] = (total + 1, cleared + (isCleared ? 1 : 0));
+        }
+        return ArrayOf(years.Select(y => JsNode.ArrayOf(JsNode.Num(y.Key), JsNode.Num(y.Value.Total), JsNode.Num(y.Value.Cleared))));
+    }
+
     /// <summary>The completion goal (completion.mjs completion and homeGoal), and its maps' pages.</summary>
     private void BuildCompletion()
     {
@@ -238,6 +258,7 @@ public sealed partial class Build
         {
             setsNode.Set(set.ToString(), JsNode.ArrayOf(JsNode.Str(artist), JsNode.Str(title)));
         }
+        var yearsNode = CompletionYears(specifics.Select(row => (maps.RankedAt(row), firsts.ContainsKey(maps.Id[row]))));
         var mapsNode = JsNode.Object();
         foreach (var id in recent.Select(r => r.Id).OrderBy(id => id))
         {
@@ -248,6 +269,7 @@ public sealed partial class Build
             .Set("cleared", firsts.Count)
             .Set("converts", JsNode.Object().Set("total", converts.Count).Set("cleared", converts.Count(row => byMap.ContainsKey(maps.Id[row]))))
             .Set("players", contributors.Count)
+            .Set("years", yearsNode)
             .Set("recent", ArrayOf(recent.Select(r => JsNode.ArrayOf(JsNode.Num(r.Id), r.Uid, r.Time))))
             .Set("sole", ArrayOf(sole.Take(CompletionSole).Select(s => JsNode.ArrayOf(JsNode.Num(s.Uid), JsNode.Num(s.N)))))
             .Set("maps", mapsNode)

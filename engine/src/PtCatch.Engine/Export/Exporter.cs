@@ -204,7 +204,7 @@ public static class Exporter
         Stage("hash and write");
 
         var keep = new HashSet<string>(files.Select(f => f.Name).Concat(avatars.Files.Select(f => f.Name)), StringComparer.Ordinal);
-        foreach (var folder in new[] { "players", "maps", "sets", "avatars" })
+        foreach (var folder in new[] { "players", "maps", "sets", "duels", "avatars" })
         {
             var dir = Path.Combine(outDir, folder);
             if (!Directory.Exists(dir))

@@ -203,6 +203,19 @@ public sealed class BotData
     public EconomyData Economy;
     /// <summary>Admin/panel.json, or null.</summary>
     public JsNode AdminPanel;
+    /// <summary>Duels (Duels/), or null when the bot has no Duels folder.</summary>
+    public DuelsData Duels;
+}
+
+/// <summary>The bot's duel files as source.mjs loadDuels reads them; tools/lib/duels.mjs's port copies what the site shows.</summary>
+public sealed class DuelsData
+{
+    /// <summary>ratings.json's <c>players</c>, by osu! id (an empty object when it isn't one).</summary>
+    public JsNode Ratings = JsNode.Object();
+    /// <summary>Every month file's <c>duels</c> items as they are, oldest month first.</summary>
+    public readonly List<JsNode> Matches = new();
+    /// <summary>state.json's <c>active</c> items as they are (nothing else from that file).</summary>
+    public readonly List<JsNode> Active = new();
 }
 
 public sealed class HillData

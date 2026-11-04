@@ -91,8 +91,8 @@ public sealed partial class Build
             }
         }
 
-        // King of the hill's crowns, and bounties claimed after they were posted.
-        foreach (var e in hillEvents)
+        // King of the hill's crowns, duel results, and bounties claimed after they were posted.
+        foreach (var e in hillEvents.Concat(duelEvents))
         {
             if (e["t"].ToNumber() >= since)
             {

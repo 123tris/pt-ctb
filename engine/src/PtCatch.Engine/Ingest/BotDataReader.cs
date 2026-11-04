@@ -82,6 +82,7 @@ public static class BotDataReader
         }
         LoadWeekly(root, bot, warn);
         LoadHill(root, bot, warn);
+        bot.Duels = LoadDuels(root, warn);
         LoadPlays(root, bot, warn);
         LoadBounties(root, bot, warn);
         LoadEconomy(root, bot, warn);
@@ -356,6 +357,77 @@ public static class BotDataReader
         hill.Current = Read("current.json");
         hill.Crowns = Read("crowns.json");
         bot.Hill = hill;
+    }
+
+    /// <summary>
+    /// Duels (source.mjs loadDuels): ratings.json's <c>players</c>, every month file's <c>duels</c> (matches/2026-11.json…,
+    /// oldest first) and state.json's <c>active</c> list, nothing else from that file (the rest is the bot's own, Discord
+    /// ids included). Null when there's no Duels folder; a file that won't parse is skipped.
+    /// </summary>
+    internal static DuelsData LoadDuels(string root, Action<string> warn)
+    {
+        var dir = Path.Combine(root, "Duels");
+        if (!Directory.Exists(dir) && !File.Exists(dir))
+        {
+            return null;
+        }
+        JsNode Read(string file)
+        {
+            var path = Path.Combine(dir, file);
+            try
+            {
+                return File.Exists(path) ? ParseWhole(File.ReadAllBytes(path)) : JsNode.NullValue;
+            }
+            catch (Exception e) when (e is JsonException or IOException or InvalidOperationException or FormatException or UnauthorizedAccessException)
+            {
+                warn?.Invoke($"  skipped Duels/{file}: {e.Message}");
+                return JsNode.NullValue;
+            }
+        }
+        var duels = new DuelsData();
+        var players = Read("ratings.json")["players"];
+        if (players.IsObject)
+        {
+            duels.Ratings = players;
+        }
+        var matchesDir = Path.Combine(dir, "matches");
+        // The month files ("2026-11.json"), in JavaScript's default sort (by code unit).
+        var months = Directory.Exists(matchesDir)
+            ? Directory.GetFiles(matchesDir).Select(Path.GetFileName).Where(IsMonthFile).OrderBy(f => f, StringComparer.Ordinal).ToList()
+            : new List<string>();
+        foreach (var file in months)
+        {
+            var list = Read($"matches/{file}")["duels"];
+            if (list.IsArray)
+            {
+                duels.Matches.AddRange(list.Items);
+            }
+        }
+        var active = Read("state.json")["active"];
+        if (active.IsArray)
+        {
+            duels.Active.AddRange(active.Items);
+        }
+        return duels;
+    }
+
+    /// <summary>"2026-11.json" (<c>/^\d{4}-\d\d\.json$/</c>).</summary>
+    private static bool IsMonthFile(string file) =>
+        file.Length == 12 && file.EndsWith(".json", StringComparison.Ordinal) && char.IsAsciiDigit(file[0]) && char.IsAsciiDigit(file[1]) &&
+        char.IsAsciiDigit(file[2]) && char.IsAsciiDigit(file[3]) && file[4] == '-' && char.IsAsciiDigit(file[5]) && char.IsAsciiDigit(file[6]);
+
+    /// <summary>JSON.parse of a whole file: as <see cref="JsNode.Parse(ReadOnlySpan{byte})"/>, but anything after the value fails.</summary>
+    internal static JsNode ParseWhole(ReadOnlySpan<byte> utf8)
+    {
+        utf8 = SkipBom(utf8);
+        var reader = new Utf8JsonReader(utf8, new JsonReaderOptions { MaxDepth = 256 });
+        reader.Read();
+        var node = JsNode.Read(ref reader);
+        if (reader.Read())
+        {
+            throw new JsonException("Unexpected data after the JSON value");
+        }
+        return node;
     }
 
     private static void LoadPlays(string root, BotData bot, Action<string> warn)

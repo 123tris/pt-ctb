@@ -148,6 +148,11 @@ public sealed partial class Build
                 w.Key("crowns");
                 w.Node(file.Crowns);
             }
+            if (file.Duels != null)
+            {
+                w.Key("duels");
+                w.Node(file.Duels);
+            }
             if (file.Pinned is var (pinCat, pinTuple))
             {
                 w.Key("pinned");
