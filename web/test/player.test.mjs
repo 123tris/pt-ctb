@@ -18,6 +18,7 @@ import { lineChart } from '../src/ui/charts.ts';
 import { render, readState, countsOf, TAB_LIST, historyPoints, historyRanges, historyLines } from '../src/views/player.ts';
 import { firstData } from '../src/routes.ts';
 import { PT } from '../../assets/js/core/pt.js';
+import { duelData, OFF } from './duel-data.mjs';
 import * as oldBadges from '../../assets/js/core/badges.js';
 import * as oldCharts from '../../assets/js/core/charts.js';
 
@@ -42,15 +43,18 @@ const ctxFor = (lang, { me = null } = {}) => {
   return { ...text, fmt: makeFmt(text, { now: () => now }), now: () => now, data: 'https://data.example/', me };
 };
 const fileOf = (id, { full = false } = {}) => json(`players/${id}${full ? '' : '-head'}.json`);
-const dataFor = (id, { full = false, history = null } = {}) => {
+/** The page's data, as entries/player.ts loads it; `duels` puts a duels slice in the player's file (null: none). */
+const dataFor = (id, { full = false, history = null, duels } = {}) => {
   const c = coreOf();
+  const file = fileOf(id, { full });
+  if (duels !== undefined) file.duels = duels ?? undefined;
   return {
-    id, core: c, row: rowOf(c.players, id), file: fileOf(id, { full }), records: full ? json('records.json') : null,
+    id, core: c, row: rowOf(c.players, id), file, records: full ? json('records.json') : null,
     bounties: json('bounties.json'), economy: json('economy.json'), history,
   };
 };
-const draw = (id, { tab, query = {}, full = false, history = null, chartOpen = false, lang = 'en', me = null, signInHere = true } = {}) =>
-  String(render(ctxFor(lang, { me }), dataFor(id, { full, history }), readState({ id: String(id), tab }, query, { chartOpen, signInHere })));
+const draw = (id, { tab, query = {}, full = false, history = null, duels, chartOpen = false, lang = 'en', me = null, signInHere = true } = {}) =>
+  String(render(ctxFor(lang, { me }), dataFor(id, { full, history, duels }), readState({ id: String(id), tab }, query, { chartOpen, signInHere })));
 
 /** The plays on the page's list: [map id, category chip or ''] per row. */
 const rowsOf = page => {
@@ -190,6 +194,69 @@ test('around the lists: the head’s stats, badges, signature map and trophies',
   }
   assert.match(draw(29380292), /<section class="section card trophies">[\s\S]*Holding this month: Convert \(Open\), Convert \(Challenger\)\./);
   assert.doesNotMatch(draw(16829812), /card trophies/);
+});
+
+test('duels: the rating, the place and the record, the latest duels, and who they’ve played most', { skip }, () => {
+  const c = coreOf();
+  const ids = Array.from({ length: c.players.rows }, (_, i) => c.players.id[i]).filter(id => fs.existsSync(path.join(dir, `players/${id}-head.json`)));
+  const { block, a, b, c: newcomer, d } = duelData(ids.slice(0, 60), c.info.generatedAt[0]);
+  const ctx = ctxFor('en');
+  const sectionOf = page => page.match(/<section class="section card duels-card">[\s\S]*?\n {2}<\/section>/)?.[0] ?? '';
+  const nameOf = id => c.players.name.at(rowOf(c.players, id));
+  const esc = s => s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+
+  // A rated player with many duels: the standing in one line, five duels and the rest folded, the three most played.
+  const mine = block.profiles.get(a);
+  const page = draw(a, { duels: mine });
+  const card = sectionOf(page);
+  assert.ok(page.indexOf('duels-card') > page.indexOf('<header class="profile-head">'));
+  assert.ok(page.indexOf('duels-card') < page.indexOf('id="history"'));
+  assert.match(card, /<h2 class="card-h">Duels <span class="legend-tag exp-tag">Experimental<\/span><\/h2>/);
+  const r = mine.rating;
+  const standing = [
+    `<span><b class="duel-big">${ctx.fmt.num(r.r)}</b> rating</span>`, `<a href="/challenges/duels">#${r.rank} on the ladder</a>`,
+    `${ctx.fmt.plural(r.w, 'win')}, ${ctx.fmt.plural(r.l, 'loss', 'losses')}`, `peak ${ctx.fmt.num(r.peak)}`, ctx.tn(r.streak, '{n} win in a row', '{n} wins in a row'),
+  ];
+  assert.ok(card.includes(`<p class="duel-standing">${standing.join('<span class="sep-dot" aria-hidden="true"> · </span>')}</p>`));
+  const rows = [...card.matchAll(/<a class="row card-link duel-mine ([^"]*)" href="\/duel\/(\d+)">([\s\S]*?)<\/a>/g)];
+  assert.deepEqual(rows.map(m => Number(m[2])), mine.recent.map(x => x.id));
+  assert.ok(mine.recent.length > 5);
+  assert.ok(card.includes(`<details class="duel-more"><summary>Show ${mine.recent.length - 5} more</summary>`));
+  assert.equal(card.indexOf(`href="/duel/${mine.recent[5].id}"`) > card.indexOf('<details'), true);
+  rows.forEach(([, cls, , row], i) => {
+    const x = mine.recent[i];
+    assert.equal(cls.trim(), x.res === 'x' ? 'duel-muted' : '');
+    assert.ok(row.includes(`<span class="duel-result duel-result-${x.res}">${{ w: 'Won', l: 'Lost', x: 'Abandoned' }[x.res]}</span>`));
+    assert.ok(row.includes(`<b>${x.s[0]}–${x.s[1]}</b>`));
+    assert.equal(row.includes('· Forfeit'), Boolean(x.ff));
+    if (x.d !== undefined) assert.ok(row.includes(`<span title="Rating change"><span class="duel-delta">${x.d > 0 ? '+' : x.d < 0 ? '−' : '±'}${Math.abs(x.d)}</span></span>`));
+    else assert.equal(row.includes('<span>Unranked</span>'), !x.ranked);
+  });
+  // Against someone the site doesn't list: their id.
+  assert.ok(card.includes(`vs <span class="">#${OFF}</span>`));
+  const most = card.match(/<p class="small muted mt-2">Most played: ([\s\S]*?)<\/p>/)[1];
+  assert.deepEqual([...most.matchAll(/<a href="\/player\/(\d+)">/g)].map(m => Number(m[1])), mine.h2h.slice(0, 3).map(h => h[0]));
+  assert.ok(most.includes(`${esc(nameOf(b))}</span></a> ${mine.h2h.find(h => h[0] === b)[1]}–${mine.h2h.find(h => h[0] === b)[2]}`));
+
+  // A provisional rating: the tag instead of a place; no peak above it, no streak words for none.
+  const prov = sectionOf(draw(newcomer, { duels: block.profiles.get(newcomer) }));
+  assert.match(prov, /<p class="duel-standing"><span><b class="duel-big">1,700<\/b> rating<\/span><span class="sep-dot" aria-hidden="true"> · <\/span><button type="button" class="legend-tag" data-tip="Fewer than about five ranked duels/);
+  assert.ok(!prov.includes('on the ladder') && !prov.includes('peak'));
+  assert.ok(!prov.includes('<details'), 'five or fewer: nothing folded');
+  // No ranked duel yet: no rating, the duels still listed.
+  const friendly = sectionOf(draw(d, { duels: block.profiles.get(d) }));
+  assert.ok(friendly.includes('<p class="small muted">No ranked duels yet, so no rating.</p>'));
+  assert.equal(block.profiles.get(d).rating, null);
+  assert.ok(friendly.includes('href="/duel/27"'));
+  // None at all, or a rating with no duel listed: no section.
+  assert.doesNotMatch(draw(a, { duels: null }), /duels-card/);
+  assert.doesNotMatch(draw(a, { duels: { rating: r, recent: [], h2h: [] } }), /duels-card/);
+  // In Portuguese.
+  const pt = ctxFor('pt');
+  const ptCard = sectionOf(draw(a, { duels: mine, lang: 'pt' }));
+  for (const text of ['Duels', 'Experimental', 'rating']) assert.ok(ptCard.includes(esc(pt.t(text))), text);
+  assert.ok(ptCard.includes(esc(pt.t('Show {n} more', { n: pt.fmt.num(mine.recent.length - 5) }))));
+  assert.ok(!ptCard.includes('Most played'));
 });
 
 test('badges, era and signature map worked out here, as the old modules work them out', { skip }, () => {

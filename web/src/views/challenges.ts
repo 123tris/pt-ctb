@@ -1,12 +1,12 @@
-// The Challenges page (/challenges/:tab?), as assets/js/pages/challenges.js draws it: six tabs with their own addresses
-// (week, hill, dan, targets, bounties, completion), each with where that challenge stands right now in the tab strip.
-// "Dan" keeps the community's own word. The week, the month's King of the hill and the bounties are what's on now: a
-// map in more than one of them carries the others' chips (ui/challenge-chips.ts), here and on its map page.
+// The Challenges page (/challenges/:tab?), as assets/js/pages/challenges.js draws it: seven tabs with their own addresses
+// (week, hill, duels, dan, targets, bounties, completion), each with where that challenge stands right now in the tab
+// strip. "Dan" keeps the community's own word. The week, the month's King of the hill and the bounties are what's on
+// now: a map in more than one of them carries the others' chips (ui/challenge-chips.ts), here and on its map page.
 //
 // challenges.json and bounties.json come on every tab, for the tabs' figures and chips, with meta.json's King of the
-// hill month and completion goal in brief; each other tab adds its own file. Players come from the core pack. The week
-// and the snipe targets are drawn here, the other tabs by their own views (dan.ts, hill.ts, bounties.ts,
-// completion.ts). render() is pure; the browser half is challenges.mount.ts.
+// hill month, duels and completion goal in brief; each other tab adds its own file. Players come from the core pack.
+// The week and the snipe targets are drawn here, the other tabs by their own views (dan.ts, hill.ts, duels.ts,
+// bounties.ts, completion.ts). render() is pure; the browser half is challenges.mount.ts.
 
 import { html, type Safe, type Value } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
@@ -20,13 +20,15 @@ import { passCounts, topStage } from '../ui/ladder.ts';
 import { danName } from '../ui/events.ts';
 import { timeLeft } from '../ui/hill.ts';
 import { runningNow, challengeChips, type Running } from '../ui/challenge-chips.ts';
+import { experimentalTag, type DuelsBrief, type DuelsFile } from '../ui/duels.ts';
 import * as dan from './dan.ts';
 import * as hill from './hill.ts';
+import * as duels from './duels.ts';
 import * as bounties from './bounties.ts';
 import * as completion from './completion.ts';
 
-export type Slug = 'week' | 'hill' | 'dan' | 'targets' | 'bounties' | 'completion';
-export const SLUGS: readonly Slug[] = ['week', 'hill', 'dan', 'targets', 'bounties', 'completion'];
+export type Slug = 'week' | 'hill' | 'duels' | 'dan' | 'targets' | 'bounties' | 'completion';
+export const SLUGS: readonly Slug[] = ['week', 'hill', 'duels', 'dan', 'targets', 'bounties', 'completion'];
 
 /** A play on a board: [player, ...play]. */
 type BoardRow = [number, ...unknown[]];
@@ -56,12 +58,17 @@ export interface Challenges {
   bounties?: bounties.Wanted[];
 }
 
-/** What the page reads of meta.json: which files the data has, and King of the hill's month and the goal in brief. */
+/**
+ * What the page reads of meta.json: when the data was made, which files it has, and King of the hill's month, the
+ * duels and the goal in brief.
+ */
 export interface SiteBrief {
+  generatedAt: number;
   files?: Record<string, string>;
   completion?: { cleared: number; total: number } | null;
   week?: { map: number; end: number } | null;
   hill?: { status?: string; end: number; pool: Running['hill'] } | null;
+  duels?: DuelsBrief | null;
 }
 
 export interface Data {
@@ -70,10 +77,11 @@ export interface Data {
   /** bounties.json, or null in data from before it. */
   board: bounties.Board | null;
   site: SiteBrief;
-  /** Each tab's own file, loaded only for that tab: dan.json, completion.json (null before it), hill.json. */
+  /** Each tab's own file, loaded only for that tab: dan.json, completion.json (null before it), hill.json, duels.json. */
   dan: dan.Dan | null;
   completion: completion.Completion | null;
   hill: hill.Hill | null;
+  duels: DuelsFile | null;
   /** economy.json on the Bounties tab, once the bot has started Bananas. */
   economy: bounties.Economy | null;
   /** Signing in works on this address (bananas.js signInHere()). */
@@ -82,19 +90,19 @@ export interface Data {
 
 export interface State {
   tab: Slug;
-  /** The tabs there are: King of the hill only once the export has hill.json (the bot started it). */
+  /** The tabs there are: King of the hill and Duels only once the export has hill.json and duels.json (the bot started them). */
   shown: Slug[];
   query: Record<string, string | undefined>;
 }
 
 /** The tab asked for, or the first for one there isn't. */
 export function readState(data: Data, params: Record<string, string | undefined>, query: Record<string, string | undefined>): State {
-  const shown = SLUGS.filter(slug => slug !== 'hill' || data.site.files?.['hill.json']);
+  const shown = SLUGS.filter(slug => (slug !== 'hill' || data.site.files?.['hill.json']) && (slug !== 'duels' || data.site.files?.['duels.json']));
   return { tab: shown.find(slug => slug === params.tab) ?? shown[0], shown, query };
 }
 
 const labels = ({ t }: Ctx): Record<Slug, string> => ({
-  week: t('This week'), hill: t('King of the hill'), dan: t('Dan course'), targets: t('Snipe targets'), bounties: t('Bounties'), completion: t('Completion'),
+  week: t('This week'), hill: t('King of the hill'), duels: t('Duels'), dan: t('Dan course'), targets: t('Snipe targets'), bounties: t('Bounties'), completion: t('Completion'),
 });
 
 /** The line under the tab strip: what the tab is. */
@@ -103,6 +111,7 @@ function intro(ctx: Ctx, slug: Slug): Value {
   switch (slug) {
     case 'week': return th('A new map every Monday. The community votes for the next one on Discord; the week’s best plays and the vote are on {activity}.', { activity: html`<a href="/activity?view=week">${t('Activity')}</a>` });
     case 'hill': return hill.intro(ctx);
+    case 'duels': return duels.intro(ctx);
     case 'dan': return dan.intro(ctx);
     case 'targets': return t('#1s that are begging to be sniped, maps with a single Portuguese player, and maps nobody in Portugal has played yet.');
     case 'bounties': return bounties.intro(ctx);
@@ -118,8 +127,8 @@ export const running = (ctx: Ctx, data: Data): Running =>
   runningNow({ challenges: data.challenges, meta: data.site, bounties: data.board }, ctx.now());
 
 /**
- * Each tab's figure: the map of the week's time left, the month's, Portugal's highest Dan, #1s up for grabs, open
- * bounties, the share cleared.
+ * Each tab's figure: the map of the week's time left, the month's, duels being played, Portugal's highest Dan, #1s up
+ * for grabs, open bounties, the share cleared.
  */
 function figures(ctx: Ctx, data: Data): Partial<Record<Slug, string>> {
   const { t, fmt } = ctx;
@@ -128,9 +137,11 @@ function figures(ctx: Ctx, data: Data): Partial<Record<Slug, string>> {
   const top = topStage(passCounts(data.core.players));
   const month = data.site.hill;
   const goal = data.site.completion;
+  const live = data.site.duels?.live;
   return {
     week: week ? (left >= 86400 ? t('{n}d left', { n: Math.floor(left / 86400) }) : t('{n}h left', { n: Math.floor(left / 3600) })) : undefined,
     hill: month?.status === 'live' ? timeLeft(ctx, month.end) : undefined,
+    duels: live ? t('{n} live', { n: fmt.num(live) }) : undefined,
     dan: top >= 0 ? danName(ctx, top) : undefined,
     targets: fmt.num(data.challenges.beatable.length),
     bounties: data.board ? fmt.num(data.board.open.length) : undefined,
@@ -244,6 +255,7 @@ function panel(ctx: Ctx, data: Data, state: State, now: Running): Value {
     case 'targets': return targetsPanel(ctx, data);
     case 'bounties': return bounties.render(ctx, bountiesData(ctx, data, now));
     case 'hill': return data.hill ? hill.render(ctx, data.hill, players, now, hill.readState(ctx, data.hill, state.query)) : '';
+    case 'duels': return data.duels ? duels.render(ctx, data.duels, players, data.site.generatedAt, duels.readState(state.query)) : '';
     case 'dan': return data.dan ? dan.render(ctx, data.dan, players, dan.readStage(data.dan, state.query)) : '';
     case 'completion': return completion.render(ctx, data.completion, players, completion.readState(ctx, data.completion, state.query));
   }
@@ -260,7 +272,9 @@ export function render(ctx: Ctx, data: Data, state: State): Safe {
   const counts = figures(ctx, data);
   return html`
     ${pageHead({ title: t('Challenges') })}
-    ${tabs(state.shown.map(slug => ({ href: `/challenges/${slug}`, label: names[slug], count: counts[slug], active: slug === state.tab })), t('Challenges'))}
+    ${tabs(state.shown.map(slug => ({
+      href: `/challenges/${slug}`, label: slug === 'duels' ? html`${names[slug]} ${experimentalTag(ctx)}` : names[slug], count: counts[slug], active: slug === state.tab,
+    })), t('Challenges'))}
     <p class="muted tabs-intro">${intro(ctx, state.tab)}</p>
     <div id="panel">${panel(ctx, data, state, running(ctx, data))}</div>
   `;

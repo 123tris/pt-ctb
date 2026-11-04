@@ -1,9 +1,10 @@
 // node --test web/test/challenges.test.mjs
 // The Challenges page, every tab, drawn in Node from an export (its core pack and JSON; skipped without, as the other
 // view tests are) and checked against the JSON: the tab strip and its figures, the map of the week's boards, the snipe
-// targets, the Dan course for each stage, King of the hill's pool and crown table for each season, the bounty board
-// signed in and out, and Completion's list for each sort, star range and page. The export has no claimed bounties or
-// closed hill months, so those are added to its files here.
+// targets, the Dan course for each stage, King of the hill's pool and crown table for each season, the Duels' ladder and
+// latest duels, the bounty board signed in and out, and Completion's year strip and list for each sort, year, star range
+// and page. The export has no claimed bounties, closed hill months or duels, so those are added to its files here
+// (duels in the exporter's own shapes, duel-data.mjs).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,8 +19,10 @@ import { firstData } from '../src/routes.ts';
 import { inStars, parseStars } from '../src/ui/star-range.ts';
 import { render, readState, title } from '../src/views/challenges.ts';
 import { readState as completionState } from '../src/views/completion.ts';
+import { readState as duelsState, ladderTable, LADDER_PAGE, DUELS_PAGE } from '../src/views/duels.ts';
 import { readState as hillState, tableRows } from '../src/views/hill.ts';
 import { PT } from '../../assets/js/core/pt.js';
+import { duelData, OFF } from './duel-data.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const dir = path.resolve(process.env.PTCATCH_DATA ?? path.join(repo, 'data'));
@@ -47,6 +50,7 @@ function dataFor(tab, edit = {}) {
     dan: tab === 'dan' ? json('dan.json') : null,
     completion: tab === 'completion' && has('completion.json') ? ('completion' in edit ? edit.completion : json('completion.json')) : null,
     hill: tab === 'hill' && site.files?.['hill.json'] ? ('hill' in edit ? edit.hill : json('hill.json')) : null,
+    duels: tab === 'duels' && site.files?.['duels.json'] ? ('duels' in edit ? edit.duels : json('duels.json')) : null,
     economy: tab === 'bounties' && has('economy.json') ? ('economy' in edit ? edit.economy : json('economy.json')) : null,
     signInHere: Boolean(edit.signInHere),
   };
@@ -72,6 +76,7 @@ test('every tab is drawn by the new client, with challenges.json, bounties.json 
   assert.deepEqual(firstData('/challenges/targets/'), { packs: ['packs/core.ptcb'], json: base });
   assert.deepEqual(firstData('/challenges/dan', '?stage=3'), { packs: ['packs/core.ptcb'], json: [...base, 'dan.json'] });
   assert.deepEqual(firstData('/challenges/hill'), { packs: ['packs/core.ptcb'], json: [...base, 'hill.json'] });
+  assert.deepEqual(firstData('/challenges/duels', '?duels=ranked'), { packs: ['packs/core.ptcb'], json: [...base, 'duels.json'] });
   assert.deepEqual(firstData('/challenges/bounties'), { packs: ['packs/core.ptcb'], json: [...base, 'economy.json'] });
   assert.deepEqual(firstData('/challenges/completion', '?sort=hard'), { packs: ['packs/core.ptcb'], json: [...base, 'completion.json'] });
   assert.deepEqual(firstData('/challenges/constructor'), { packs: ['packs/core.ptcb'], json: base }, 'an unknown tab shows the week');
@@ -86,12 +91,18 @@ test('the tab strip: each tab and its figure, King of the hill only with hill.js
     const { page, ctx, state } = draw('week', {}, { lang });
     const strip = between(page, '<nav class="tabs"', '</nav>');
     const tabs = [...strip.matchAll(/<a href="\/challenges\/(\w+)"/g)].map(m => m[1]);
-    assert.deepEqual(tabs, ['week', ...(meta.files['hill.json'] ? ['hill'] : []), 'dan', 'targets', 'bounties', 'completion']);
+    assert.deepEqual(tabs, ['week', ...(meta.files['hill.json'] ? ['hill'] : []), ...(meta.files['duels.json'] ? ['duels'] : []), 'dan', 'targets', 'bounties', 'completion']);
     assert.match(strip, /<a href="\/challenges\/week" class="active" aria-current="page">/);
     const figure = slug => strip.match(new RegExp(`href="/challenges/${slug}"[^>]*>[^<]*(?:<span class="count"><span class="sr-only">, </span>([^<]*)</span>)?</a>`))?.[1];
     assert.equal(figure('targets'), ctx.fmt.num(challenges.beatable.length));
     if (has('bounties.json')) assert.equal(figure('bounties'), ctx.fmt.num(json('bounties.json').open.length));
     if (meta.completion?.total) assert.equal(figure('completion'), `${ctx.fmt.num(meta.completion.cleared / meta.completion.total * 100, 1)}%`);
+    if (meta.files['duels.json']) {
+      // Duels: their label with the Experimental tag, and how many are being played.
+      assert.ok(strip.includes(`<a href="/challenges/duels" class="" >${ctx.t('Duels')} <span class="legend-tag exp-tag">${ctx.t('Experimental')}</span>`));
+      const live = strip.match(/href="\/challenges\/duels"[^>]*>.*?<\/span>(?:<span class="count"><span class="sr-only">, <\/span>([^<]*)<\/span>)?<\/a>/)?.[1];
+      assert.equal(live, meta.duels?.live ? ctx.t('{n} live', { n: ctx.fmt.num(meta.duels.live) }) : undefined);
+    }
     // Portugal's highest Dan, as players.json's passes have it.
     const top = Math.max(...json('players.json').flatMap(p => p.dan ?? []));
     assert.equal(figure('dan'), top < 0 ? undefined : top === 0 ? ctx.t('Zeroth Dan') : top <= 10 ? ctx.t('{nth} Dan', { nth: ctx.fmt.ordinal(top) }) : DAN_STAGES[top].key);
@@ -102,12 +113,21 @@ test('the tab strip: each tab and its figure, King of the hill only with hill.js
     assert.equal(title(ctx, state), ctx.t('Challenges'));
     assert.equal(title(ctx, draw('targets', {}, { lang }).state), `${ctx.t('Snipe targets')} · ${ctx.t('Challenges')}`);
   }
-  // No hill.json: no King of the hill tab, and asking for it shows the week.
+  // No hill.json: no King of the hill tab, and asking for it shows the week; the same for duels.json.
   const site = { ...meta, files: { ...meta.files } };
   delete site.files['hill.json'];
+  delete site.files['duels.json'];
   const { page, state } = draw('hill', {}, { site });
   assert.equal(state.tab, 'week');
   assert.ok(!page.includes('href="/challenges/hill"'));
+  assert.equal(draw('duels', {}, { site }).state.tab, 'week');
+  assert.ok(!page.includes('href="/challenges/duels"'));
+  // With duels.json, the tab, after King of the hill; two being played make its figure.
+  const withDuels = { ...meta, files: { ...meta.files, 'duels.json': 'x' }, duels: { live: 2, players: 3, total: 9, leader: null } };
+  const duelsTab = draw('duels', {}, { site: withDuels, duels: madeDuels().block.file });
+  assert.equal(duelsTab.state.tab, 'duels');
+  assert.match(duelsTab.page, /<a href="\/challenges\/duels" class="active" aria-current="page">Duels <span class="legend-tag exp-tag">Experimental<\/span><span class="count"><span class="sr-only">, <\/span>2 live<\/span><\/a>/);
+  assert.equal(title(duelsTab.ctx, duelsTab.state), 'Duels · Challenges');
   assert.equal(draw('nowhere').state.tab, 'week');
   assert.equal(draw(undefined).state.tab, 'week');
 });
@@ -224,6 +244,98 @@ test('King of the hill: the pool, the crown table for each season, and the past 
   assert.match(past, /<th>Open<\/th><th>Challenger<\/th>/);
 });
 
+let made = null;
+/** Made-up duels over the export's first players (duel-data.mjs), with meta.json listing duels.json. */
+const madeDuels = () => (made ??= duelData(Array.from({ length: 60 }, (_, i) => coreOf().players.id[i]), coreOf().info.generatedAt[0]));
+const duelSite = (file = madeDuels().block.file) => ({ ...json('meta.json'), files: { ...json('meta.json').files, 'duels.json': 'x' }, duels: { live: file.live.length } });
+const drawDuels = (query = {}, { file = madeDuels().block.file, ...options } = {}) => draw('duels', query, { site: duelSite(file), duels: file, ...options });
+
+test('duels: the duels being played, the ladder a page at a time, and the latest duels filtered and paged', { skip }, () => {
+  const { block, a, b, c } = madeDuels();
+  const file = block.file;
+  const { page, ctx } = drawDuels({}, { me: a });
+  assert.match(page, /<p class="muted tabs-intro">Rated 1v1s on random maps of the right difficulty, played in an osu! lobby\. Type <code>\/duel<\/code> on the Discord/);
+  assert.match(page, /<div id="panel">\s*<p class="notice exp-note">Duels are new and still being verified; ratings and results may be reset\.<\/p>/);
+  // Being played: both sides linked, the points, the format, when it started and the lobby; one off the site.
+  const live = between(page, '<h2>Being played now</h2>', '</section>');
+  assert.ok(live.includes(ctx.t('As of the last data update, {ago}', { ago: ctx.fmt.ago(json('meta.json').generatedAt) })));
+  assert.equal(count(live, /<div class="row duel-row duel-live">/g), file.live.length);
+  assert.deepEqual([...live.matchAll(/<a class="player duel-side" href="\/player\/(\d+)">/g)].map(m => Number(m[1])), file.live.flatMap(d => d.players.map(p => p.u)));
+  assert.ok(live.includes('<a href="https://osu.ppy.sh/community/matches/120000001" target="_blank" rel="noopener">Lobby on osu! ↗</a>'));
+  assert.ok(live.includes(`<img class="avatar avatar-sm" src="https://a.ppy.sh/${OFF}"`) && live.includes('<span class="duel-name ">Ghost &lt;Duelist&gt;</span>'));
+  assert.equal(count(live, /started /g), 1, 'a live duel with no start says nothing of it');
+  // The ladder: its first page in the file's order, rated then provisional, the visitor's row marked.
+  assert.ok(file.ladder.length > LADDER_PAGE);
+  const ladder = between(page, '<div id="duel-ladder">', '</nav>');
+  const rows = [...ladder.matchAll(/<tr class="([^"]*)">\s*<td class="rank[^"]*">(.*?)<\/td>\s*<td class="cell-player"><a class="player" href="\/player\/(\d+)">/g)];
+  assert.deepEqual(rows.map(m => Number(m[3])), file.ladder.slice(0, LADDER_PAGE).map(r => r.u));
+  assert.deepEqual(rows.map(m => m[1].trim()), file.ladder.slice(0, LADDER_PAGE).map(r => [r.u === a ? 'me' : '', r.prov ? 'duel-prov' : ''].join(' ').trim()));
+  assert.ok(ladder.includes(`Page 1 of ${Math.ceil(file.ladder.length / LADDER_PAGE)}`));
+  const top = file.ladder[0];
+  assert.match(ladder, /<td class="rank king-rank">1<\/td>/);
+  assert.ok(ladder.includes(`<td class="num duel-rating">${ctx.fmt.num(top.r)} <small class="faint" title="Rating deviation: how sure the rating is (lower is surer)">±${ctx.fmt.num(top.rd)}</small></td>`));
+  // A provisional player: after every rated one, with no place and the tag that explains it.
+  const prov = file.ladder.find(r => r.u === c);
+  assert.ok(prov.prov && prov.rank === null && file.ladder.indexOf(prov) >= file.ladder.filter(r => !r.prov).length);
+  const provRow = String(ladderTable(ctx, [prov], coreOf().players));
+  assert.match(provRow, /<tr class=" duel-prov">\s*<td class="rank "><span aria-label="provisional">–<\/span><\/td>/);
+  assert.ok(provRow.includes('data-tip="Fewer than about five ranked duels: the rating moves a lot until it settles."'));
+  assert.ok(provRow.includes(`<span class="cell-sub">${ctx.t('{wins}, {losses}', { wins: ctx.fmt.plural(prov.w, 'win'), losses: ctx.fmt.plural(prov.l, 'loss', 'losses') })} · ${ctx.tn(prov.streak, '{n} win in a row', '{n} wins in a row')}</span>`));
+  // The latest duels: chips, the count, the first page of rows, each linking to its page; the visitor's marked.
+  const latest = between(page, '<h2>Latest duels</h2>', '</section>');
+  assert.match(latest, /<div class="toolbar" id="duel-kinds"><div class="chips" role="group" aria-label="Show">/);
+  assert.match(latest, /<button class="chip active" type="button" data-duels="all" aria-pressed="true">All<\/button>/);
+  assert.match(latest, new RegExp(`<p class="result-count" id="duel-count">${ctx.fmt.plural(file.recent.length, 'duel')}</p>`));
+  const ids = part => [...part.matchAll(/<a class="row card-link duel-row ([^"]*)" href="\/duel\/(\d+)">/g)].map(m => [Number(m[2]), m[1].trim()]);
+  assert.deepEqual(ids(latest).map(([id]) => id), file.recent.slice(0, DUELS_PAGE).map(d => d.id));
+  assert.deepEqual(ids(latest).map(([, cls]) => cls), file.recent.slice(0, DUELS_PAGE).map(d => [d.status === 'abandoned' ? 'duel-muted' : '', d.players.some(p => p.u === a) ? 'me' : ''].join(' ').trim()));
+  assert.ok(!latest.includes('The latest'), 'every duel is in the list');
+  // A row: the scoreline with the winner in bold and a hidden "won", the format, how it ended, the stars, when.
+  const forfeit = between(latest, 'href="/duel/25">', '</a>');
+  assert.ok(forfeit.includes(`<span class="duel-side duel-winner">`) && forfeit.includes('<span class="sr-only"> (won)</span>'));
+  assert.match(forfeit, /<span>Ranked · Best of 3<\/span>\s*<span class="sep"><\/span><span>Forfeit<\/span>/);
+  const stars = file.recent.find(d => d.id === 128).stars;
+  assert.ok(between(latest, 'href="/duel/128">', '</a>').includes(`<span>${ctx.fmt.num(stars[0], 1)}–${ctx.fmt.num(stars[1], 1)}★</span>`));
+
+  // Filtered and paged from the address; a page past the end is the last; an unknown filter is all of them.
+  for (const [query, kind] of [[{ duels: 'ranked' }, 'ranked'], [{ duels: 'unranked', page: '2' }, 'unranked'], [{ page: '2' }, 'all'], [{ page: '99' }, 'all'], [{ duels: 'x' }, 'all']]) {
+    const state = duelsState(query);
+    assert.equal(state.kind, kind);
+    const kept = file.recent.filter(d => kind === 'all' || d.ranked === (kind === 'ranked'));
+    const pages = Math.max(1, Math.ceil(kept.length / DUELS_PAGE));
+    const at = Math.min(Math.max(0, (Number(query.page) || 1) - 1), pages - 1);
+    const out = between(drawDuels(query).page, '<h2>Latest duels</h2>', '</section>');
+    assert.deepEqual(ids(out).map(([id]) => id), kept.slice(at * DUELS_PAGE, at * DUELS_PAGE + DUELS_PAGE).map(d => d.id), JSON.stringify(query));
+    assert.match(out, new RegExp(`<button class="chip active" type="button" data-duels="${kind}" aria-pressed="true">`));
+    assert.match(out, new RegExp(`id="duel-count">${kept.length === file.recent.length ? '' : `${kept.length} of `}${ctx.fmt.plural(file.recent.length, 'duel')}</p>`));
+  }
+  // More duels than the list keeps; none of a kind; nothing at all.
+  assert.match(drawDuels({}, { file: { ...file, total: 250 } }).page, new RegExp(`<p class="small muted">The latest ${file.recent.length} of 250 duels\\.</p>`));
+  const ranked = { ...file, recent: file.recent.filter(d => d.ranked) };
+  assert.match(drawDuels({ duels: 'unranked' }, { file: ranked }).page, /<div class="empty"><p>No duels of this kind yet\.<\/p><button class="btn btn-small" type="button" data-clear>Clear filters<\/button><\/div>/);
+  const none = drawDuels({}, { file: { ladder: [], live: [], recent: [], total: 0, maps: {} } }).page;
+  assert.ok(!none.includes('Being played now'));
+  assert.match(none, /<div class="empty">No ranked duels yet\. Type <code>\/duel<\/code> on the Discord to start one\.<\/div>/);
+  assert.match(none, /<div class="empty">No duels played yet\.<\/div>/);
+  assert.ok(!none.includes('Glicko-2'));
+  // In Portuguese.
+  const pt = drawDuels({}, { lang: 'pt' });
+  for (const text of ['Being played now', 'Ladder', 'Latest duels', 'Lobby on osu!', 'Duel ladder']) assert.ok(pt.page.includes(pt.ctx.t(text)), text);
+  assert.ok(pt.page.includes(pt.ctx.fmt.plural(file.recent.length, 'duel')));
+  assert.equal(b > 0, true);
+});
+
+test('the export’s own duels, when it has some: the ladder and the latest duels in the file’s order', { skip }, () => {
+  const meta = json('meta.json');
+  if (!meta.files['duels.json']) return;
+  const file = json('duels.json');
+  const { page } = draw('duels');
+  assert.deepEqual([...between(page, '<div id="duel-ladder">', '</table>').matchAll(/<td class="cell-player"><a class="player" href="\/player\/(\d+)">/g)].map(m => Number(m[1])),
+    file.ladder.slice(0, LADDER_PAGE).map(r => r.u));
+  assert.deepEqual([...page.matchAll(/<a class="row card-link duel-row [^"]*" href="\/duel\/(\d+)">/g)].map(m => Number(m[1])), file.recent.slice(0, DUELS_PAGE).map(d => d.id));
+  assert.equal(count(page, /<div class="row duel-row duel-live">/g), file.live.length);
+});
+
 test('bounties: the open ones in order with their pots, posting first when signed in, the hall and the wanted list', { skip }, () => {
   if (!has('bounties.json') || !has('economy.json')) return;
   const ids = json('players.json').map(p => p.id);
@@ -314,4 +426,72 @@ test('completion: the share cleared, and the maps left for each sort, star range
   assert.match(out, /<option value="popular" selected>/);
   const none = { ...dataFor('completion'), completion: null };
   assert.match(String(render(ctx, none, readState(none, { tab: 'completion' }, {}))), /The completion goal arrives with the next data update\./);
+});
+
+test('completion by year ranked: the strip, its line, and the maps left of one year', { skip }, () => {
+  if (!has('completion.json')) return;
+  const ctx = ctxFor();
+  const real = json('completion.json');
+  const yearOf = r => (r[4] == null ? null : new Date(r[4] * 86400000).getUTCFullYear());
+  const leftYears = [...new Set(real.left.map(yearOf).filter(y => y !== null))].sort((x, y) => x - y);
+  // The export's years, or ones made up from its maps left (an export from before `years`), with a gap and a year done.
+  const goal = real.years ? real : {
+    ...real, years: [[leftYears[0] - 3, 10, 10], [leftYears[0] - 1, 4, 4], ...leftYears.map(y => [y, real.left.filter(r => yearOf(r) === y).length + 50, 50])],
+  };
+  const years = goal.years;
+  const span = years.at(-1)[0] - years[0][0] + 1;
+  const { page } = draw('completion', {}, { completion: goal });
+  const strip = between(page, '<div class="goal-years">', '<p class="goal-aside">');
+  // A column a year, the empty years between too; gold for a year done, open for one with maps left.
+  const cols = [...strip.matchAll(/<span class="goal-year([^"]*)" data-i="(\d+)" style="--done:([\d.]+)%"><\/span>/g)];
+  assert.equal(cols.length, span);
+  assert.match(strip, /<div class="goal-years-cols is-listable" role="img" aria-label="Share cleared by year ranked: /);
+  const byYear = new Map(years.map(y => [y[0], y]));
+  cols.forEach(([, cls, i, done]) => {
+    const y = byYear.get(years[0][0] + Number(i));
+    assert.equal(cls, !y || !y[1] ? ' is-none' : y[1] === y[2] ? ' is-full' : ' is-open');
+    assert.equal(done, (y && y[1] ? (y[2] / y[1]) * 100 : 0).toFixed(1));
+  });
+  // The first and last years are labelled; the line names how many are done and the one furthest behind.
+  const axis = [...between(strip, '<div class="goal-years-axis"', '</div>').matchAll(/>(\d{4})</g)].map(m => Number(m[1]));
+  assert.equal(axis[0], years[0][0]);
+  assert.equal(axis.at(-1), years.at(-1)[0]);
+  const full = years.filter(y => y[1] && y[1] === y[2]).length;
+  if (full) assert.ok(strip.includes(`<span class="goal-years-key"></span>${ctx.tn(full, '{n} year fully cleared', '{n} years fully cleared')}`));
+  const open = years.filter(y => y[1] && y[2] < y[1]);
+  const behind = open.reduce((x, y) => (!x || y[2] / y[1] < x[2] / x[1] || (y[2] / y[1] === x[2] / x[1] && y[1] - y[2] > x[1] - x[2]) ? y : x), null);
+  assert.ok(strip.includes(`furthest behind is ${behind[0]}, with ${ctx.fmt.num(behind[2])} of ${ctx.fmt.num(behind[1])} cleared`));
+  assert.match(strip, /<span id="year-pick" hidden><\/span>/);
+
+  // The select: every year with maps left, oldest first, with how many.
+  const select = between(page, '<select class="select" id="left-year"', '</select>');
+  const options = [...select.matchAll(/<option value="(\d+)" >Ranked in (\d+) \(([\d,]+) left\)<\/option>/g)].map(m => [Number(m[1]), m[3]]);
+  assert.deepEqual(options, leftYears.map(y => [y, ctx.fmt.num(goal.left.filter(r => yearOf(r) === y).length)]));
+  // ?year= lists that year's maps left, the select and the strip mark it; a year with none left is every year.
+  const year = leftYears.at(-1);
+  for (const [query, expect] of [[{ year: String(year) }, year], [{ year: String(year), sort: 'hard', page: '2' }, year], [{ year: '1999' }, null], [{ year: 'x' }, null]]) {
+    const state = completionState(ctx, goal, query);
+    assert.equal(state.year, expect, JSON.stringify(query));
+    const out = draw('completion', query, { completion: goal }).page;
+    const listed = [...between(out, '<div id="left-list">').matchAll(/<a class="row card-link" href="\/map\/(\d+)">/g)].map(m => Number(m[1]));
+    const kept = goal.left.filter(r => expect === null || yearOf(r) === expect);
+    assert.ok(listed.every(id => kept.some(r => r[0] === id)), JSON.stringify(query));
+    assert.match(out, new RegExp(`id="left-count">${kept.length === goal.left.length ? '' : `${ctx.fmt.num(kept.length)} of `}${ctx.fmt.num(goal.left.length)} maps</p>`));
+    assert.equal(count(out, /is-chosen/g), expect === null ? 0 : 1);
+    if (expect !== null) assert.ok(out.includes(`<option value="${expect}" selected>`));
+  }
+  // Nothing of that year in the range: says so with the year.
+  assert.match(draw('completion', { year: String(year), stars: '0-0.1' }, { completion: goal }).page,
+    new RegExp(`<p>No uncleared maps ranked in ${year} at [^<]*\\.</p>`));
+  // Every map cleared: the strip, not listable; data from before `years`, or a single year: no strip.
+  const done = draw('completion', {}, { completion: { ...goal, left: [] } }).page;
+  assert.match(done, /<div class="goal-years-cols" role="img"/);
+  assert.ok(!done.includes('id="left-year"'));
+  assert.ok(!draw('completion', {}, { completion: { ...goal, years: undefined } }).page.includes('goal-years'));
+  assert.ok(!draw('completion', {}, { completion: { ...goal, years: years.slice(-1) } }).page.includes('goal-years'));
+  // In Portuguese.
+  const pt = ctxFor('pt');
+  const ptPage = draw('completion', {}, { completion: goal, lang: 'pt' }).page;
+  for (const text of ['By year ranked:', 'Every year']) assert.ok(ptPage.includes(pt.t(text)), text);
+  assert.ok(ptPage.includes(pt.t('Ranked in {year} ({n} left)', { year: leftYears[0], n: pt.fmt.num(goal.left.filter(r => yearOf(r) === leftYears[0]).length) })));
 });

@@ -2,6 +2,8 @@
 // (edge/inline.ts), so the browser fetches it while it reads the page. Every other page is the old app's. A page's
 // entry (entries/) decides the rest, such as a tab that isn't ported yet.
 
+import { duelFile } from './kernel/model.ts';
+
 /** What a page's first view loads: packs (packs.json names) and JSON files (meta.json names). */
 export interface First {
   packs: string[];
@@ -27,7 +29,9 @@ export const playerPack = (id: number | string) => `packs/player/${id}.ptcb`;
 export const mapBucket = (id: number) => `maps/${id % 128}.json`;
 
 /** The Challenges tabs that add a JSON file of their own to challenges.json and bounties.json. */
-const TAB_JSON: Record<string, string> = { dan: 'dan.json', hill: 'hill.json', bounties: 'economy.json', completion: 'completion.json' };
+const TAB_JSON: Record<string, string> = {
+  dan: 'dan.json', hill: 'hill.json', duels: 'duels.json', bounties: 'economy.json', completion: 'completion.json',
+};
 
 /** The JSON a Challenges tab's first view needs (an unknown tab shows the week). */
 const challengesJson = (tab: string | undefined) =>
@@ -64,10 +68,12 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   // the bucket names it).
   { pattern: /^map\/(\d+)$/, first: m => ({ packs: [CORE], json: [mapBucket(Number(m[1])), 'bounties.json'] }) },
   // Challenges, every tab: the players, challenges.json and bounties.json (the tabs' figures and chips), and the tab's
-  // own file. A file the data doesn't have yet (hill.json, economy.json) is in the slice as missing, so the page needn't
-  // ask meta.json. /dan is the Dan tab's old address, which the old router moves there.
+  // own file. A file the data doesn't have yet (hill.json, duels.json, economy.json) is in the slice as missing, so the
+  // page needn't ask meta.json. /dan is the Dan tab's old address, which the old router moves there.
   { pattern: /^challenges(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: challengesJson(m[1]) }) },
   { pattern: /^dan$/, first: () => ({ packs: [CORE], json: challengesJson('dan') }) },
+  // A duel's own page: the players and the file with its hundred duels (model.ts duelFile).
+  { pattern: /^duel\/(\d+)$/, first: m => ({ packs: [CORE], json: [duelFile(Number(m[1]))] }) },
   // The games: Guess the map (daily or practice; old /games/daily links too) from quiz.json, which the paying daily
   // doesn't need but a visitor signed out does; the map quizzes from the search pack; the hub (and any other address
   // under /games) and Higher or lower draw players.
