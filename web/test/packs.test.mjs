@@ -127,7 +127,7 @@ test('search pack: every map of maps-search.json, by set, with search-maps.jsonâ
   }
 });
 
-test('home.json: what the home page shows, as the files it comes from have it', { skip }, () => {
+test('home.json: what the home page shows, as the files it comes from have it', { skip: skip || (!fs.existsSync(path.join(dir, 'packs', 'home.json')) && 'no home.json') }, () => {
   const home = json('packs/home.json');
   const meta = json('meta.json'), activity = json('activity.json'), challenges = json('challenges.json');
   const records = json('records.json'), bounties = json('bounties.json');

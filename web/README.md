@@ -10,6 +10,8 @@ Ported so far:
 - every Leaderboards tab (`/rankings/…`);
 - a player's profile, every tab (`/player/:id/:tab?`). The player comes from the core pack, the rest from the JSON the
   old page reads, and `history.json` (every player's) only once the pp chart is opened;
+- a map's page (`/map/:id`): the map and its board from its bucket (`maps/<id % 128>.json`), the players from the core
+  pack, the rest from the JSON the old page reads;
 - the calculator and compare (on player packs);
 - Activity;
 - the players list, commands, glossary, privacy, how to join and Team Portugal.

@@ -48,6 +48,9 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   // A profile, every tab: the players and the player's head file (their whole file comes when a list needs it).
   // bounties.json and economy.json too, which the profile also reads, so it needn't wait for meta.json for them.
   { pattern: /^player\/(\d+)(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: [`players/${m[1]}-head.json`, 'bounties.json', 'economy.json'] }) },
+  // A map: the players, the map's bucket with its details and board, and the open bounties (the set's file comes once
+  // the bucket names it).
+  { pattern: /^map\/(\d+)$/, first: m => ({ packs: [CORE], json: [mapBucket(Number(m[1])), 'bounties.json'] }) },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */

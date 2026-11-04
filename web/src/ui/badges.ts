@@ -1,5 +1,6 @@
 // Fun profile extras worked out from a player's own file, as assets/js/core/badges.js has them: badges named after the
-// Discord's in-jokes, the player's current "era" and their signature map. A player is their row in the core pack.
+// Discord's in-jokes, the player's current "era" and their signature map. A player is their row in the core pack. And
+// the tags a map page shows, from the map's Portuguese board.
 //
 // A head file brings the badges and era already worked out (the exporter runs badges.js on the whole file); these are
 // for a profile whose whole file came first, with no head. They come out in English, as the exporter writes them, and
@@ -197,4 +198,29 @@ export function signatureMap(file: BadgeFile): Signature | null {
   const first = plays.find(x => x.s[S.POS] === 1);
   if (first) return { kind: 'Best #1', ...first };
   return plays[0] ? { kind: 'Best play', ...plays[0] } : null;
+}
+
+/**
+ * A map's tags ({ name, tip }, in the visitor's language) from its details and its Portuguese board, whose rows are
+ * [player, ...play], so a play's field is one further on (S.PP + 1). Two at most, so a map page leads with the map, not
+ * the labels.
+ */
+export function mapTags(ctx: Ctx, meta: MapMeta, board: readonly Play[], cat: Cat | undefined): Badge[] {
+  const { t } = ctx;
+  if (!meta) return [];
+  const tags: Badge[] = [];
+  const n = board.length;
+  const top = board.reduce((max, e) => Math.max(max, e[S.PP + 1]), 0);
+  const fcs = board.filter(e => e[S.MISS + 1] === 0).length;
+  const oneMiss = board.filter(e => e[S.MISS + 1] === 1).length;
+  const add = (name: string, tip: string) => tags.push({ name, tip });
+  if (meta[M.AR] <= 8) add(t('low AR HD'), t('AR 8 or below: add HD and the fruit appears out of nowhere.'));
+  if (meta[M.STARS] >= 7 && meta[M.LENGTH] >= 180 && n <= 8) add(t('boss'), t('Long, 7★ and up, and few Portuguese players have survived it.'));
+  if (n >= 4 && oneMiss / n >= 0.3) add(t('choke central'), t('{oneMiss} of {n} Portuguese plays here have exactly one miss.', { oneMiss, n }));
+  if (n >= 5 && fcs / n >= 0.6 && top >= 250) {
+    add(t('free pp'), t('{fcs} of {n} Portuguese players FC’d it, and the best play is worth {pp} pp.', { fcs, n, pp: Math.round(top) }));
+  }
+  if (meta[M.LENGTH] <= 120 && n >= 10 && top >= 250 && cat !== 'u') add(t('farm'), t('Short, popular and worth a lot of pp.'));
+  if (n >= 3 && fcs === 0) add(t('no FC yet'), t('Nobody in Portugal has FC’d this. Yet.'));
+  return tags.slice(0, 2);
 }
