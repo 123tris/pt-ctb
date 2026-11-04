@@ -11,6 +11,9 @@ export interface First {
 /** The pack with every player and board, which nearly every page needs (names, avatars, colours). */
 export const CORE = 'packs/core.ptcb';
 
+/** The pack with every map with Portuguese plays: the Maps page's list and search. */
+export const SEARCH = 'packs/search.ptcb';
+
 /** The Leaderboards tabs that add a JSON file to the core pack (the others are the core pack alone). */
 const BOARD_JSON: Record<string, string> = { mods: 'modrankings.json', plays: 'topplays.json', kings: 'records.json' };
 
@@ -39,6 +42,7 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
     first: m => ({ packs: [CORE, ...(m[1] && m[2] ? [playerPack(m[1]), playerPack(m[2])] : [])], json: [] }),
   },
   { pattern: /^players$/, first: () => ({ packs: [CORE], json: [] }) },
+  { pattern: /^maps$/, first: () => ({ packs: [CORE, SEARCH], json: [] }) },
   { pattern: /^activity$/, first: () => ({ packs: [CORE], json: ['activity.json', 'challenges.json'] }) },
   { pattern: /^records$/, first: () => ({ packs: [CORE], json: ['records.json', 'economy.json'] }) },
   // The bot's list; an export without one shows the hand-written list.

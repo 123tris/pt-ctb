@@ -83,7 +83,7 @@ test('a map is drawn by the new client, with the core pack, the map’s bucket a
   assert.deepEqual(firstData('/map/17908/'), { packs: ['packs/core.ptcb'], json: ['maps/116.json', 'bounties.json'] });
   assert.equal(firstData('/map/abc'), null);
   assert.equal(firstData('/map/1/2'), null);
-  assert.equal(firstData('/maps'), null);
+  assert.deepEqual(firstData('/maps'), { packs: ['packs/core.ptcb', 'packs/search.ptcb'], json: [] }, 'the maps list is another page');
 });
 
 test('the biggest board: every play in the bucket’s order, numbered, with its pp, and the visitor’s row marked', { skip }, () => {

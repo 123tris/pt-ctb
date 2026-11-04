@@ -14,9 +14,11 @@ Ported so far:
   pack, the rest from the JSON the old page reads;
 - the calculator and compare (on player packs);
 - Activity;
-- the players list, commands, glossary, privacy, how to join and Team Portugal.
+- the players list, commands, glossary, privacy, how to join and Team Portugal;
+- the maps list (`/maps`), from the search pack: a search takes 1–3 ms instead of 30–60, with the same results in the
+  same order (`test/maps.test.mjs` checks them against the old search's).
 
-Still the old client's: maps and a map's page (being ported), records, challenges (with the Dan course, King of the
+Still the old client's: a map's page (being ported), records, challenges (with the Dan course, King of the
 hill, bounties and completion), games, the yearly recap, the shop and admin; then the header, menus, search and
 sign-in, and the endpoints.
 
@@ -46,10 +48,10 @@ no wait for `meta.json`.
 |---|---|
 | `src/kernel` | The base every page uses. `ptcb.ts` reads packs. `store.ts` loads packs and JSON by name, by hash. `html.ts` is the escaping template tag. `i18n.ts` and `fmt.ts` handle text and numbers for one language. `ctx.ts` is what a view is drawn with. `model.ts` holds the data's shapes and rules (`assets/js/core/model.js`) |
 | `src/gen` | `packs.ts`: each pack's types, generated from the engine's schemas (`npm run gen`). Don't edit it |
-| `src/ui` | Shared markup, as `assets/js/core/ui.js` has it: `players.ts` (over the core pack), `maps.ts`, `scores.ts` (over the JSON's tuples), `page.ts` (headings, tabs, tables, chips, stats, a page of a list). And the pure parts of the other core modules, under their names, as pages need them: `badges.ts`, `bananas.ts`, `bounty.ts`, `charts.ts`, `events.ts`, `hill.ts`, `ladder.ts` |
+| `src/ui` | Shared markup, as `assets/js/core/ui.js` has it: `players.ts` (over the core pack), `maps.ts`, `scores.ts` (over the JSON's tuples), `page.ts` (headings, tabs, tables, chips, stats, a page of a list). And the pure parts of the other core modules, under their names, as pages need them: `badges.ts`, `bananas.ts`, `bounty.ts`, `charts.ts`, `events.ts`, `hill.ts`, `ladder.ts`, `star-range.ts`. `map-search.ts` is the Maps search over the search pack |
 | `src/views` | One page each. `x.ts` holds `render(ctx, data, state)`, which is pure and so can run at the edge too. `x.mount.ts` holds the browser-only half |
 | `src/entries` | Each page's module for the old router: the bundle's entry points, every file here (`tools/web-build.mjs`) |
-| `src/client` | The browser's side. `boot.ts` builds the visitor's `Ctx` and the store. `page.ts` turns a view into a page for the old router. `dom.ts` holds small DOM helpers. `legacy.ts` is everything still taken from `assets/js`, kept in one file |
+| `src/client` | The browser's side. `boot.ts` builds the visitor's `Ctx` and the store. `page.ts` turns a view into a page for the old router. `dom.ts` holds small DOM helpers, and `star-slider.ts` the star slider's events. `legacy.ts` is everything still taken from `assets/js`, kept in one file |
 | `src/routes.ts` | Which addresses the new client draws, and the packs and JSON each one's first view needs |
 | `edge` | What the Cloudflare Function runs: the packs slice now, server rendering later |
 | `test` | `node --test`: packs against the JSON, views drawn in Node |
