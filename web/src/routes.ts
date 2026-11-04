@@ -76,6 +76,9 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
     first: m => (m[1] === 'guess' || m[1] === 'daily' ? { packs: [], json: ['quiz.json'] }
       : m[1] === 'quiz' ? { packs: [SEARCH], json: [] } : { packs: [CORE], json: [] }),
   },
+  // The admin panel: the players, the bot's settings and log, the hill's month and the open bounties. admin.json and
+  // hill.json exist only once the bot publishes them: the slice says so, and the page needn't ask meta.json.
+  { pattern: /^admin$/, first: () => ({ packs: [CORE], json: ['admin.json', 'hill.json', 'bounties.json'] }) },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */

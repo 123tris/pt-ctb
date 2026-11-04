@@ -22,9 +22,12 @@ Ported so far:
 - Challenges, every tab (`/challenges/:tab?`: the week, King of the hill, the Dan course, snipe targets, bounties with
   their Bananas, completion): players from the core pack, the rest from the JSON the old page reads, the tab's own file
   only on that tab. Its figures and chips still read meta.json (King of the hill's month and the goal in brief).
+- the admin panel (`/admin`): the players from the core pack (names, the player picker), the rest from the JSON the
+  old page reads (admin.json, hill.json, bounties.json) and the admin's own requests from the site's endpoints. Signed
+  out, it loads nothing.
 
-Still the old client's: games, the yearly recap, the shop and admin; then the header, menus, search and sign-in, and
-the endpoints.
+Still the old client's: games, the yearly recap and the shop; then the header, menus, search and sign-in, and the
+endpoints.
 
 Each port is checked against the old page's output or logic on the same data (`test/`).
 
