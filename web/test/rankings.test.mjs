@@ -118,3 +118,17 @@ test('Mods, Top plays and Star kings: the boards the JSON gives, in its order', 
     assert.deepEqual(ids(one), range.board.map(([id]) => id));
   }
 });
+
+test('a file the data doesn’t have is in the slice as null, with no preload, so the client needn’t ask meta.json', async () => {
+  const { Store } = await import('../src/kernel/store.ts');
+  const page = '<html><head></head><body></body></html>';
+  const out = inlineData(page, '/player/1', { packs: { generatedAt: 1, files: { 'packs/core.ptcb': 'CCCCCCCCCC' } }, meta: { generatedAt: 1, files: { 'players/1-head.json': 'HHHHHHHHHH', 'bounties.json': 'BBBBBBBBBB' } } }, 'd/');
+  const slice = JSON.parse(out.match(/id="ptc-data">([^<]*)</)[1]);
+  assert.equal(slice.meta.files['economy.json'], null);
+  assert.ok(!/<link[^>]*economy/.test(out), 'no preload for it');
+  let asked = 0;
+  const store = new Store('d/', slice, async () => { asked++; return { generatedAt: 1, files: {} }; });
+  assert.equal(await store.hasJson('economy.json'), false);
+  assert.equal(await store.hasJson('bounties.json'), true);
+  assert.equal(asked, 0, 'no manifest fetched');
+});

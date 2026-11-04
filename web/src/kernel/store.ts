@@ -11,10 +11,16 @@ export interface Manifest {
   files: Record<string, string>;
 }
 
+/** A manifest's part a page came with: a file's hash, or null for a file the data doesn't have. */
+export interface PartManifest {
+  generatedAt: number;
+  files: Record<string, string | null>;
+}
+
 /** The part of both manifests a page came with. */
 export interface Slice {
-  packs?: Manifest;
-  meta?: Manifest;
+  packs?: PartManifest;
+  meta?: PartManifest;
 }
 
 export type ManifestName = 'packs.json' | 'meta.json';
@@ -69,8 +75,10 @@ export class Store {
   }
 
   private async hash(kind: ManifestName, name: string): Promise<string | undefined> {
-    const own = (kind === 'packs.json' ? this.slice.packs : this.slice.meta)?.files[name];
-    return own ?? (await this.manifest(kind)).files[name];
+    // The page's slice answers for every file it lists, there or not; anything else needs the whole manifest.
+    const own = (kind === 'packs.json' ? this.slice.packs : this.slice.meta)?.files;
+    if (own && name in own) return own[name] ?? undefined;
+    return (await this.manifest(kind)).files[name];
   }
 
   /** A pack's address. */

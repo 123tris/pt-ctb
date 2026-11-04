@@ -3,7 +3,7 @@
 
 import { makeText, type Lang, type Table } from '../kernel/i18n.ts';
 import { makeFmt } from '../kernel/fmt.ts';
-import { Store, type Slice } from '../kernel/store.ts';
+import { Store, type Manifest, type Slice } from '../kernel/store.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import { CONFIG, lang, myId, portuguese, NotFound } from './legacy.ts';
 
@@ -21,7 +21,14 @@ function pageSlice(): Slice | null {
   }
 }
 
+/** The meta.json request index.html started before any code loaded (tools/build-site.mjs), for this data. */
+const early = (globalThis as { ptctbEarly?: { data: string; meta: Promise<Manifest | null> } }).ptctbEarly;
+
 export const store = new Store(data, pageSlice(), async name => {
+  if (name === 'meta.json' && early?.data === CONFIG.data) {
+    const m = await early.meta;
+    if (m) return m;
+  }
   // meta.json revalidated every time, as the old app does (core/data.js); there's always one.
   const r = await fetch(`${data}${name}`, { cache: 'no-cache' });
   // No packs.json: data from before the packs. An empty manifest, kept, so the old pages stand in without asking again.

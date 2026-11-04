@@ -27,12 +27,19 @@ export function manifestsFor(pathname: string, search = ''): { packs: boolean; m
   return { packs: Boolean(first?.packs.length), meta: Boolean(first?.json.length) };
 }
 
-const pick = (manifest: Manifest | null, names: string[]): Manifest | undefined => {
+/** The manifest's entries for `names`; null for a name it doesn't list, so the client knows the data has no such file. */
+const pick = (manifest: Manifest | null, names: string[]): Slice | undefined => {
   if (!manifest?.files) return undefined;
-  const files: Record<string, string> = {};
-  for (const name of names) if (manifest.files[name]) files[name] = manifest.files[name];
+  const files: Record<string, string | null> = {};
+  for (const name of names) files[name] = manifest.files[name] ?? null;
   return { generatedAt: manifest.generatedAt, files };
 };
+
+/** A manifest's part a page carries: a file's hash, or null for one the data doesn't have. */
+export interface Slice {
+  generatedAt: number;
+  files: Record<string, string | null>;
+}
 
 /** The page with its data slice and preloads at the end of its <head>; as it is for a page the old app draws. */
 export function inlineData(page: string, pathname: string, manifests: Manifests, base: string, search = ''): string {
@@ -41,6 +48,7 @@ export function inlineData(page: string, pathname: string, manifests: Manifests,
   const slice = { packs: pick(manifests.packs, first.packs), meta: pick(manifests.meta, first.json) };
   if (!slice.packs && !slice.meta) return page;
   const preloads = [slice.packs, slice.meta].flatMap(m => Object.entries(m?.files ?? {}))
+    .filter((entry): entry is [string, string] => entry[1] !== null)
     .map(([name, hash]) => `<link rel="preload" href="${base}${hashedName(name, hash)}" as="fetch" crossorigin>`);
   // In a <script type="application/json">, which the CSP doesn't apply to; "<" escaped so no text can close the tag.
   const json = JSON.stringify(slice).replace(/</g, '\\u003c');

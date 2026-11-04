@@ -67,8 +67,8 @@ const mixed = (file, cats) => cats.flatMap(cat => file.scores[cat].map(s => [s, 
 const byPp = (a, b) => b[0][S.PP] - a[0][S.PP];
 
 test('a profile is drawn by the new client, with the core pack and its head file first', () => {
-  assert.deepEqual(firstData('/player/6205809'), { packs: ['packs/core.ptcb'], json: ['players/6205809-head.json'] });
-  assert.deepEqual(firstData('/player/6205809/loved/'), { packs: ['packs/core.ptcb'], json: ['players/6205809-head.json'] });
+  assert.deepEqual(firstData('/player/6205809'), { packs: ['packs/core.ptcb'], json: ['players/6205809-head.json', 'bounties.json', 'economy.json'] });
+  assert.deepEqual(firstData('/player/6205809/loved/'), { packs: ['packs/core.ptcb'], json: ['players/6205809-head.json', 'bounties.json', 'economy.json'] });
   assert.equal(firstData('/player/abc'), null);
   assert.equal(firstData('/player/1/2/3'), null);
 });
