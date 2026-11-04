@@ -40,12 +40,17 @@ export default page<Data>({
   render: (ctx, data, { query }) => {
     if (data.slug === 'mods' || data.slug === 'plays') return boards.render(ctx, data, boards.readState(data, query));
     if (data.slug === 'kings') return kings.render(ctx, data, kings.readState(data.kings, query));
-    return rankings.render(ctx, data.core, rankings.readState(data.slug, query));
+    // A screenful of the board first (all of it when a row is to be scrolled to); mount() adds the rest.
+    const state = rankings.readState(data.slug, query);
+    return rankings.render(ctx, data.core, state, state.at ? Infinity : rankings.FIRST_ROWS);
   },
   keep,
   mount: (root, ctx, data, { query }, before) => {
     if (data.slug === 'mods' || data.slug === 'plays') mountBoards(root, ctx, data, boards.readState(data, query));
     else if (data.slug === 'kings') mountKings(root, ctx, data, kings.readState(data.kings, query), before);
-    else mountRankings(root, ctx, data.core, rankings.readState(data.slug, query));
+    else {
+      const state = rankings.readState(data.slug, query);
+      mountRankings(root, ctx, data.core, state, state.at ? Infinity : rankings.FIRST_ROWS);
+    }
   },
 });

@@ -96,9 +96,13 @@ export function filterNote(ctx: Ctx, total: number, shown: number, q: string): {
   };
 }
 
-/** On phones only rank, player and pp stay; the other numbers move under the name. */
-function boardTable(ctx: Ctx, core: CorePack, cat: Cat, shown: Uint8Array, state: State, label: string): Safe {
+/**
+ * The board's rows from `from` to before `to`, filtered by `shown`. On phones only rank, player and pp stay; the other
+ * numbers move under the name.
+ */
+export function boardBody(ctx: Ctx, core: CorePack, state: State, shown: Uint8Array, from: number, to: number): Safe[] {
   const { t, fmt } = ctx;
+  const cat = BOARD_CAT[state.slug];
   const players = core.players;
   const rows = boardRows(core, cat);
   const official = cat === 'r';
@@ -107,13 +111,8 @@ function boardTable(ctx: Ctx, core: CorePack, cat: Cat, shown: Uint8Array, state
   const count = cat === 'c' ? players.countC : cat === 'u' ? players.countU : players.countR;
   const firsts = cat === 'c' ? players.firstsC : cat === 'u' ? players.firstsU : players.firstsR;
   const noRank = html`<span class="faint" title="${t('Inactive on osu!, so no global or country rank')}">—</span>`;
-  const anyShown = shown.includes(1);
-
-  const head = official
-    ? [col('#'), col(t('Player')), col('pp', 'num'), col(t('Global'), 'num col-opt'), col(t('Country'), 'num col-opt'), col(t('Accuracy'), 'num col-opt'), col(t('Level'), 'num col-opt')]
-    : [col('#'), col(t('Player')), col('pp', 'num'), col(t('Scores'), 'num col-opt'), col(t('#1s in PT'), 'num col-opt'), col(t('Last played'), 'num col-opt')];
-  const body: Safe[] = new Array(rows.length);
-  for (let i = 0; i < rows.length; i++) {
+  const body: Safe[] = [];
+  for (let i = from; i < Math.min(to, rows.length); i++) {
     const row = rows[i];
     const id = players.id[row];
     const offOsu = official && isInactiveOnOsu(players, row);
@@ -127,7 +126,7 @@ function boardTable(ctx: Ctx, core: CorePack, cat: Cat, shown: Uint8Array, state
         : `${t('{rank} global', { rank: fmt.rank(players.global[row]) })} · ${fmt.acc(players.acc[row] / 100)}`)
       : `${fmt.plural(count[row], 'score')} · ${fmt.plural(firsts[row], '#1', '#1s')}`;
     const last = players.last[row];
-    body[i] = html`<tr${cls ? html` class="${cls}"` : ''} data-name="${players.name.at(row).toLowerCase()}">
+    body.push(html`<tr${cls ? html` class="${cls}"` : ''} data-name="${players.name.at(row).toLowerCase()}">
         <td class="rank">${official ? i + 1 : rank[row]}</td>
         <td class="cell-player">${playerLink(ctx, players, row)}${mark ? html` ${mark}` : ''}
           <span class="cell-sub">${sub}</span></td>
@@ -135,12 +134,39 @@ function boardTable(ctx: Ctx, core: CorePack, cat: Cat, shown: Uint8Array, state
         ${official
           ? html`<td class="num col-opt">${offOsu ? noRank : fmt.rank(players.global[row])}</td><td class="num col-opt">${offOsu ? noRank : fmt.rank(players.country[row])}</td><td class="num col-opt">${fmt.acc(players.acc[row] / 100)}</td><td class="num col-opt">${fmt.num(players.level[row] / 100, 0)}</td>`
           : html`<td class="num col-opt">${fmt.num(count[row])}</td><td class="num col-opt">${fmt.num(firsts[row])}</td><td class="num faint col-opt">${last ? fmt.ago(last) : '—'}</td>`}
-      </tr>`;
+      </tr>`);
   }
-  return dataTable(label, head, body, anyShown ? '' : 'hidden');
+  return body;
 }
 
-export function render(ctx: Ctx, core: CorePack, state: State): Safe {
+function boardTable(ctx: Ctx, core: CorePack, state: State, shown: Uint8Array, label: string, upTo: number): Safe {
+  const { t } = ctx;
+  const head = BOARD_CAT[state.slug] === 'r'
+    ? [col('#'), col(t('Player')), col('pp', 'num'), col(t('Global'), 'num col-opt'), col(t('Country'), 'num col-opt'), col(t('Accuracy'), 'num col-opt'), col(t('Level'), 'num col-opt')]
+    : [col('#'), col(t('Player')), col('pp', 'num'), col(t('Scores'), 'num col-opt'), col(t('#1s in PT'), 'num col-opt'), col(t('Last played'), 'num col-opt')];
+  return dataTable(label, head, boardBody(ctx, core, state, shown, 0, upTo), shown.includes(1) ? '' : 'hidden');
+}
+
+/** The checkbox for inactive players: its label, or '' on a Ranked board where nobody is inactive on osu!. */
+function legendsLabel(ctx: Ctx, core: CorePack, cat: Cat): string {
+  return cat !== 'r' ? ctx.t('Show inactive players') : hasInactiveOnOsu(core.players) ? ctx.t('Show players inactive on osu!') : '';
+}
+
+/** Which rows the state's filter leaves (inactive players always shown where there's no checkbox for them). */
+export const shownRows = (ctx: Ctx, core: CorePack, state: State): Uint8Array => {
+  const cat = BOARD_CAT[state.slug];
+  return visible(ctx, core, cat, state.q, state.legends || !legendsLabel(ctx, core, cat));
+};
+
+/**
+ * How many rows the first paint draws when the page is drawn in the browser: about a screen's worth, so the first frame
+ * stays short (a whole board is 1,500 elements, ~50 ms of the browser's work on a desktop, four times that on a phone).
+ * rankings.mount.ts adds the rest a frame at a time.
+ */
+export const FIRST_ROWS = 30;
+
+/** The whole page; `upTo` rows of the board (all, unless the browser adds the rest after the first paint). */
+export function render(ctx: Ctx, core: CorePack, state: State, upTo = Infinity): Safe {
   const { t, fmt } = ctx;
   const cat = BOARD_CAT[state.slug];
   const names = labels(ctx);
@@ -160,9 +186,9 @@ export function render(ctx: Ctx, core: CorePack, state: State): Safe {
     ranked: '',
   }[state.slug];
   // The checkbox for inactive players; on the Ranked board only when someone there is inactive on osu!.
-  const box = cat !== 'r' ? t('Show inactive players') : hasInactiveOnOsu(players) ? t('Show players inactive on osu!') : '';
+  const box = legendsLabel(ctx, core, cat);
   const legendsBox = box ? html`<span class="checks"><label><input type="checkbox" id="legends" ${state.legends ? 'checked' : ''}> ${box}</label></span>` : '';
-  const shown = visible(ctx, core, cat, state.q, state.legends || !box);
+  const shown = shownRows(ctx, core, state);
   let shownCount = 0;
   for (const s of shown) shownCount += s;
   const note = filterNote(ctx, rows.length, shownCount, state.q);
@@ -175,7 +201,7 @@ export function render(ctx: Ctx, core: CorePack, state: State): Safe {
       ${legendsBox}
     </div>
     <p class="result-count" id="count">${note.count}</p>
-    <div id="board">${rows.length ? boardTable(ctx, core, cat, shown, state, names[state.slug].board) : empty(t('Nobody is on the {board} leaderboard yet.', { board: catLabel }))}</div>
+    <div id="board">${rows.length ? boardTable(ctx, core, state, shown, names[state.slug].board, upTo) : empty(t('Nobody is on the {board} leaderboard yet.', { board: catLabel }))}</div>
     <div id="board-empty">${note.empty}</div>
     <p class="mt-3 small"><a href="/players">${t('Browse all {n} players', { n: fmt.num(players.rows) })}</a></p>
     ${footnote ? html`<p class="mt-2 small faint">${footnote}</p>` : ''}

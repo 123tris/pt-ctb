@@ -60,3 +60,29 @@ export function paginate<T>(ctx: Ctx, container: HTMLElement, items: readonly T[
     onPage?.(page);
   };
 }
+
+/**
+ * Runs `task` at the next frame, or after `ms` if no frame comes first: browsers stop frames for a page that isn't
+ * being shown (a background tab, a hidden window), and the work still has to get done.
+ */
+function nextFrame(task: () => void, ms = 100): void {
+  let ran = false;
+  const run = () => { if (!ran) { ran = true; task(); } };
+  requestAnimationFrame(run);
+  setTimeout(run, ms);
+}
+
+/**
+ * Adds markup to `target` a batch at a time, one batch per frame, for indexes `from` to before `to`: `make(from, to)`
+ * gives a batch's markup when its frame comes, so it reflects the page as it is then. Long lists stay out of the first
+ * paint this way, and no frame takes long. Stops when `target` leaves the page; `done` runs after the last batch.
+ */
+export function addInFrames(target: Element, from: number, to: number, batch: number, make: (from: number, to: number) => string, done?: () => void): void {
+  const step = (at: number) => {
+    if (!target.isConnected) return;
+    if (at >= to) { done?.(); return; }
+    target.insertAdjacentHTML('beforeend', make(at, Math.min(to, at + batch)));
+    nextFrame(() => step(at + batch));
+  };
+  nextFrame(() => step(from));
+}
