@@ -10,29 +10,38 @@ Star kings tabs are still the old page's.
 ## How a page gets to the screen
 
 1. **The edge.** `functions/[[path]].js` sends `index.html` as before. For a page the new client draws, it also writes
-   in that page's slice of `packs.json` and a preload of its first pack (`edge/inline.ts`). The browser starts on the
-   data while it reads the page. The old pages wait for `meta.json`, and only then fetch their data.
+   in that page's slice of `packs.json` and `meta.json` and a preload of each file its first view needs
+   (`src/routes.ts`, `edge/inline.ts`). The browser starts on the data while it reads the page. The old pages wait for
+   `meta.json`, and only then fetch their data.
 2. **The old router** (`assets/js/app.js`) loads `assets/web/<page>.js`, the page's entry.
-3. **The entry** (`src/entries/`) loads the pack (`src/kernel/packs.ts`), draws the page with the view's `render()`,
-   then `mount()` wires it up. When the data has no packs, or a pack of another layout than the code reads, the old
-   page draws it from the JSON instead.
+3. **The entry** (`src/entries/`, a `page({ old, load, title, render, mount })` from `src/client/page.ts`) loads the
+   data from the store (`src/kernel/store.ts`), draws the page with the view's `render()`, then `mount()` wires it up.
+   When the data has no packs, a pack has another layout than the code reads, or `load` returns null (a tab not
+   ported yet), the old page draws it instead.
+
+**Packs and JSON.** The store reads both: packs (`store.pack(name, readX)`) and the export's JSON files
+(`store.json(name)`), each at its hashed address. Every page reads the core pack for players: names, avatars, colours
+and boards. Big or busy data has packs, such as a profile's plays or the maps search. A page whose data is small and
+only drawn once can read its JSON file as the old page did, and get a pack later. It still gains the inline slice:
+no wait for `meta.json`.
 
 ## Layout
 
 | Folder | What |
 |---|---|
-| `src/kernel` | The base every page uses. `ptcb.ts` reads packs. `packs.ts` loads them by name, by hash. `html.ts` is the escaping template tag. `i18n.ts` and `fmt.ts` handle text and numbers for one language. `ctx.ts` is what a view is drawn with |
+| `src/kernel` | The base every page uses. `ptcb.ts` reads packs. `store.ts` loads packs and JSON by name, by hash. `html.ts` is the escaping template tag. `i18n.ts` and `fmt.ts` handle text and numbers for one language. `ctx.ts` is what a view is drawn with. `model.ts` holds the data's shapes and rules (`assets/js/core/model.js`) |
 | `src/gen` | `packs.ts`: each pack's types, generated from the engine's schemas (`npm run gen`). Don't edit it |
-| `src/ui` | Shared markup, as `assets/js/core/ui.js` has it, over pack columns: players, tags, tabs, tables |
+| `src/ui` | Shared markup, as `assets/js/core/ui.js` has it: `players.ts` (over the core pack), `maps.ts`, `scores.ts` (over the JSON's tuples), `page.ts` (headings, tabs, tables, chips, stats) |
 | `src/views` | One page each. `x.ts` holds `render(ctx, data, state)`, which is pure and so can run at the edge too. `x.mount.ts` holds the browser-only half |
-| `src/entries` | Each page's module for the old router: the bundle's entry points (`tools/web-build.mjs`) |
-| `src/client` | The browser's side. `boot.ts` builds the visitor's `Ctx` and the pack loader. `legacy.ts` is everything still taken from `assets/js`, kept in one file |
-| `src/routes.ts` | Which addresses the new client draws, and the packs each one's first view needs |
+| `src/entries` | Each page's module for the old router: the bundle's entry points, every file here (`tools/web-build.mjs`) |
+| `src/client` | The browser's side. `boot.ts` builds the visitor's `Ctx` and the store. `page.ts` turns a view into a page for the old router. `dom.ts` holds small DOM helpers. `legacy.ts` is everything still taken from `assets/js`, kept in one file |
+| `src/routes.ts` | Which addresses the new client draws, and the packs and JSON each one's first view needs |
 | `edge` | What the Cloudflare Function runs: the packs slice now, server rendering later |
 | `test` | `node --test`: packs against the JSON, views drawn in Node |
 
-**Data-oriented.** A view works over the pack's columns and row numbers. A player is a row in `core.players`, and a
-board is a list of rows. Nothing builds an object per player or parses JSON. Strings are decoded only when shown.
+**Data-oriented.** Over a pack, a view works with columns and row numbers. A player is a row in `core.players`
+(`rowOf(players, id)` finds one by osu! id), and a board is a list of rows. Nothing builds an object per player.
+Strings are decoded only when shown.
 
 **Sharing the old site's modules.** An import of anything under `assets/js` stays an import of that same file:
 `tools/web-build.mjs` keeps it out of the bundle. So the new code uses the very modules the old app has already
@@ -42,11 +51,13 @@ browser parts through it, so they stay pure.
 
 ## Porting a page
 
-1. If the page needs data the packs don't have yet, add it to `engine/src/PtCatch.Engine/Packs/Schemas.cs` and
+1. Decide where the data comes from: the core pack for players, and for the rest, an existing pack or the JSON file
+   the old page reads. If the page needs a new pack, add it to `engine/src/PtCatch.Engine/Packs/Schemas.cs` and
    `Export/Build.Packs.cs`. Then run `npm run gen`, and extend `test/packs.test.mjs` to compare it with the JSON.
 2. Write `src/views/<page>.ts` (`render`) and `<page>.mount.ts` from the old `assets/js/pages/<page>.js`. Keep its
-   markup and classes, so `site.css` styles it the same, and keep its strings, so `pt.js` already has them.
-3. Add `src/entries/<page>.ts` to `ENTRIES` in `tools/web-build.mjs`, and the page's first packs to `src/routes.ts`.
+   markup and classes, so `site.css` styles it the same, and keep its strings, so `pt.js` already has them. Take
+   `t`/`fmt`/`now` from `ctx`, never from a global, so `render` stays pure.
+3. Add `src/entries/<page>.ts`, a `page({ … })`, and the page's route and first data to `src/routes.ts`.
 4. Point the page's line in `assets/js/app.js` at `../web/<page>.js`, with the old page as the fallback.
 5. Test it: a view test in `test/`, `npm run typecheck`, `node tools/i18n-check.mjs`. Then check it in the browser
    with `npm run serve -- --local-data <export folder with packs>`, in both languages, at phone width and with the
