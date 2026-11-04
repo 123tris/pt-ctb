@@ -1,8 +1,8 @@
 // Small browser-only helpers for mount(): things that change the page after it's drawn.
 
-import { html, raw, type Value } from '../kernel/html.ts';
+import type { Value } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
-import { empty } from '../ui/page.ts';
+import { paged, pageCount } from '../ui/page.ts';
 import { announce, scrollBehavior } from './legacy.ts';
 
 /** Marks the chip (or other toggle) whose data-`attr` equals `value` as pressed, the rest as not. */
@@ -28,17 +28,12 @@ export function paginate<T>(ctx: Ctx, container: HTMLElement, items: readonly T[
 ): (newItems?: readonly T[], keepPage?: boolean) => void {
   const { t, fmt } = ctx;
   let page = Math.max(0, start);
-  const pages = () => Math.max(1, Math.ceil(items.length / size));
+  const pages = () => pageCount(items.length, size);
   const pageOf = () => t('Page {page} of {pages}', { page: fmt.num(page + 1), pages: fmt.num(pages()) });
+  // The markup is ui/page.ts paged()'s, which a view also draws the first page with.
   const draw = () => {
     page = Math.min(page, pages() - 1);
-    const slice = items.slice(page * size, page * size + size);
-    container.innerHTML = String(html`${slice.length ? render(slice, page * size) : emptyView?.() ?? empty(t('Nothing to show.'))}
-      ${pages() > 1 ? html`<nav class="pager" aria-label="${t('Pages')}">
-        <button class="btn btn-small" type="button" data-page="prev" ${page === 0 ? raw('disabled') : ''}>← ${t('Previous')}</button>
-        <span>${pageOf()}</span>
-        <button class="btn btn-small" type="button" data-page="next" ${page >= pages() - 1 ? raw('disabled') : ''}>${t('Next')}</button>
-      </nav>` : ''}`);
+    container.innerHTML = String(paged(ctx, items, render, { size, page, empty: emptyView }));
   };
   container.addEventListener('click', e => {
     const button = (e.target as Element).closest<HTMLElement>('[data-page]');

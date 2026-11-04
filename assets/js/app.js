@@ -26,7 +26,7 @@ const LOADERS = {
   '': () => import('./pages/home.js'),
   'rankings/:board?': () => import('../web/rankings.js').catch(() => import('./pages/rankings.js')),
   'players': () => import('./pages/players.js'),
-  'player/:id/:tab?': () => import('./pages/player.js'),
+  'player/:id/:tab?': () => import('../web/player.js').catch(() => import('./pages/player.js')),
   'maps': () => import('./pages/maps.js'),
   'map/:id': () => import('./pages/map.js'),
   'activity': () => import('./pages/activity.js'),
