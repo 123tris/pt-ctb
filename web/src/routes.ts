@@ -26,6 +26,13 @@ export const playerPack = (id: number | string) => `packs/player/${id}.ptcb`;
 /** The map bucket a map's details and board are in (assets/js/core/data.js mapEntry). */
 export const mapBucket = (id: number) => `maps/${id % 128}.json`;
 
+/** The Challenges tabs that add a JSON file of their own to challenges.json and bounties.json. */
+const TAB_JSON: Record<string, string> = { dan: 'dan.json', hill: 'hill.json', bounties: 'economy.json', completion: 'completion.json' };
+
+/** The JSON a Challenges tab's first view needs (an unknown tab shows the week). */
+const challengesJson = (tab: string | undefined) =>
+  ['challenges.json', 'bounties.json', ...(tab && Object.hasOwn(TAB_JSON, tab) ? [TAB_JSON[tab]] : [])];
+
 /**
  * Each ported page: its address (as assets/js/core/routes.js writes it, as a pattern) and its first data, from the
  * match and the address's query.
@@ -56,6 +63,11 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   // A map: the players, the map's bucket with its details and board, and the open bounties (the set's file comes once
   // the bucket names it).
   { pattern: /^map\/(\d+)$/, first: m => ({ packs: [CORE], json: [mapBucket(Number(m[1])), 'bounties.json'] }) },
+  // Challenges, every tab: the players, challenges.json and bounties.json (the tabs' figures and chips), and the tab's
+  // own file. A file the data doesn't have yet (hill.json, economy.json) is in the slice as missing, so the page needn't
+  // ask meta.json. /dan is the Dan tab's old address, which the old router moves there.
+  { pattern: /^challenges(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: challengesJson(m[1]) }) },
+  { pattern: /^dan$/, first: () => ({ packs: [CORE], json: challengesJson('dan') }) },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */

@@ -1,6 +1,6 @@
-// Bananas 🍌, PT Catch's play money, in markup: the amounts, a wallet's ledger and the sign-in button, as
-// assets/js/core/bananas.js draws them. What talks to the site's endpoints (requests, the session) stays the old
-// module's, for mount() through client/legacy.ts: it needs the browser.
+// Bananas 🍌, PT Catch's play money, in markup: the amounts, the posting fee, a wallet's line and ledger, the sign-in
+// button and a map id read from what someone typed, as assets/js/core/bananas.js has them. What talks to the site's
+// endpoints (requests, the session) stays the old module's, for mount() through client/legacy.ts: it needs the browser.
 //
 // The bot is the bank: everything here is a preview of its rules (CURRENCY-DESIGN.md has the amounts), never the rule.
 
@@ -22,6 +22,9 @@ export const RULES = {
   defaultDays: 60,
   mods: ['HD', 'HR', 'DT', 'FL'],
 } as const;
+
+/** The fee for posting a bounty with `stake`: a share of it, burned. */
+export const fee = (stake: number): number => Math.round(stake * RULES.feeRate);
 
 /** A player's wallet in economy.json (tools/lib/economy.mjs). */
 export interface Wallet {
@@ -48,6 +51,21 @@ export type LedgerRow = readonly [number, number, string, number, string | null]
 export const bananas = (ctx: Ctx, n: number): string => `${ctx.fmt.num(n)} 🍌`;
 /** "+20 🍌" / "−20 🍌", for ledger lines. */
 export const signedBananas = (ctx: Ctx, n: number): string => `${n > 0 ? '+' : n < 0 ? '−' : ''}${bananas(ctx, Math.abs(n))}`;
+
+/**
+ * The wallet as a line: "Your wallet: 679 🍌", and how much of it is waiting for the bot when requests are pending
+ * (`pending`, bananas.js pendingSpend()), so what you can still spend is what's left.
+ */
+export const walletLine = (ctx: Ctx, w: Wallet, pending: number): Safe => (pending
+  ? ctx.th('Your wallet: {amount}, {pending} of it waiting for the bot', { amount: html`<b>${bananas(ctx, w.b)}</b>`, pending: bananas(ctx, pending) })
+  : ctx.th('Your wallet: {amount}', { amount: html`<b>${bananas(ctx, w.b)}</b>` }));
+
+/** Reads a map id from what someone typed: an id, or an osu! beatmap link ("…/beatmaps/123", "…#fruits/123"). */
+export function mapIdFrom(text: string): number | null {
+  const s = String(text).trim();
+  const m = /^(\d{1,10})$/.exec(s) ?? /\/beatmaps\/(\d{1,10})(?:\b|$)/.exec(s) ?? /#(?:osu|taiko|fruits|mania)\/(\d{1,10})/.exec(s) ?? /\/b\/(\d{1,10})/.exec(s);
+  return m ? Number(m[1]) : null;
+}
 
 /** What each kind of ledger line is, in a few words (the contract's kinds). */
 export function kindLabel(ctx: Ctx, kind: string): string {

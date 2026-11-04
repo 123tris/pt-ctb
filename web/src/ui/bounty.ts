@@ -1,9 +1,12 @@
-// The bounty board's pieces, as assets/js/core/bounty.js has them: a goal's short name (a profile's trophies), and a
-// bounty's dare, prizes and pot (the map page). Rows come from bounties.json (tools/lib/bounties.mjs).
+// The bounty board's pieces, as assets/js/core/bounty.js has them, shared by the Bounties tab of Challenges, the map
+// page and a profile's trophies: a goal's short name, and a bounty's dare, prizes, claim mods and pot. Rows come from
+// bounties.json (tools/lib/bounties.mjs).
 
 import { html, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
+import { MOD } from '../kernel/model.ts';
 import { playerLinkId, type Players } from './players.ts';
+import { modsBadges } from './scores.ts';
 import { bananas } from './bananas.ts';
 
 export type Goal = 'fc' | 'pass' | 'snipe';
@@ -42,6 +45,12 @@ export function prizeTags(ctx: Ctx, pledges: readonly Pledge[]): Safe | '' {
     const tip = lapsed ? t('Offer ended {date}', { date: fmt.date(until!) }) : until ? t('Offered until {date}', { date: fmt.date(until) }) : '';
     return html`<span class="prize ${lapsed ? 'prize-lapsed' : ''}" title="${tip}">${by ? t('{prize} · from {by}', { prize, by }) : prize}${lapsed ? html`<span class="sr-only"> (${t('offer ended')})</span>` : ''}</span>`;
   })}</span>`;
+}
+
+/** A claim's mods ("HDHR", "" for nomod) as the mod badges plays show; none for nomod, as in scoreStats(). */
+export function claimMods(text: string): Safe | '' {
+  const mask = (text.match(/.{2}/g) ?? []).reduce((m, name) => m | ((MOD as Record<string, number>)[name] ?? 0), 0);
+  return mask ? modsBadges(mask) : '';
 }
 
 /**

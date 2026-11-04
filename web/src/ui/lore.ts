@@ -47,6 +47,15 @@ export const quips = ({ t }: Ctx) => ({
   throne: t('The throne wobbles.'),
 });
 
+/** Dan role lore, shown under each role on the Dan tab, by role. `empty` replaces the text while nobody has the role. */
+export const danRoleLore = ({ t }: Ctx): Record<string, { text: string; empty?: string }> => ({
+  'Dan Skrub': { text: t('The bottom rung, as in “back to Skrub”.') },
+  'Dan Intermed': { text: t('Back in 2018, this one came with the right to add a custom emoji to the server.') },
+  'Dan Expert': { text: t('Where the Dan course stops being polite.') },
+  'Dan Beast': { text: t('For the beasts.'), empty: t('Beast: still vacant.') },
+  'PT Best Player': { text: t('The top title.'), empty: t('The joke top title nobody has reached. Yet.') },
+});
+
 /** A map with a story: its card's title and text, and whether it's a Portuguese song or meme map ("tuga certified"). */
 export interface MapLore {
   title: string;

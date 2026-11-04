@@ -19,9 +19,12 @@ Ported so far:
   same order (`test/maps.test.mjs` checks them against the old search's). A first visit draws its first page from
   maps-top.json (43 KB), as the old page did, while the pack (about 850 KB brotli) loads; a repeat visit draws from the
   pack in the browser's cache.
+- Challenges, every tab (`/challenges/:tab?`: the week, King of the hill, the Dan course, snipe targets, bounties with
+  their Bananas, completion): players from the core pack, the rest from the JSON the old page reads, the tab's own file
+  only on that tab. Its figures and chips still read meta.json (King of the hill's month and the goal in brief).
 
-Still the old client's: challenges (with the Dan course, King of the hill, bounties and completion), games, the
-yearly recap, the shop and admin; then the header, menus, search and sign-in, and the endpoints.
+Still the old client's: games, the yearly recap, the shop and admin; then the header, menus, search and sign-in, and
+the endpoints.
 
 Each port is checked against the old page's output or logic on the same data (`test/`).
 

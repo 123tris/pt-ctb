@@ -1,6 +1,6 @@
-// King of the hill's words, as assets/js/core/hill.js has them: slot, tier, month, season and title names, and a tally
-// of crowns by slot. So far what a profile's trophies need; the Challenges tab, the home page and map chips will add
-// the rest (the time left in a month, lists of names).
+// King of the hill's words, as assets/js/core/hill.js has them, shared by its Challenges tab (views/hill.ts), the home
+// page, map chips and a profile's trophies: slot, tier, month, season and title names, the time left in a month, a
+// day in Lisbon time, lists of names and a tally of crowns by slot.
 
 import { html, type Safe, type Value } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
@@ -32,6 +32,21 @@ const monthFormat = (locale: string) => {
 export function monthLabel(ctx: Ctx, id: string): string {
   const text = monthFormat(ctx.locale).format(new Date(Date.UTC(Number(id.slice(0, 4)), Number(id.slice(5, 7)) - 1, 15)));
   return text[0].toUpperCase() + text.slice(1);
+}
+
+/** The month after "2026-11", as it reads in a sentence: "December 2026" (pt: "dezembro de 2026"). */
+export function nextMonthLabel(ctx: Ctx, id: string): string {
+  const [y, m] = id.split('-').map(Number);
+  return monthFormat(ctx.locale).format(new Date(Date.UTC(m === 12 ? y + 1 : y, m % 12, 15)));
+}
+
+const dayFormats = new Map<string, Intl.DateTimeFormat>();
+
+/** "30 November": a day of a month, in Lisbon time, as the months run. */
+export function lisbonDay(ctx: Ctx, time: number): string {
+  let format = dayFormats.get(ctx.locale);
+  if (!format) dayFormats.set(ctx.locale, format = new Intl.DateTimeFormat(ctx.locale, { day: 'numeric', month: 'long', timeZone: 'Europe/Lisbon' }));
+  return format.format(new Date(time * 1000));
 }
 
 /** "Q4 2026" for "2026-Q4": seasons are calendar quarters, Lisbon time. */
