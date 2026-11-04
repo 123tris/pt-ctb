@@ -204,6 +204,8 @@ const LEFT_SORTS = {
 };
 const LEFT_PAGE = 50;
 const percent = (n, total) => (total ? (n / total) * 100 : 0);
+/** The UTC year a `left` row's map was ranked (as completion.json's `years` counts it), or null when unknown. */
+const rankedYear = day => (day == null ? null : new Date(day * 86400000).getUTCFullYear());
 
 function leftRow([id, set, version, stars, rankedDay, plays, length], sets) {
   const named = sets[set];
@@ -261,7 +263,7 @@ function yearStrip(years) {
   ].filter(Boolean);
   return html`<div class="goal-years">
     <div class="goal-years-cols" role="img" aria-label="${t('Share cleared by year ranked: {years}', { years: years.filter(y => y[1]).map(([y, total, cleared]) => `${y} ${yearPct(cleared, total, 0)}%`).join(', ') })}">
-      ${years.map((y, i) => html`<span class="goal-year${!y[1] ? ' is-none' : isFull(y) ? ' is-full' : ''}" data-i="${i}" style="--done:${percent(y[2], y[1]).toFixed(1)}%"></span>`)}
+      ${years.map((y, i) => html`<span class="goal-year${!y[1] ? ' is-none' : isFull(y) ? ' is-full' : ' is-open'}" data-i="${i}" style="--done:${percent(y[2], y[1]).toFixed(1)}%"></span>`)}
     </div>
     <div class="goal-years-axis" aria-hidden="true">${years.map(([year], i) => labelled[i] ? html`<span style="left:${(((i + 0.5) / n) * 100).toFixed(2)}%">${year}</span>` : '')}</div>
     <p class="goal-years-note" aria-hidden="true"><span class="faint">${t('By year ranked:')}</span>
@@ -269,26 +271,53 @@ function yearStrip(years) {
   </div>`;
 }
 
-function bindYearStrip(panel, years) {
+/**
+ * The strip's hover and tap. With `choose` (the page has maps left to list), a year that isn't fully cleared also
+ * lists its maps left: a click, or on touch a second tap on the year already picked (the first only names it, as
+ * before). Choosing the chosen year again lists every year. Returns `mark(year)`, which outlines the year listed.
+ */
+function bindYearStrip(panel, years, { chosen = () => null, choose = null } = {}) {
   const cols = panel.querySelector('.goal-years-cols');
-  if (!cols) return;
+  if (!cols) return { mark() {} };
   const rest = panel.querySelector('#year-rest'), picked = panel.querySelector('#year-pick');
-  let active = null;
+  const open = y => Boolean(choose) && y[1] > y[2];
+  let active = null, touch = false, wasActive = false;
+  const line = col => {
+    const y = years[col.dataset.i];
+    if (!open(y)) return yearText(y);
+    const hint = chosen() === y[0] ? t('its maps left are listed below') : touch ? t('tap again to list its maps left') : t('click to list its maps left');
+    return `${yearText(y)} · ${hint}`;
+  };
   const show = col => {
     if (col === active) return;
     active?.classList.remove('is-active');
     active = col;
     cols.classList.toggle('is-pointing', Boolean(col));
     col?.classList.add('is-active');
-    if (col) picked.textContent = yearText(years[col.dataset.i]);
+    if (col) picked.textContent = line(col);
     rest.hidden = Boolean(col);
     picked.hidden = !col;
   };
   // Touch has no hover: a tap picks a year and it stays until the next tap.
   const pick = e => show(e.target.closest('.goal-year') ?? active);
   cols.addEventListener('pointermove', pick);
-  cols.addEventListener('pointerdown', pick);
+  cols.addEventListener('pointerdown', e => {
+    touch = e.pointerType !== 'mouse';
+    wasActive = Boolean(active) && e.target.closest('.goal-year') === active;
+    pick(e);
+  });
   cols.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') show(null); });
+  cols.classList.toggle('is-listable', Boolean(choose));
+  cols.addEventListener('click', e => {
+    const col = e.target.closest('.goal-year');
+    if (!col || !open(years[col.dataset.i]) || (touch && !wasActive)) return;
+    const year = years[col.dataset.i][0];
+    choose(chosen() === year ? null : year);
+    picked.textContent = line(col);
+  });
+  const mark = year => cols.querySelectorAll('.goal-year').forEach((col, i) => col.classList.toggle('is-chosen', years[i][0] === year));
+  mark(chosen());
+  return { mark };
 }
 
 /** completion.json's years with the years between them that ranked nothing as [year, 0, 0], so the strip spaces evenly. */
@@ -313,6 +342,12 @@ function renderCompletion(panel, goal, index, query) {
   const sorts = Object.entries(LEFT_SORTS).filter(([, [, , needsLength]]) => timed || !needsLength);
   let sortKey = sorts.some(([k]) => k === query.sort) ? query.sort : 'popular';
   let page = Math.max(0, (Number(query.page) || 1) - 1);
+  const leftByYear = new Map();
+  for (const r of goal.left) {
+    const y = rankedYear(r[4]);
+    if (y !== null) leftByYear.set(y, (leftByYear.get(y) ?? 0) + 1);
+  }
+  let year = leftByYear.has(Number(query.year)) ? Number(query.year) : null;
 
   panel.innerHTML = String(html`
     <section class="goal">
@@ -346,23 +381,30 @@ function renderCompletion(panel, goal, index, query) {
     </section>` : ''}
 
     <section class="section">
-      <div class="section-head"><h2>${t('Not cleared yet')}</h2><span class="muted small">${t('Ranked maps no Portuguese player has passed.')}</span></div>
+      <div class="section-head" id="left-head"><h2>${t('Not cleared yet')}</h2><span class="muted small">${t('Ranked maps no Portuguese player has passed.')}</span></div>
       ${goal.left.length ? html`
         <div class="toolbar">
           <select class="select" id="left-sort" aria-label="${t('Sort')}">${sorts.map(([k, [label]]) => html`<option value="${k}" ${k === sortKey ? raw('selected') : ''}>${label}</option>`)}</select>
+          ${leftByYear.size ? html`<select class="select" id="left-year" aria-label="${t('Year ranked')}">
+            <option value="">${t('Every year')}</option>
+            ${[...leftByYear].sort((a, b) => a[0] - b[0]).map(([y, n]) => html`<option value="${y}" ${y === year ? raw('selected') : ''}>${t('Ranked in {year} ({n} left)', { year: y, n: fmt.num(n) })}</option>`)}
+          </select>` : ''}
         </div>
         ${starSlider(stars)}
         <p class="result-count" id="left-count"></p>
         <div id="left-list"></div>` : empty(t('Every ranked osu!catch map is cleared. Converts next?'))}
     </section>
   `);
-  bindYearStrip(panel, years);
-  if (!goal.left.length) return;
+  if (!goal.left.length) {
+    bindYearStrip(panel, years);
+    return;
+  }
 
   const sort = panel.querySelector('#left-sort');
+  const yearSelect = panel.querySelector('#left-year');
   const count = panel.querySelector('#left-count');
-  const visible = () => goal.left.filter(r => inStars(r[3], stars)).sort(LEFT_SORTS[sortKey][1]);
-  const save = () => writeQuery({ sort: sortKey, stars: formatStars(stars), page: page + 1 }, { sort: 'popular', page: 1 });
+  const visible = () => goal.left.filter(r => inStars(r[3], stars) && (year === null || rankedYear(r[4]) === year)).sort(LEFT_SORTS[sortKey][1]);
+  const save = () => writeQuery({ sort: sortKey, year: year ?? '', stars: formatStars(stars), page: page + 1 }, { sort: 'popular', page: 1 });
   let items = visible();
   const showCount = speak => {
     count.textContent = resultCount(items.length, goal.left.length, 'map');
@@ -371,7 +413,8 @@ function renderCompletion(panel, goal, index, query) {
   const redraw = paginate(panel.querySelector('#left-list'), items, slice => html`<div class="rows">${slice.map(r => leftRow(r, goal.sets))}</div>`, LEFT_PAGE, {
     page,
     onPage: p => { page = p; save(); },
-    empty: () => emptyFiltered(t('No uncleared maps at {stars}.', { stars: starsLabel(stars) })),
+    empty: () => emptyFiltered(year === null ? t('No uncleared maps at {stars}.', { stars: starsLabel(stars) })
+      : t('No uncleared maps ranked in {year} at {stars}.', { year, stars: starsLabel(stars) })),
   });
   showCount(false);
   // A new sort or range starts again from the first page (paginate's redraw, which saves it).
@@ -382,10 +425,25 @@ function renderCompletion(panel, goal, index, query) {
   };
   sort.addEventListener('change', () => { sortKey = sort.value; refilter(); });
   const slider = bindStarSlider(panel, stars, next => { stars = next; refilter(); });
+  // A year from the select or the strip above; the strip also brings the list into view.
+  const setYear = next => {
+    year = next;
+    if (yearSelect) yearSelect.value = year ?? '';
+    strip.mark(year);
+    refilter();
+  };
+  const strip = bindYearStrip(panel, years, {
+    chosen: () => year,
+    choose: next => {
+      setYear(next);
+      if (next !== null) panel.querySelector('#left-head').scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
+    },
+  });
+  yearSelect?.addEventListener('change', () => setYear(yearSelect.value ? Number(yearSelect.value) : null));
   panel.querySelector('#left-list').addEventListener('click', e => {
     if (!e.target.closest('[data-clear]')) return;
     stars = [...ANY_STARS];
     slider.set(stars);
-    refilter();
+    setYear(null);
   });
 }

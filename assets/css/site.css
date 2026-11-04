@@ -1250,6 +1250,8 @@ a.dan-stage:hover { text-decoration: none; }
 .goal-year.is-none { background: none; border-bottom: 1px solid var(--border); }
 .goal-years-cols.is-pointing .goal-year { opacity: .4; }
 .goal-years-cols.is-pointing .goal-year.is-active { opacity: 1; }
+.goal-years-cols.is-listable .goal-year.is-open { cursor: pointer; }
+.goal-year.is-chosen { opacity: 1; outline: 1px solid var(--text-dim); outline-offset: 1px; }
 .goal-years-axis { position: relative; height: 1.4em; margin-top: var(--sp-1); color: var(--text-faint); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .goal-years-axis > span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .goal-years-axis > span:first-child { transform: none; left: 0 !important; }
