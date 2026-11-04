@@ -14,7 +14,6 @@ public sealed class JsCompatibilityTests
 {
     [Theory]
     [InlineData(0.0, "0")]
-    [InlineData(-0.0, "0")]
     [InlineData(1.0, "1")]
     [InlineData(-1.0, "-1")]
     [InlineData(0.1, "0.1")]
@@ -43,6 +42,13 @@ public sealed class JsCompatibilityTests
     public void Numbers_are_written_as_V8_writes_them(double value, string expected)
     {
         Assert.Equal(expected, JsMath.ToString(value));
+    }
+
+    [Fact]
+    public void Negative_zero_is_written_as_zero()
+    {
+        // Its own test: xUnit counts 0.0 and -0.0 as the same theory case.
+        Assert.Equal("0", JsMath.ToString(-0.0));
     }
 
     [Theory]

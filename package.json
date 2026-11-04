@@ -6,9 +6,10 @@
   "scripts": {
     "export": "node --max-old-space-size=4096 tools/export.mjs",
     "serve": "node tools/serve.mjs",
-    "test": "node --test embed/*.test.mjs signin/*.test.mjs usage/*.test.mjs economy/*.test.mjs tools/*.test.mjs tools/lib/*.test.mjs",
+    "test": "node --test embed/*.test.mjs signin/*.test.mjs usage/*.test.mjs economy/*.test.mjs tools/*.test.mjs tools/lib/*.test.mjs web/test/*.test.mjs",
     "build": "node tools/build-site.mjs",
-    "engine:parity": "node tools/engine-parity.mjs"
+    "engine:parity": "node tools/engine-parity.mjs",
+    "gen": "dotnet run --project engine/src/PtCatch.Engine.Cli -c Release -- gen-ts"
   },
   "devDependencies": {
     "sharp": "^0.35.5"

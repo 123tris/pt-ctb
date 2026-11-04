@@ -9,15 +9,24 @@ dotnet build engine/src/PtCatch.Engine.Cli -c Release
 engine/src/PtCatch.Engine.Cli/bin/Release/net10.0/ptcatch-engine.exe export                      # into data/, as npm run export
 engine/src/PtCatch.Engine.Cli/bin/Release/net10.0/ptcatch-engine.exe export --out <folder> --timings
 dotnet test engine/PtCatch.Engine.slnx                                                          # the engine's tests
-npm run engine:parity                                                                           # both exporters, compared byte for byte
-.\publish.ps1 -Engine                                                                           # publish with the engine
+npm run engine:parity                                                                           # both exporters byte for byte, and the packs against the JSON
+npm run gen                                                                                     # web/src/gen/packs.ts from the pack schemas
+.\publish.ps1                                                                                   # publish (with the engine; -Node for the Node exporter)
 ```
 
-`export` takes the Node exporter's arguments: `--data` (default `../PT-CTB-Bot-Data`), `--country PT`, and `--out` (a
-trial export, with its own state in that folder). It also takes `--now <unix seconds>`, to run as of a fixed time,
-and `--timings`, to print each stage's and system's milliseconds and the GC's work. It doesn't call the osu! API for
-missing titles or make new avatar thumbnails yet. Those it already has are kept, so `publish.ps1` keeps the Node
-exporter by default until it does.
+`export` takes the Node exporter's arguments:
+- `--data` (default `../PT-CTB-Bot-Data`) and `--country PT`;
+- `--out`, a trial export with its own state in that folder;
+- `--fetch-titles`, to ask the osu! API for maps the bot only knows by id and for converts' catch star ratings, with
+  the bot's osu! app and the same caps (`src/PtCatch.Engine/Osu/OsuApi.cs`);
+- `--offline`, to leave the avatar thumbnails as they are instead of re-checking them on osu!'s CDN once a day
+  (`Osu/Avatars.cs`, WebP through SkiaSharp);
+- `--packs`, to also write the binary packs under `packs/` (below);
+- `--now <unix seconds>`, to run as of a fixed time;
+- `--timings`, to print each stage's and system's milliseconds and the GC's work.
+
+`publish.ps1` exports with the engine. `-Node` uses `tools/export.mjs` instead. The two share `state/` (the osu! cache
+is written exactly as the Node exporter writes it), so switching back and forth is safe.
 
 ## How it's laid out
 
@@ -26,7 +35,9 @@ exporter by default until it does.
 | `src/PtCatch.Engine/Js` | JavaScript's semantics where the bytes depend on them. `JsJsonWriter` writes what `JSON.stringify` writes: V8's number formatting and its string escaping. `JsMath` holds `Math.round` (halves up). `JsDate` holds `Date.parse` and Lisbon calendar fields. `JsSort` holds the stable sort and `localeCompare`. `JsNode` is a JSON tree that lists keys as JavaScript does |
 | `src/PtCatch.Engine/World` | The data as columns: `Beatmaps`, `RawScores` (every score in the bot's files), `Tuples` (the site's score tuples), `BotData` |
 | `src/PtCatch.Engine/Ingest` | Readers. Player files are read in parallel straight into columns. The 171 MB beatmap cache is kept as a binary column file, `state/beatmaps.ptcb`, reused while the source file is unchanged. Also the exporter's osu! API cache |
+| `src/PtCatch.Engine/Osu` | The osu! API lookups and the avatar thumbnails (`tools/lib/osu-api.mjs`, `tools/lib/avatars.mjs`). A new avatar's WebP bytes differ from sharp's; an unchanged one keeps its file, and so its name |
 | `src/PtCatch.Engine/Export` | `Build.*.cs` ports `tools/lib/build.mjs` and its libraries, one partial file per system (people, boards, maps, rankings, records, activity, challenges, completion, history, heads…). `Exporter.cs` ports `tools/export.mjs` |
+| `src/PtCatch.Engine/Packs` | The PTCB pack format (`Ptcb.cs`), every pack's layout (`Schemas.cs`) and the TypeScript it generates (`GenTs.cs`). `Export/Build.Packs.cs` fills the packs from the systems' results |
 | `src/PtCatch.Engine.Cli` | The `ptcatch-engine` command |
 | `tests/PtCatch.Engine.Tests` | xUnit. The expected values are what Node gave for the same inputs |
 
@@ -48,6 +59,28 @@ exporter by default until it does.
 - **Check after every change.** Changing the exporter's logic means changing both (`tools/lib/*.mjs` and
   `Export/Build.*.cs`) until Node is retired. `npm run engine:parity` runs both exporters on the bot's data, two days
   in a row, and fails on any byte that differs. Run it before merging.
+
+## Packs: the data the new web client reads
+
+The JSON files are what today's site reads. The rebuilt client (`web/`) will read **packs** instead.
+- **Format.** A pack is a short JSON header and then columns. The browser wraps each column in a typed array over the
+  bytes it downloaded: no `JSON.parse`, no object per row. Strings are decoded only when shown.
+- **Layout.** `Packs/Schemas.cs` defines every pack. `ptcatch-engine gen-ts` (`npm run gen`) turns it into
+  `web/src/gen/packs.ts`, whose types and layout hash the client reads them with, through `web/src/kernel/ptcb.ts`. CI
+  fails while the two disagree, and a pack of another layout is refused, not misread.
+- **Identity.** Players are referred to by osu! id and maps by beatmap id across packs. pp, accuracy and stars are
+  hundredths. Ids that rise (d32) and strings (lengths, then bytes) are added up once on reading, because small numbers
+  compress several times better than the values themselves.
+- **Checked.** `web/test/packs.test.mjs` reads every pack with the client's own reader and compares it, value by value,
+  with the JSON of the same export. `npm run engine:parity` runs it.
+- **Not published yet.** The packs aren't in `meta.json`, and nothing uploads them until the client reads them.
+
+| | JSON, brotli | Pack, brotli | Read: JSON.parse vs pack |
+|---|---|---|---|
+| Players (`core`) | 9 KB | 7 KB | |
+| Largest player (`player/6205809`) | 457 KB | 374 KB | 12.8 ms vs 0.5 ms |
+| All 110 player files | 6,960 KB | 5,800 KB | |
+| Maps index and header search (`search`) | 1,153 KB (two files) | 850 KB | about 20 ms vs 1.4 ms |
 
 ## Speed (2026-11-03, a busy desktop, warm file cache)
 

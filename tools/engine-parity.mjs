@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Checks that the C# engine (engine/) writes exactly what tools/export.mjs writes: both export the same bot data at
 // the same time into trial folders, day after day so the state each run leaves is checked too, and every file is
-// compared byte for byte. The engine has to match before it publishes, since a file's name on R2 is the hash of its
+// compared byte for byte. The engine's binary packs, which Node doesn't write, are checked against its JSON. The engine has to match before it publishes, since a file's name on R2 is the hash of its
 // bytes: identical output means the switch uploads nothing new and nobody's cache is emptied.
 //
 //   node tools/engine-parity.mjs [--data <bot data folder>] [--now <unix seconds>] [--days 2] [--engine <exe>] [--keep]
@@ -77,10 +77,11 @@ for (let day = 0; day < days; day++) {
   execFileSync(process.execPath, ['--max-old-space-size=4096', path.join(repo, 'tools', 'export.mjs'), '--data', data, '--out', out.node, '--now', now, '--offline'], { stdio: 'ignore' });
   const nodeTime = nodeDone();
   const engineDone = timer('engine');
-  execFileSync(engine, ['export', '--repo', repo, '--data', data, '--out', out.engine, '--now', now], { stdio: 'ignore' });
+  execFileSync(engine, ['export', '--repo', repo, '--data', data, '--out', out.engine, '--now', now, '--offline', '--packs'], { stdio: 'ignore' });
   const engineTime = engineDone();
 
-  const a = files(out.node), b = files(out.engine);
+  // The binary packs are the engine's alone: they're checked against its JSON (web/test/packs.test.mjs) below.
+  const a = files(out.node), b = files(out.engine).filter(f => !f.startsWith('packs/'));
   const missing = a.filter(f => !b.includes(f)), extra = b.filter(f => !a.includes(f));
   const differ = a.filter(f => b.includes(f) && !fs.readFileSync(path.join(out.node, f)).equals(fs.readFileSync(path.join(out.engine, f))));
   console.log(`day ${day + 1} (now ${now}): ${a.length - differ.length - missing.length} of ${a.length} files identical; ${nodeTime}, ${engineTime}`);
@@ -95,6 +96,14 @@ for (let day = 0; day < days; day++) {
     console.log(`  differs: ${f} ${detail}`);
   }
   if (missing.length || extra.length || differ.length) failed = true;
+  try {
+    execFileSync(process.execPath, ['--test', path.join(repo, 'web', 'test', 'packs.test.mjs')], { stdio: 'pipe', env: { ...process.env, PTCATCH_DATA: out.engine } });
+    console.log('  packs: the same data as the JSON');
+  } catch (e) {
+    console.log(`  packs differ from the JSON:
+${e.stdout}`);
+    failed = true;
+  }
 }
 
 if (keep || failed) console.log(`Outputs kept in ${work}`);

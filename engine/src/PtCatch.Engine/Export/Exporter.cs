@@ -4,12 +4,14 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using PtCatch.Engine.Ingest;
 using PtCatch.Engine.Js;
 using PtCatch.Engine.Model;
+using PtCatch.Engine.Osu;
 using PtCatch.Engine.World;
 
 namespace PtCatch.Engine.Export;
@@ -27,6 +29,12 @@ public sealed class ExportOptions
     public double? Now;
     /// <summary>Print each stage's and system's milliseconds.</summary>
     public bool Timings;
+    /// <summary>Ask the osu! API for missing titles and catch star ratings (export.mjs --fetch-titles).</summary>
+    public bool FetchTitles;
+    /// <summary>Leave the avatars as they are on disk instead of asking osu!'s CDN (export.mjs --offline).</summary>
+    public bool Offline;
+    /// <summary>Also write the binary packs (packs/*.ptcb) for the new web client.</summary>
+    public bool Packs;
 }
 
 /// <summary>The files an export made, with their hashes, and what it changed.</summary>
@@ -46,6 +54,12 @@ public sealed class ExportResult
 /// </summary>
 public static class Exporter
 {
+    /// <summary>One client for every request a run makes (osu!'s API and its avatar CDN), pooling the connections.</summary>
+    private static readonly HttpClient Http = new(new SocketsHttpHandler { AutomaticDecompression = System.Net.DecompressionMethods.All })
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+    };
+
     /// <summary>Files earlier exports wrote and this one doesn't.</summary>
     private static readonly string[] Retired = ["maps-index.json"];
 
@@ -97,7 +111,20 @@ public static class Exporter
             log($"  dropped the osu!standard star rating of {cache.Migrated} converts in state/beatmaps.json");
             cache.Save(Path.Combine(stateDir, "beatmaps.json"));
         }
-        TopUp(beatmaps, cache, neededList, log);
+        OsuApi api = null;
+        if (o.FetchTitles)
+        {
+            var credentials = OsuApi.FindCredentials();
+            if (credentials is { } found)
+            {
+                api = new OsuApi(Http, found, log);
+            }
+            else
+            {
+                log("  no osu! credentials for the API (set OSU_CLIENT_ID/OSU_CLIENT_SECRET)");
+            }
+        }
+        TopUp(beatmaps, cache, neededList, Path.Combine(stateDir, "beatmaps.json"), api, log);
         Stage("top up beatmaps");
 
         var previous = File.Exists(stateOut) ? BotDataReader.ReadJson(stateOut) : File.Exists(stateFile) ? BotDataReader.ReadJson(stateFile) : JsNode.Object();
@@ -133,10 +160,15 @@ public static class Exporter
             log("  commands.json in the data folder is not the expected shape; skipped");
         }
 
-        // Avatar thumbnails: kept as they are on disk (making new ones is the publisher's job).
+        // Avatar thumbnails for everyone on players.json, re-checked once a day (kept as they are with --offline).
         var avatarState = File.Exists(avatarStateOut) ? BotDataReader.ReadJson(avatarStateOut) : File.Exists(avatarStateFile) ? BotDataReader.ReadJson(avatarStateFile) : JsNode.Object();
-        var avatars = Avatars.Keep(build.PlayerIds.OrderBy(id => id).ToList(), outDir, avatarState);
-        log($"  avatars: {avatars.Kept} kept{(avatars.Missing > 0 ? $", {avatars.Missing} without a thumbnail" : "")}");
+        var avatarIds = build.PlayerIds.OrderBy(id => id).ToList();
+        var avatars = o.Offline ? Avatars.Keep(avatarIds, outDir, avatarState) : Avatars.Update(avatarIds, outDir, avatarState, Http, log).GetAwaiter().GetResult();
+        log(o.Offline
+            ? $"  avatars: {avatars.Kept} kept{(avatars.Missing > 0 ? $", {avatars.Missing} without a thumbnail" : "")}"
+            : $"  avatars: {avatars.Fetched} new or changed, {avatars.Unchanged} unchanged on osu!, {avatars.Kept} not due for a check" +
+              $"{(avatars.Failed > 0 ? $", {avatars.Failed} failed" : "")}");
+        Stage("avatars");
 
         // meta.json lists a hash of every other file's content, which the site puts on that file's URL.
         var previousMeta = File.Exists(Path.Combine(outDir, "meta.json")) ? BotDataReader.ReadJson(Path.Combine(outDir, "meta.json")) : JsNode.Object();
@@ -210,6 +242,25 @@ public static class Exporter
         WriteIfChanged(avatarStateOut, Encoding.UTF8.GetBytes(avatars.State.Stringify()));
         result.Files = files.Count;
         Stage("meta and state");
+
+        if (o.Packs)
+        {
+            // The binary packs (Packs/Schemas.cs) beside the JSON, under packs/. They aren't in meta.json, which stays the
+            // JSON's manifest, and nothing publishes them yet: the new web client will be their first reader.
+            var packs = build.Packs();
+            var packDir = Path.Combine(outDir, "packs");
+            Parallel.ForEach(packs, p => WriteIfChanged(Path.Combine(outDir, p.Name), p.Bytes));
+            var wanted = new HashSet<string>(packs.Select(p => Path.GetFullPath(Path.Combine(outDir, p.Name))), StringComparer.OrdinalIgnoreCase);
+            foreach (var file in Directory.GetFiles(packDir, "*.ptcb", SearchOption.AllDirectories))
+            {
+                if (!wanted.Contains(Path.GetFullPath(file)))
+                {
+                    File.Delete(file);
+                }
+            }
+            log($"  {packs.Count} packs ({packs.Sum(p => (long)p.Bytes.Length) / 1e6:F1} MB) in packs/");
+            Stage("packs");
+        }
         log($"  {files.Count + 1} files ({result.Bytes / 1e6:F1} MB), {result.Changed} changed, {result.Removed} removed in {clock.Elapsed.TotalSeconds:F1}s");
         return result;
     }
@@ -248,13 +299,23 @@ public static class Exporter
         return false;
     }
 
+    /// <summary>Maps a run asks osu! for at most: converts' catch ratings (one request each), and sets' titles (ids, 50 a request).</summary>
+    private const int MaxCatchFetches = 100;
+    private const int MaxSetTitleFetches = 1000;
+
     /// <summary>
     /// What the exporter's osu! API cache adds to the bot's beatmaps (export.mjs): titles for maps the bot only knows by
-    /// id, ranked and updated dates, and the catch star rating of converts.
+    /// id, ranked and updated dates, and the catch star rating of converts. With <paramref name="api"/>, what the cache
+    /// lacks is fetched first, as export.mjs --fetch-titles does, in the same order and with the same caps.
     /// </summary>
-    private static void TopUp(Beatmaps beatmaps, OsuCache cache, List<int> needed, Action<string> log)
+    private static void TopUp(Beatmaps beatmaps, OsuCache cache, List<int> needed, string cacheFile, OsuApi api, Action<string> log)
     {
         var untitled = needed.Where(id => beatmaps.RowOf(id) is var row && (row < 0 || string.IsNullOrEmpty(beatmaps.Title[row]) || beatmaps.Title[row] == "Unknown")).ToList();
+        if (api != null)
+        {
+            log($"  fetched {api.FetchMissing(untitled, cache, cacheFile).GetAwaiter().GetResult()} beatmaps");
+            cache.Rebuild();
+        }
         foreach (var id in untitled)
         {
             var titled = cache.Maps.RowOf(id);
@@ -288,6 +349,47 @@ public static class Exporter
             beatmaps.LastUpdate[row] = ownUpdate ?? cache.Maps.LastUpdate[titled];
         }
 
+        // The completion goal lists every ranked catch map nobody here has cleared, and the dump left most without a
+        // title. A set takes its title from any cached map of it; for sets with none, one map each is fetched, a capped
+        // number per run.
+        var titledSets = new HashSet<int>();
+        foreach (var table in new[] { beatmaps, cache.Maps })
+        {
+            for (var row = 0; row < table.Count; row++)
+            {
+                if (table.HasTitle(row))
+                {
+                    titledSets.Add(table.SetId[row]);
+                }
+            }
+        }
+        var untitledSets = new Dictionary<int, int>();
+        var setOrder = new List<int>();
+        for (var row = 0; row < beatmaps.Count; row++)
+        {
+            if (beatmaps.IsRankedSpecific(row) && !titledSets.Contains(beatmaps.SetId[row]) && untitledSets.TryAdd(beatmaps.SetId[row], beatmaps.Id[row]))
+            {
+                setOrder.Add(beatmaps.SetId[row]);
+            }
+        }
+        if (api != null && untitledSets.Count > 0)
+        {
+            var batch = setOrder.Select(set => untitledSets[set]).Where(id => !cache.IsGone(id)).Take(MaxSetTitleFetches).ToList();
+            try
+            {
+                log($"  fetched the titles of {api.FetchMissing(batch, cache, cacheFile).GetAwaiter().GetResult()} ranked catch sets");
+                cache.Rebuild();
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+            {
+                log($"  couldn't fetch ranked catch set titles ({e.Message}); the next export retries");
+            }
+        }
+        else if (untitledSets.Count > 0)
+        {
+            log($"  {untitledSets.Count} ranked catch sets have no title in either cache (--fetch-titles fills them in)");
+        }
+
         // Ranked/loved dates (a set's) and last-updated times the bot's cache doesn't have.
         foreach (var id in needed)
         {
@@ -311,7 +413,21 @@ public static class Exporter
             }
         }
 
-        // Converts neither cache has a catch star rating for show the bot's value until one is fetched.
+        // Converts neither cache has a catch star rating for: the fruits attributes, a hundred per run at most. Until
+        // then they show the bot's value.
+        if (api != null)
+        {
+            var noCatch = needed.Where(id => beatmaps.RowOf(id) is var row && row >= 0 && !beatmaps.HasCatchDifficulty(row) && !cache.HasCatch(id))
+                .Take(MaxCatchFetches).ToList();
+            try
+            {
+                log($"  fetched the catch star rating of {api.FetchCatchDifficulty(noCatch, cache, cacheFile).GetAwaiter().GetResult()} converts");
+            }
+            catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+            {
+                log($"  couldn't fetch catch star ratings ({e.Message}); the next export retries");
+            }
+        }
         var withoutCatch = 0;
         foreach (var id in needed)
         {

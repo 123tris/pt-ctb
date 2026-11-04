@@ -9,10 +9,12 @@ namespace PtCatch.Engine.Cli;
 /// ptcatch-engine: the site's data engine.
 ///
 ///   ptcatch-engine export [--data &lt;bot data folder&gt;] [--country PT] [--out &lt;folder&gt;] [--repo &lt;site repo&gt;]
-///                         [--now &lt;unix seconds&gt;] [--timings]
+///                         [--now &lt;unix seconds&gt;] [--fetch-titles] [--offline] [--packs] [--timings]
+///   ptcatch-engine gen-ts [--out &lt;file&gt;] [--check]
 ///
 /// export writes what tools/export.mjs writes, byte for byte: the site's JSON under data/ (or --out, a trial export
-/// with its own state), meta.json listing every file's hash, and the exporter's state.
+/// with its own state), meta.json listing every file's hash, and the exporter's state; --packs adds the binary packs.
+/// gen-ts writes web/src/gen/packs.ts, the web client's types for the packs, from the engine's pack schemas.
 /// </summary>
 public static class Program
 {
@@ -20,7 +22,8 @@ public static class Program
     {
         if (args.Length == 0 || args[0] is "-h" or "--help")
         {
-            Console.WriteLine("usage: ptcatch-engine export [--data <folder>] [--country PT] [--out <folder>] [--repo <folder>] [--now <unix>] [--timings]");
+            Console.WriteLine("usage: ptcatch-engine export [--data <folder>] [--country PT] [--out <folder>] [--repo <folder>] [--now <unix>] [--fetch-titles] [--offline] [--packs] [--timings]");
+            Console.WriteLine("       ptcatch-engine gen-ts [--out <file>] [--check]");
             return args.Length == 0 ? 2 : 0;
         }
         string Arg(string name, string fallback)
@@ -41,6 +44,9 @@ public static class Program
                     OutDir = Path.GetFullPath(Arg("out", Path.Combine(repo, "data"))),
                     Now = Arg("now", null) is string now ? double.Parse(now) : null,
                     Timings = args.Contains("--timings"),
+                    FetchTitles = args.Contains("--fetch-titles"),
+                    Offline = args.Contains("--offline"),
+                    Packs = args.Contains("--packs"),
                 };
                 var result = Exporter.Run(options, Console.WriteLine);
                 if (options.Timings)
@@ -53,6 +59,25 @@ public static class Program
                         $"paused {GC.GetTotalPauseDuration().TotalMilliseconds:F0} ms, peak working set {Environment.WorkingSet / 1e6:F0} MB, " +
                         $"CPU {System.Diagnostics.Process.GetCurrentProcess().TotalProcessorTime.TotalMilliseconds:F0} ms");
                 }
+                return 0;
+            }
+            case "gen-ts":
+            {
+                // web/src/gen/packs.ts from the pack schemas; --check only says whether it's current (for CI).
+                var file = Path.GetFullPath(Arg("out", Path.Combine(Arg("repo", FindRepo()), "web", "src", "gen", "packs.ts")));
+                var text = PtCatch.Engine.Packs.GenTs.Generate();
+                var current = File.Exists(file) && File.ReadAllText(file).ReplaceLineEndings("\n") == text;
+                if (args.Contains("--check"))
+                {
+                    Console.WriteLine(current ? $"{file} is current" : $"{file} is out of date: run ptcatch-engine gen-ts");
+                    return current ? 0 : 1;
+                }
+                if (!current)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(file));
+                    File.WriteAllText(file, text);
+                }
+                Console.WriteLine(current ? $"{file} was already current" : $"wrote {file}");
                 return 0;
             }
             default:

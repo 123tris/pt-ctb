@@ -10,13 +10,14 @@ European Portuguese for visitors who pick PT in the header (`assets/js/core/i18n
 ## How it works
 
 ```
-PT-CTB-Bot-Data (private)  ──tools/export.mjs──►  data/*.json  ──publish.ps1 (R2)──►  https://data.ptcatch.com
-                                                      site code  ──Cloudflare Pages──►  https://ptcatch.com (reads the data)
+PT-CTB-Bot-Data (private)  ──engine/ (C#)──►  data/*.json  ──publish.ps1 (R2)──►  https://data.ptcatch.com
+                                                    site code  ──Cloudflare Pages──►  https://ptcatch.com (reads the data)
 ```
 
-- `tools/export.mjs` reads the bot's private data folder (`../PT-CTB-Bot-Data` by default) and writes the public JSON
-  under `data/`. Only home-country players' public osu! data is exported: usernames, scores and profile stats.
-  Discord ids, the verification log and per-user settings are never read.
+- The data engine (`engine/`, C#) reads the bot's private data folder (`../PT-CTB-Bot-Data` by default) and writes
+  the public JSON under `data/`. `tools/export.mjs` writes the same files in Node: it's the original, and the two are
+  kept identical (`npm run engine:parity`). Only home-country players' public osu! data is exported: usernames, scores
+  and profile stats. Discord ids, the verification log and per-user settings are never read.
 - `--fetch-titles` looks up maps the bot's cache only knows by id on the osu! API, using the bot's own osu! app
   (`OSU_CLIENT_ID`/`OSU_CLIENT_SECRET`, or the bot's user-secrets). Results are cached in `state/beatmaps.json`, so
   each map is fetched once.
@@ -65,11 +66,11 @@ node tools/i18n-check.mjs   # Portuguese strings that are missing or no longer u
 .\install-publish-task.ps1   # run publish.ps1 every 15 minutes
 node tools/r2-sync.mjs status   # R2 usage against the free-tier caps
 npm run engine:parity     # the C# engine against tools/export.mjs, byte for byte (engine/README.md)
-.\publish.ps1 -Engine     # publish with the C# engine instead of the Node exporter
+.\publish.ps1 -Node       # publish with the Node exporter instead of the C# engine
 ```
 
-`engine/` is the site's data engine in C# (.NET 10): the same export as `tools/export.mjs`, byte for byte, about 4x
-faster. It's the first step of the performance rebuild; [engine/README.md](engine/README.md) says how it's laid out and
+`engine/` is the site's data engine in C# (.NET 10), which `publish.ps1` exports with: the same export as
+`tools/export.mjs`, byte for byte, about 4x faster. It's the first step of the performance rebuild; [engine/README.md](engine/README.md) says how it's laid out and
 how it's kept in step with the Node exporter.
 
 Needs Node 18+. Settings that aren't data (the Discord invite link, the site's addresses) live in

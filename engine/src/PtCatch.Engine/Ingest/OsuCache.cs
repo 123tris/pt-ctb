@@ -114,43 +114,119 @@ public sealed class OsuCache
         return cache;
     }
 
-    /// <summary>Writes the cache back in osu-api.mjs saveCache's form (only needed after a migration or a fetch).</summary>
-    public void Save(string file)
+    // What this run added from the osu! API, kept as osu-api.mjs toRaw made them so the file stays the Node exporter's.
+    private readonly SortedDictionary<int, JsNode> addedMaps = new();
+    private readonly Dictionary<int, JsNode> addedCatch = new();
+
+    public bool IsGone(int id) => Gone.Contains(id);
+
+    /// <summary>A map from the osu! API, in the cache's raw shape (osu-api.mjs toRaw); <see cref="Rebuild"/> adds it to <see cref="Maps"/>.</summary>
+    public void AddMap(JsNode raw)
     {
-        var maps = JsNode.Object();
+        addedMaps[(int)raw["beatmap_id"].ToNumber()] = raw;
+    }
+
+    public void AddGone(int id) => Gone.Add(id);
+
+    /// <summary>A convert's catch star rating and combo from the attributes endpoint (stars null when osu! has none).</summary>
+    public void AddCatch(int id, JsNode value)
+    {
+        addedCatch[id] = value;
+        double? Num(JsNode n) => n.IsNullish ? null : n.ToNumber();
+        Catch[id] = (Num(value["stars"]), Num(value["combo"]));
+    }
+
+    public bool HasCatch(int id) => Catch.ContainsKey(id);
+
+    public bool HasMap(int id) => Maps.RowOf(id) >= 0 || addedMaps.ContainsKey(id);
+
+    /// <summary>Puts the maps added from the API into <see cref="Maps"/>, keeping it in ascending id order.</summary>
+    public void Rebuild()
+    {
+        if (addedMaps.Count == 0)
+        {
+            return;
+        }
+        var added = new Beatmaps(addedMaps.Count);
+        foreach (var (id, raw) in addedMaps)
+        {
+            var row = new BeatmapReader.RowFields();
+            row.Reset();
+            var reader = new Utf8JsonReader(Encoding.UTF8.GetBytes(raw.Stringify()));
+            reader.Read();
+            BeatmapReader.ReadObject(ref reader, ref row);
+            row.Id ??= id;
+            row.Store(added, added.Upsert(id));
+        }
+        var all = new List<(int Id, Beatmaps Table, int Row)>(Maps.Count + added.Count);
         for (var r = 0; r < Maps.Count; r++)
         {
-            var m = JsNode.Object()
-                .Set("beatmap_id", Maps.Id[r]).Set("beatmapset_id", Maps.SetId[r]).Set("artist", Maps.Artist[r]).Set("title", Maps.Title[r])
-                .Set("creator", Maps.Creator[r]).Set("version", Maps.Version[r])
-                .Set("difficultyrating", Maps.StarsNull[r] ? JsNode.NullValue : JsNode.Num(Maps.Stars[r]))
-                .Set("diff_approach", Maps.Ar[r]).Set("diff_size", Maps.Cs[r]).Set("diff_overall", Maps.Od[r]).Set("diff_drain", Maps.Hp[r])
-                .Set("bpm", Maps.Bpm[r]).Set("hit_length", Maps.HitLength[r])
-                .Set("max_combo", Maps.StarsNull[r] && Maps.MaxCombo[r] == 0 ? JsNode.NullValue : JsNode.Num(Maps.MaxCombo[r]))
-                .Set("approved", Maps.Approved[r]).Set("approved_date", Maps.ApprovedDate[r]).Set("last_update", Maps.LastUpdate[r])
-                .Set("playmode", Maps.Mode[r]).Set("playcount", Maps.Playcount[r]).Set("favourite_count", Maps.Favourites[r]);
-            maps.Set(Maps.Id[r].ToString(), m);
+            if (added.RowOf(Maps.Id[r]) < 0)
+            {
+                all.Add((Maps.Id[r], Maps, r));
+            }
         }
-        var catchNode = JsNode.Object();
-        foreach (var (id, (stars, combo)) in Catch.OrderBy(kv => kv.Key))
+        for (var r = 0; r < added.Count; r++)
         {
-            catchNode.Set(id.ToString(), JsNode.Object().Set("stars", JsNode.NumOrNull(stars)).Set("combo", JsNode.NumOrNull(combo)));
+            all.Add((added.Id[r], added, r));
         }
-        var sets = JsNode.Object();
-        foreach (var (id, d) in SetDates.OrderBy(kv => kv.Key))
+        all.Sort((a, b) => a.Id.CompareTo(b.Id));
+        var rebuilt = new Beatmaps(all.Count);
+        foreach (var (_, table, row) in all)
         {
-            sets.Set(id.ToString(), d);
+            rebuilt.CopyFrom(table, row);
         }
-        var mapDates = JsNode.Object();
-        foreach (var (id, d) in MapDates.OrderBy(kv => kv.Key))
+        Maps = rebuilt;
+    }
+
+    private static bool HasCatchDifficulty(JsNode raw) => raw["playmode"].ToNumber() == 2 || (raw["catch_difficulty"].IsBool && raw["catch_difficulty"].BoolValue);
+
+    /// <summary>
+    /// Writes the cache back exactly as osu-api.mjs saveCache does: the file as it was, with loadCache's migration and
+    /// this run's additions, every list sorted by id.
+    /// </summary>
+    public void Save(string file)
+    {
+        var root = File.Exists(file) ? JsNode.Parse(File.ReadAllBytes(file)) : JsNode.Object();
+        var maps = root["maps"].IsObject ? root["maps"] : JsNode.Object();
+        foreach (var (_, raw) in maps.Props)
         {
-            mapDates.Set(id.ToString(), d);
+            if (raw.IsObject && !HasCatchDifficulty(raw) && (!raw["difficultyrating"].IsNullish || !raw["max_combo"].IsNullish))
+            {
+                raw.Set("difficultyrating", JsNode.NullValue).Set("max_combo", JsNode.NullValue);
+            }
         }
-        var root = JsNode.Object().Set("maps", maps).Set("gone", Numbers(Gone.Distinct().OrderBy(x => x)))
-            .Set("catch", catchNode).Set("dates", JsNode.Object().Set("sets", sets).Set("maps", mapDates));
+        foreach (var (id, raw) in addedMaps)
+        {
+            maps.Set(id.ToString(), raw);
+        }
+        var catchNode = root["catch"].IsObject ? root["catch"] : JsNode.Object();
+        foreach (var (id, value) in addedCatch)
+        {
+            catchNode.Set(id.ToString(), value);
+        }
+        var dates = root["dates"].IsObject ? root["dates"] : JsNode.Object();
+        var sorted = JsNode.Object()
+            .Set("maps", ById(maps))
+            .Set("gone", Numbers(Gone.Distinct().OrderBy(x => x)))
+            .Set("catch", ById(catchNode))
+            .Set("dates", JsNode.Object().Set("sets", ById(dates["sets"])).Set("maps", ById(dates["maps"])));
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(file)));
-        File.WriteAllText(file + ".tmp", root.Stringify(), new UTF8Encoding(false));
+        File.WriteAllText(file + ".tmp", sorted.Stringify(), new UTF8Encoding(false));
         File.Move(file + ".tmp", file, true);
+    }
+
+    /// <summary><c>Object.fromEntries(Object.entries(o).sort((a, b) => a[0] - b[0]))</c>.</summary>
+    private static JsNode ById(JsNode o)
+    {
+        var entries = JsNode.OrderedProps(o).ToList();
+        JsSort.Stable(entries, (a, b) => JsSort.Sign(JsNode.StringToNumber(a.Key) - JsNode.StringToNumber(b.Key)));
+        var result = JsNode.Object();
+        foreach (var (k, v) in entries)
+        {
+            result.Set(k, v);
+        }
+        return result;
     }
 
     private static JsNode Numbers(IEnumerable<double> ids)
@@ -161,42 +237,5 @@ public sealed class OsuCache
             a.Add(id);
         }
         return a;
-    }
-}
-
-/// <summary>The players' avatar thumbnails in the output folder (tools/lib/avatars.mjs, without making new ones).</summary>
-public static class Avatars
-{
-    public sealed class Result
-    {
-        public readonly List<(string Name, byte[] Bytes)> Files = new();
-        public JsNode State = JsNode.Object();
-        public int Kept;
-        public int Missing;
-    }
-
-    public static string[] ThumbNames(int id) => [$"avatars/{id}-64.webp", $"avatars/{id}-128.webp"];
-
-    /// <summary>The thumbnails already there, in the order of <paramref name="ids"/>; a player with none is left out.</summary>
-    public static Result Keep(List<int> ids, string outDir, JsNode state)
-    {
-        var result = new Result();
-        foreach (var id in ids)
-        {
-            var names = ThumbNames(id);
-            if (!names.All(n => File.Exists(Path.Combine(outDir, n))))
-            {
-                result.Missing++;
-                continue;
-            }
-            foreach (var n in names)
-            {
-                result.Files.Add((n, File.ReadAllBytes(Path.Combine(outDir, n))));
-            }
-            var saved = state[id.ToString()];
-            result.State.Set(id.ToString(), saved.Truthy ? saved : JsNode.Object().Set("checked", 0));
-            result.Kept++;
-        }
-        return result;
     }
 }

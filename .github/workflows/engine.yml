@@ -4,9 +4,9 @@ name: engine
 
 on:
   push:
-    paths: ['engine/**', '.github/workflows/engine.yml']
+    paths: ['engine/**', 'web/src/gen/**', '.github/workflows/engine.yml']
   pull_request:
-    paths: ['engine/**', '.github/workflows/engine.yml']
+    paths: ['engine/**', 'web/src/gen/**', '.github/workflows/engine.yml']
 
 jobs:
   test:
@@ -20,3 +20,6 @@ jobs:
       - run: dotnet test engine/PtCatch.Engine.slnx -c Release
         env:
           TZ: UTC
+      # The web client's pack types are generated from the engine's schemas and committed (Pages has no .NET).
+      - name: web/src/gen/packs.ts matches the schemas
+        run: dotnet run --project engine/src/PtCatch.Engine.Cli -c Release -- gen-ts --check

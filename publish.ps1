@@ -4,7 +4,10 @@
 
 .DESCRIPTION
     1. Fills in data/ or state/ from R2 if they're missing (a fresh checkout), so the export carries on from the last one.
-    2. Runs tools/export.mjs against the bot's data folder (fetching titles for any new maps from the osu! API).
+    2. Exports with the C# engine (engine/) from the bot's data folder, fetching titles for any new maps from the osu!
+       API and refreshing the avatar thumbnails. It writes what tools/export.mjs writes, byte for byte (npm run
+       engine:parity checks it), about 4x faster. It's built once per engine version (the git tree of engine/) into
+       state/engine/ with the .NET 10 SDK; -Node exports with tools/export.mjs instead, as before.
     3. Uploads what changed to R2 (tools/r2-sync.mjs): new files under content-hashed names, then meta.json, then files
        no manifest has used for a day are deleted; state/ goes to a private bucket. Both sites read
        https://data.ptcatch.com, so the data is live as soon as meta.json is, with no git commit and no Pages build.
@@ -24,20 +27,15 @@
     R2 keys: the user environment variables R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY
     (tools/set-r2-keys.ps1 sets them).
 
-    -Engine exports with the C# engine (engine/, about 4x faster) instead of tools/export.mjs. It writes the same files
-    byte for byte (npm run engine:parity checks it), but doesn't call the osu! API for missing titles or make avatar
-    thumbnails yet: those it has are kept, new ones wait for a run without -Engine. It's built once per engine version
-    (the git tree of engine/) into state/engine/ with the .NET 10 SDK.
-
 .EXAMPLE
     .\publish.ps1              # export and upload
     .\publish.ps1 -NoUpload    # export only (into data/), e.g. to look at it with npm run serve -- --local-data
-    .\publish.ps1 -Engine      # export with the C# engine, then upload
+    .\publish.ps1 -Node        # export with the Node exporter (tools/export.mjs), then upload
 #>
 param(
     [string]$DataRepo = (Join-Path (Split-Path $PSScriptRoot -Parent) 'PT-CTB-Bot-Data'),
     [switch]$NoUpload,
-    [switch]$Engine
+    [switch]$Node
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,7 +65,7 @@ if (-not $NoUpload) {
     Invoke-R2 'restore'
 }
 
-if ($Engine) {
+if (-not $Node) {
     # The engine, published once per version of engine/ (its git tree hash), older builds removed.
     $tree = git rev-parse HEAD:engine
     if ($LASTEXITCODE -ne 0) { throw 'This checkout has no engine/ folder.' }
@@ -75,10 +73,10 @@ if ($Engine) {
     $exe = Join-Path $builds "$tree/ptcatch-engine.exe"
     if (-not (Test-Path $exe)) {
         dotnet publish engine/src/PtCatch.Engine.Cli -c Release -r win-x64 --self-contained false --nologo -v q -o (Join-Path $builds $tree)
-        if ($LASTEXITCODE -ne 0) { throw 'Building the engine failed (needs the .NET 10 SDK); run without -Engine to use the Node exporter.' }
+        if ($LASTEXITCODE -ne 0) { throw 'Building the engine failed (needs the .NET 10 SDK); publish.ps1 -Node uses the Node exporter instead.' }
         Get-ChildItem $builds -Directory | Where-Object Name -ne $tree | Remove-Item -Recurse -Force
     }
-    & $exe export --data $DataRepo
+    & $exe export --data $DataRepo --fetch-titles
     if ($LASTEXITCODE -ne 0) { throw "Export failed (exit $LASTEXITCODE)" }
 } else {
     # sharp makes the avatar thumbnails (tools/lib/avatars.mjs). Without it the export still runs and keeps the
