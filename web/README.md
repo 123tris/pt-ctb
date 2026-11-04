@@ -5,11 +5,18 @@ the new client draws reads **packs**: binary columns the C# engine writes ([engi
 Everything else stays with the old client, which also keeps the header, menus, search and sign-in for now.
 
 Ported so far:
+- the home page, from the core pack and the engine's `home.json`: 9 KB brotli instead of ~66 KB of JSON from six
+  files;
 - every Leaderboards tab (`/rankings/…`);
 - a player's profile, every tab (`/player/:id/:tab?`). The player comes from the core pack, the rest from the JSON the
   old page reads, and `history.json` (every player's) only once the pp chart is opened;
 - the calculator and compare (on player packs);
+- Activity;
 - the players list, commands, glossary, privacy, how to join and Team Portugal.
+
+Still the old client's: maps and a map's page (being ported), records, challenges (with the Dan course, King of the
+hill, bounties and completion), games, the yearly recap, the shop and admin; then the header, menus, search and
+sign-in, and the endpoints.
 
 Each port is checked against the old page's output or logic on the same data (`test/`).
 
