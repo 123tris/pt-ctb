@@ -126,3 +126,24 @@ test('search pack: every map of maps-search.json, by set, with search-maps.jsonâ
     if (i) assert.ok(sets.set[maps.set[i - 1]] < sets.set[set] || (sets.set[maps.set[i - 1]] === sets.set[set] && maps.id[i - 1] < maps.id[i]), 'by set, then id');
   }
 });
+
+test('home.json: what the home page shows, as the files it comes from have it', { skip }, () => {
+  const home = json('packs/home.json');
+  const meta = json('meta.json'), activity = json('activity.json'), challenges = json('challenges.json');
+  const records = json('records.json'), bounties = json('bounties.json');
+  assert.deepEqual(home.totals, meta.totals);
+  assert.deepEqual(home.completion, meta.completion ?? null);
+  assert.deepEqual(home.hill, meta.hill ?? null);
+  assert.deepEqual(home.events, activity.events.slice(0, 5));
+  for (const e of home.events) {
+    const map = e.s ? e.s[0] : e.m;
+    if (map) assert.deepEqual(home.maps[map], activity.maps[map], `event map ${map}`);
+  }
+  const week = challenges.week;
+  assert.deepEqual(home.week, week ? { map: week.map, end: week.end, plays: week.weekly.length, players: week.board.length } : null);
+  if (week) assert.deepEqual(home.maps[week.map], challenges.maps[week.map]);
+  assert.deepEqual(home.weekly, challenges.weekly ?? null);
+  assert.equal(home.throne, records.throne?.held ?? null);
+  assert.deepEqual(home.bounties.open, bounties.open ?? []);
+  for (const b of home.bounties.open) assert.deepEqual(home.bounties.maps[b[0]], bounties.maps[b[0]]);
+});

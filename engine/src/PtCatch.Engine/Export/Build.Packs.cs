@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using PtCatch.Engine.Js;
 using PtCatch.Engine.Model;
 using PtCatch.Engine.Packs;
@@ -28,7 +29,10 @@ public sealed partial class Build
     /// </summary>
     public List<(string Name, byte[] Bytes)> Packs(Func<string, string> fileHash)
     {
-        var packs = new List<(string, byte[])> { ("packs/core.ptcb", CorePack(fileHash)), ("packs/search.ptcb", SearchPack()) };
+        var packs = new List<(string, byte[])>
+        {
+            ("packs/core.ptcb", CorePack(fileHash)), ("packs/search.ptcb", SearchPack()), ("packs/home.json", HomeFile()),
+        };
         var files = playerFiles.Values.ToList();
         var bytes = new byte[files.Count][];
         System.Threading.Tasks.Parallel.For(0, files.Count, i => bytes[i] = PlayerPack(files[i]));
@@ -37,6 +41,61 @@ public sealed partial class Build
             packs.Add(($"packs/player/{files[i].Person.Id}.ptcb", bytes[i]));
         }
         return packs;
+    }
+
+    /// <summary>
+    /// packs/home.json: just what the home page shows, which the old one gathers from five files (activity, challenges,
+    /// records, bounties and meta.json, about 59 KB brotli): the five newest events and the maps they name, the map of
+    /// the week with how many plays and players it has, the week so far, the throne's #1s, the open bounties, and
+    /// meta.json's totals, completion goal and hill. JSON: a handful of mixed records, too few for columns to pay.
+    /// </summary>
+    private byte[] HomeFile()
+    {
+        var mapIds = new List<int>();
+        var events = JsNode.Array();
+        foreach (var e in activityEvents.Take(5))
+        {
+            events.Add(e);
+            var map = e["s"].Truthy ? e["s"][0] : e["m"];
+            if (map.Truthy)
+            {
+                mapIds.Add((int)map.ToNumber());
+            }
+        }
+        var week = challenges["week"];
+        var weekNode = JsNode.NullValue;
+        if (week.Truthy)
+        {
+            weekNode = JsNode.Object().Set("map", week["map"]).Set("end", week["end"])
+                .Set("plays", week["weekly"].Count).Set("players", week["board"].Count);
+            mapIds.Add((int)week["map"].ToNumber());
+        }
+        var top = challenges["weekly"]["current"]["top"];
+        if (top.Truthy)
+        {
+            mapIds.Add((int)top[2].ToNumber());
+        }
+        var open = bountiesFile["open"];
+        var bountyMaps = JsNode.Object();
+        foreach (var b in open.Items)
+        {
+            var key = JsMath.ToString(b[0].Number);
+            if (bountiesFile["maps"][key].Kind != JsKind.Undefined)
+            {
+                bountyMaps.Set(key, bountiesFile["maps"][key]);
+            }
+        }
+        var home = JsNode.Object()
+            .Set("totals", Meta["totals"])
+            .Set("completion", Meta["completion"].Kind == JsKind.Undefined ? JsNode.NullValue : Meta["completion"])
+            .Set("hill", Meta["hill"].Kind == JsKind.Undefined ? JsNode.NullValue : Meta["hill"])
+            .Set("events", events)
+            .Set("week", weekNode)
+            .Set("weekly", challenges["weekly"].Kind == JsKind.Undefined ? JsNode.NullValue : challenges["weekly"])
+            .Set("maps", MapsForNode(mapIds))
+            .Set("throne", records["throne"]["held"].Kind == JsKind.Undefined ? JsNode.NullValue : records["throne"]["held"])
+            .Set("bounties", JsNode.Object().Set("open", open.Kind == JsKind.Undefined ? JsNode.Array() : open).Set("maps", bountyMaps));
+        return Encoding.UTF8.GetBytes(home.Stringify());
     }
 
     private byte[] CorePack(Func<string, string> fileHash)
