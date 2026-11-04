@@ -28,3 +28,28 @@ export const TOP10_THREADS: readonly (readonly [number, string])[] = [
   [2024, 'https://osu.ppy.sh/community/forums/topics/2015344'],
   [2025, 'https://osu.ppy.sh/community/forums/topics/2172025'],
 ];
+
+/** A random item; `seed` makes the pick stable (one quip per event that doesn't change on every redraw). */
+export function pick<T>(list: readonly T[], seed?: string | number): T {
+  if (seed === undefined) return list[Math.floor(Math.random() * list.length)];
+  let h = 2166136261;
+  for (const ch of String(seed)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return list[h % list.length];
+}
+
+/** The few lines under activity events (ui/events.ts quip()): each tied to a real in-joke or a rare moment. */
+export const quips = ({ t }: Ctx) => ({
+  trisAcc: [t('TrisAcc: an FC is an FC.')],
+  noRealSnipe: t('That’s not a real snipe (NF).'),
+  christmas: t('An early Christmas present.'),
+  throne: t('The throne wobbles.'),
+});
+
+/** The home page's "Since 2018": [year, text]. */
+export const history = ({ t }: Ctx): [number, string][] => [
+  [2018, t('The server opens on 29 May. The Dan bot follows on 22 June.')],
+  [2021, t('Portugal gets its own leaderboards: converts in January, loved in February.')],
+  [2022, t('A round of 16 at the Catch World Cup, and the Dan course comes back to life.')],
+  [2025, t('40th in the CWC qualifiers. Bulgaria was 41st. WE BEAT 41.')],
+  [2026, t('The first series win in Portugal’s CWC history. Alphonse wakes up again two weeks later.')],
+];

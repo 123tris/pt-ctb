@@ -2,6 +2,7 @@
 // of crowns by slot. So far what a profile's trophies need; the Challenges tab, the home page and map chips will add
 // the rest (the time left in a month, lists of names).
 
+import { html, type Safe, type Value } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import { HILL_SLOTS } from '../kernel/model.ts';
 
@@ -50,3 +51,19 @@ export const titleWhen = (ctx: Ctx, title: HillTitle): string => (title.month ? 
 /** "NM 1 · HR 4 · Convert 3": a tally per slot, leaving out the slots with none. */
 export const slotTally = (ctx: Ctx, counts: readonly number[]): string =>
   HILL_SLOTS.map((slot: string, i: number) => (counts[i] ? `${slotName(ctx, slot)} ${ctx.fmt.num(counts[i])}` : '')).filter(Boolean).join(' · ');
+
+/** "3d left", "5h left" or "ended", by the Ctx's clock. */
+export function timeLeft(ctx: Ctx, end: number): string {
+  const left = end - ctx.now();
+  if (left <= 0) return ctx.t('ended');
+  return left >= 86400 ? ctx.t('{n}d left', { n: Math.floor(left / 86400) }) : ctx.t('{n}h left', { n: Math.max(1, Math.floor(left / 3600)) });
+}
+
+const listFormats = new Map<string, Intl.ListFormat>();
+
+/** Pieces of markup joined as a list in the Ctx's language: "A, B and C" ("A, B e C"). */
+export function andList(ctx: Ctx, parts: Value[]): Safe {
+  let format = listFormats.get(ctx.locale);
+  if (!format) listFormats.set(ctx.locale, format = new Intl.ListFormat(ctx.locale, { type: 'conjunction' }));
+  return html`${format.formatToParts(parts.map((_, i) => String(i))).map(p => (p.type === 'element' ? parts[Number(p.value)] : p.value))}`;
+}
