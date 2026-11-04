@@ -3,18 +3,18 @@
 // without), each game's first view in both languages, and each game's rules against the old page's
 // (assets/js/pages/games.js, which needs a browser to load, so its pure parts are copied here as they were, with its
 // Math.random as a seeded generator): the daily map and its options, the daily streak, practice's deck and rounds, the
-// quizzes' maps and answers from the search pack against search-maps.json, and Higher or lower's rounds and answers
-// from the core pack against players.json. The same dice give the same games.
+// quizzes' maps and answers from search-maps.json, and Higher or lower's rounds and answers from the core pack against
+// players.json. The same dice give the same games.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readCore, readSearch } from '../src/gen/packs.ts';
+import { readCore } from '../src/gen/packs.ts';
 import { makeText } from '../src/kernel/i18n.ts';
 import { makeFmt } from '../src/kernel/fmt.ts';
-import { firstData, CORE, SEARCH } from '../src/routes.ts';
+import { firstData, CORE } from '../src/routes.ts';
 import * as lore from '../src/ui/lore.ts';
 import { shuffle } from '../src/ui/fun.ts';
 import {
@@ -89,7 +89,7 @@ test('the games’ addresses and their first data', () => {
   assert.deepEqual(firstData('/games/guess'), { packs: [], json: ['quiz.json'] });
   assert.deepEqual(firstData('/games/guess', '?mode=practice'), { packs: [], json: ['quiz.json'] });
   assert.deepEqual(firstData('/games/daily'), { packs: [], json: ['quiz.json'] });
-  assert.deepEqual(firstData('/games/quiz', '?mode=dose'), { packs: [SEARCH], json: [] });
+  assert.deepEqual(firstData('/games/quiz', '?mode=dose'), { packs: [], json: ['search-maps.json'] });
   assert.deepEqual(firstData('/games/higher-lower'), { packs: [CORE], json: [] });
   assert.deepEqual(firstData('/games/nope'), { packs: [CORE], json: [] }, 'any other game is the hub');
   assert.equal(firstData('/games/quiz/2'), null);
@@ -165,16 +165,16 @@ test('Guess the map: the daily map and its options, and practice’s deck and ro
   }
 });
 
-test('the map quizzes: the same maps from the search pack as from search-maps.json, and the same answers', { skip }, () => {
-  const search = readSearch(pack('search.ptcb'));
+test('the map quizzes: the same maps from search-maps.json, the same decks and the same answers', { skip }, () => {
   const rows = decodeSearchMaps(json('search-maps.json'));
+  assert.ok(rows.length && rows[0][6], 'search-maps.json has the category (else the page reads maps-search.json)');
   for (const mode of ['convert', 'dose']) {
-    const pool = quizPool(search, mode);
+    const pool = quizPool(rows, mode);
     const oldPool = OLD_QUIZ[mode].pool(rows);
-    assert.deepEqual(pool.map(i => search.maps.id[i]), oldPool.map(r => r[0]), `${mode}: the same maps in the same order`);
+    assert.deepEqual(pool.map(r => r[0]), oldPool.map(r => r[0]), `${mode}: the same maps in the same order`);
     assert.ok(pool.length >= 10, mode);
     for (let k = 0; k < 20; k++) {
-      const deck = quizDeck(search, mode, random(k));
+      const deck = quizDeck(rows, mode, random(k));
       const oldDeck = oldShuffle(oldPool, random(k)).slice(0, 10);
       assert.deepEqual(deck.map(c => [c.set, c.artist, c.title, c.version, c.stars, c.cat]), oldDeck.map(r => [r[1], r[2], r[3], r[4], r[5], r[6]]), `${mode} deck ${k}`);
       deck.forEach((card, i) => assert.equal(quizAnswer(mode, card), OLD_QUIZ[mode].answer(oldDeck[i])));
@@ -206,7 +206,7 @@ test('Higher or lower: the same rounds from the core pack as from players.json, 
 
 test('each game’s first view, drawn in Node in both languages', { skip }, () => {
   const core = readCore(pack('core.ptcb'));
-  const search = readSearch(pack('search.ptcb'));
+  const maps = decodeSearchMaps(json('search-maps.json'));
   const { sets } = json('quiz.json');
   const today = '2026-11-04', yesterday = '2026-11-03';
   const paidDay = (done, solved) => ({
@@ -224,8 +224,8 @@ test('each game’s first view, drawn in Node in both languages', { skip }, () =
     'paid, solved': { game: 'paid', day: paidDay(true, true), streak: 4 },
     practice: { game: 'practice', ...deck, options: roundOptions(deck.deck, deck.deck[0], random(3)) },
     'practice, too few sets': { game: 'practice', deck: [], special: new Map(), options: [] },
-    convert: { game: 'quiz', mode: 'convert', deck: quizDeck(search, 'convert', random(4)) },
-    dose: { game: 'quiz', mode: 'dose', deck: quizDeck(search, 'dose', random(5)) },
+    convert: { game: 'quiz', mode: 'convert', deck: quizDeck(maps, 'convert', random(4)) },
+    dose: { game: 'quiz', mode: 'dose', deck: quizDeck(maps, 'dose', random(5)) },
     'quiz, no maps': { game: 'quiz', mode: 'dose', deck: [] },
     hilo: { game: 'hilo', core, round: hiloRound(core.players, null, random(6)), best: 9 },
   };

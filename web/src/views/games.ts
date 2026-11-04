@@ -1,6 +1,6 @@
 // The Games page (/games/:game?), as assets/js/pages/games.js draws it: the hub, Guess the map (one map a day, or ten
 // rounds of practice), the map quizzes (Convert or specific?, Overdose or Rain?) and Higher or lower?. From quiz.json,
-// the search pack and the core pack.
+// the header search's maps (search-maps.json) and the core pack.
 //
 // Everything here is pure: each game's markup, drawn from its state, and its rules (the decks, the answers, the scores,
 // the daily streak), with the dice passed in. The browser half (games.mount.ts) throws them, keeps the records in this
@@ -8,7 +8,7 @@
 
 import { html, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
-import type { CorePack, SearchPack } from '../gen/packs.ts';
+import type { CorePack } from '../gen/packs.ts';
 import { avatar, avatarUrl, rowOf, type Players } from '../ui/players.ts';
 import { coverUrl, starsBadge } from '../ui/maps.ts';
 import { catChip, type Cat } from '../ui/scores.ts';
@@ -57,7 +57,13 @@ export interface PaidDay {
   error?: string;
 }
 
-/** A map quiz's question: one map of the search pack. */
+/**
+ * A map as the maps' indexes have it (core/maps-search.js decodeSearchMaps and decodeMapsSearch): [id, set id, artist,
+ * title, difficulty, stars, category ('c', 'u' or 'r'), Portuguese players, …].
+ */
+export type MapRow = readonly [number, number, string, string, string, number, string, number, ...unknown[]];
+
+/** A map quiz's question: one map of the index. */
 export interface QuizCard {
   set: number;
   artist: string;
@@ -420,38 +426,24 @@ const quizText = ({ t }: Ctx): Record<QuizMode, { label: string; question: strin
 
 export const quizLabel = (ctx: Ctx, mode: QuizMode) => quizText(ctx)[mode].label;
 
-/** The search pack's category codes (1 converts, 2 loved, 3 ranked) as letters, as ui/map-search.ts CAT_OF has them. */
-const CAT_LETTER = ['', 'c', 'u', 'r'] as const;
 const OVERDOSE = /\boverdose\b/i;
 const RAIN = /\brain\b/i;
 
 /**
- * The maps a quiz asks about, as rows of the search pack, in its order (by set, then id: the old rows' order too).
- * Both want maps with details that several players here have played: for "Convert or specific?", converts and ranked
- * maps three or more have; for "Overdose or Rain?", difficulties named one or the other (not both) two or more have.
+ * The maps a quiz asks about, in the index's order. Both want maps with details that several players here have
+ * played: for "Convert or specific?", converts and ranked maps three or more have; for "Overdose or Rain?",
+ * difficulties named one or the other (not both) two or more have.
  */
-export function quizPool({ sets, maps }: SearchPack, mode: QuizMode): number[] {
-  const titled = (i: number) => sets.title.offsets[maps.set[i] + 1] > sets.title.offsets[maps.set[i]];
-  const pool: number[] = [];
-  for (let i = 0; i < maps.rows; i++) {
-    if (mode === 'convert') {
-      if (maps.players[i] >= 3 && (maps.cat[i] === 1 || maps.cat[i] === 3) && titled(i)) pool.push(i);
-    } else if (maps.players[i] >= 2 && titled(i)) {
-      const version = maps.version.at(i);
-      if (OVERDOSE.test(version) !== RAIN.test(version)) pool.push(i);
-    }
-  }
-  return pool;
+export function quizPool(rows: readonly MapRow[], mode: QuizMode): MapRow[] {
+  return mode === 'convert'
+    ? rows.filter(r => r[3] && r[7] >= 3 && (r[6] === 'c' || r[6] === 'r'))
+    : rows.filter(r => r[3] && r[7] >= 2 && OVERDOSE.test(r[4]) !== RAIN.test(r[4]));
 }
 
 /** A quiz's ten questions: ten maps of its pool at random. */
-export function quizDeck(pack: SearchPack, mode: QuizMode, random: () => number): QuizCard[] {
-  const { sets, maps } = pack;
-  return shuffle(quizPool(pack, mode), random).slice(0, 10).map(i => ({
-    set: sets.set[maps.set[i]], artist: sets.artist.at(maps.set[i]), title: sets.title.at(maps.set[i]),
-    version: maps.version.at(i), stars: maps.stars[i] / 100, cat: CAT_LETTER[maps.cat[i]] as Cat,
-  }));
-}
+export const quizDeck = (rows: readonly MapRow[], mode: QuizMode, random: () => number): QuizCard[] =>
+  shuffle(quizPool(rows, mode), random).slice(0, 10)
+    .map(r => ({ set: r[1], artist: r[2], title: r[3], version: r[4], stars: r[5], cat: r[6] as Cat }));
 
 /** A question's right answer: its category ('c' or 'r'), or which of 'overdose' and 'rain' its difficulty is named. */
 export const quizAnswer = (mode: QuizMode, card: QuizCard): string =>

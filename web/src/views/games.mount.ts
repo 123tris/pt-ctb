@@ -4,15 +4,15 @@
 // (prefs), results counted (track), and "Copy result" puts a line on the clipboard.
 
 import type { Ctx } from '../kernel/ctx.ts';
-import type { CorePack, SearchPack } from '../gen/packs.ts';
+import type { CorePack } from '../gen/packs.ts';
 import { coverUrl } from '../ui/maps.ts';
 import { api, prefs, session, signInHere, toast, track, wysi } from '../client/legacy.ts';
 import {
   BLUR, ROUNDS, blurFilter, dailyRecord, dailyRound, dailyShare, dailyView, hiloRight, hiloRound, hiloShare, hiloValue,
   hiloView, lisbonDay, optionButtons, paidView, playedToday, practiceDeck, practiceResult, practiceReveal, practiceShare,
   quizAnswer, quizDeck, quizResult, quizView, roundOptions, specialLabel,
-  type Daily, type DailyRecord, type Data, type Hilo, type Hub, type Paid, type PaidDay, type Practice, type Quiz,
-  type QuizGame, type QuizMode,
+  type Daily, type DailyRecord, type Data, type Hilo, type Hub, type MapRow, type Paid, type PaidDay, type Practice,
+  type Quiz, type QuizGame, type QuizMode,
 } from './games.ts';
 
 const NO_RECORD: DailyRecord = { last: null, streak: 0, best: 0, result: null };
@@ -71,8 +71,8 @@ export function startPractice({ sets }: Quiz): Practice {
   return { game: 'practice', deck, special, options: roundOptions(deck, deck[0], Math.random) };
 }
 
-export const startQuiz = (search: SearchPack, mode: QuizMode): QuizGame =>
-  ({ game: 'quiz', mode, deck: quizDeck(search, mode, Math.random) });
+export const startQuiz = (maps: readonly MapRow[], mode: QuizMode): QuizGame =>
+  ({ game: 'quiz', mode, deck: quizDeck(maps, mode, Math.random) });
 
 export const startHilo = (core: CorePack): Hilo =>
   ({ game: 'hilo', core, round: hiloRound(core.players, null, Math.random), best: prefs.get('hilo-best', 0) });
