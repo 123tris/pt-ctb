@@ -4,10 +4,20 @@
 
 export { CONFIG } from '../../../assets/js/config.js';
 export { lang } from '../../../assets/js/core/i18n.js';
-export { announce, writeQuery, setTitle, myId } from '../../../assets/js/core/ui.js';
+export { NotFound } from '../../../assets/js/core/data.js';
+export {
+  announce, writeQuery, readQuery, setTitle, myId, prefs, go, here, openSearch, scrollBehavior, reducedMotion, paginate,
+} from '../../../assets/js/core/ui.js';
 
 /** The Portuguese strings (already loaded by the old app when the page is in Portuguese). */
 export const portuguese = () => import('../../../assets/js/core/pt.js').then(m => m.PT);
 
-/** The old leaderboards page, for the tabs not ported yet and for data without packs. */
-export const oldRankings = () => import('../../../assets/js/pages/rankings.js').then(m => m.default);
+/**
+ * An old page module (assets/js/pages/<name>.js), for what the new client doesn't draw yet. Found from this module's
+ * own address (assets/web/…), with its ?v= version, which is the one the old app's modules have: the same address is
+ * the same module, so the page shares the old app's state.
+ */
+export function oldPage(name: string): Promise<(root: HTMLElement, args: unknown) => Promise<void>> {
+  const here = new URL(import.meta.url);
+  return import(/* @vite-ignore */ new URL(`../js/pages/${name}.js${here.search}`, here).href).then(m => m.default);
+}

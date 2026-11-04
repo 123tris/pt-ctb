@@ -58,7 +58,7 @@ browser parts through it, so they stay pure.
 npm run serve -- --local-data <folder>   # the bundle is rebuilt in memory on each request; the edge's slice too
 npm run typecheck                        # tsc -p web (checks only; esbuild builds)
 npm run build                            # dist/, with the bundle in dist/assets/web/
-node --test web/test/                    # with PTCATCH_DATA=<folder> for the tests that need packs
+node --test web/test/*.test.mjs          # with PTCATCH_DATA=<folder> for the tests that need packs
 ```
 
 An export with packs: `ptcatch-engine export --out <folder> --packs` (copy `data/avatars` into the folder first to keep

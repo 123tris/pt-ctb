@@ -11,8 +11,8 @@ import { readCore } from '../src/gen/packs.ts';
 import { makeText } from '../src/kernel/i18n.ts';
 import { makeFmt } from '../src/kernel/fmt.ts';
 import { render, readState } from '../src/views/rankings.ts';
-import { inlinePacks } from '../edge/inline.ts';
-import { firstPacks } from '../src/routes.ts';
+import { inlineData } from '../edge/inline.ts';
+import { firstData } from '../src/routes.ts';
 import { PT } from '../../assets/js/core/pt.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -25,23 +25,23 @@ const ctxFor = (lang, now) => {
 };
 const rowsOf = page => [...page.matchAll(/<tr( class="([^"]*)")? data-name="([^"]*)"/g)].map(m => ({ cls: m[2] ?? '', name: m[3] }));
 
-test('which pages the new client draws, and their first packs', () => {
-  assert.deepEqual(firstPacks('/rankings'), ['packs/core.ptcb']);
-  assert.deepEqual(firstPacks('/rankings/ranked'), ['packs/core.ptcb']);
-  assert.equal(firstPacks('/rankings/mods'), null);
-  assert.equal(firstPacks('/player/123'), null);
+test('which pages the new client draws, and their first data', () => {
+  assert.deepEqual(firstData('/rankings'), { packs: ['packs/core.ptcb'], json: [] });
+  assert.deepEqual(firstData('/rankings/ranked/'), { packs: ['packs/core.ptcb'], json: [] });
+  assert.equal(firstData('/rankings/mods'), null);
+  assert.equal(firstData('/nowhere/123'), null);
 });
 
-test('the edge puts the page’s slice of packs.json and a preload in its <head>, and nothing elsewhere', () => {
-  const manifest = { generatedAt: 5, files: { 'packs/core.ptcb': 'AbCdEfGh_-', 'packs/player/1.ptcb': 'x</script>' } };
+test('the edge puts the page’s slice of the manifests and preloads in its <head>, and nothing elsewhere', () => {
+  const packs = { generatedAt: 5, files: { 'packs/core.ptcb': 'AbCdEfGh_-', 'packs/player/1.ptcb': 'x</script>' } };
   const page = '<html><head><title>x</title></head><body></body></html>';
-  const out = inlinePacks(page, '/rankings/loved', manifest, 'https://data.example/');
-  assert.match(out, /<link rel="preload" href="https:\/\/data\.example\/packs\/core\.AbCdEfGh_-\.ptcb" as="fetch" crossorigin>\n<script type="application\/json" id="ptc-packs">\{"generatedAt":5,"files":\{"packs\/core\.ptcb":"AbCdEfGh_-"\}\}<\/script>\n<\/head>/);
-  assert.equal(inlinePacks(page, '/player/1', manifest, 'https://data.example/'), page);
-  assert.equal(inlinePacks(page, '/rankings', null, 'https://data.example/'), page);
+  const out = inlineData(page, '/rankings/loved', { packs, meta: null }, 'https://data.example/');
+  assert.match(out, /<link rel="preload" href="https:\/\/data\.example\/packs\/core\.AbCdEfGh_-\.ptcb" as="fetch" crossorigin>\n<script type="application\/json" id="ptc-data">\{"packs":\{"generatedAt":5,"files":\{"packs\/core\.ptcb":"AbCdEfGh_-"\}\}\}<\/script>\n<\/head>/);
+  assert.equal(inlineData(page, '/nowhere/1', { packs, meta: null }, 'https://data.example/'), page);
+  assert.equal(inlineData(page, '/rankings', { packs: null, meta: null }, 'https://data.example/'), page);
   // Nothing in the data can close the script tag.
-  const odd = inlinePacks(page, '/rankings', { generatedAt: 1, files: { 'packs/core.ptcb': '</script>' } }, '');
-  assert.ok(!odd.slice(odd.indexOf('id="ptc-packs"')).replace('</script>\n</head>', '').includes('</script>'));
+  const odd = inlineData(page, '/rankings', { packs: { generatedAt: 1, files: { 'packs/core.ptcb': '</script>' } }, meta: null }, '');
+  assert.ok(!odd.slice(odd.indexOf('id="ptc-data"')).replace('</script>\n</head>', '').includes('</script>'));
 });
 
 test('the three boards: every player in the board’s order, as players.json ranks them', { skip }, () => {

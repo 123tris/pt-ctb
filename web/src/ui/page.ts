@@ -41,3 +41,32 @@ export const dataTable = (label: string, head: Value, body: Value, cls = ''): Sa
 
 /** A column heading for dataTable(). */
 export const col = (text: Value, cls = ''): Safe => html`<th${cls ? html` class="${cls}"` : ''} scope="col">${text}</th>`;
+
+/** A headline figure: label, value and an optional line under it. */
+export const stat = (label: Value, value: Value, sub: Value = '', cls = ''): Safe =>
+  html`<div class="stat ${cls}"><div class="stat-label">${label}</div><div class="stat-value"><span class="stat-fit">${value}</span></div>${sub ? html`<div class="stat-sub">${sub}</div>` : ''}</div>`;
+
+/**
+ * A labelled row of toggle chips: `items` = [[value, label]]. Each chip is a button with aria-pressed, and the visible
+ * label names the group. client/dom.ts setPressed() updates the state.
+ */
+export const chipGroup = (label: string, attr: string, items: [string, Value][], current: string): Safe => html`<div class="chips" role="group" aria-label="${label}">
+  <span class="chips-label" aria-hidden="true">${label}</span>
+  ${items.map(([value, text]) => html`<button class="chip ${value === current ? 'active' : ''}" type="button" data-${raw(attr)}="${value}" aria-pressed="${String(value === current)}">${text}</button>`)}
+</div>`;
+
+/** Grey rows the height of real ones, while a list loads. */
+export const placeholderRows = (n = 6): Safe =>
+  html`<div class="rows rows-placeholder" aria-hidden="true">${Array.from({ length: Math.min(n, 50) }, () => html`<div class="row row-placeholder"></div>`)}</div>`;
+
+/**
+ * In-joke badges or map tags ({ name, tip }), each a toggle button whose tip shows under the row (ui.js has the one
+ * listener for every row on the site). `show` keeps the row short: the rest behind "+N more".
+ */
+export const funChips = (ctx: Ctx, list: { name: string; tip: string }[], cls = '', { show = Infinity } = {}): Safe | '' => (list.length
+  ? html`<div class="fun-chips-wrap ${cls}">
+      <div class="fun-chips">${list.map((b, i) => html`<button class="fun-chip" type="button" aria-pressed="false" data-tip="${b.tip}" ${i >= show ? 'hidden' : ''}>${b.name}</button>`)}${list.length > show
+        ? html`<button class="fun-chip fun-more" type="button" data-track="more badges">${ctx.t('+{n} more', { n: list.length - show })}</button>` : ''}</div>
+      <p class="fun-tip" role="status" hidden></p>
+    </div>`
+  : '');

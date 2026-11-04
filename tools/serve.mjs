@@ -5,7 +5,8 @@
 // --packs), by serving config.js with that one setting changed, and answers the hashed names the site asks for
 // (data/players/1.<hash>.json) with the plain files (core/data-name.js).
 // The new web client (web/src) is bundled in memory as assets/web/ is asked for (tools/web-build.mjs), so an edit shows
-// on the next reload; its pages get their slice of packs.json, as functions/[[path]].js sends them (web/edge/inline.ts).
+// on the next reload; its pages get their slice of packs.json and meta.json, as functions/[[path]].js sends them
+// (web/edge/inline.ts).
 // --usage turns the usage counts on for this address and runs their Functions (POST /api/hit, GET /stats with the
 // password "local") over a SQLite file in the system's temp folder (tools/lib/d1-sqlite.mjs), to try them end to end.
 // --economy does the same for Bananas (the daily game, wallet and admin requests, the bot's inbox: economy/api.js) and
@@ -26,8 +27,7 @@ import { execFileSync } from 'node:child_process';
 import { plainName } from '../assets/js/core/data-name.js';
 import { describe, pageFor } from '../embed/embed.js';
 import { CONFIG } from '../assets/js/config.js';
-import { inlinePacks } from '../web/edge/inline.ts';
-import { firstPacks } from '../web/src/routes.ts';
+import { inlineData, manifestsFor } from '../web/edge/inline.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.argv.slice(2).find(a => /^\d+$/.test(a))) || 8080;
@@ -168,12 +168,12 @@ http.createServer(async (req, res) => {
       const base = localData ? `${url.origin}/data/` : CONFIG.data;
       const fetchJson = u => fetch(u).then(r => (r.ok ? r.json() : Promise.reject(new Error(`${r.status} ${u}`))));
       text = await pageFor(text, url.href, { ua: req.headers['user-agent'], base, fetchJson });
-      if (firstPacks(url.pathname)) {
-        const packs = localData
-          ? Promise.resolve().then(() => JSON.parse(fs.readFileSync(path.join(dataDir, 'packs.json'), 'utf8')))
-          : fetchJson(`${base}packs.json`);
-        text = inlinePacks(text, url.pathname, await packs.catch(() => null), base);
-      }
+      const need = manifestsFor(url.pathname);
+      const manifest = name => (localData
+        ? Promise.resolve().then(() => JSON.parse(fs.readFileSync(path.join(dataDir, name), 'utf8')))
+        : fetchJson(`${base}${name}`)).catch(() => null);
+      const [packs, meta] = await Promise.all([need.packs ? manifest('packs.json') : null, need.meta ? manifest('meta.json') : null]);
+      text = inlineData(text, url.pathname, { packs, meta }, base);
       if (local) text = text.replace('</head>', '<script src="tools/local-review.js"></script>\n</head>');
     }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(page)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });

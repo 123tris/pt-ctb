@@ -19,8 +19,9 @@ const oldSite = path.join(root, 'assets', 'js') + path.sep;
 /** Where the bundle is served from: imports of the old site are written relative to it. */
 const served = path.join(root, 'assets', 'web');
 
-/** The pages the new client draws: assets/web/<name>.js, which assets/js/app.js loads. */
-export const ENTRIES = { rankings: 'web/src/entries/rankings.ts' };
+/** The pages the new client draws, every file in web/src/entries: assets/web/<name>.js, which assets/js/app.js loads. */
+export const ENTRIES = Object.fromEntries(fs.readdirSync(path.join(root, 'web', 'src', 'entries'))
+  .filter(f => f.endsWith('.ts')).sort().map(f => [f.slice(0, -3), `web/src/entries/${f}`]));
 
 /** Keeps imports of the old site's modules (assets/js/…) as imports, at their address relative to assets/web/. */
 const keepOldSite = {

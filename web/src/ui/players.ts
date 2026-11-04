@@ -44,6 +44,33 @@ export function nameClass(ctx: Ctx, players: Players, row: number): string {
 export const playerLink = (ctx: Ctx, players: Players, row: number, cls = ''): Safe =>
   html`<a class="player" href="/player/${players.id[row]}">${avatar(ctx, players, row, cls)}<span class="${nameClass(ctx, players, row)}">${players.name.at(row)}</span></a>`;
 
+const rows = new WeakMap<Players, Map<number, number>>();
+
+/** A player's row in core.players by osu! id, or -1 for someone not on the site (an index built once per pack). */
+export function rowOf(players: Players, id: number): number {
+  let index = rows.get(players);
+  if (!index) {
+    index = new Map();
+    for (let row = 0; row < players.rows; row++) index.set(players.id[row], row);
+    rows.set(players, index);
+  }
+  return index.get(id) ?? -1;
+}
+
+/** A player's name, or #id for someone not on the site. */
+export const playerName = (players: Players, id: number): string => {
+  const row = rowOf(players, id);
+  return row < 0 ? `#${id}` : players.name.at(row);
+};
+
+/** playerLink() by osu! id: a player not on the site gets osu!'s avatar and #id. */
+export function playerLinkId(ctx: Ctx, players: Players, id: number, cls = ''): Safe {
+  const row = rowOf(players, id);
+  if (row >= 0) return playerLink(ctx, players, row, cls);
+  const size = AVATAR_SIZE[cls] ?? 32;
+  return html`<a class="player" href="/player/${id}"><img class="avatar ${cls}" src="${avatarUrl(id)}" alt="" width="${size}" height="${size}" loading="lazy" decoding="async" data-hide-broken><span>#${id}</span></a>`;
+}
+
 export const ppText = (ctx: Ctx, n: number): Safe => html`<span class="pp">${ctx.fmt.pp(n)}<small>pp</small></span>`;
 
 /** Inactive on osu! (osu! shows them at 0 pp; the site keeps their official pp). */
@@ -85,3 +112,17 @@ export function officialPp(ctx: Ctx, players: Players, row: number): Safe {
   return html`<span class="pp"><span aria-hidden="true">≈ </span>${ctx.fmt.pp(pp)}<small>pp</small></span><span class="est">${tipTag(ctx.t('estimated'), ctx.t('Estimated from their stored plays, so probably a little low.'), { cls: 'est-tip' })}</span>`;
 }
 
+
+/** officialPp() inside a link: "≈ 8,224pp", with "(estimated)" for screen readers instead of the tappable tag. */
+export function officialPpCompact(ctx: Ctx, players: Players, row: number): Safe {
+  const pp = players.pp[row] / 100;
+  if (!isEstimated(players, row)) return ppText(ctx, pp);
+  return html`<span class="pp"><span aria-hidden="true">≈ </span>${ctx.fmt.pp(pp)}<small>pp</small></span><span class="sr-only"> (${ctx.t('estimated')})</span>`;
+}
+
+/** Where an inactive player's official pp comes from: "estimated from their plays", "last seen 3 Mar 2026", "last known". */
+export function officialPpNote(ctx: Ctx, players: Players, row: number): string {
+  if (isEstimated(players, row)) return ctx.t('estimated from their plays');
+  const seen = players.ppSeen[row];
+  return seen ? ctx.t('last seen on osu! {date}', { date: ctx.fmt.date(seen) }) : ctx.t('last known');
+}

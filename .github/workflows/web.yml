@@ -20,5 +20,5 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: node tools/i18n-check.mjs
-      - run: node --test web/test/
+      - run: node --test web/test/*.test.mjs
       - run: node tools/web-build.mjs dist/assets/web
