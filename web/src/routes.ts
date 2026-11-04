@@ -55,6 +55,11 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   // A map: the players, the map's bucket with its details and board, and the open bounties (the set's file comes once
   // the bucket names it).
   { pattern: /^map\/(\d+)$/, first: m => ({ packs: [CORE], json: [mapBucket(Number(m[1])), 'bounties.json'] }) },
+  // The shop: the players (the visitor's name) and the wallets. The visitor's head file isn't known here: who's signed
+  // in is the browser's to say.
+  { pattern: /^shop$/, first: () => ({ packs: [CORE], json: ['economy.json'] }) },
+  // A year in review, any year: the players and the player's pack.
+  { pattern: /^recap\/(\d+)(?:\/[^/]*)?$/, first: m => ({ packs: [CORE, playerPack(m[1])], json: [] }) },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */

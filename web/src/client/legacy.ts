@@ -17,6 +17,8 @@ export { trackingBlock, optOut, optIn } from '../../../assets/js/core/track.js';
 
 // Bananas' calls to the site's endpoints and the signed-in session.
 export { sendRequest, myRequests, pendingSpend, closeOnEscape, signInHere } from '../../../assets/js/core/bananas.js';
+// Reads a map id from what someone typed (an id, or an osu! beatmap link).
+export { mapIdFrom } from '../../../assets/js/core/bananas.js';
 
 /**
  * A player's requests to the bot as a list (bananas.js). Its markup is the old html tag's: put it in as a string, never

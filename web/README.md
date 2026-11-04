@@ -13,6 +13,9 @@ Ported so far:
 - a map's page (`/map/:id`): the map and its board from its bucket (`maps/<id % 128>.json`), the players from the core
   pack, the rest from the JSON the old page reads;
 - the calculator and compare (on player packs);
+- a player's yearly recap (`/recap/:id/:year?`), from their pack where the old page read their whole file;
+- the shop (`/shop`): the wallet from economy.json, the visitor's badges and best plays from their head file, and the
+  buying itself through the old app's Bananas requests;
 - Activity and Records;
 - the players list, commands, glossary, privacy, how to join and Team Portugal;
 - the maps list (`/maps`), from the search pack: a search takes 1–5 ms instead of 20–60, with the same results in the
@@ -20,8 +23,8 @@ Ported so far:
   (about 850 KB brotli) where the old page drew from maps-top.json (43 KB) and fetched the index on the first search.
   Drawing the first page from maps-top.json while the pack loads would bring that back.
 
-Still the old client's: challenges (with the Dan course, King of the hill, bounties and completion), games, the
-yearly recap, the shop and admin; then the header, menus, search and sign-in, and the endpoints.
+Still the old client's: challenges (with the Dan course, King of the hill, bounties and completion), games and admin;
+then the header, menus, search and sign-in, and the endpoints.
 
 Each port is checked against the old page's output or logic on the same data (`test/`).
 

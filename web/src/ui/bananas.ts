@@ -82,3 +82,13 @@ export const ledgerList = (ctx: Ctx, rows: readonly LedgerRow[] | null | undefin
 export const signInButton = (ctx: Ctx, signInHere: boolean, label = ctx.t('Sign in with osu!')): Safe => (signInHere
   ? html`<button class="btn btn-small" type="button" data-signin>${label}</button>`
   : html`<span class="faint small">${ctx.t('Signing in works on ptcatch.com.')}</span>`);
+
+/**
+ * The wallet as a line: "Your wallet: 679 🍌", plus "150 🍌 of it waiting for the bot" when requests are pending (`pending`
+ * is pendingSpend() of them), so what can still be spent is what's left.
+ */
+export function walletLine(ctx: Ctx, w: Pick<Wallet, 'b'>, pending: number): Safe {
+  const amount = html`<b>${bananas(ctx, w.b)}</b>`;
+  return pending ? ctx.th('Your wallet: {amount}, {pending} of it waiting for the bot', { amount, pending: bananas(ctx, pending) })
+    : ctx.th('Your wallet: {amount}', { amount });
+}

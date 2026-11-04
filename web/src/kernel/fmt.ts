@@ -18,6 +18,8 @@ export interface Fmt {
   duration(s: number): string;
   /** "Mar 2019", in UTC (monthly points are stamped 00:00 UTC on the 1st, which is still the month before in the Americas). */
   monthYear(t: number): string;
+  /** A month's short name, "Mar" or "mar", from its index (0 for January). */
+  monthName(m: number): string;
   /** "3 days ago", "yesterday", "just now". */
   ago(t: number): string;
   /** "1 player" / "3 players"; `many` defaults to `one` + "s", translated by pt.js. */
@@ -52,6 +54,7 @@ export function makeFmt(text: Text, { timeZone, now }: { timeZone?: string; now:
   let dateFormat: Formatter | undefined;
   let dateTimeFormat: Formatter | undefined;
   let monthYearFormat: Formatter | undefined;
+  let monthFormat: Intl.DateTimeFormat | undefined;
   let dayFormat: Intl.DateTimeFormat | undefined;
   let relative: Intl.RelativeTimeFormat | undefined;
 
@@ -66,6 +69,9 @@ export function makeFmt(text: Text, { timeZone, now }: { timeZone?: string; now:
     duration: s => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`,
     day: t => (dayFormat ??= new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'long', timeZone })).format(new Date(t * 1000)),
     monthYear: t => (monthYearFormat ??= dateFormatOf({ month: 'short', year: 'numeric', timeZone: 'UTC' })).format(new Date(t * 1000)),
+    // Mid-month in UTC, so no time zone moves it into another month; without pt-PT's dot ("mar.").
+    monthName: m => (monthFormat ??= new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }))
+      .format(new Date(Date.UTC(2026, m, 15))).replace('.', ''),
     ago(t) {
       const diff = t - now();
       for (const [unit, seconds] of UNITS) {

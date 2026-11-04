@@ -120,3 +120,16 @@ export class WeightedTotals {
     return hi;
   }
 }
+
+/**
+ * mapMeta(), or null for a map the player's file has no details for: null there, and a row of empty strings and zeros
+ * in the pack. For the JSON's helpers, which tell the two apart (a map link shows no star badge for a null map).
+ */
+export function mapDetails(pack: PlayerPack, id: number): MapMeta {
+  const row = mapRow(pack, id);
+  if (row < 0) return null;
+  const set = pack.maps.set[row];
+  const known = pack.sets.title.at(set) || pack.sets.artist.at(set) || pack.maps.version.at(row)
+    || pack.sets.set[set] || pack.maps.stars[row];
+  return known ? mapMeta(pack, id) : null;
+}
