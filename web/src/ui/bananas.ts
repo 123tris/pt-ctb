@@ -52,14 +52,6 @@ export const bananas = (ctx: Ctx, n: number): string => `${ctx.fmt.num(n)} 🍌`
 /** "+20 🍌" / "−20 🍌", for ledger lines. */
 export const signedBananas = (ctx: Ctx, n: number): string => `${n > 0 ? '+' : n < 0 ? '−' : ''}${bananas(ctx, Math.abs(n))}`;
 
-/**
- * The wallet as a line: "Your wallet: 679 🍌", and how much of it is waiting for the bot when requests are pending
- * (`pending`, bananas.js pendingSpend()), so what you can still spend is what's left.
- */
-export const walletLine = (ctx: Ctx, w: Wallet, pending: number): Safe => (pending
-  ? ctx.th('Your wallet: {amount}, {pending} of it waiting for the bot', { amount: html`<b>${bananas(ctx, w.b)}</b>`, pending: bananas(ctx, pending) })
-  : ctx.th('Your wallet: {amount}', { amount: html`<b>${bananas(ctx, w.b)}</b>` }));
-
 /** Reads a map id from what someone typed: an id, or an osu! beatmap link ("…/beatmaps/123", "…#fruits/123"). */
 export function mapIdFrom(text: string): number | null {
   const s = String(text).trim();
@@ -100,3 +92,13 @@ export const ledgerList = (ctx: Ctx, rows: readonly LedgerRow[] | null | undefin
 export const signInButton = (ctx: Ctx, signInHere: boolean, label = ctx.t('Sign in with osu!')): Safe => (signInHere
   ? html`<button class="btn btn-small" type="button" data-signin>${label}</button>`
   : html`<span class="faint small">${ctx.t('Signing in works on ptcatch.com.')}</span>`);
+
+/**
+ * The wallet as a line: "Your wallet: 679 🍌", plus "150 🍌 of it waiting for the bot" when requests are pending (`pending`
+ * is pendingSpend() of them), so what can still be spent is what's left.
+ */
+export function walletLine(ctx: Ctx, w: Pick<Wallet, 'b'>, pending: number): Safe {
+  const amount = html`<b>${bananas(ctx, w.b)}</b>`;
+  return pending ? ctx.th('Your wallet: {amount}, {pending} of it waiting for the bot', { amount, pending: bananas(ctx, pending) })
+    : ctx.th('Your wallet: {amount}', { amount });
+}

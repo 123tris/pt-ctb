@@ -76,6 +76,11 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
     first: m => (m[1] === 'guess' || m[1] === 'daily' ? { packs: [], json: ['quiz.json'] }
       : m[1] === 'quiz' ? { packs: [SEARCH], json: [] } : { packs: [CORE], json: [] }),
   },
+  // The shop: the players (the visitor's name) and the wallets. The visitor's head file isn't known here: who's signed
+  // in is the browser's to say.
+  { pattern: /^shop$/, first: () => ({ packs: [CORE], json: ['economy.json'] }) },
+  // A year in review, any year: the players and the player's pack.
+  { pattern: /^recap\/(\d+)(?:\/[^/]*)?$/, first: m => ({ packs: [CORE, playerPack(m[1])], json: [] }) },
 ];
 
 /** The data a page address's first view needs, or null for a page the new client doesn't draw. */

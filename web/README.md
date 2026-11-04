@@ -13,6 +13,9 @@ Ported so far:
 - a map's page (`/map/:id`): the map and its board from its bucket (`maps/<id % 128>.json`), the players from the core
   pack, the rest from the JSON the old page reads;
 - the calculator and compare (on player packs);
+- a player's yearly recap (`/recap/:id/:year?`), from their pack where the old page read their whole file;
+- the shop (`/shop`): the wallet from economy.json, the visitor's badges and best plays from their head file, and the
+  buying itself through the old app's Bananas requests;
 - Activity and Records;
 - the players list, commands, glossary, privacy, how to join and Team Portugal;
 - the maps list (`/maps`), from the search pack: a search takes 1–5 ms instead of 20–60, with the same results in the
@@ -23,8 +26,7 @@ Ported so far:
   their Bananas, completion): players from the core pack, the rest from the JSON the old page reads, the tab's own file
   only on that tab. Its figures and chips still read meta.json (King of the hill's month and the goal in brief).
 
-Still the old client's: games, the yearly recap, the shop and admin; then the header, menus, search and sign-in, and
-the endpoints.
+Still the old client's: admin; then the header, menus, search and sign-in, and the endpoints.
 
 Each port is checked against the old page's output or logic on the same data (`test/`).
 
