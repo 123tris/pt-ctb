@@ -18,9 +18,23 @@ import { findMaps, CAT_OF, type MapIndex, type MapQuery, type MapSort, type MapC
 
 export interface Data {
   core: CorePack;
-  /** The search pack's index (ui/map-search.ts mapIndex), made once per pack. */
-  index: MapIndex;
+  /** The search pack's index (ui/map-search.ts mapIndex), made once per pack; null while it's still on its way. */
+  index: MapIndex | null;
+  /**
+   * maps-top.json, for a first visit's first page: the default view's top rows ([id, set, artist, title, version, stars,
+   * category, players, #1's id]) and how many maps there are. The search pack is about 850 KB brotli; this is 43 KB.
+   */
+  top?: TopMaps | null;
 }
+
+export interface TopMaps {
+  total: number;
+  rows: [number, number, string, string, string, number, string, number, number | null][];
+}
+
+/** The address shows the default view's first pages, which maps-top.json has without the search pack. */
+export const isTopView = (state: State, top: TopMaps) => !state.q.trim() && !state.cat && isAnyStars(state.stars) && state.sort === 'players'
+  && (state.page + 1) * PAGE <= top.rows.length;
 
 export interface State extends MapQuery {
   /** The page of results, from 0. */
@@ -50,7 +64,7 @@ export function readState(query: Record<string, string | undefined>): State {
 
 /** "12 of 54,908 maps", or "54,908 maps" for every map. */
 export const countText = (ctx: Ctx, data: Data, results: readonly number[]) =>
-  resultCount(ctx, results.length, data.index.pack.maps.rows, 'map');
+  resultCount(ctx, results.length, data.index!.pack.maps.rows, 'map');
 
 /** What the search and filters are, for the empty state: “cookie” · Ranked · 4★+. */
 function describe(ctx: Ctx, query: MapQuery): string {
@@ -60,8 +74,10 @@ function describe(ctx: Ctx, query: MapQuery): string {
 }
 
 /** One map: cover, title and difficulty, then its category, how many players have played it and who holds the #1. */
-function mapRow(ctx: Ctx, { core, index }: Data, i: number): Safe {
+function mapRow(ctx: Ctx, data: Data, i: number): Safe {
   const { t, fmt } = ctx;
+  const { core } = data;
+  const index = data.index!;
   const { sets, maps, tops } = index.pack;
   const id = maps.id[i];
   const set = maps.set[i];
@@ -88,6 +104,27 @@ function mapRow(ctx: Ctx, { core, index }: Data, i: number): Safe {
 export const mapRows = (ctx: Ctx, data: Data, slice: readonly number[]): Safe =>
   html`<div class="rows">${slice.map(i => mapRow(ctx, data, i))}</div>`;
 
+/** mapRow() for a row of maps-top.json: the same markup. */
+function topRow(ctx: Ctx, core: CorePack, [id, set, artist, title, version, stars, cat, players, topId]: TopMaps['rows'][number]): Safe {
+  const { t, fmt } = ctx;
+  const top = topId === null ? -1 : rowOf(core.players, topId);
+  return html`<a class="plain-link row card-link" href="/map/${id}">
+    <span class="map">
+      ${setCover(set)}
+      <span class="map-text">
+        <span class="map-title">${title ? `${artist} - ${title}` : t('Map #{id}', { id })}</span>
+        <span class="map-sub">${starsBadge(ctx, stars)} ${title ? `[${version}]` : t('No map details')}</span>
+      </span>
+    </span>
+    <span class="row-meta">
+      ${catChip(ctx, cat as Cat)}
+      <span>${fmt.plural(players, 'player')}</span>
+      <span class="sep"></span>
+      <span><span class="faint">#1</span> ${top < 0 ? '—' : core.players.name.at(top)}</span>
+    </span>
+  </a>`;
+}
+
 /** What to say when nothing matches, with the way back. */
 export function noMaps(ctx: Ctx, query: MapQuery): Safe {
   const filters = describe(ctx, query);
@@ -96,11 +133,17 @@ export function noMaps(ctx: Ctx, query: MapQuery): Safe {
 
 export function render(ctx: Ctx, data: Data, state: State): Safe {
   const { t, fmt } = ctx;
-  const results = findMaps(data.index, state);
   const labels = sortLabels(ctx);
   const cats = catLabels(ctx);
+  // Without the index yet, the default view's first pages from maps-top.json (the same rows, in the same order), and
+  // the total as the count; maps.mount.ts hands over to the index once it's in.
+  const top = data.index ? null : data.top!;
+  const total = data.index ? data.index.pack.maps.rows : top!.total;
+  // Every map's place in the default order, so the pager counts them all: the page shown is within maps-top.json.
+  const results = data.index ? findMaps(data.index, state) : Array.from({ length: total }, (_, i) => i);
+  const rows = (slice: readonly number[]) => (data.index ? mapRows(ctx, data, slice) : html`<div class="rows">${slice.map(i => topRow(ctx, data.core, top!.rows[i]))}</div>`);
   const intro = t('{n} maps with Portuguese plays. Search by artist, title, difficulty or map id; every map has its own Portuguese leaderboard.',
-    { n: fmt.num(data.index.pack.maps.rows) });
+    { n: fmt.num(total) });
   return html`
     ${pageHead({ title: t('Maps'), intro })}
     <div class="toolbar">
@@ -109,7 +152,7 @@ export function render(ctx: Ctx, data: Data, state: State): Safe {
     </div>
     <div id="cats" class="mb-2">${chipGroup(t('Category'), 'cat', CATS.map(k => [k, cats[k]]), state.cat)}</div>
     ${starSlider(ctx, state.stars)}
-    <p class="result-count" id="count">${countText(ctx, data, results)}</p>
-    <div id="list">${paged(ctx, results, slice => mapRows(ctx, data, slice), { size: PAGE, page: state.page, empty: () => noMaps(ctx, state) })}</div>
+    <p class="result-count" id="count">${data.index ? countText(ctx, data, results) : fmt.plural(total, 'map')}</p>
+    <div id="list">${paged(ctx, results, rows, { size: PAGE, page: state.page, empty: () => noMaps(ctx, state) })}</div>
   `;
 }

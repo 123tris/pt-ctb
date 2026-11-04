@@ -7,7 +7,7 @@
 import type { Ctx } from '../kernel/ctx.ts';
 import { pageCount } from '../ui/page.ts';
 import { ANY_STARS, formatStars, type StarRange } from '../ui/star-range.ts';
-import { findMaps, mapText, type MapCat, type MapQuery, type MapSort } from '../ui/map-search.ts';
+import { findMaps, mapText, type MapCat, type MapIndex, type MapQuery, type MapSort } from '../ui/map-search.ts';
 import { PAGE, mapRows, noMaps, countText, type Data, type State } from './maps.ts';
 import { paginate, setPressed } from '../client/dom.ts';
 import { bindStarSlider } from '../client/star-slider.ts';
@@ -21,13 +21,14 @@ export interface MountOptions {
 }
 
 export function mount(root: HTMLElement, ctx: Ctx, data: Data, state: State, { rewrite, isCurrent }: MountOptions): void {
+  const index = data.index!;
   const q = root.querySelector<HTMLInputElement>('#q')!;
   const sort = root.querySelector<HTMLSelectElement>('#sort')!;
   const count = root.querySelector('#count')!;
   const list = root.querySelector<HTMLElement>('#list')!;
   let cat: MapCat = state.cat;
   let stars: StarRange = state.stars;
-  let results = findMaps(data.index, state);
+  let results = findMaps(index, state);
   // A page past the end shows the last, as paginate() draws it.
   let page = Math.min(state.page, pageCount(results.length, PAGE) - 1);
 
@@ -46,7 +47,7 @@ export function mount(root: HTMLElement, ctx: Ctx, data: Data, state: State, { r
   // search that comes due after the visitor has left the page does nothing.
   const refilter = () => {
     if (!isCurrent()) return;
-    results = findMaps(data.index, query());
+    results = findMaps(index, query());
     redraw(results);
     count.textContent = countText(ctx, data, results);
     announce(count.textContent);
@@ -88,7 +89,24 @@ export function mount(root: HTMLElement, ctx: Ctx, data: Data, state: State, { r
 
   // The text a search reads, made while the page is idle (a few tens of milliseconds), so the first word typed doesn't
   // wait for it.
-  const warm = () => mapText(data.index);
+  const warm = () => mapText(index);
   if ('requestIdleCallback' in window) requestIdleCallback(warm, { timeout: 2000 });
   else setTimeout(warm, 300);
+}
+
+/**
+ * A first page drawn from maps-top.json (render() without the index): the rest of the page comes alive once the search
+ * pack is in. Whatever the visitor typed or picked in the box and the sort meanwhile is searched for then.
+ */
+export function mountWhenIndexed(root: HTMLElement, ctx: Ctx, data: Data, state: State, index: Promise<MapIndex>, options: MountOptions): void {
+  index.then(ix => {
+    if (!options.isCurrent() || !root.contains(root.querySelector('#q'))) return;
+    const q = root.querySelector<HTMLInputElement>('#q')!;
+    const sort = root.querySelector<HTMLSelectElement>('#sort')!;
+    const full = { ...data, index: ix };
+    mount(root, ctx, full, { ...state, sort: sort.value as MapSort }, options);
+    root.querySelector('#count')!.textContent = countText(ctx, full, findMaps(ix, { ...state, sort: sort.value as MapSort }));
+    // Typed while the index was coming: search for it now, as the box's own listener would have.
+    if (q.value !== state.q) q.dispatchEvent(new Event('input'));
+  }, () => { /* the search pack didn't come: the first page stays, as it is */ });
 }

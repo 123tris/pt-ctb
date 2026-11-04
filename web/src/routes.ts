@@ -42,7 +42,8 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
     first: m => ({ packs: [CORE, ...(m[1] && m[2] ? [playerPack(m[1]), playerPack(m[2])] : [])], json: [] }),
   },
   { pattern: /^players$/, first: () => ({ packs: [CORE], json: [] }) },
-  { pattern: /^maps$/, first: () => ({ packs: [CORE, SEARCH], json: [] }) },
+  // maps-top.json for a first visit's first page, which needn't wait for the search pack (entries/maps.ts).
+  { pattern: /^maps$/, first: () => ({ packs: [CORE, SEARCH], json: ['maps-top.json'] }) },
   { pattern: /^activity$/, first: () => ({ packs: [CORE], json: ['activity.json', 'challenges.json'] }) },
   { pattern: /^records$/, first: () => ({ packs: [CORE], json: ['records.json', 'economy.json'] }) },
   // The bot's list; an export without one shows the hand-written list.

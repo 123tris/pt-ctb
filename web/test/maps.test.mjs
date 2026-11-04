@@ -88,8 +88,8 @@ function sameMaps(actual, expected, label) {
 const rowIds = page => [...page.matchAll(/<a class="plain-link row card-link" href="\/map\/(\d+)">/g)].map(m => Number(m[1]));
 
 test('which pages the new client draws: /maps, with the core and search packs first', () => {
-  assert.deepEqual(firstData('/maps'), { packs: [CORE, SEARCH], json: [] });
-  assert.deepEqual(firstData('/maps/'), { packs: [CORE, SEARCH], json: [] });
+  assert.deepEqual(firstData('/maps'), { packs: [CORE, SEARCH], json: ['maps-top.json'] });
+  assert.deepEqual(firstData('/maps/'), { packs: [CORE, SEARCH], json: ['maps-top.json'] });
   assert.equal(firstData('/maps/123'), null);
   assert.deepEqual(firstData('/map/123'), { packs: [CORE], json: ['maps/123.json', 'bounties.json'] }, 'a map is another page');
 });
@@ -255,4 +255,20 @@ test('Portuguese: the same page in the visitor’s language', { skip }, () => {
   assert.ok(page.includes(PT['Most players']));
   assert.ok(page.includes('2,5★+'));
   assert.ok(!page.includes('<h1>Maps</h1>'));
+});
+
+test('a first visit’s first pages from maps-top.json are the pack’s, to the character', { skip }, () => {
+  const core = readCore(pack('core.ptcb'));
+  const index = mapIndex(readSearch(pack('search.ptcb')));
+  const top = JSON.parse(fs.readFileSync(path.join(dir, 'maps-top.json'), 'utf8'));
+  const text = makeText('en', {});
+  const now = core.info.generatedAt[0];
+  const ctx = { ...text, fmt: makeFmt(text, { now: () => now }), now: () => now, data: 'https://data.example/', me: null };
+  for (const page of ['1', '2']) {
+    const state = readState({ page });
+    // The count differs on purpose: "54,908 maps" either way, but from the total until the pack is in.
+    const fromPack = String(render(ctx, { core, index }, state));
+    const fromTop = String(render(ctx, { core, index: null, top }, state));
+    assert.equal(fromTop, fromPack, `page ${page}`);
+  }
 });
