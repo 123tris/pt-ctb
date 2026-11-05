@@ -288,6 +288,10 @@ Free-plan limits: D1 allows 100,000 written rows and 5 million read rows a day. 
 4. Check `/stats?view=people` after a visit of your own, then press **Don't count this browser** again (the old switch
    still works, but your browser now also has a visitor id).
 
+**Telling the old app from the new one (`usage/migrations/0003_app.sql`)**, once, before the release that brings it:
+the same two commands with `0003_app.sql`. It adds the `app` column (`new`, `fallback` when an old page stood in,
+empty for the old app), which the Health view's comparison reads. Skipped, the code adds it on its first request.
+
 `npm run serve -- --usage` runs the usage Functions locally over SQLite (dashboard at `/stats`, password `local`).
 `CONFIG.analyticsConsent` in `assets/js/config.js` turns on a consent question (`'identity'` or `'all'`); it's off.
 
