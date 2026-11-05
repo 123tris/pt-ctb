@@ -13,7 +13,7 @@ const RECORDED = [
   [t('Searches'), t('Whether you searched, what you picked, and the shape of what you typed, like “text, 3 to 5 characters”. Never the words themselves.')],
   [t('Your osu! player'), t('If you’re signed in with osu!, your player id and name. Otherwise you’re just a random id.')],
   [t('Your browser'), t('A random id kept in this browser (not a cookie, and not worked out from your device) and one for each visit. Also your screen size class and window size, browser and operating system (not the full browser string), whether you prefer light or dark, your browser’s language, and your country, which Cloudflare tells the site.')],
-  [t('Problems'), t('Error messages from the site’s code, and how long pages and data take to load.')],
+  [t('Problems'), t('Error messages from the site’s code, how long pages and data take to load, and how quickly pages answer a tap or a key.')],
 ];
 
 // Markup of our own (the <b>s), so raw() below.

@@ -201,8 +201,8 @@ export async function healthReport(db, site, days, now = Date.now()) {
       ${base} AND kind = 'err' GROUP BY name, detail ORDER BY n DESC LIMIT 40`),
     db.prepare(`SELECT e.name, s.browser || ' ' || s.os AS agent, COUNT(*) AS n FROM events e JOIN sessions s ON s.sid = e.sid
       WHERE e.env = ?1 AND e.day >= ?2 AND e.kind = 'err' GROUP BY e.name, agent`).bind(site, from),
-    q(`SELECT name, val ${base} AND kind = 'view' AND val IS NOT NULL LIMIT 40000`),
-    q(`SELECT name, val, device ${base} AND kind = 'perf' LIMIT 20000`),
+    q(`SELECT name, val, app ${base} AND kind = 'view' AND val IS NOT NULL LIMIT 40000`),
+    q(`SELECT name, detail, val, device, app ${base} AND kind = 'perf' LIMIT 20000`),
     q(`SELECT name, val ${base} AND kind = 'fetch' LIMIT 20000`),
     db.prepare('SELECT device, browser, os, vw, scheme, lang FROM sessions WHERE env = ?1 AND day >= ?2 LIMIT 30000').bind(site, from),
   ]);
@@ -223,17 +223,35 @@ function timings(rows, key, slowMs = 1000) {
 
 const WIDTHS = [['under 360 px', 0, 359], ['360–399', 360, 399], ['400–599', 400, 599], ['600–1023', 600, 1023], ['1024–1439', 1024, 1439], ['1440 and up', 1440, Infinity]];
 
+// Which app drew the page (usage/store.js `app`): the old app sends none.
+const APPS = [['', 'Old app'], ['new', 'New app'], ['fallback', 'New app, old page']];
+const appName = app => APPS.find(([a]) => a === app)?.[1] ?? app;
+/** A page key with the app that drew it, when that's not the old app: "player · new app". */
+const withApp = (key, app) => (app ? `${key} · ${appName(app).toLowerCase()}` : key);
+
 export function renderHealth(r, { nonce, shell, site }) {
   const s = r.sessions;
   const errorSessions = r.errors.reduce((a, e) => a + e.sessions, 0);
-  const metric = name => r.perf.filter(p => p.name === name).map(p => p.val);
+  const metric = (name, app) => r.perf.filter(p => p.name === name && (app === undefined || p.app === app)).map(p => p.val);
   const slowFetches = r.fetches.filter(f => f.val >= 1000).length;
   const METRICS = { ttfb: 'Server response (TTFB)', fcp: 'First paint', lcp: 'Largest paint', load: 'Page loaded' };
   const DEVICES = ['phone', 'tablet', 'desktop'];
-  const cell = values => (values.length ? `${ms(quantile(values, 0.5))} <span class="muted">/ ${ms(quantile(values, 0.75))}</span>` : '–');
-  const timingTable = (head, rows, empty) => table([head, { label: 'Times', num: true }, { label: 'Median', num: true }, { label: '75th %', num: true }, { label: '95th %', num: true }, { label: 'Over 1 s', num: true }],
+  const shiftOf = v => (v / 1000).toFixed(2); // CLS comes in thousandths
+  const cell = (values, fmt = ms) => (values.length ? `${fmt(quantile(values, 0.5))} <span class="muted">/ ${fmt(quantile(values, 0.75))}</span>` : '–');
+  const timingTable = (head, rows, empty, slowLabel = 'Over 1 s') => table([head, { label: 'Times', num: true }, { label: 'Median', num: true }, { label: '75th %', num: true }, { label: '95th %', num: true }, { label: slowLabel, num: true }],
     rows.map(t => [td(esc(t.key)), td(num(t.count), 'num'), td(ms(t.p50), 'num'), td(ms(t.p75), 'num'), td(ms(t.p95), 'num'), td(pct(t.slow, t.count), 'num')]), empty);
   const width = WIDTHS.map(([label, lo, hi]) => [label, s.filter(x => x.vw >= lo && x.vw <= hi).length]);
+  const byPageAndApp = rows => rows.map(p => ({ ...p, page: withApp(p.detail, p.app) }));
+
+  // The apps side by side: the same timings, from whichever apps drew pages in this period.
+  const apps = APPS.filter(([a]) => r.perf.some(p => p.app === a) || r.renders.some(v => v.app === a));
+  const COMPARED = [
+    ...Object.entries(METRICS).map(([k, label]) => [label, app => metric(k, app)]),
+    ['Page drawn after a click', app => r.renders.filter(v => v.app === app).map(v => v.val)],
+    ['Slowest answer to a tap or key (INP)', app => metric('inp', app)],
+    ['Worst layout shift (CLS)', app => metric('cls', app), shiftOf],
+  ];
+  const cellCounted = (values, fmt) => (values.length ? `${cell(values, fmt)} <span class="muted">· ${num(values.length)}</span>` : '–');
 
   const body = `
 <div class="tiles">
@@ -242,8 +260,14 @@ export function renderHealth(r, { nonce, shell, site }) {
   <div class="tile"><b>${ms(quantile(metric('ttfb'), 0.5))}</b><span>median server response</span></div>
   <div class="tile"><b>${ms(quantile(metric('lcp'), 0.75))}</b><span>largest paint, 75th percentile</span></div>
   <div class="tile"><b>${ms(quantile(r.renders.map(x => x.val), 0.75))}</b><span>page drawn after a click, 75th percentile</span></div>
+  <div class="tile"><b>${ms(quantile(metric('inp'), 0.75))}</b><span>slowest answer to a tap or key, 75th percentile</span></div>
   <div class="tile"><b>${pct(slowFetches, r.fetches.length)}</b><span>of data downloads over 1 s</span></div>
 </div>
+
+<h2>Old app and new app</h2>
+<p class="muted">Median / 75th percentile · how many. Server response, paints and page loaded are for the first page of a visit; the rest for every page. The slowest answer (INP) and layout shift (CLS) come only from browsers that measure them (not Safari), and only for pages that had a tap or a shift.</p>
+${table(['Timing', ...apps.map(([, label]) => ({ label, num: true }))],
+  apps.length ? COMPARED.map(([label, values, fmt]) => [td(esc(label)), ...apps.map(([a]) => td(cellCounted(values(a), fmt), 'num small'))]) : [], 'No timings yet.')}
 
 <h2>Errors</h2>
 <p class="muted">Script errors and pages that showed “Something went wrong”, grouped by message (addresses and numbers taken out) and where they happened.</p>
@@ -253,7 +277,15 @@ ${table(['Message', 'Where', { label: 'Times', num: true }, { label: 'Sessions',
 
 <h2>Slow pages</h2>
 <p class="muted">From the address changing to the page drawn, including its data downloads. Slowest (75th percentile) first.</p>
-${timingTable('Page', timings(r.renders, 'name'), 'No timed page views yet.')}
+${timingTable('Page', timings(r.renders.map(v => ({ ...v, page: withApp(v.name, v.app) })), 'page'), 'No timed page views yet.')}
+
+<h2>Slow answers to a tap or key</h2>
+<p class="muted">Each page's slowest answer (INP: from the tap, click or key to the next paint), by page. Over 200 ms feels sluggish.</p>
+${timingTable('Page', timings(byPageAndApp(r.perf.filter(p => p.name === 'inp')), 'page', 200), 'No answers timed yet.', 'Over 200 ms')}
+
+<h2>Largest paint by first page</h2>
+<p class="muted">The first page of each visit, by page. Over 2.5 s is slow.</p>
+${timingTable('Page', timings(byPageAndApp(r.perf.filter(p => p.name === 'lcp')), 'page', 2500), 'No paints timed yet.', 'Over 2.5 s')}
 
 <div class="cols">
 <div><h2>First load</h2>
