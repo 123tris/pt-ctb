@@ -285,12 +285,12 @@ Free-plan limits: D1 allows 100,000 written rows and 5 million read rows a day. 
 3. Release as usual. `/auth/callback` now adds a signed `proof` to sign-ins (`signin/proof.js`, keyed by
    `OSU_CLIENT_SECRET`), so the dashboard marks osu! sign-ins on ptcatch.com as **verified**; nothing new to set up. Only signed-in players
    are linked: rows from before may still say **claimed** (the old "This is me", which the site no longer has).
-
-**Telling the old app from the new one (`usage/migrations/0003_app.sql`)**, once, before the release that brings the new
-app: the same two commands with `0003_app.sql`. It adds the `app` column (`new`, `fallback` when an old page stood in,
-empty for the old app), which the Health view's comparison reads. Skipped, the code adds it on its first request.
 4. Check `/stats?view=people` after a visit of your own, then press **Don't count this browser** again (the old switch
    still works, but your browser now also has a visitor id).
+
+**Telling the old app from the new one (`usage/migrations/0003_app.sql`)**, once, before the release that brings it:
+the same two commands with `0003_app.sql`. It adds the `app` column (`new`, `fallback` when an old page stood in,
+empty for the old app), which the Health view's comparison reads. Skipped, the code adds it on its first request.
 
 `npm run serve -- --usage` runs the usage Functions locally over SQLite (dashboard at `/stats`, password `local`).
 `CONFIG.analyticsConsent` in `assets/js/config.js` turns on a consent question (`'identity'` or `'all'`); it's off.
