@@ -164,7 +164,7 @@ export default async function admin(root, { isCurrent }) {
   // A band's row: both settings, the slider, and one "waiting" line with the band as it will be.
   const rangeRow = (min, max, { slot, tier }) => {
     const id = `set-${keyId(min.key)}`;
-    const pending = [min, max].map(pendingFor);
+    const pending = [min, max].map(s => pendingFor(s.key));
     const after = [min, max].map((s, i) => (!pending[i] ? s.value : pending[i].type === 'admin.reset' ? s.default : pending[i].payload.value));
     const mod = slot === 'HR' || slot === 'DT' ? slot : null;
     return html`<div class="admin-setting admin-range" data-key="${min.key}" data-max="${max.key}">

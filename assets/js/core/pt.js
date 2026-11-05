@@ -1053,7 +1053,7 @@ export const PT = {
   'Your browser': 'O teu browser',
   'A random id kept in this browser (not a cookie, and not worked out from your device) and one for each visit. Also your screen size class and window size, browser and operating system (not the full browser string), whether you prefer light or dark, your browser’s language, and your country, which Cloudflare tells the site.': 'Um id aleatório guardado neste browser (não é um cookie, nem é calculado a partir do teu dispositivo) e um para cada visita. Também a classe de tamanho do ecrã e o tamanho da janela, o browser e o sistema operativo (não a identificação completa do browser), se preferes o tema claro ou escuro, o idioma do teu browser e o teu país, que a Cloudflare indica ao site.',
   'Problems': 'Problemas',
-  'Error messages from the site’s code, and how long pages and data take to load.': 'Mensagens de erro do código do site, e quanto tempo as páginas e os dados demoram a carregar.',
+  'Error messages from the site’s code, how long pages and data take to load, and how quickly pages answer a tap or a key.': 'Mensagens de erro do código do site, quanto tempo as páginas e os dados demoram a carregar, e quão depressa as páginas respondem a um toque ou a uma tecla.',
   'Usage counting is <b>on</b> in this browser.': 'A contagem de utilização está <b>ligada</b> neste browser.',
   'Usage counting is <b>off</b> in this browser: you turned it off.': 'A contagem de utilização está <b>desligada</b> neste browser: foste tu que a desligaste.',
   'Nothing is recorded: your browser sends Do Not Track.': 'Nada é registado: o teu browser envia Do Not Track.',

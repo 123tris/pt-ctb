@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PtCatch.Engine/PtCatch.Engine.csproj" />
+    <Project Path="src/PtCatch.Engine.Cli/PtCatch.Engine.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PtCatch.Engine.Tests/PtCatch.Engine.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -182,6 +182,7 @@ function sendDwell() {
 export function trackView(key, { ms = null, obj = '' } = {}) {
   if (!firstView) reportLargestPaint(); // only the first page's largest paint counts: later ones are in-app navigation
   sendDwell();
+  reportFeel();
   flushQuery();
   page = key;
   pageObj = obj;
@@ -307,6 +308,40 @@ function watchFetches() {
   } catch { /* an older browser without these entry types */ }
 }
 
+// How a page feels once it's there, sent when it's left: its slowest answer to a tap, click or key, from the input to
+// the next paint (its INP: pages get few interactions, so the slowest one), and its worst burst of layout shift (CLS,
+// in thousandths). Browsers without these entry types (Safari) send neither.
+let slowest = 0;
+let shift = 0;
+let burst = { value: 0, start: 0, last: 0 };
+function watchFeel() {
+  if (!('PerformanceObserver' in window)) return;
+  try {
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) if (entry.interactionId) slowest = Math.max(slowest, entry.duration);
+    }).observe({ type: 'event', durationThreshold: 16, buffered: true });
+  } catch { /* no Event Timing */ }
+  try {
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) {
+        if (entry.hadRecentInput) continue;
+        // Shifts under a second apart, within five seconds, are one burst (as CLS counts them).
+        if (entry.startTime - burst.last > 1000 || entry.startTime - burst.start > 5000) burst = { value: 0, start: entry.startTime, last: 0 };
+        burst.value += entry.value;
+        burst.last = entry.startTime;
+        shift = Math.max(shift, burst.value);
+      }
+    }).observe({ type: 'layout-shift', buffered: true });
+  } catch { /* no Layout Instability */ }
+}
+function reportFeel() {
+  if (page && slowest) track('perf', 'inp', page, '', slowest);
+  if (page && Math.round(shift * 1000)) track('perf', 'cls', page, '', shift * 1000);
+  slowest = 0;
+  shift = 0;
+  burst = { value: 0, start: 0, last: 0 };
+}
+
 export function startTracking() {
   if (started || !enabled()) return;
   started = true;
@@ -341,10 +376,11 @@ export function startTracking() {
   window.addEventListener('error', e => trackError(e.error ?? e.message, `${fileOf(e.filename)}:${e.lineno ?? 0}`));
   window.addEventListener('unhandledrejection', e => trackError(e.reason, 'promise'));
   watchFetches();
+  watchFeel();
   if (document.readyState === 'complete') setTimeout(reportLoad);
   else addEventListener('load', () => setTimeout(reportLoad), { once: true });
   shownAt = document.visibilityState === 'visible' ? performance.now() : 0;
-  const leave = () => { flushQuery(); sendDwell(); reportLargestPaint(); flush(); };
+  const leave = () => { flushQuery(); sendDwell(); reportFeel(); reportLargestPaint(); flush(); };
   addEventListener('pagehide', leave);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') leave();

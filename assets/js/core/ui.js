@@ -369,6 +369,9 @@ export const funChips = (list, cls = '', { show = Infinity } = {}) => (list.leng
     </div>`
   : '');
 
+// The new app (web/src/client/tips.ts) leaves the badges and tips to these listeners once a page has loaded this file.
+globalThis.ptctbOldUi = true;
+
 // One listener for every badge row on the site.
 document.addEventListener('click', e => {
   const more = e.target.closest('.fun-more');

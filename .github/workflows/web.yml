@@ -1,0 +1,24 @@
+# The new web client (web/): types, the Portuguese strings, its tests and a bundle. The tests that need an export with
+# packs skip here (the bot's data is private); npm run engine:parity runs them on a machine that has it.
+name: web
+
+on:
+  push:
+    paths: ['web/**', 'tools/web-build.mjs', 'tools/i18n-check.mjs', 'assets/js/**', 'package.json', 'package-lock.json', '.github/workflows/web.yml']
+  pull_request:
+    paths: ['web/**', 'tools/web-build.mjs', 'tools/i18n-check.mjs', 'assets/js/**', 'package.json', 'package-lock.json', '.github/workflows/web.yml']
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node tools/i18n-check.mjs
+      - run: node --test web/test/*.test.mjs
+      - run: node tools/web-build.mjs dist/assets/web

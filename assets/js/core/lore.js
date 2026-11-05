@@ -5,6 +5,7 @@
 import { M } from './model.js';
 import { t } from './i18n.js';
 import * as fmt from './fmt.js';
+import { RIVALRY_LABELS } from './presets.js';
 
 /** Tris: the player the records page dares everyone to snipe. Defined in model.js, which the exporter shares. */
 export { THRONE_PLAYER } from './model.js';
@@ -12,17 +13,8 @@ export { THRONE_PLAYER } from './model.js';
 /** The last time osu!catch pp changed for real (the formula model.js implements). */
 export const LAST_REWORK = Date.UTC(2025, 9, 29) / 1000;
 
-/**
- * Legends: players who were in Portugal's top 5 at some point. They get the "legend" tag only while they're inactive
- * (inactive on osu!, or no play stored in over a year); every other inactive player gets the plain "inactive" one. To
- * add someone, add their osu! user id (the number in their osu! profile's address) with their name and when.
- */
-export const LEGENDS = new Map([
-  [2788013, 'Airdown'],
-  [4427038, 'Buffow'],
-  [6502093, 'PTrollYO'],
-  [1267642, 'SoulEater, #1 in Portugal in 2014'],
-]);
+/** Legends: Portugal's former top-5 players. In a file of their own, which the new web client (web/) shares. */
+export { LEGENDS } from './legends.js';
 
 /** A random item; `seed` makes the pick stable (e.g. one quip per event that doesn't change on every redraw). */
 export function pick(list, seed) {
@@ -127,19 +119,9 @@ export const BOSS_SETS = [158023, 41823, 432720, 502553, 406881];
 /** The Portuguese bonus round: Anjos - Eu estou aqui. */
 export const TUGA_SET = 958558;
 
-/** Calculator presets. */
-export const CALC_PRESETS = [
-  [2311555, 'Eu estou aqui'],
-  [553131, 'Everything Will Freeze'],
-  [933017, 'Image Material'],
-];
-
-/** Compare presets: rivalries the Discord has argued about for years. */
-export const RIVALRIES = [
-  [3821475, 3006672, t('The spinner war')],
-  [6205809, 7385703, t('Who’s the better HD player?')],
-  [4095868, 6205809, t('The official Yoxide snipe')],
-];
+/** Calculator and compare presets, in a file of their own that the new web client (web/) shares. */
+export { CALC_PRESETS } from './presets.js';
+export const RIVALRIES = RIVALRY_LABELS.map(([a, b, label]) => [a, b, t(label)]);
 
 /**
  * Portugal at the Catch World Cup (CWC) and its 4-digit edition (4CWC), as remembered on the Discord. Pieced

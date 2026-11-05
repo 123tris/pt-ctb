@@ -138,6 +138,11 @@ test('the people, health and person views show players, funnels, errors and timi
     ['view', 'home', 'direct', '', 200], ['view', 'player', 'page', '', 900, 'p123'], ['view', 'compare/pair', 'page', '', 1500, 'p123|p456'],
     ['search', 'header', 'picked a player · text 3-5'], ['err', 'x is not a function', 'player.js:#'], ['perf', 'ttfb', 'home', '', 180],
     ['fetch', 'players/#.json', 'player', '', 1300])), env, DAY);
+  // The new app's: a page it drew, and one an old page drew for it (usage/store.js `app`).
+  await recordHit(post({ ...v2({}, ['view', 'maps', 'nav', '', 120, '', 'new'], ['perf', 'inp', 'maps', '', 184, '', 'new'],
+    ['perf', 'lcp', 'player', '', 900, '', 'fallback'], ['perf', 'cls', 'maps', '', 90, '', 'new'], ['view', 'glossary', 'nav', '', 80, '', 'sideways']),
+  id: 'dddddddddddddddd', s: 'dddddddddddd' }, { ip: '9.9.9.9' }), env, DAY);
+  assert.deepEqual(all(db, "SELECT DISTINCT app FROM events WHERE visitor = 'dddddddddddddddd' ORDER BY app").map(r => r.app), ['', 'fallback', 'new']);
   await recordHit(post({ ...v2({ f: 1 }, ['view', 'home'], ['view', 'maps']), id: 'ffffffffffffffff', s: 'ffffffffffff' }, { ip: '8.8.8.8' }), env, DAY);
   const names = new Map([[123, 'Pinguim']]);
   const view = async path => { const res = await stats(get(path), env, DAY, { names }); assert.equal(res.status, 200, path); return res.text(); };
@@ -151,6 +156,12 @@ test('the people, health and person views show players, funnels, errors and timi
   assert.match(health, /Chrome Windows/);
   assert.match(health, /players\/#\.json/);
   assert.match(health, /1440 and up/);
+  // The apps side by side, and pages named with the app that drew them.
+  assert.match(health, /<th class="num">Old app<\/th><th class="num">New app<\/th><th class="num">New app, old page<\/th>/);
+  assert.match(health, /Slowest answer to a tap or key \(INP\)<\/td><td class="num small">–<\/td><td class="num small">184 ms/);
+  assert.match(health, /Worst layout shift \(CLS\)<\/td><td class="num small">–<\/td><td class="num small">0\.09/);
+  assert.match(health, /<td>maps · new app<\/td>/);
+  assert.match(health, /<td>player · new app, old page<\/td>/);
   const person = await view('/stats?player=4158549&days=7');
   assert.match(person, /Tristan/);
   assert.match(person, /compare\/pair/);

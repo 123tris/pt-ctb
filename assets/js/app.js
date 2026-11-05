@@ -18,29 +18,32 @@ import { CONFIG } from './config.js';
 import { matchPage, unmoved } from './core/routes.js';
 import { here, go } from './core/ui.js';
 
-/** Each page in core/routes.js and its module. */
+/**
+ * Each page in core/routes.js and its module. Pages under ../web/ are the new client's (web/src/entries, built by
+ * tools/web-build.mjs); where that build isn't there (the github.io copy, served from the repo as it is), the old page.
+ */
 const LOADERS = {
-  '': () => import('./pages/home.js'),
-  'rankings/:board?': () => import('./pages/rankings.js'),
-  'players': () => import('./pages/players.js'),
-  'player/:id/:tab?': () => import('./pages/player.js'),
-  'maps': () => import('./pages/maps.js'),
-  'map/:id': () => import('./pages/map.js'),
-  'activity': () => import('./pages/activity.js'),
-  'challenges/:tab?': () => import('./pages/challenges.js'),
-  'duel/:id': () => import('./pages/duel.js'),
-  'games/:game?': () => import('./pages/games.js'),
-  'calculator': () => import('./pages/calculator.js'),
-  'compare/:a?/:b?': () => import('./pages/compare.js'),
-  'records': () => import('./pages/records.js'),
-  'shop': () => import('./pages/shop.js'),
-  'admin': () => import('./pages/admin.js'),
-  'recap/:id/:year?': () => import('./pages/wrapped.js'),
-  'commands': () => import('./pages/commands.js'),
-  'join': () => import('./pages/join.js'),
-  'team': () => import('./pages/team.js'),
-  'glossary': () => import('./pages/glossary.js'),
-  'privacy': () => import('./pages/privacy.js'),
+  '': () => import('../web/home.js').catch(() => import('./pages/home.js')),
+  'rankings/:board?': () => import('../web/rankings.js').catch(() => import('./pages/rankings.js')),
+  'players': () => import('../web/players.js').catch(() => import('./pages/players.js')),
+  'player/:id/:tab?': () => import('../web/player.js').catch(() => import('./pages/player.js')),
+  'maps': () => import('../web/maps.js').catch(() => import('./pages/maps.js')),
+  'map/:id': () => import('../web/map.js').catch(() => import('./pages/map.js')),
+  'activity': () => import('../web/activity.js').catch(() => import('./pages/activity.js')),
+  'challenges/:tab?': () => import('../web/challenges.js').catch(() => import('./pages/challenges.js')),
+  'duel/:id': () => import('../web/duel.js').catch(() => import('./pages/duel.js')),
+  'games/:game?': () => import('../web/games.js').catch(() => import('./pages/games.js')),
+  'calculator': () => import('../web/calculator.js').catch(() => import('./pages/calculator.js')),
+  'compare/:a?/:b?': () => import('../web/compare.js').catch(() => import('./pages/compare.js')),
+  'records': () => import('../web/records.js').catch(() => import('./pages/records.js')),
+  'shop': () => import('../web/shop.js').catch(() => import('./pages/shop.js')),
+  'admin': () => import('../web/admin.js').catch(() => import('./pages/admin.js')),
+  'recap/:id/:year?': () => import('../web/recap.js').catch(() => import('./pages/wrapped.js')),
+  'commands': () => import('../web/commands.js').catch(() => import('./pages/commands.js')),
+  'join': () => import('../web/join.js').catch(() => import('./pages/join.js')),
+  'team': () => import('../web/team.js').catch(() => import('./pages/team.js')),
+  'glossary': () => import('../web/glossary.js').catch(() => import('./pages/glossary.js')),
+  'privacy': () => import('../web/privacy.js').catch(() => import('./pages/privacy.js')),
 };
 
 function match(path) {

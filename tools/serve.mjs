@@ -1,8 +1,12 @@
 #!/usr/bin/env node
-// Minimal static server for trying the site locally: node tools/serve.mjs [port] [--local-data] [--usage]
+// Minimal static server for trying the site locally: node tools/serve.mjs [port] [--local-data [folder]] [--usage]
 // The site reads its data from https://data.ptcatch.com; --local-data points it at this repo's data/ instead (after
-// npm run export or publish.ps1 -NoUpload), by serving config.js with that one setting changed, and answers the hashed
-// names the site asks for (data/players/1.<hash>.json) with the plain files (core/data-name.js).
+// npm run export or publish.ps1 -NoUpload), or at another export's folder (ptcatch-engine export --out <folder>
+// --packs), by serving config.js with that one setting changed, and answers the hashed names the site asks for
+// (data/players/1.<hash>.json) with the plain files (core/data-name.js).
+// The new web client (web/src: the app, which index.html loads, and its pages) is bundled in memory as assets/web/ is
+// asked for (tools/web-build.mjs), so an edit shows on the next reload; its pages get their slice of packs.json and
+// meta.json, as functions/[[path]].js sends them (web/edge/inline.ts).
 // --usage turns the usage counts on for this address and runs their Functions (POST /api/hit, GET /stats with the
 // password "local") over a SQLite file in the system's temp folder (tools/lib/d1-sqlite.mjs), to try them end to end.
 // --economy does the same for Bananas (the daily game, wallet and admin requests, the bot's inbox: economy/api.js) and
@@ -23,10 +27,14 @@ import { execFileSync } from 'node:child_process';
 import { plainName } from '../assets/js/core/data-name.js';
 import { describe, pageFor } from '../embed/embed.js';
 import { CONFIG } from '../assets/js/config.js';
+import { inlineData, manifestsFor } from '../web/edge/inline.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.argv.slice(2).find(a => /^\d+$/.test(a))) || 8080;
 const localData = process.argv.includes('--local-data');
+/** The export --local-data serves at /data/: the folder named after it, or this repo's data/. */
+const dataArg = process.argv[process.argv.indexOf('--local-data') + 1];
+const dataDir = localData && dataArg && !dataArg.startsWith('--') && !/^\d+$/.test(dataArg) ? path.resolve(dataArg) : path.join(root, 'data');
 const usage = process.argv.includes('--usage') ? await usageFunctions() : null;
 const economy = process.argv.includes('--economy') ? await economyFunctions() : null;
 
@@ -52,7 +60,7 @@ async function economyFunctions() {
     const url = new URL(request.url);
     const state = url.searchParams.get('state') ?? '';
     const as = Number(url.searchParams.get('as'));
-    const all = JSON.parse(fs.readFileSync(path.join(root, 'data', 'players.json'), 'utf8'));
+    const all = JSON.parse(fs.readFileSync(path.join(dataDir, 'players.json'), 'utf8'));
     const admins = api.adminIds(env);
     const names = [...all.filter(x => admins.includes(x.id)), ...all.filter(x => !admins.includes(x.id))];
     const p = names.find(x => x.id === as);
@@ -144,8 +152,10 @@ http.createServer(async (req, res) => {
     // With `home` set the site sends its usage counts; without --usage there's nowhere to keep them.
     if (!usage && url.pathname === '/api/hit') { res.writeHead(204).end(); return; }
   }
-  let file = path.join(root, decodeURIComponent(url.pathname));
-  if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
+  if (url.pathname.startsWith('/assets/web/')) return serveWeb(res, path.basename(url.pathname));
+  const dataPath = localData && url.pathname.startsWith('/data/');
+  let file = dataPath ? path.join(dataDir, decodeURIComponent(url.pathname.slice('/data/'.length))) : path.join(root, decodeURIComponent(url.pathname));
+  if (!file.startsWith(dataPath ? dataDir : root)) { res.writeHead(403).end(); return; }
   const local = isLocal(req);
   // A page address (/player/123) gets index.html with its link preview, as functions/[[path]].js sends it.
   const isPage = url.pathname === '/' || (!path.extname(url.pathname) && describe(url.pathname) !== null);
@@ -158,6 +168,12 @@ http.createServer(async (req, res) => {
       const base = localData ? `${url.origin}/data/` : CONFIG.data;
       const fetchJson = u => fetch(u).then(r => (r.ok ? r.json() : Promise.reject(new Error(`${r.status} ${u}`))));
       text = await pageFor(text, url.href, { ua: req.headers['user-agent'], base, fetchJson });
+      const need = manifestsFor(url.pathname, url.search);
+      const manifest = name => (localData
+        ? Promise.resolve().then(() => JSON.parse(fs.readFileSync(path.join(dataDir, name), 'utf8')))
+        : fetchJson(`${base}${name}`)).catch(() => null);
+      const [packs, meta] = await Promise.all([need.packs ? manifest('packs.json') : null, need.meta ? manifest('meta.json') : null]);
+      text = inlineData(text, url.pathname, { packs, meta }, base, url.search);
       if (local) text = text.replace('</head>', '<script src="tools/local-review.js"></script>\n</head>');
     }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(page)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
@@ -166,8 +182,8 @@ http.createServer(async (req, res) => {
   }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
   if (economy && localData && url.pathname === '/data/meta.json') return serveMetaWithAdmin(res, file);
-  if (economy && localData && url.pathname === `/data/admin.${SAMPLE_HASH}.json` && !fs.existsSync(path.join(root, 'data', 'admin.json'))) file = path.join(root, 'tools', 'admin-sample.json');
-  if (localData && !fs.existsSync(file) && url.pathname.startsWith('/data/')) file = plainName(file);
+  if (economy && localData && url.pathname === `/data/admin.${SAMPLE_HASH}.json` && !fs.existsSync(path.join(dataDir, 'admin.json'))) file = path.join(root, 'tools', 'admin-sample.json');
+  if (dataPath && !fs.existsSync(file)) file = plainName(file);
   if (!fs.existsSync(file)) { res.writeHead(404).end('Not found'); return; }
   if ((localData || usage || economy) && url.pathname === '/assets/js/config.js') {
     const local = { ...(localData && { data: 'data/' }), ...((usage || economy) && { home: url.origin }), ...(economy && { signIn: true }) };
@@ -177,4 +193,28 @@ http.createServer(async (req, res) => {
   }
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
-}).listen(port, () => console.log(`PT-CTB at http://localhost:${port}/${localData ? ' (data from data/)' : ''}${usage ? ' (usage counts on)' : ''}`));
+}).listen(port, () => console.log(`PT-CTB at http://localhost:${port}/${localData ? ` (data from ${path.relative(root, dataDir) || '.'})` : ''}${usage ? ' (usage counts on)' : ''}`));
+
+/**
+ * The new web client's bundle, rebuilt in memory when asked for (esbuild only rebuilds what changed), and set up again
+ * when an entry is added or removed.
+ */
+let web = null;
+let webEntries = '';
+async function serveWeb(res, name) {
+  try {
+    const build = await import('./web-build.mjs');
+    const now = JSON.stringify(build.entries());
+    if (web && now !== webEntries) { (await web).dispose(); web = null; }
+    webEntries = now;
+    web ??= build.webContext({ outdir: path.join(root, 'assets', 'web') });
+    const { outputFiles } = await (await web).rebuild();
+    const out = outputFiles.find(f => path.basename(f.path) === name);
+    if (!out) { res.writeHead(404).end('Not found'); return; }
+    res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-cache' });
+    res.end(out.contents);
+  } catch (e) {
+    // No esbuild (npm install first) or a build error: index.html loads the old app instead (assets/js/app.js).
+    res.writeHead(500, { 'Content-Type': TYPES['.txt'] }).end(String(e?.message ?? e));
+  }
+}
