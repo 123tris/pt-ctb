@@ -81,9 +81,9 @@ const SCHEMA = [
   'CREATE TABLE IF NOT EXISTS limits (day TEXT NOT NULL, source TEXT NOT NULL, events INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, source)) WITHOUT ROWID',
   'CREATE TABLE IF NOT EXISTS forget (visitor TEXT PRIMARY KEY, day TEXT NOT NULL)',
 ];
-// Columns added after the first version (usage/migrations/0002_people.sql adds the same ones).
+// Columns added after the first version (usage/migrations/0002_people.sql and 0003_app.sql add the same ones).
 const COLUMNS = {
-  events: [['sid', "TEXT NOT NULL DEFAULT ''"], ['player', 'INTEGER'], ['val', 'INTEGER'], ['obj', "TEXT NOT NULL DEFAULT ''"]],
+  events: [['sid', "TEXT NOT NULL DEFAULT ''"], ['player', 'INTEGER'], ['val', 'INTEGER'], ['obj', "TEXT NOT NULL DEFAULT ''"], ['app', "TEXT NOT NULL DEFAULT ''"]],
   quota: [['writes', 'INTEGER NOT NULL DEFAULT 0']],
 };
 
@@ -202,9 +202,11 @@ export async function maintain(db, today) {
 const int = (v, min, max) => (Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : null);
 
 /**
- * Checks one batch from assets/js/core/track.js and returns what to store (events that make no sense are skipped),
- * or null when the batch itself isn't one. Each event is [kind, name, detail, ref, value, object]: value is a number
- * (milliseconds for timings, a score for games), object what the page is about (p123 a player, m456 a map).
+ * Checks one batch from assets/js/core/track.js or web/src/client/track.ts and returns what to store (events that make
+ * no sense are skipped), or null when the batch itself isn't one. Each event is [kind, name, detail, ref, value,
+ * object, app]: value is a number (milliseconds for timings, a score for games), object what the page is about (p123 a
+ * player, m456 a map), app which app drew the page ('new', 'fallback' when an old page stood in in the new app; the
+ * old app sends none, stored as '').
  */
 export function parseBatch(body) {
   if (!body || !Array.isArray(body.e) || !body.e.length || body.e.length > MAX_EVENTS) return null;
@@ -219,7 +221,8 @@ export function parseBatch(body) {
     if (!name) continue;
     const ref = typeof ev[3] === 'string' && /^[a-z0-9.-]{1,100}$/i.test(ev[3]) ? ev[3].toLowerCase() : '';
     const obj = typeof ev[5] === 'string' && /^[pm]\d{1,10}(\|[pm]\d{1,10})?$/.test(ev[5]) ? ev[5] : '';
-    rows.push({ kind: ev[0], name, detail: label(ev[2]), ref, device, me, player, val: int(ev[4], 0, 3_600_000), obj });
+    const app = ev[6] === 'new' || ev[6] === 'fallback' ? ev[6] : '';
+    rows.push({ kind: ev[0], name, detail: label(ev[2]), ref, device, me, player, val: int(ev[4], 0, 3_600_000), obj, app });
   }
   if (!rows.length) return null;
   const c = body.c && typeof body.c === 'object' ? body.c : {};
@@ -301,10 +304,10 @@ export async function recordHit(request, env, now = Date.now()) {
   const country = String(request.cf?.country ?? request.headers.get('cf-ipcountry') ?? '').slice(0, 2).toUpperCase();
   const ts = Math.floor(now / 1000);
   const who = batch.how === 'osu' && await checkProof(env.OSU_CLIENT_SECRET, batch.player, batch.proof) ? 'verified' : batch.how;
-  const insert = db.prepare(`INSERT INTO events (ts, day, env, visitor, kind, name, detail, device, country, ref, me, sid, player, val, obj)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const insert = db.prepare(`INSERT INTO events (ts, day, env, visitor, kind, name, detail, device, country, ref, me, sid, player, val, obj, app)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const statements = [
-    ...rows.map(r => insert.bind(ts, day, site, visitor, r.kind, r.name, r.detail, r.device, country, r.ref, r.me, batch.sid, r.player, r.val, r.obj)),
+    ...rows.map(r => insert.bind(ts, day, site, visitor, r.kind, r.name, r.detail, r.device, country, r.ref, r.me, batch.sid, r.player, r.val, r.obj, r.app)),
     db.prepare(`INSERT INTO quota (day, events, writes) VALUES (?, ?, ?)
       ON CONFLICT(day) DO UPDATE SET events = events + excluded.events, writes = writes + excluded.writes`).bind(day, rows.length, 2 * rows.length + BATCH_WRITES),
     db.prepare(`INSERT INTO limits (day, source, events) VALUES (?, ?, ?)

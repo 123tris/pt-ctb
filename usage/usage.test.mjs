@@ -50,7 +50,7 @@ test('a batch is stored with a daily visitor hash and no IP or user agent', asyn
   const [view, click] = rows(db);
   assert.deepEqual({ ...view, visitor: typeof view.visitor }, {
     ts: DAY / 1000, day: '2026-10-25', env: 'prod', visitor: 'string', kind: 'view', name: 'player/loved', detail: 'search',
-    device: 'phone', country: 'PT', ref: 'discord.com', me: 1, sid: '', player: null, val: null, obj: '',
+    device: 'phone', country: 'PT', ref: 'discord.com', me: 1, sid: '', player: null, val: null, obj: '', app: '',
   });
   assert.match(view.visitor, /^[0-9a-f]{16}$/);
   assert.equal(click.visitor, view.visitor);

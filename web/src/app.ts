@@ -10,7 +10,7 @@
 import { html } from './kernel/html.ts';
 import type { Ctx } from './kernel/ctx.ts';
 import { PAGE_MODULES, match, moved as unmoved, pageKey, pageObject, pageOf, type Found, type Query } from './pages.ts';
-import { oldPage, type RouterPage } from './client/page.ts';
+import { drawn, oldPage, type RouterPage } from './client/page.ts';
 import {
   CONFIG, lang, htmlLang, setLang, store, clientCtx, here, go, setTitle, enhanceTables, openSearch, startTips, checkOldUi,
   startTracking, trackView, trackError, startFun, initSearch, initYou, readSignIn, initReveal, initConsent, moved,
@@ -80,13 +80,14 @@ async function route({ newPage = false, newView = false } = {}): Promise<void> {
   try {
     const page = await pageModule(found.pattern);
     if (ticket !== current) return;
+    drawn.by = 'new';
     await page(root, { params: found.params, query, isCurrent: () => ticket === current });
     checkOldUi();
     if (ticket === current && newPage) focusHeading();
     // A page that redrew itself whole took the picked tab (and its focus) with it: back to the new one.
     if (ticket === current && focused && !root.contains(document.activeElement)) root.querySelector<HTMLElement>('.tabs [aria-current="page"]')?.focus({ preventScroll: true });
     // One view per page opened (a filter or sort that only changes the query isn't a new view).
-    if (ticket === current && (newPage || newView || ticket === 1)) trackView(pageKey(found, path, query), { ms: performance.now() - started, obj: pageObject(found) });
+    if (ticket === current && (newPage || newView || ticket === 1)) trackView(pageKey(found, path, query), { ms: performance.now() - started, obj: pageObject(found), app: drawn.by });
   } catch (e) {
     if (ticket !== current) return;
     console.error(e);

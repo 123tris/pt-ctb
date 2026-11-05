@@ -118,6 +118,43 @@ node --test web/test/*.test.mjs          # with PTCATCH_DATA=<folder> for the te
 An export with packs: `ptcatch-engine export --out <folder> --packs` (copy `data/avatars` into the folder first to keep
 the thumbnails).
 
+## Real visitors: the old app's baseline (ptcatch.com, 2026-10-30 to 2026-11-05)
+
+From the /stats Health view, before the new app was released: the numbers to compare it with. They're median / 75th
+percentile; the 30 days to 2026-11-05 say the same within a few percent.
+
+| First page of a visit | Phone | Desktop | All |
+|---|---|---|---|
+| Server response (TTFB) | 307 / 641 ms | 209 / 364 ms | 233 / 441 ms |
+| First paint | 1.0 / 1.3 s | 568 / 852 ms | 620 / 940 ms |
+| Largest paint | 1.4 / 1.8 s | 1.1 / 1.8 s | 1.2 / 1.8 s |
+| Page loaded | 636 ms / 1.0 s | 546 ms / 1.0 s | 561 ms / 1.0 s |
+
+| Page drawn (address changed → drawn, data included) | Median | 75th % | 95th % | Over 1 s |
+|---|---|---|---|---|
+| All pages | – | 481 ms | – | – |
+| Home (mostly the first page of a visit) | 365 ms | 902 ms | 3.1 s | 22% |
+| Map | 362 ms | 703 ms | 1.4 s | 17% |
+| Challenges, Completion | 342 ms | 525 ms | 1.0 s | 5% |
+| Profile | 302 ms | 505 ms | 1.3 s | 9% |
+| Maps | 268 ms | 479 ms | 844 ms | 0% |
+| Activity | 232 ms | 474 ms | 987 ms | 2% |
+
+| Data download (not from the browser's cache) | Median | 75th % | 95th % | Over 1 s |
+|---|---|---|---|---|
+| `meta.json`, before any page's data | 288 ms | 487 ms | 1.6 s | 7% |
+| A player file | 438 ms | 674 ms | 1.4 s | 17% |
+| A map bucket | 360 ms | 540 ms | 887 ms | 4% |
+| `search-maps.json` | 1.0 s | 1.1 s | 2.9 s | 80% |
+
+What to watch once the new app is out (the Health view's "Old app and new app" table):
+- **Largest paint and page drawn**, home and profiles above all: the new app doesn't wait for `meta.json`, which was
+  on the way to every page's data.
+- **Server response for the front page**, which now goes through the page Function, as other pages already did.
+- **The slowest answer to a tap or key (INP)**: the old app records none of it before this tracking is released, so
+  its baseline is the lab's (maps search: 47–84 ms a query on this desktop, against 1–5 ms).
+- Pages drawn by **"New app, old page"**: the old page standing in. They should be rare once packs are published.
+
 ## Measured: the app (2026-11-05, this desktop)
 
 The built `dist/`, old shell (`assets/js/app.js`) against new (`src/app.ts`), served locally with every response held

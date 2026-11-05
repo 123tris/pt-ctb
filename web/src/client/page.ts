@@ -10,6 +10,7 @@ import { PacksMissing } from '../kernel/store.ts';
 import { PackMismatch } from '../kernel/ptcb.ts';
 import { clientCtx } from './boot.ts';
 import { setTitle } from './ui.ts';
+import type { App } from './track.ts';
 // Every page reaches the app's shell too, though it calls none of it: esbuild then puts the shell and everything the
 // pages share with it in one chunk, which app.js loads at once, instead of one chunk per set of pages that share a
 // module (tools/web-build.mjs).
@@ -41,13 +42,22 @@ export interface PageSpec<D> {
 }
 
 /**
+ * Which app drew the page opened last: the router sets 'new' before it draws one, and an old page standing in sets
+ * 'fallback'. The usage counts carry it (client/track.ts App).
+ */
+export const drawn: { by: App } = { by: 'new' };
+
+/**
  * An old page module (assets/js/pages/<name>.js), for what the new client doesn't draw. Found from this module's own
  * address (assets/web/…), with its ?v= version, which is the one the old site's modules have: the same address is the
  * same module, so an old page shares the state of any other old module already loaded.
  */
 export function oldPage(name: string): Promise<RouterPage> {
   const here = new URL(import.meta.url);
-  return import(/* @vite-ignore */ new URL(`../js/pages/${name}.js${here.search}`, here).href).then(m => m.default);
+  return import(/* @vite-ignore */ new URL(`../js/pages/${name}.js${here.search}`, here).href).then(m => {
+    const draw = m.default as RouterPage;
+    return (root, args) => { drawn.by = 'fallback'; return draw(root, args); };
+  });
 }
 
 /** A page for the router. */
