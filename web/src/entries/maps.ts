@@ -1,4 +1,4 @@
-// /maps for the old app's router: every map with Portuguese plays, from the search pack, with the #1s' names from the
+// /maps for the app's router: every map with Portuguese plays, from the search pack, with the #1s' names from the
 // core pack. Data without packs goes to the old page.
 //
 // The search pack is about 850 KB brotli. A first visit to the default view doesn't wait for it: its first page comes

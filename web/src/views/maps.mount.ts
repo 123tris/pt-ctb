@@ -11,12 +11,12 @@ import { findMaps, mapText, type MapCat, type MapIndex, type MapQuery, type MapS
 import { PAGE, mapRows, noMaps, countText, type Data, type State } from './maps.ts';
 import { paginate, setPressed } from '../client/dom.ts';
 import { bindStarSlider } from '../client/star-slider.ts';
-import { announce, writeQuery } from '../client/legacy.ts';
+import { announce, writeQuery } from '../client/ui.ts';
 
 export interface MountOptions {
   /** The address has an old ?diff=, to rewrite as the star range it now means. */
   rewrite: boolean;
-  /** Whether this page is still the one open (the old router's isCurrent). */
+  /** Whether this page is still the one open (the router's isCurrent). */
   isCurrent(): boolean;
 }
 

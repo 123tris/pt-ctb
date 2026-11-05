@@ -2,7 +2,7 @@
 // "Show more" adds the next events in place.
 
 import type { Ctx } from '../kernel/ctx.ts';
-import { announce, writeQuery } from '../client/legacy.ts';
+import { announce, writeQuery } from '../client/ui.ts';
 import { setPressed } from '../client/dom.ts';
 import { resultCount } from '../ui/page.ts';
 import { FEED_STEP, feed, feedItems, moreLabel, shownEvents, type Data, type State } from './activity.ts';

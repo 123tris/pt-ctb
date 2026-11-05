@@ -1,4 +1,4 @@
-// /games/:game? for the old app's router: the hub and Higher or lower over the core pack, Guess the map from quiz.json
+// /games/:game? for the app's router: the hub and Higher or lower over the core pack, Guess the map from quiz.json
 // (or, signed in, the paying daily from the site's endpoint), the map quizzes from the header search's maps. Each
 // game's first state is made before it's drawn (games.mount.ts start…()), so render() draws its first view whole.
 
@@ -8,7 +8,7 @@ import { readCore } from '../gen/packs.ts';
 import { CORE } from '../routes.ts';
 import { gameOf, quizMode, render, title, type Data, type MapRow, type Quiz } from '../views/games.ts';
 import { mount, startDaily, startHilo, startHub, startPaid, startPractice, startQuiz } from '../views/games.mount.ts';
-// Pure, with no imports, and the old header search's own decoders: the old app has usually loaded this module already.
+// Pure, with no imports: the header search's own decoders (client/search.ts), bundled in like the client's own code.
 import { decodeMapsSearch, decodeSearchMaps } from '../../../assets/js/core/maps-search.js';
 
 /**

@@ -84,7 +84,7 @@ export interface Data {
   duels: DuelsFile | null;
   /** economy.json on the Bounties tab, once the bot has started Bananas. */
   economy: bounties.Economy | null;
-  /** Signing in works on this address (bananas.js signInHere()). */
+  /** Signing in works on this address (client/bananas.ts signInHere()). */
   signInHere: boolean;
 }
 

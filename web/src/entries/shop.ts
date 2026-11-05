@@ -1,10 +1,10 @@
-// /shop for the old app's router: what bananas buy. The wallet from economy.json, the signed-in visitor's head file
+// /shop for the app's router: what bananas buy. The wallet from economy.json, the signed-in visitor's head file
 // (their badges and best plays) and their name from the core pack; their requests to the bot once the page is drawn
 // (shop.mount.ts).
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { signInHere } from '../client/legacy.ts';
+import { signInHere } from '../client/bananas.ts';
 import { readCore } from '../gen/packs.ts';
 import { CORE } from '../routes.ts';
 import { render, START, type Data, type Economy, type HeadFile } from '../views/shop.ts';

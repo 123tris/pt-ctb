@@ -1,9 +1,9 @@
-// /rankings/:board? for the old app's router: every Leaderboards tab. Converts, Loved and Ranked come from the core pack
+// /rankings/:board? for the app's router: every Leaderboards tab. Converts, Loved and Ranked come from the core pack
 // alone; Mods, Top plays and Star kings add the JSON the old page reads (modrankings.json, topplays.json, records.json).
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { NotFound } from '../client/legacy.ts';
+import { NotFound } from '../kernel/store.ts';
 import { readCore, type CorePack } from '../gen/packs.ts';
 import { CORE } from '../routes.ts';
 import * as rankings from '../views/rankings.ts';

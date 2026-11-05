@@ -4,9 +4,9 @@
 // npm run export or publish.ps1 -NoUpload), or at another export's folder (ptcatch-engine export --out <folder>
 // --packs), by serving config.js with that one setting changed, and answers the hashed names the site asks for
 // (data/players/1.<hash>.json) with the plain files (core/data-name.js).
-// The new web client (web/src) is bundled in memory as assets/web/ is asked for (tools/web-build.mjs), so an edit shows
-// on the next reload; its pages get their slice of packs.json and meta.json, as functions/[[path]].js sends them
-// (web/edge/inline.ts).
+// The new web client (web/src: the app, which index.html loads, and its pages) is bundled in memory as assets/web/ is
+// asked for (tools/web-build.mjs), so an edit shows on the next reload; its pages get their slice of packs.json and
+// meta.json, as functions/[[path]].js sends them (web/edge/inline.ts).
 // --usage turns the usage counts on for this address and runs their Functions (POST /api/hit, GET /stats with the
 // password "local") over a SQLite file in the system's temp folder (tools/lib/d1-sqlite.mjs), to try them end to end.
 // --economy does the same for Bananas (the daily game, wallet and admin requests, the bot's inbox: economy/api.js) and
@@ -214,7 +214,7 @@ async function serveWeb(res, name) {
     res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-cache' });
     res.end(out.contents);
   } catch (e) {
-    // No esbuild (npm install first) or a build error: the old pages stand in (assets/js/app.js).
+    // No esbuild (npm install first) or a build error: index.html loads the old app instead (assets/js/app.js).
     res.writeHead(500, { 'Content-Type': TYPES['.txt'] }).end(String(e?.message ?? e));
   }
 }

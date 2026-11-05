@@ -7,9 +7,10 @@ import type { Ctx } from '../kernel/ctx.ts';
 import { store } from '../client/boot.ts';
 import { paginate, setPressed } from '../client/dom.ts';
 import type { PageArgs } from '../client/page.ts';
-import {
-  announce, writeQuery, prefs, chartHover, sendRequest, myRequests, requestList, pendingSpend, closeOnEscape,
-} from '../client/legacy.ts';
+import { announce, writeQuery, prefs } from '../client/ui.ts';
+import { chartHover } from '../client/chart-hover.ts';
+import { sendRequest, myRequests, closeOnEscape } from '../client/bananas.ts';
+import { requestList, pendingSpend } from '../ui/requests.ts';
 import { rowOf } from '../ui/players.ts';
 import { RULES, bananas } from '../ui/bananas.ts';
 import type { Play } from '../ui/scores.ts';
@@ -200,7 +201,7 @@ function wireHistory(root: HTMLElement, ctx: Ctx, data: Data): void {
     drawn = true;
     const lines = linesNow();
     wrap.innerHTML = String(historyChart(ctx, lines));
-    chartHover(wrap, historyRows(ctx, lines), { onKey: announce });
+    chartHover(ctx, wrap, historyRows(ctx, lines), { onKey: announce });
   };
   const show = async () => {
     if (drawn) return;
@@ -217,7 +218,7 @@ function wireHistory(root: HTMLElement, ctx: Ctx, data: Data): void {
   if (historyEl.open && points) {
     // player.ts drew it: only the readout to add.
     drawn = true;
-    chartHover(wrap, historyRows(ctx, linesNow()), { onKey: announce });
+    chartHover(ctx, wrap, historyRows(ctx, linesNow()), { onKey: announce });
   } else if (historyEl.open) {
     show();
   }
@@ -281,7 +282,7 @@ function wireBananas(root: HTMLElement, ctx: Ctx, data: Data, state: State, isCu
 
   const tipBox = root.querySelector<HTMLElement>('#tip-box');
   const box = root.querySelector('#my-requests');
-  // requestList() names a tip's player through an index by id, as the old app's players.json gave it.
+  // requestList() names a tip's player through an index by id.
   const players = data.core.players;
   const index = { get: (who: number) => { const row = rowOf(players, who); return row < 0 ? undefined : { name: players.name.at(row) }; } };
   const draw = async () => {
@@ -290,8 +291,7 @@ function wireBananas(root: HTMLElement, ctx: Ctx, data: Data, state: State, isCu
     if (!isCurrent() || !list) return;
     requests = list;
     showShield();
-    // requestList() is the old html tag's markup, so it goes in as a string beside this client's.
-    if (box) box.innerHTML = list.length ? `${html`<h3 class="small-h">${t('Your requests')}</h3>`}${String(requestList(list, index, { maps: data.bounties?.maps }))}` : '';
+    if (box) box.innerHTML = list.length ? String(html`<h3 class="small-h">${t('Your requests')}</h3>${requestList(ctx, list, index, { maps: data.bounties?.maps })}`) : '';
     if (tipBox?.querySelector('.tip-note')) tipNote();
   };
   if (me) { draw(); window.addEventListener('ptctb:requests', draw); }

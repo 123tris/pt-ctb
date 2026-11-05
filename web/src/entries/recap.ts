@@ -1,9 +1,9 @@
-// /recap/:id/:year? for the old app's router: a player's year in review, from their pack and the core pack (the old
-// page downloads their whole player file). A player the site doesn't have is the old router's "Never heard of them!".
+// /recap/:id/:year? for the app's router: a player's year in review, from their pack and the core pack (the old
+// page downloads their whole player file). A player the site doesn't have is the router's "Never heard of them!".
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { NotFound } from '../client/legacy.ts';
+import { NotFound } from '../kernel/store.ts';
 import { readCore, readPlayer } from '../gen/packs.ts';
 import { CORE, playerPack } from '../routes.ts';
 import { rowOf } from '../ui/players.ts';

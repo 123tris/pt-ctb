@@ -2,7 +2,7 @@
 
 import type { Ctx } from '../kernel/ctx.ts';
 import type { Players } from '../ui/players.ts';
-import { scrollBehavior } from '../client/legacy.ts';
+import { scrollBehavior } from '../client/ui.ts';
 import { ladder, stageDetail, type Dan } from './dan.ts';
 
 export function mount(panel: HTMLElement, ctx: Ctx, dan: Dan, players: Players, start: number): void {

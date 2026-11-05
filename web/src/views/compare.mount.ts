@@ -1,7 +1,7 @@
 // Compare's browser half: the two name boxes, which open the comparison, and paging through the shared maps.
 
 import type { Ctx } from '../kernel/ctx.ts';
-import { go } from '../client/legacy.ts';
+import { go } from '../client/ui.ts';
 import { paginate } from '../client/dom.ts';
 import { pickedRow } from '../ui/pickers.ts';
 import { shared, sharedRows, type Data } from './compare.ts';

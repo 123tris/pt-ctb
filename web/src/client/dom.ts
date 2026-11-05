@@ -3,7 +3,7 @@
 import type { Value } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import { paged, pageCount } from '../ui/page.ts';
-import { announce, scrollBehavior } from './legacy.ts';
+import { announce, scrollBehavior } from './ui.ts';
 
 /** Marks the chip (or other toggle) whose data-`attr` equals `value` as pressed, the rest as not. */
 export function setPressed(scope: ParentNode, attr: string, value: string | number): void {

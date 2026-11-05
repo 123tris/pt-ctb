@@ -5,7 +5,7 @@
 import type { Ctx } from '../kernel/ctx.ts';
 import type { Players } from '../ui/players.ts';
 import type { DuelsFile } from '../ui/duels.ts';
-import { announce, writeQuery } from '../client/legacy.ts';
+import { announce, writeQuery } from '../client/ui.ts';
 import { paginate, setPressed } from '../client/dom.ts';
 import { DUELS_PAGE, LADDER_PAGE, countText, duelRows, ladderTable, noneOfKind, shownDuels, type Kind, type State } from './duels.ts';
 

@@ -2,11 +2,11 @@
 // between the kings and a range's board keep the place: back to the board's link, or up to the heading.
 
 import type { Ctx } from '../kernel/ctx.ts';
-import { announce, setTitle, writeQuery } from '../client/legacy.ts';
+import { announce, setTitle, writeQuery } from '../client/ui.ts';
 import { setPressed } from '../client/dom.ts';
 import { boardCount, boardHref, boardTable, rangeText, title, viewKey, type Data, type Source, type State } from './kings.ts';
 
-/** The address's query for a view key, for the usage counts' record of filters (core/track.js). */
+/** The address's query for a view key, for the usage counts' record of filters (client/track.ts). */
 const viewQuery = (key: string | undefined) => {
   if (!key || key === 'all') return {};
   const [stars, source] = key.split(':');

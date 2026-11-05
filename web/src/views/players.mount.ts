@@ -8,7 +8,7 @@ import type { Ctx } from '../kernel/ctx.ts';
 import type { CorePack } from '../gen/packs.ts';
 import { PAGE_SIZE, visibleRows, countText, noMatch, cards, type Sort, type State } from './players.ts';
 import { paginate } from '../client/dom.ts';
-import { announce, writeQuery } from '../client/legacy.ts';
+import { announce, writeQuery } from '../client/ui.ts';
 
 export function mount(root: HTMLElement, ctx: Ctx, core: CorePack, state: State): void {
   const q = root.querySelector<HTMLInputElement>('#q')!;

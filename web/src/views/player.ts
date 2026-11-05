@@ -92,7 +92,7 @@ export interface State {
   query: Query;
   /** The chart is open (the visitor's choice, which the browser keeps). */
   chartOpen: boolean;
-  /** Signing in works on this address (bananas.js signInHere()). */
+  /** Signing in works on this address (client/bananas.ts signInHere()). */
   signInHere: boolean;
 }
 
@@ -394,7 +394,7 @@ const valueAt = (points: Points, time: number) => {
   return value;
 };
 
-/** A row of the chart's hover readout (assets/js/core/charts.js chartHover). */
+/** A row of the chart's hover readout (client/chart-hover.ts). */
 export interface HistoryReadout {
   t: number;
   title: string;

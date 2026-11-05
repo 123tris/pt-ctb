@@ -84,12 +84,8 @@ export interface AdminRequest {
   code: string | null;
 }
 
-/** The admins when admin.json doesn't say (the bot's and the server's default, economy/api.js ADMIN_DEFAULT). */
-const ADMIN_DEFAULT = [3821475, 6205809];
-
 /** Whether an osu! id is one of the admins, by admin.json's list (or the default without one). */
-export const isAdmin = (id: number | null, panel: Panel | null): boolean =>
-  Boolean(id) && (panel?.admins?.length ? panel.admins.map(a => a.osuId) : ADMIN_DEFAULT).includes(id!);
+export { isAdmin } from './admins.ts';
 
 /** Why an admin request didn't go through, from the endpoint's status and answer (its own message, in words). */
 export function problemText(ctx: Ctx, status: number, body: { error?: string } | null | undefined): string {

@@ -1,4 +1,4 @@
-// /players for the old app's router, drawn from the core pack. Data without packs goes to the old page.
+// /players for the app's router, drawn from the core pack. Data without packs goes to the old page.
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';

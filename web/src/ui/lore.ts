@@ -39,6 +39,21 @@ export function pick<T>(list: readonly T[], seed?: string | number): T {
   return list[h % list.length];
 }
 
+/** The line under "Page not found", one at random. */
+export const notFoundQuips = ({ t }: Ctx): string[] => [
+  t('It’s probably been in qualified since 2018.'),
+  t('Reverse choke: everything was going fine and we died right at the end.'),
+  t('Like Shin, the last Dan: nobody has made it here.'),
+];
+
+/** The footer's line, one at random per visit. */
+export const footerQuips = ({ t }: Ctx): string[] => [
+  t('Catching fruit since 2018.'),
+  t('trisKappa: everything on this site is a joke, except your misses.'),
+  t('No Alphonses were harmed in the making of this site.'),
+  t('Bad scores are most appreciated :)'),
+];
+
 /** The few lines under activity events (ui/events.ts quip()): each tied to a real in-joke or a rare moment. */
 export const quips = ({ t }: Ctx) => ({
   trisAcc: [t('TrisAcc: an FC is an FC.')],

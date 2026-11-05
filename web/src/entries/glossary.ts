@@ -1,4 +1,4 @@
-// /glossary for the old app's router. No data.
+// /glossary for the app's router. No data.
 
 import { page } from '../client/page.ts';
 import { readState, render, title } from '../views/glossary.ts';

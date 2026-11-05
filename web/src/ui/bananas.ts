@@ -1,6 +1,6 @@
 // Bananas 🍌, PT Catch's play money, in markup: the amounts, the posting fee, a wallet's line and ledger, the sign-in
 // button and a map id read from what someone typed, as assets/js/core/bananas.js has them. What talks to the site's
-// endpoints (requests, the session) stays the old module's, for mount() through client/legacy.ts: it needs the browser.
+// endpoints (requests, the session) is client/bananas.ts, for mount(): it needs the browser.
 //
 // The bot is the bank: everything here is a preview of its rules (CURRENCY-DESIGN.md has the amounts), never the rule.
 
@@ -86,8 +86,8 @@ export const ledgerList = (ctx: Ctx, rows: readonly LedgerRow[] | null | undefin
   : '');
 
 /**
- * "Sign in with osu!" where it works (`signInHere`: bananas.js signInHere(), the build's own address), a sentence saying
- * where it does otherwise. The old app's sign-in takes the clicks on [data-signin].
+ * "Sign in with osu!" where it works (`signInHere`: client/bananas.ts signInHere(), the build's own address), a
+ * sentence saying where it does otherwise. The You menu's sign-in (client/you.ts) takes the clicks on [data-signin].
  */
 export const signInButton = (ctx: Ctx, signInHere: boolean, label = ctx.t('Sign in with osu!')): Safe => (signInHere
   ? html`<button class="btn btn-small" type="button" data-signin>${label}</button>`

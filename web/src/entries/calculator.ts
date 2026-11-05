@@ -1,9 +1,9 @@
-// /calculator for the old app's router: the pp calculator and "What if…?", from the core pack, the linked map's bucket
+// /calculator for the app's router: the pp calculator and "What if…?", from the core pack, the linked map's bucket
 // and, for the "What if", the picked player's pack.
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { NotFound } from '../client/legacy.ts';
+import { NotFound } from '../kernel/store.ts';
 import { readCore } from '../gen/packs.ts';
 import { CORE, mapBucket } from '../routes.ts';
 import type { MapMeta } from '../ui/maps.ts';

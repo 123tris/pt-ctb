@@ -1,10 +1,12 @@
-// /player/:id/:tab? for the old app's router: a profile, every tab. The player comes from the core pack; their file and
+// /player/:id/:tab? for the app's router: a profile, every tab. The player comes from the core pack; their file and
 // the rest from the JSON the old page reads, when it reads them. Data without packs goes to the old page. A switch to
 // another score list of the profile on the page redraws only the list, as the old page does.
 
 import { page, type PageArgs } from '../client/page.ts';
 import { store, clientCtx } from '../client/boot.ts';
-import { prefs, signInHere, NotFound } from '../client/legacy.ts';
+import { prefs } from '../client/ui.ts';
+import { signInHere } from '../client/bananas.ts';
+import { NotFound } from '../kernel/store.ts';
 import { readCore } from '../gen/packs.ts';
 import { CORE } from '../routes.ts';
 import { rowOf } from '../ui/players.ts';

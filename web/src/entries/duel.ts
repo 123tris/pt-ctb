@@ -1,10 +1,10 @@
-// /duel/:id for the old app's router: a duel's own page. Its players come from the core pack, the duel from its file
+// /duel/:id for the app's router: a duel's own page. Its players come from the core pack, the duel from its file
 // (duels/<n>.json, a hundred duels each), which the old page reads too. An id that isn't a duel, or a file meta.json
-// doesn't list, is the old router's "No such duel".
+// doesn't list, is the router's "No such duel".
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { NotFound } from '../client/legacy.ts';
+import { NotFound } from '../kernel/store.ts';
 import { readCore } from '../gen/packs.ts';
 import { duelFile } from '../kernel/model.ts';
 import { CORE } from '../routes.ts';

@@ -1,4 +1,4 @@
-// /activity for the old app's router: the events feed, recent plays and the weekly recap, from activity.json and
+// /activity for the app's router: the events feed, recent plays and the weekly recap, from activity.json and
 // challenges.json (optional, for "This week") with players from the core pack.
 
 import { page } from '../client/page.ts';

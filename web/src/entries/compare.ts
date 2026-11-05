@@ -1,4 +1,4 @@
-// /compare/:a?/:b? for the old app's router: two players side by side, from the core pack and their two player packs.
+// /compare/:a?/:b? for the app's router: two players side by side, from the core pack and their two player packs.
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';

@@ -4,7 +4,7 @@
 import type { Ctx } from '../kernel/ctx.ts';
 import type { Players } from '../ui/players.ts';
 import { tierName } from '../ui/hill.ts';
-import { announce, writeQuery } from '../client/legacy.ts';
+import { announce, writeQuery } from '../client/ui.ts';
 import { setPressed } from '../client/dom.ts';
 import { countText, crownTable, seasonTitles, tableRows, type Hill, type State } from './hill.ts';
 

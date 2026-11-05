@@ -1,4 +1,4 @@
-// /challenges/:tab? for the old app's router: every Challenges tab. Players come from the core pack, the rest from the
+// /challenges/:tab? for the app's router: every Challenges tab. Players come from the core pack, the rest from the
 // JSON the old page reads, when it reads it: challenges.json and bounties.json (both small, and cached) on every tab
 // for the figures and chips, meta.json's month, duels and goal in brief, and each tab's own file only on that tab:
 // dan.json, hill.json and duels.json (once the bot has started King of the hill and duels), completion.json, and
@@ -6,7 +6,8 @@
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { NotFound, signInHere } from '../client/legacy.ts';
+import { NotFound } from '../kernel/store.ts';
+import { signInHere } from '../client/bananas.ts';
 import { readCore } from '../gen/packs.ts';
 import type { Manifest } from '../kernel/store.ts';
 import { CORE } from '../routes.ts';
