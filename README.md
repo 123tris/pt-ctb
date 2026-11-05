@@ -3,9 +3,10 @@
 *The site of Portugal's osu!catch community:* leaderboards, profiles, the Dan course, challenges, games and records,
 built from the data the [PT-CTB Discord bot](https://github.com/123tris/PT-CTB-Discord-Bot) collects.
 
-It is a static site (plain HTML/CSS/ES modules, no bundler) served by Cloudflare Pages at <https://ptcatch.com>, which
-builds it from this repo on every push. The old GitHub Pages address forwards there. Pages are in English, or in
-European Portuguese for visitors who pick PT in the header (`assets/js/core/i18n.js`; the strings are in `core/pt.js`).
+It is a static site served by Cloudflare Pages at <https://ptcatch.com>, which builds it from this repo on every push
+(the new client is bundled with esbuild, the build's one dependency). The old GitHub Pages address forwards there. Pages
+are in English, or in European Portuguese for visitors who pick PT in the header (`web/src/client/i18n.ts`; the
+strings are in `assets/js/core/pt.js`).
 
 ## How it works
 
@@ -14,9 +15,10 @@ PT-CTB-Bot-Data (private)  ──engine/ (C#)──►  data/*.json, data/packs/
                                                      site code  ──Cloudflare Pages──►  https://ptcatch.com (reads the data)
 ```
 
-The site is being rebuilt for speed, page by page, beside the old one: a new TypeScript client (`web/`,
-[web/README.md](web/README.md)) reads binary packs the engine writes, and draws the pages ported so far (the
-Converts, Loved and Ranked leaderboards); `assets/js` draws the rest and keeps the header, menus and sign-in.
+The site has been rebuilt for speed beside the old one: a new TypeScript client (`web/`, [web/README.md](web/README.md))
+reads binary packs the engine writes and draws every page, and the header, menus, search and sign-in around them. The
+old client (`assets/js`) is kept as the fallback: where the new one can't load (the github.io copy, served from the
+repo as it is) and for data without packs.
 
 - The data engine (`engine/`, C#) reads the bot's private data folder (`../PT-CTB-Bot-Data` by default) and writes
   the public JSON under `data/`. `tools/export.mjs` writes the same files in Node: it's the original, and the two are

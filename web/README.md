@@ -1,10 +1,14 @@
 # The new web client
 
-The site is being rebuilt for speed one page at a time, in TypeScript, next to the old client in `assets/js`. A page
-the new client draws reads **packs**: binary columns the C# engine writes ([engine/README.md](../engine/README.md)).
-Everything else stays with the old client, which also keeps the header, menus, search and sign-in for now.
+The site has been rebuilt for speed in TypeScript, next to the old client in `assets/js`, which stays as the fallback.
+The new client draws every page, and the app around them: the router, the header's menus, search and You menu, sign-in,
+the language switch, the usage counts and the footer (`src/app.ts`). A page reads **packs**: binary columns the C#
+engine writes ([engine/README.md](../engine/README.md)).
 
-Ported so far:
+Ported:
+- the app itself (`src/app.ts`, with `src/client/`): a visit loads no old module but the settings (`config.js`) and,
+  in Portuguese, the strings (`pt.js`). The app is 3 files and 27 KB brotli before the page's own code, where the old
+  one was 24 files and 61 KB (measured below);
 - the home page, from the core pack and the engine's `home.json`: 9 KB brotli instead of ~66 KB of JSON from six
   files;
 - every Leaderboards tab (`/rankings/…`);
@@ -15,7 +19,7 @@ Ported so far:
 - the calculator and compare (on player packs);
 - a player's yearly recap (`/recap/:id/:year?`), from their pack where the old page read their whole file;
 - the shop (`/shop`): the wallet from economy.json, the visitor's badges and best plays from their head file, and the
-  buying itself through the old app's Bananas requests;
+  buying itself through Bananas requests (`client/bananas.ts`);
 - Activity and Records;
 - the players list, commands, glossary, privacy, how to join and Team Portugal;
 - the maps list (`/maps`), from the search pack: a search takes 1–5 ms instead of 20–60, with the same results in the
@@ -31,7 +35,9 @@ Ported so far:
   old page reads (admin.json, hill.json, bounties.json) and the admin's own requests from the site's endpoints. Signed
   out, it loads nothing.
 
-Still the old client's: the header, menus, search and sign-in, and the endpoints.
+Still the old client's: nothing a visit loads. The old app and pages (`assets/js`) are the fallback: index.html loads
+the old app where the new one can't load (the github.io copy, served from the repo as it is, has no `assets/web`), and a
+page whose data has no packs is drawn by its old page, inside the new app.
 
 Each port is checked against the old page's output or logic on the same data (`test/`).
 
@@ -41,7 +47,9 @@ Each port is checked against the old page's output or logic on the same data (`t
    in that page's slice of `packs.json` and `meta.json` and a preload of each file its first view needs
    (`src/routes.ts`, `edge/inline.ts`). The browser starts on the data while it reads the page. The old pages wait for
    `meta.json`, and only then fetch their data.
-2. **The old router** (`assets/js/app.js`) loads `assets/web/<page>.js`, the page's entry.
+2. **The app** (`src/app.ts`, `assets/web/app.js`, which index.html loads) matches the address (`src/pages.ts`) and
+   loads the page's entry, `assets/web/<page>.js`, which index.html has already started fetching
+   (`tools/build-site.mjs`).
 3. **The entry** (`src/entries/`, a `page({ old, load, title, render, mount })` from `src/client/page.ts`) loads the
    data from the store (`src/kernel/store.ts`), draws the page with the view's `render()`, then `mount()` wires it up.
    When the data has no packs, a pack has another layout than the code reads, or `load` returns null (a tab not
@@ -59,10 +67,12 @@ no wait for `meta.json`.
 |---|---|
 | `src/kernel` | The base every page uses. `ptcb.ts` reads packs. `store.ts` loads packs and JSON by name, by hash. `html.ts` is the escaping template tag. `i18n.ts` and `fmt.ts` handle text and numbers for one language. `ctx.ts` is what a view is drawn with. `model.ts` holds the data's shapes and rules (`assets/js/core/model.js`) |
 | `src/gen` | `packs.ts`: each pack's types, generated from the engine's schemas (`npm run gen`). Don't edit it |
-| `src/ui` | Shared markup, as `assets/js/core/ui.js` has it: `players.ts` (over the core pack), `maps.ts`, `scores.ts` (over the JSON's tuples), `page.ts` (headings, tabs, tables, chips, stats, a page of a list). And the pure parts of the other core modules, under their names, as pages need them: `badges.ts`, `bananas.ts`, `bounty.ts`, `charts.ts`, `events.ts`, `hill.ts`, `ladder.ts`, `star-range.ts`. `map-search.ts` is the Maps search over the search pack |
+| `src/ui` | Shared markup, as `assets/js/core/ui.js` has it: `players.ts` (over the core pack), `maps.ts`, `scores.ts` (over the JSON's tuples), `page.ts` (headings, tabs, tables, chips, stats, a page of a list). And the pure parts of the other core modules, under their names, as pages need them: `badges.ts`, `bananas.ts`, `bounty.ts`, `charts.ts`, `events.ts`, `hill.ts`, `ladder.ts`, `star-range.ts`, `shop.ts` (the shop's catalogue), `requests.ts` (a player's requests to the bot). `map-search.ts` is the Maps search over the search pack, `header-search.ts` the header search's matching and list |
 | `src/views` | One page each. `x.ts` holds `render(ctx, data, state)`, which is pure and so can run at the edge too. `x.mount.ts` holds the browser-only half |
-| `src/entries` | Each page's module for the old router: the bundle's entry points, every file here (`tools/web-build.mjs`) |
-| `src/client` | The browser's side. `boot.ts` builds the visitor's `Ctx` and the store. `page.ts` turns a view into a page for the old router. `dom.ts` holds small DOM helpers, and `star-slider.ts` the star slider's events. `legacy.ts` is everything still taken from `assets/js`, kept in one file |
+| `src/app.ts` | The app: the router (pages, sub-views, focus, scroll, the loading state, error pages), the nav and its menus, the language, the footer. The bundle's first entry point |
+| `src/pages.ts` | The router's page table (each address's entry and old page) and its pure rules: sub-views, and what the usage counts call a page |
+| `src/entries` | Each page's module, which the app loads (and the old router, where the app can't load): with `app.ts`, the bundle's entry points (`tools/web-build.mjs`) |
+| `src/client` | The browser's side. `boot.ts` builds the visitor's `Ctx` and the store, `page.ts` turns a view into a page for the router, and `shell.ts` gathers what the app runs: `search.ts` (the header search; its matching is `ui/header-search.ts`), `you.ts` (the You menu and sign-in), `track.ts` (usage counts), `consent.ts`, `reveal.ts`, `fun.ts` (toasts, easter eggs), `tips.ts` (badges and tags that explain themselves), `moved.ts`, `i18n.ts` (the visitor's language). `ui.ts`, `bananas.ts`, `chart-hover.ts`, `dom.ts` and `star-slider.ts` hold what pages use in the browser. `config.ts` is the site's settings (`assets/js/config.js`) |
 | `src/routes.ts` | Which addresses the new client draws, and the packs and JSON each one's first view needs |
 | `edge` | What the Cloudflare Function runs: the packs slice now, server rendering later |
 | `test` | `node --test`: packs against the JSON, views drawn in Node |
@@ -71,11 +81,15 @@ no wait for `meta.json`.
 (`rowOf(players, id)` finds one by osu! id), and a board is a list of rows. Nothing builds an object per player.
 Strings are decoded only when shown.
 
-**Sharing the old site's modules.** An import of anything under `assets/js` stays an import of that same file:
-`tools/web-build.mjs` keeps it out of the bundle. So the new code uses the very modules the old app has already
-loaded: its settings, its language and strings (`assets/js/core/pt.js`, which `node tools/i18n-check.mjs` also checks
-against `src/`), and its sign-in. Only `src/client/legacy.ts` imports browser code from there. Views take their
-browser parts through it, so they stay pure.
+**The old site's modules.** Two stay imports of the very file under `assets/js` (`tools/web-build.mjs`): the settings
+(`config.js`, which the build fills in per branch) and the Portuguese strings (`core/pt.js`, which only Portuguese
+visitors load, and which `node tools/i18n-check.mjs` also checks against `src/`). The old modules with no browser code
+(`model.js`, `routes.js`, `maps-search.js`, `data-name.js`, `legends.js`, `presets.js`) are bundled in like the
+client's own. The build refuses anything else from there: it's the old app's browser code, which would run twice.
+
+**Chunks.** Every page's entry reaches the app's shell (`src/client/page.ts` imports `shell.ts`), so esbuild puts the
+shell and what the pages share with it in one chunk, which `app.js` loads with it, instead of one chunk per set of
+pages that share a module. A page adds only its own chunks.
 
 ## Porting a page
 
@@ -86,7 +100,8 @@ browser parts through it, so they stay pure.
    markup and classes, so `site.css` styles it the same, and keep its strings, so `pt.js` already has them. Take
    `t`/`fmt`/`now` from `ctx`, never from a global, so `render` stays pure.
 3. Add `src/entries/<page>.ts`, a `page({ … })`, and the page's route and first data to `src/routes.ts`.
-4. Point the page's line in `assets/js/app.js` at `../web/<page>.js`, with the old page as the fallback.
+4. A new address also goes in `assets/js/core/routes.js` and `src/pages.ts` (its entry and old page), and in the old
+   router's `LOADERS` (`assets/js/app.js`), which stands in where the app can't load.
 5. Test it: a view test in `test/`, `npm run typecheck`, `node tools/i18n-check.mjs`. Then check it in the browser
    with `npm run serve -- --local-data <export folder with packs>`, in both languages, at phone width and with the
    keyboard.
@@ -103,7 +118,27 @@ node --test web/test/*.test.mjs          # with PTCATCH_DATA=<folder> for the te
 An export with packs: `ptcatch-engine export --out <folder> --packs` (copy `data/avatars` into the folder first to keep
 the thumbnails).
 
-## Measured (2026-11-04, this desktop)
+## Measured: the app (2026-11-05, this desktop)
+
+The built `dist/`, old shell (`assets/js/app.js`) against new (`src/app.ts`), served locally with every response held
+back 80 ms, in headless Chrome; the median of five runs. Files and brotli KB (quality 11) of the JavaScript that had
+arrived before the page's heading was drawn.
+
+| | Old shell | New |
+|---|---|---|
+| The shell's code (its static imports, before it can run) | 24 files, 60.7 KB | 3 files, 26.8 KB |
+| Home, first visit: code before it's drawn | 41 files, 86.3 KB | 11 files, 38.7 KB |
+| Home, first visit: drawn after | 900 ms | 412 ms |
+| Profile, first visit: code before it's drawn | 43 files, 95.4 KB | 14 files, 50.8 KB |
+| Profile, first visit: drawn after | 992 ms | 533 ms |
+| Home, repeat visit: drawn after (all code from the cache) | 139 ms | 129 ms |
+| Profile, repeat visit: drawn after | 154 ms | 145 ms |
+
+The three files are `app.js`, the shell's chunk and `config.js`; Portuguese adds `pt.js` (41 KB) to both. On a first
+visit the page now draws with its first paint: the old app painted the header at about the same moment, and the page
+half a second later.
+
+## Measured: the leaderboards (2026-11-04, this desktop)
 
 Lab: the production build served locally, with every request held back 80 ms to stand in for a phone's round trip to
 the edge. Same machine, same data.

@@ -34,7 +34,7 @@ caps that keep publishing far inside it are in "Data on R2".
 | `functions/[[path]].js`, `embed/embed.js` | Every page address (`/player/123`, `/rankings/plays`…) gets index.html with that page's link preview in its `<head>`, so links posted on Discord show what the page is. Crawlers get the player's or map's name and numbers from the data (a few cached fetches); visitors get the page's fixed text with no fetch. The build's `dist/_routes.json` keeps `/`, `/assets/*` and `/404.html` off Functions, so only page loads count against the free 100,000 Function requests a day. |
 | `functions/auth/*.js`, `signin/oauth.js` | The sign-in endpoints. Both sites share one osu! app through the release site's callback, with a two-site allowlist. Stateless: no cookies, no database, no signing key. The osu! token is revoked straight away. |
 | `assets/js/config.js` | `production` and `development` (the two addresses), `data` (`https://data.ptcatch.com/`) and `leaveGithub` are edited by hand. `home`, `signIn` and `env` are filled in by the build, per branch. |
-| `assets/js/moved.js` | The forwarding from github.io to `production`. |
+| `assets/js/moved.js` | The forwarding from github.io to `production` (the github.io copy runs the old app; the new one has the same in `web/src/client/moved.ts`). |
 | `.node-version` | Pins Node 22 for the Pages build, so it doesn't depend on Cloudflare's default. |
 
 `tools/build-site.mjs` copies only `index.html`, `404.html`, `_headers` and `assets/` into `dist/` (about 45 files), so
@@ -253,7 +253,7 @@ me" on the old site, it's still picked on the new one.
 ## 4. Usage counts and your dashboard (/stats)
 
 The site counts how it's used, per visitor (a random id in the browser) and, when the visitor said who they are, per
-osu! player (`assets/js/core/track.js` → `functions/api/hit.js` → `usage/store.js`; `/privacy` explains it to
+osu! player (`web/src/client/track.ts` → `functions/api/hit.js` → `usage/store.js`; `/privacy` explains it to
 visitors), and `https://ptcatch.com/stats` shows it to you only: Overview, People, Health, and one page per player. Until the steps below are done, the site sends the counts but they
 are dropped (the endpoint answers "no-database"), and `/stats` says what's missing.
 
