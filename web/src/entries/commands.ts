@@ -1,4 +1,4 @@
-// /commands for the old app's router: the bot's own list (commands.json), or the hand-written one when the data has
+// /commands for the app's router: the bot's own list (commands.json), or the hand-written one when the data has
 // none or it can't be read, as the old page does. No packs, so the old page never has to stand in.
 
 import { page } from '../client/page.ts';

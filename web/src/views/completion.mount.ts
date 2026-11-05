@@ -5,7 +5,7 @@
 
 import type { Ctx } from '../kernel/ctx.ts';
 import { ANY_STARS, formatStars, type StarRange } from '../ui/star-range.ts';
-import { announce, scrollBehavior, writeQuery } from '../client/legacy.ts';
+import { announce, scrollBehavior, writeQuery } from '../client/ui.ts';
 import { paginate } from '../client/dom.ts';
 import { bindStarSlider } from '../client/star-slider.ts';
 import { PAGE, countText, everyYear, leftRows, noneLeft, visible, yearText, type Completion, type Sort, type State, type Year } from './completion.ts';

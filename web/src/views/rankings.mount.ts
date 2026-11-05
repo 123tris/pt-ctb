@@ -4,7 +4,7 @@
 import type { Ctx } from '../kernel/ctx.ts';
 import type { CorePack } from '../gen/packs.ts';
 import { BOARD_CAT, FIRST_ROWS, boardBody, boardRows, visible, filterNote, type State } from './rankings.ts';
-import { announce, writeQuery } from '../client/legacy.ts';
+import { announce, writeQuery } from '../client/ui.ts';
 import { addInFrames } from '../client/dom.ts';
 
 /** `drawn`: how many of the board's rows render() drew; the rest are added here, a batch per frame. */

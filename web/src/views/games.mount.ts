@@ -6,7 +6,10 @@
 import type { Ctx } from '../kernel/ctx.ts';
 import type { CorePack } from '../gen/packs.ts';
 import { coverUrl } from '../ui/maps.ts';
-import { api, prefs, session, signInHere, toast, track, wysi } from '../client/legacy.ts';
+import { api, session, signInHere } from '../client/bananas.ts';
+import { prefs } from '../client/ui.ts';
+import { toast, wysi } from '../client/fun.ts';
+import { track } from '../client/track.ts';
 import {
   BLUR, ROUNDS, blurFilter, dailyRecord, dailyRound, dailyShare, dailyView, hiloRight, hiloRound, hiloShare, hiloValue,
   hiloView, lisbonDay, optionButtons, paidView, playedToday, practiceDeck, practiceResult, practiceReveal, practiceShare,

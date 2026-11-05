@@ -5,7 +5,9 @@
 
 import type { Ctx } from '../kernel/ctx.ts';
 import { RULES, mapIdFrom, walletLine } from '../ui/bananas.ts';
-import { closeOnEscape, myRequests, pendingSpend, scrollBehavior, sendRequest } from '../client/legacy.ts';
+import { closeOnEscape, myRequests, sendRequest } from '../client/bananas.ts';
+import { pendingSpend } from '../ui/requests.ts';
+import { scrollBehavior } from '../client/ui.ts';
 import {
   chipOn, fundConfirm, fundNote, fundPick, fundSignIn, mapName, noWallet, postChecks, postFields, postHint, postSummary, walletOf,
   type Data, type PostChoice, type WalletRequest,
@@ -109,7 +111,7 @@ export function mount(root: HTMLElement, ctx: Ctx, data: Data, isCurrent: () => 
     root.querySelectorAll<HTMLElement>('[data-post-map]').forEach(b => { b.hidden = mapsAsked.has(b.dataset.postMap!); });
   };
   if (me !== null) {
-    myRequests().then((list: WalletRequest[] | null) => {
+    myRequests<WalletRequest>().then(list => {
       if (!list || !isCurrent()) return;
       requests = list;
       asked = list.filter(r => r.type === 'bounty.create' && r.status !== 'rejected');

@@ -33,8 +33,19 @@ export class PacksMissing extends Error {
   }
 }
 
+/**
+ * What the page asked for isn't in the data: a JSON file the export doesn't have, a player or duel that doesn't exist.
+ * The app shows its "not found" page for it (assets/js/core/data.js has the old pages' own, which it knows too).
+ */
+export class NotFound extends Error {
+  constructor(name: string) {
+    super(name);
+    this.name = 'NotFound';
+  }
+}
+
 export interface StoreOptions {
-  /** The error for a JSON file the data doesn't have (the old app shows "not found" for its own NotFound). */
+  /** The error for a JSON file the data doesn't have: NotFound unless said otherwise. */
   notFound?: (name: string) => Error;
   /** How many files to keep in memory. */
   keep?: number;
@@ -54,7 +65,7 @@ export class Store {
     this.base = base;
     this.slice = slice ?? {};
     this.fetchManifest = fetchManifest;
-    this.notFound = options.notFound ?? (name => new Error(`${name} isn't in this data`));
+    this.notFound = options.notFound ?? (name => new NotFound(name));
     this.keep = options.keep ?? 8;
   }
 

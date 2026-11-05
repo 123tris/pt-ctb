@@ -60,7 +60,7 @@ export interface Data {
   home: Home;
   /** CONFIG.discordInvite. */
   invite: string;
-  /** Whether "Sign in with osu!" works on this address (bananas.js signInHere). */
+  /** Whether "Sign in with osu!" works on this address (client/bananas.ts signInHere). */
   signIn: boolean;
 }
 

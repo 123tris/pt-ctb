@@ -1,8 +1,10 @@
-// / for the old app's router: the home page, from the core pack and the engine's home.json (packs.json lists both).
+// / for the app's router: the home page, from the core pack and the engine's home.json (packs.json lists both).
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { CONFIG, openSearch, signInHere } from '../client/legacy.ts';
+import { CONFIG } from '../client/config.ts';
+import { openSearch } from '../client/ui.ts';
+import { signInHere } from '../client/bananas.ts';
 import { readCore } from '../gen/packs.ts';
 import { CORE, HOME } from '../routes.ts';
 import { render, type Data, type Home } from '../views/home.ts';

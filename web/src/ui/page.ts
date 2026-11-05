@@ -2,6 +2,7 @@
 
 import { html, raw, type Safe, type Value } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
+import { DAN_STAGES } from '../kernel/model.ts';
 
 export const pageHead = ({ title, intro, extra }: { title: string; intro?: Value; extra?: Value }): Safe => html`<header class="page-head">
   <h1>${title}</h1>
@@ -88,9 +89,20 @@ export function paged<T>(ctx: Ctx, items: readonly T[], render: (slice: readonly
 export const placeholderRows = (n = 6): Safe =>
   html`<div class="rows rows-placeholder" aria-hidden="true">${Array.from({ length: Math.min(n, 50) }, () => html`<div class="row row-placeholder"></div>`)}</div>`;
 
+/** The loader: the Dan glyphs, 0 to Shin, climbing one window (site.css .climb). */
+export const climber = (): Safe =>
+  html`<span class="climb" aria-hidden="true"><span class="climb-strip">${DAN_STAGES.map(s => html`<span>${s.glyph}</span>`)}</span></span>`;
+
 /**
- * In-joke badges or map tags ({ name, tip }), each a toggle button whose tip shows under the row (ui.js has the one
- * listener for every row on the site). `show` keeps the row short: the rest behind "+N more".
+ * The loading state: the Dan climber and a plain "Loading…" (no joke: DESIGN.md §12), over rows the height of real
+ * ones.
+ */
+export const loading = ({ t }: Ctx): Safe =>
+  html`<div class="loading"><div class="center">${climber()}<div>${t('Loading…')}</div></div>${placeholderRows()}</div>`;
+
+/**
+ * In-joke badges or map tags ({ name, tip }), each a toggle button whose tip shows under the row (client/tips.ts has
+ * the one listener for every row on the site). `show` keeps the row short: the rest behind "+N more".
  */
 export const funChips = (ctx: Ctx, list: { name: string; tip: string }[], cls = '', { show = Infinity } = {}): Safe | '' => (list.length
   ? html`<div class="fun-chips-wrap ${cls}">

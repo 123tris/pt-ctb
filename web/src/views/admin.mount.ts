@@ -1,12 +1,15 @@
 // The admin panel's browser half: finding a setting, the star band sliders, each settings card's review and send, each
-// action's two steps, and the log's "Show all". The admin's own requests go through bananas.js's api(): the list is
-// fetched with the page's data (myAdminRequests(), for the entry), and each change or action is sent on its own
-// (sendAdmin()). What's sent shows as waiting for the bot at once, in the log and at the top of its card. Esc steps back
-// from a confirmation, as in the shop.
+// action's two steps, and the log's "Show all". The admin's own requests go through client/bananas.ts api(): the
+// list is fetched with the page's data (myAdminRequests(), for the entry), and each change or action is sent on its
+// own (sendAdmin()). What's sent shows as waiting for the bot at once, in the log and at the top of its card. Esc steps
+// back from a confirmation, as in the shop.
 
 import { html } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
-import { announce, api, closeOnEscape, toast, track } from '../client/legacy.ts';
+import { announce } from '../client/ui.ts';
+import { api, closeOnEscape } from '../client/bananas.ts';
+import { toast } from '../client/fun.ts';
+import { track } from '../client/track.ts';
 import { describe, problemText, sentText, type ActionArgs, type AdminRequest, type Setting } from '../ui/admin.ts';
 import {
   LOG_SHOWN, actionOf, adminOf, checkValue, confirmAction, confirmChanges, field, groupRows, groupSummary, logList, rangeField,

@@ -28,6 +28,8 @@
 # an export named …"), which is why nothing may load them without the ?v=.
 /assets/js/*
   Cache-Control: public, max-age=31536000, immutable
+/assets/web/*
+  Cache-Control: public, max-age=31536000, immutable
 /assets/css/*
   Cache-Control: public, max-age=31536000, immutable
 /assets/fonts/*

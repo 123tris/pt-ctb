@@ -1,13 +1,13 @@
 // Small hand-rolled SVG charts, as assets/js/core/charts.js draws them. So far the line chart a profile's pp history
-// uses; the bar chart will follow with the pages that show one. The hover readout (chartHover) is browser-only and
-// still the old module's (client/legacy.ts): it reads the scales this chart writes into the SVG's data-*, on the same
-// axes (W and PAD are the same numbers there).
+// uses; the bar chart will follow with the pages that show one. The hover readout (client/chart-hover.ts) is
+// browser-only: it reads the scales this chart writes into the SVG's data-*, on the same axes (W and PAD).
 
 import { raw, escape, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 
-const W = 600;
-const PAD = { l: 56, r: 16, t: 14, b: 28 }; // line charts
+/** A chart's width in its own units, and a line chart's padding: the hover readout places its guide by them. */
+export const W = 600;
+export const PAD = { l: 56, r: 16, t: 14, b: 28 }; // line charts
 
 /** Rounds a step to 1/2/5 × 10^n so axis labels read nicely. */
 function niceStep(range: number, ticks: number): number {

@@ -43,7 +43,7 @@ for (const entry of PUBLIC) fs.cpSync(path.join(root, entry), path.join(dist, en
 
 // The new web client (web/src, TypeScript) as dist/assets/web/, before the versioning below, which then covers it like
 // the rest of the code. esbuild is the build's one dependency (npm ci, which Cloudflare Pages runs first).
-const { buildWeb } = await import('./web-build.mjs');
+const { buildWeb, importPure } = await import('./web-build.mjs');
 const web = await buildWeb({ outdir: path.join(dist, 'assets', 'web') });
 const webBytes = Object.values(web.metafile.outputs).reduce((n, o) => n + o.bytes, 0);
 
@@ -95,20 +95,20 @@ const version = code.digest('hex').slice(0, 10);
 edit('assets/js/config.js', s => `${s}\nglobalThis.ptctbCode = '${version}';\n`);
 edit('index.html', s => s.replace(/<html /, `<html data-v="${version}" `));
 
-// Preload app.js's whole static import graph (and moved.js's) from index.html, so the modules come in parallel instead
-// of one import level at a time. Added before the versioning below, which gives these the same ?v= as the imports.
-// From the root (/assets/…), unlike the page's other addresses: Pages also sends these as a Link header (Early Hints),
-// which functions/[[path]].js passes on with every page, and a header ignores <base>, so on /player/123 a relative
-// address meant /player/assets/… (a 404 for each, before the right file).
-const entries = ['assets/js/app.js', 'assets/js/moved.js'].map(f => path.join(dist, f));
-const preload = [...new Set(entries.flatMap(staticImports))].filter(f => !entries.includes(f))
-  .map(f => `<link rel="modulepreload" href="/${path.relative(dist, f).split(path.sep).join('/')}">`);
+// Preload the app's whole static import graph (assets/web/app.js's: the shell's chunk and the settings) from
+// index.html, so the modules come in parallel instead of one import level at a time. Added before the versioning below,
+// which gives these the same ?v= as the imports. From the root (/assets/…), unlike the page's other addresses: Pages
+// also sends these as a Link header (Early Hints), which functions/[[path]].js passes on with every page, and a header
+// ignores <base>, so on /player/123 a relative address meant /player/assets/… (a 404 for each, before the right file).
+const app = path.join(dist, 'assets/web/app.js');
+const appImports = staticImports(app);
+const preload = appImports.map(f => `<link rel="modulepreload" href="/${path.relative(dist, f).split(path.sep).join('/')}">`);
 // meta.json isn't preloaded: a <link rel="preload"> fetches it with the default cache mode, so on a repeat visit it came
-// straight from the browser cache, and data.js's fetch (cache: 'no-cache') then took that preloaded copy instead of
-// revalidating: returning visitors kept an old manifest, and with it old data. app.js asks for meta.json as soon as it
-// runs, which is still before any page has its module. Opening the connection to the data host early is what's left.
+// straight from the browser cache, and the app's fetch (cache: 'no-cache') then took that preloaded copy instead of
+// revalidating: returning visitors kept an old manifest, and with it old data. The early script below asks for it
+// instead. Opening the connection to the data host early is what's left.
 if (/^https?:/.test(CONFIG.data)) preload.push(`<link rel="preconnect" href="${new URL(CONFIG.data).origin}" crossorigin>`);
-edit('index.html', s => s.replace(/^([ \t]*)(<script type="module" src="assets\/js\/moved\.js")/m,
+edit('index.html', s => s.replace(/^([ \t]*)(<script type="module" src="assets\/web\/app\.js")/m,
   (_, indent, tag) => `${preload.map(l => `${indent}${l}${s.includes('\r\n') ? '\r\n' : '\n'}`).join('')}${indent}${tag}`));
 const IMPORT = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)(['"])(\.{1,2}\/[^'"?]+\.js)\2/g;
 for (const file of codeFiles.filter(f => f.endsWith('.js'))) {
@@ -123,23 +123,26 @@ for (const file of codeFiles.filter(f => f.endsWith('.css'))) {
   const versioned = source.replace(FONT_URL, `$1$2?v=${version}$3`);
   if (versioned !== source) fs.writeFileSync(file, versioned);
 }
-edit('index.html', s => s.replace(/((?:src|href)=")(\/?assets\/(?:js|css|fonts)\/[^"?]+\.(?:js|css|woff2))"/g, `$1$2?v=${version}"`));
+edit('index.html', s => s.replace(/((?:src|href)=")(\/?assets\/(?:js|css|fonts|web)\/[^"?]+\.(?:js|css|woff2))"/g, `$1$2?v=${version}"`));
+// And the old app's, in the inline script that loads it where the new one can't load.
+edit('index.html', s => s.replace(/(import\('\.\/assets\/js\/[\w-]+\.js)'\)/g, `$1?v=${version}')`));
 
-// Two things every page waits on, started by index.html itself as soon as it's read, instead of once all of app.js's
-// code has arrived and run (about half a second on a profile): meta.json, which any data needs first, and the open
-// page's own module with the imports app.js doesn't already preload. The meta.json request is an ordinary fetch with
-// core/data.js's own cache mode, which picks it up (globalThis.ptctbEarly), so it doesn't have the stale-copy problem of
-// a <link rel="preload"> above. Placed before the stylesheets: an inline script after them would wait for them.
-const preloaded = new Set(entries.flatMap(staticImports));
+// Two things every page waits on, started by index.html itself as soon as it's read, instead of once the app's code
+// has arrived and run: meta.json, which any data the edge's slice doesn't name needs first, and the open page's own
+// module with the imports the app doesn't already preload. The meta.json request is an ordinary fetch with the app's own
+// cache mode, which picks it up (globalThis.ptctbEarly; the old app's core/data.js too), so it doesn't have the
+// stale-copy problem of a <link rel="preload"> above. Placed before the stylesheets: an inline script after them would
+// wait for them.
+const preloaded = new Set([app, ...appImports]);
 const pageModules = {};
-const loaders = fs.readFileSync(path.join(dist, 'assets/js/app.js'), 'utf8');
-for (const [, pattern, folder, page] of loaders.matchAll(/'([^']*)': \(\) => import\('(\.\/pages|\.\.\/web)\/([\w-]+)\.js/g)) {
-  // An old page (./pages/x.js) or the new client's (../web/x.js, with its shared chunks).
-  const file = path.join(dist, folder === '../web' ? 'assets/web' : 'assets/js/pages', `${page}.js`);
+// Each page's entry in the new client (web/src/pages.ts, as the app loads them), with its shared chunks.
+const { PAGE_MODULES } = await importPure('web/src/pages.ts');
+for (const [pattern, { entry }] of Object.entries(PAGE_MODULES)) {
+  const file = path.join(dist, 'assets/web', `${entry}.js`);
+  if (!fs.existsSync(file)) throw new Error(`build-site: no assets/web/${entry}.js for the page ${pattern || '/'}.`);
   pageModules[pattern.split('/')[0]] = [file, ...staticImports(file).filter(f => !preloaded.has(f))]
     .map(f => `${path.relative(dist, f).split(path.sep).join('/')}?v=${version}`);
 }
-if (!Object.keys(pageModules).length) throw new Error('build-site: found no page modules in app.js.');
 const early = [
   '<script>',
   '// Written by tools/build-site.mjs: starts meta.json and this page’s code before the rest of the code has loaded.',

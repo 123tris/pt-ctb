@@ -1,11 +1,11 @@
-// /map/:id for the old app's router: a map's page. The map and its board come from its bucket, the players from the
+// /map/:id for the app's router: a map's page. The map and its board come from its bucket, the players from the
 // core pack, and the rest from the JSON the old page reads, when it reads it: bounties.json and meta.json's brief week
 // and hill for the chips, the set's file for the difficulties, and dan.json and challenges.json only for a map the
 // bucket doesn't have. Data without packs goes to the old page.
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { NotFound } from '../client/legacy.ts';
+import { NotFound } from '../kernel/store.ts';
 import { readCore } from '../gen/packs.ts';
 import { M } from '../kernel/model.ts';
 import type { Manifest } from '../kernel/store.ts';
@@ -21,7 +21,7 @@ interface Dan {
 
 /**
  * The details of a map nobody here has played: challenge suggestions, bounties, pool maps and unplayed Dan stages have
- * them in their own files. challenges.json only comes if it's needed. A missing dan.json is the old router's "not
+ * them in their own files. challenges.json only comes if it's needed. A missing dan.json is the router's "not
  * found", as on the old page.
  */
 async function otherMeta(id: number, site: SiteBrief, bounties: Bounties | null): Promise<MapMeta> {

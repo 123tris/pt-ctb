@@ -1,8 +1,9 @@
-// /privacy for the old app's router. No data: the Discord invite is a setting, and whether this browser is counted is
-// the browser's to say (track.js), both read here so the view stays pure.
+// /privacy for the app's router. No data: the Discord invite is a setting, and whether this browser is counted is
+// the browser's to say (client/track.ts), both read here so the view stays pure.
 
 import { page } from '../client/page.ts';
-import { CONFIG, trackingBlock } from '../client/legacy.ts';
+import { CONFIG } from '../client/config.ts';
+import { trackingBlock } from '../client/track.ts';
 import { render, title, type Data } from '../views/privacy.ts';
 import { mount } from '../views/privacy.mount.ts';
 

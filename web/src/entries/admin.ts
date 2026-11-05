@@ -1,11 +1,11 @@
-// /admin for the old app's router: the admin panel. Signed out, nothing loads. Signed in: the admin's own requests
+// /admin for the app's router: the admin panel. Signed out, nothing loads. Signed in: the admin's own requests
 // (/api/admin/requests, which answers 403 to anyone who isn't an admin), the players from the core pack, and the JSON
 // the old page reads: admin.json and hill.json once meta.json lists them (the bot publishes them once it runs those
 // parts), and bounties.json. Each may be missing; the page shows what it has.
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
-import { signInHere } from '../client/legacy.ts';
+import { signInHere } from '../client/bananas.ts';
 import { readCore } from '../gen/packs.ts';
 import { CORE } from '../routes.ts';
 import type { Panel } from '../ui/admin.ts';

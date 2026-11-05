@@ -1,4 +1,4 @@
-// /records for the old app's router: from records.json and economy.json (when Bananas is on), players from the core
+// /records for the app's router: from records.json and economy.json (when Bananas is on), players from the core
 // pack. ?at=<section> scrolls to that section, as the old page does.
 
 import { page } from '../client/page.ts';

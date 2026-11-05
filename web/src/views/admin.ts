@@ -53,7 +53,7 @@ export interface Loaded {
 }
 
 export interface Data {
-  /** Signing in works on this address (bananas.js signInHere()). */
+  /** Signing in works on this address (client/bananas.ts signInHere()). */
   signInHere: boolean;
   /** Null when signed out: nothing else loads then. */
   loaded: Loaded | null;

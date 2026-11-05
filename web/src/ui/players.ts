@@ -85,7 +85,10 @@ export const isInactive = (ctx: Ctx, players: Players, row: number) =>
 /** A former Portuguese top-5 player (core/legends.js) who is now inactive. */
 export const isLegend = (ctx: Ctx, players: Players, row: number) => LEGENDS.has(players.id[row]) && isInactive(ctx, players, row);
 
-/** A tag that explains itself on tap (a toggletip, DESIGN.md §9; ui.js handles the clicks), or plain inside a link. */
+/**
+ * A tag that explains itself on tap (a toggletip, DESIGN.md §9; client/tips.ts handles the clicks), or plain inside a
+ * link.
+ */
 export const tipTag = (text: string, tip: string, { cls = 'legend-tag', plain = false } = {}): Safe => (plain
   ? html`<span class="${cls}" title="${tip}">${text}<span class="sr-only">: ${tip}</span></span>`
   : html`<button type="button" class="${cls}" data-tip="${tip}" aria-expanded="false" aria-controls="tip-pop">${text}</button>`);

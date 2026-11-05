@@ -2,7 +2,7 @@
 // inactive-players checkbox hide rows by name and mark, as the old page does, all kept in the address.
 
 import type { Ctx } from '../kernel/ctx.ts';
-import { announce, writeQuery } from '../client/legacy.ts';
+import { announce, writeQuery } from '../client/ui.ts';
 import { setPressed } from '../client/dom.ts';
 import { emptyFiltered, resultCount } from '../ui/page.ts';
 import { board, queryDefaults, type Data, type State } from './boards.ts';

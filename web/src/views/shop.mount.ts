@@ -1,14 +1,16 @@
 // The shop's browser half (shop.ts draws it): the visitor's requests to the bot, fetched and kept up to date; opening
 // and folding the items; the effect line and the colour preview as the choice changes; and buying in two steps, pick
-// then confirm, which sends the request (bananas.js). Esc steps back: from the confirmation to the choice, then folds
-// the item.
+// then confirm, which sends the request (client/bananas.ts). Esc steps back: from the confirmation to the choice,
+// then folds the item.
 //
 // The page is drawn again whole on each change, as the old page does, so the listeners are on its root (#content),
 // which outlives it. The old page left them there, adding more on every visit; here each one takes itself off at the
 // first event after the page has gone.
 
 import type { Ctx } from '../kernel/ctx.ts';
-import { announce, sendRequest, myRequests, requestList, pendingSpend } from '../client/legacy.ts';
+import { announce } from '../client/ui.ts';
+import { sendRequest, myRequests } from '../client/bananas.ts';
+import { requestList, pendingSpend } from '../ui/requests.ts';
 import { rowOf } from '../ui/players.ts';
 import { bananas, mapIdFrom } from '../ui/bananas.ts';
 import {
@@ -21,7 +23,7 @@ export function mount(root: HTMLElement, ctx: Ctx, data: Data, isCurrent: () => 
   const items = shopItems(ctx);
   const find = (item: string | null | undefined) => items.find(s => s.item === item);
   const w = ctx.me !== null ? data.economy?.players?.[ctx.me] ?? null : null;
-  // requestList() names a tip's player through an index by id, as the old app's players.json gave it.
+  // requestList() names a tip's player through an index by id.
   const players = data.core.players;
   const index = { get: (id: number) => { const row = rowOf(players, id); return row < 0 ? undefined : { name: players.name.at(row) }; } };
   let requests: ShopRequest[] = [];
@@ -65,9 +67,8 @@ export function mount(root: HTMLElement, ctx: Ctx, data: Data, isCurrent: () => 
     if (preview) preview.className = `name-colour name-${value}`;
   };
 
-  // requestList() is the old html tag's markup, so the view takes it as a string.
   const draw = () => {
-    root.innerHTML = String(render(ctx, data, state(String(requestList(requests.filter(r => r.type === 'shop.buy'), index)))));
+    root.innerHTML = String(render(ctx, data, state(String(requestList(ctx, requests.filter(r => r.type === 'shop.buy'), index)))));
     showEffect();
   };
   on('input', showEffect);

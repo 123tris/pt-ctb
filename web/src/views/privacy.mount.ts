@@ -6,7 +6,7 @@
 
 import type { Ctx } from '../kernel/ctx.ts';
 import { browserSection } from './privacy.ts';
-import { trackingBlock, optOut, optIn } from '../client/legacy.ts';
+import { trackingBlock, optOut, optIn } from '../client/track.ts';
 
 export function mount(root: HTMLElement, ctx: Ctx): void {
   const { t } = ctx;

@@ -69,7 +69,7 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   { pattern: /^map\/(\d+)$/, first: m => ({ packs: [CORE], json: [mapBucket(Number(m[1])), 'bounties.json'] }) },
   // Challenges, every tab: the players, challenges.json and bounties.json (the tabs' figures and chips), and the tab's
   // own file. A file the data doesn't have yet (hill.json, duels.json, economy.json) is in the slice as missing, so the
-  // page needn't ask meta.json. /dan is the Dan tab's old address, which the old router moves there.
+  // page needn't ask meta.json. /dan is the Dan tab's old address, which the router moves there.
   { pattern: /^challenges(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: challengesJson(m[1]) }) },
   { pattern: /^dan$/, first: () => ({ packs: [CORE], json: challengesJson('dan') }) },
   // A duel's own page: the players and the file with its hundred duels (model.ts duelFile).

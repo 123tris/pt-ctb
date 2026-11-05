@@ -66,7 +66,7 @@ export interface Data {
   challenges: { maps: Record<string, MapMeta>; bounties?: Wanted[] };
   economy: Economy | null;
   running: Running;
-  /** Signing in works on this address (bananas.js signInHere()). */
+  /** Signing in works on this address (client/bananas.ts signInHere()). */
   signInHere: boolean;
 }
 

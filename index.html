@@ -31,8 +31,12 @@ addEventListener('load', () => {
   Promise.all(code.map(u => fetch(u, { cache: 'reload' }).catch(() => {}))).then(() => location.reload());
 });
 </script>
-<script type="module" src="assets/js/moved.js"></script>
-<script type="module" src="assets/js/app.js"></script>
+<script type="module" src="assets/web/app.js"></script>
+<script type="module">
+// The app is assets/web/app.js (web/src/app.ts, which tools/build-site.mjs bundles). Where it can't load, the old one:
+// the github.io copy is served from the repo as it is, without assets/web.
+if (!globalThis.ptctbApp) import('./assets/js/moved.js').then(() => import('./assets/js/app.js'));
+</script>
 </head>
 <body>
 <a class="skip" href="#content" data-t>Skip to content</a>

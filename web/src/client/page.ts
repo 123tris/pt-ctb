@@ -1,14 +1,19 @@
-// A page of the new client, as the old router (assets/js/app.js) loads pages: page(root, { params, query, isCurrent }).
-// Each entry (entries/) is one of these: it loads the page's data from the store, draws it with the view's pure
-// render(), and wires it up with mount(). When the data can't be drawn by this code (no packs yet, or packs of another
-// layout), or the view doesn't cover what's asked (a tab not ported yet), the old page draws it instead.
+// A page of the new client, as the app's router loads pages (app.ts; the old router, assets/js/app.js, loads them the
+// same way): page(root, { params, query, isCurrent }). Each entry (entries/) is one of these: it loads the page's data
+// from the store, draws it with the view's pure render(), and wires it up with mount(). When the data can't be drawn by
+// this code (no packs yet, or packs of another layout), or the view doesn't cover what's asked (a tab not ported yet),
+// the old page draws it instead.
 
 import type { Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import { PacksMissing } from '../kernel/store.ts';
 import { PackMismatch } from '../kernel/ptcb.ts';
 import { clientCtx } from './boot.ts';
-import { oldPage, setTitle } from './legacy.ts';
+import { setTitle } from './ui.ts';
+// Every page reaches the app's shell too, though it calls none of it: esbuild then puts the shell and everything the
+// pages share with it in one chunk, which app.js loads at once, instead of one chunk per set of pages that share a
+// module (tools/web-build.mjs).
+import './shell.ts';
 
 export interface PageArgs {
   params: Record<string, string | undefined>;
@@ -16,7 +21,7 @@ export interface PageArgs {
   isCurrent(): boolean;
 }
 
-export type OldRouterPage = (root: HTMLElement, args: PageArgs) => Promise<void>;
+export type RouterPage = (root: HTMLElement, args: PageArgs) => Promise<void>;
 
 export interface PageSpec<D> {
   /** The old page (assets/js/pages/<old>.js) that stands in. */
@@ -35,8 +40,18 @@ export interface PageSpec<D> {
   keep?(root: HTMLElement): string | undefined;
 }
 
-/** A page for the old router. */
-export function page<D>(spec: PageSpec<D>): OldRouterPage {
+/**
+ * An old page module (assets/js/pages/<name>.js), for what the new client doesn't draw. Found from this module's own
+ * address (assets/web/…), with its ?v= version, which is the one the old site's modules have: the same address is the
+ * same module, so an old page shares the state of any other old module already loaded.
+ */
+export function oldPage(name: string): Promise<RouterPage> {
+  const here = new URL(import.meta.url);
+  return import(/* @vite-ignore */ new URL(`../js/pages/${name}.js${here.search}`, here).href).then(m => m.default);
+}
+
+/** A page for the router. */
+export function page<D>(spec: PageSpec<D>): RouterPage {
   return async (root, args) => {
     const ctx = await clientCtx();
     let data: D | null;
@@ -44,7 +59,7 @@ export function page<D>(spec: PageSpec<D>): OldRouterPage {
       data = await spec.load(ctx, args);
     } catch (e) {
       // Data the new client can't read (yet): the old page, from the JSON. Anything else (not found, offline) is the
-      // old router's to show, as for its own pages.
+      // router's to show, as for its own pages.
       if (!(e instanceof PacksMissing || e instanceof PackMismatch)) throw e;
       console.warn(`${spec.old}: the old page, from the JSON:`, e);
       data = null;
