@@ -3,7 +3,7 @@
 // the old page reads: admin.json and hill.json once meta.json lists them (the bot publishes them once it runs those
 // parts), and bounties.json. Each may be missing; the page shows what it has.
 
-import { page } from '../client/page.ts';
+import { page, type RouterPage } from '../client/page.ts';
 import { store } from '../client/boot.ts';
 import { signInHere } from '../client/bananas.ts';
 import { readCore } from '../gen/packs.ts';
@@ -16,7 +16,7 @@ import { mount, myAdminRequests } from '../views/admin.mount.ts';
 const ifListed = <T>(name: string): Promise<T | null> =>
   store.hasJson(name).then(has => (has ? store.json<T>(name) : null)).catch(() => null);
 
-export default page<Data>({
+const bot = page<Data>({
   old: 'admin',
   load: async ctx => {
     const here = Boolean(signInHere());
@@ -34,3 +34,10 @@ export default page<Data>({
   render: (ctx, data) => render(ctx, data),
   mount: (root, ctx, data) => mount(root, ctx, data),
 });
+
+// ?tab=top10: the Top 10 tab (views/top10-admin.page.ts), loaded only when it's opened.
+const admin: RouterPage = (root, args) => (args.query.tab === 'top10'
+  ? import('../views/top10-admin.page.ts').then(m => m.default(root, args))
+  : bot(root, args));
+
+export default admin;

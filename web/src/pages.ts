@@ -41,6 +41,8 @@ export const PAGE_MODULES: Readonly<Record<string, { entry: string; old: string 
   'team': { entry: 'team', old: 'team' },
   'glossary': { entry: 'glossary', old: 'glossary' },
   'privacy': { entry: 'privacy', old: 'privacy' },
+  // Top 10 of the year: no old page (the old app shows its error page there).
+  'top10/:view?/:id?/:year?': { entry: 'top10', old: 'top10' },
 };
 
 // Every address routes.js knows has its modules here, and nothing else: a page added there and not here would match
