@@ -14,20 +14,13 @@ thread ("Portugal's Top 10 CTB Players of All Time").
 
 The osu! API wasn't used.
 
-## Please confirm
-
-These items still need the maintainer's check, most uncertain first.
-
-| As written (where) | osu! id | Today | Evidence | Confidence |
-|---|---|---|---|---|
-| **Dementia** (2021 Ritmo Brigido #10; 2021 suzuhiro77, honourable mention) | 4756150 | [Dementia] | **Index:** the only match. The 2023-24 thread calls [Dementia] an old player (since 2014) back from a long AFK. **Profile:** the previous name HiImGrabbitt has no date, so it's not proven the account was called Dementia in 2021. | Medium-high |
-| **Tartaruga** (2022 suzuhiro77, "Investments") | 17076179 | tartaruga57 | **Text:** tartaruga57 is the newcomer who voted in 2023-24. Tataluga_ (19082708) is a different account. | Medium-high |
-| **Peo5h** (2025 _wb #6) | 26323728 | Leo5h | **Profile:** `users/Peo5h` doesn't exist, so it's a typo or a nickname. Every other 2025 list has Leo5h, and §13.10's Leo5h 3.00 only comes out with this vote counted. | High |
-
 ## Confirmed by the maintainer
 
 | As written (where) | osu! id | Today | Evidence |
 |---|---|---|---|
+| **Dementia** (2021 Ritmo Brigido #10; 2021 suzuhiro77, honourable mention) | 4756150 | [Dementia] | **Maintainer** (2026-11-08): Dementia is [Dementia]. **Index:** the only match. |
+| **Tartaruga** (2022 suzuhiro77, "Investments") | 17076179 | tartaruga57 | **Maintainer** (2026-11-08): Tartaruga is tartaruga57. Tataluga_ (19082708) is a different account. |
+| **Peo5h** (2025 _wb #6) | 26323728 | Leo5h | **Maintainer** (2026-11-08): a typo for Leo5h. `users/Peo5h` doesn't exist. |
 | **Tuga** (2022 Tris, honourable mention: "signs that Nicole and Tuga might be back! Two players that have been in the top 10 of PT"); **Tuga1768** / **Tuga** (all-time 2020: on 5 of the 7 lists) | 1700805 | Sp1ritGG | **Maintainer.** **Profile:** previous name Tuga1768, Portugal, joined 2012. **Text:** the all-time thread calls Tuga1768 "one of the oldest players" (Tris), back in 2018 and in the PT top 10 then, which is what Tris's 2022 line says. **Index.** |
 | **GoncS**, Goncs, GonCS | 19423459 | **_wb** | **Maintainer.** **Profile:** previous name GoncS. **Post link:** ExPin (2023-24 and 2025) and tartaruga57 link GoncS to this id. **This makes _wb's 2022 and 2025 lists GoncS's own ballots**, which is why GoncS isn't on them. |
 | **Zoey** (2021 suzuhiro77, honourable mention), zoey / Zoey (2025) | 23114439 | iPPC | **Maintainer.** **Profile:** previous names IamZoeyyy and Zcey. In 2025 _wb writes "iPPc (former Zcey aka IamZoeyyy)". |
