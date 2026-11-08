@@ -12,7 +12,7 @@ import { top10Api, problemText, showcaseBody } from '../client/top10.ts';
 import { readPlayer } from '../gen/packs.ts';
 import { playerPack } from '../routes.ts';
 import { MAX_REPLAY_BYTES, clipOk, scoreCard, type ShowPlay } from '../ui/top10.ts';
-import { mineBox, playItem, usedLine, type Data } from './top10-plays.ts';
+import { editForm, mineBox, playItem, usedLine, type Data } from './top10-plays.ts';
 import { careerChoices, yearChoices } from './top10-dossier.ts';
 import type { CiteChoice } from './top10-ballot.ts';
 
@@ -35,7 +35,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
   // career, §13.11) in their pack, the most pp first. PAGE at a time, "Show more" for the next.
   const PAGE = 50;
   let choices: CiteChoice[] = [];
-  let picked = '';
+  let chosen = '';
   let shown = PAGE;
   const taken = () => new Set(d.plays.map(p => p.score_ref).filter(Boolean));
   const textOf = (c: CiteChoice) => [c.card?.title, c.card?.artist, c.card?.version, c.card?.mods].filter(Boolean).join(' ').toLocaleLowerCase();
@@ -48,7 +48,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const hits = words.length ? choices.filter(c => { const s = textOf(c); return words.every(w => s.includes(w)); }) : choices;
     const inAlready = taken();
     const more = hits.length - shown;
-    list.innerHTML = String(hits.length ? html`<ul class="t10-cite-list">${hits.slice(0, shown).map(c => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${inAlready.has(c.ref) ? raw('disabled') : c.ref === picked ? raw('checked') : ''}>
+    list.innerHTML = String(hits.length ? html`<ul class="t10-cite-list">${hits.slice(0, shown).map(c => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${inAlready.has(c.ref) ? raw('disabled') : c.ref === chosen ? raw('checked') : ''}>
         ${scoreCard(ctx, c.card, c.ref, inAlready.has(c.ref) ? html`<span class="t10-pill">${t('already in')}</span>` : '')}</label></li>`)}</ul>
       ${more > 0 ? html`<button class="btn btn-small" type="button" data-pick-more>${t('Show {n} more', { n: ctx.fmt.num(Math.min(PAGE, more)) })}</button>` : ''}`
       : html`<p class="small muted">${t('No plays match “{q}”.', { q })}</p>`);
@@ -57,7 +57,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
   async function yearPlays(id: number): Promise<void> {
     const box = root.querySelector<HTMLElement>('[data-year-plays]');
     if (!box) return;
-    choices = []; picked = ''; shown = PAGE;
+    choices = []; chosen = ''; shown = PAGE;
     if (!id) { box.innerHTML = ''; return; }
     box.innerHTML = String(html`<p class="small muted">${t('Loading…')}</p>`);
     const pack = await store.pack(playerPack(id), readPlayer).catch(() => null);
@@ -65,7 +65,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     choices = d.scope === 'alltime' ? careerChoices(pack, id, Infinity) : yearChoices(pack, d.season.year, id, Infinity);
     // The best one not in yet starts picked.
     const inAlready = taken();
-    picked = choices.find(c => !inAlready.has(c.ref))?.ref ?? '';
+    chosen = choices.find(c => !inAlready.has(c.ref))?.ref ?? '';
     const mine = id === ctx.me;
     const legend = d.scope === 'alltime' ? (mine ? t('Your career best plays, the most pp first') : t('Their career best plays, the most pp first'))
       : mine ? t('Your plays of {year}, the most pp first', { year: d.season.year }) : t('Their plays of {year}, the most pp first', { year: d.season.year });
@@ -82,7 +82,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
   });
   root.addEventListener('change', ev => {
     const el = ev.target as HTMLInputElement;
-    if (el.name === 'pick' && el.type === 'radio') picked = el.value;
+    if (el.name === 'pick' && el.type === 'radio') chosen = el.value;
   });
 
   const select = root.querySelector<HTMLSelectElement>('[data-player-select]');
@@ -91,6 +91,17 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const el = (ev.target as Element).closest<HTMLButtonElement>('button');
     if (!el) return;
     if (el.hasAttribute('data-pick-more')) { shown += PAGE; drawChoices(); return; }
+    // Editing your entry: the form opens under it; Cancel puts it back as it was.
+    if (el.dataset.edit || el.dataset.editCancel) {
+      const p = d.plays.find(x => x.id === Number(el.dataset.edit || el.dataset.editCancel));
+      const item = el.closest<HTMLElement>('[data-play]');
+      if (!p || !item) return;
+      if (el.dataset.editCancel) { item.outerHTML = String(playItem(ctx, d, p)); root.querySelector<HTMLElement>(`[data-edit="${p.id}"]`)?.focus(); return; }
+      if (item.querySelector('[data-edit-form]')) return;
+      item.insertAdjacentHTML('beforeend', String(editForm(ctx, p)));
+      item.querySelector<HTMLInputElement>('[data-edit-form] input')?.focus();
+      return;
+    }
     if (el.dataset.kind) {
       kind = el.dataset.kind;
       setPressed(root, 'kind', kind);
@@ -126,6 +137,28 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     }
   });
 
+  root.addEventListener('submit', async ev => {
+    const f = (ev.target as Element).closest<HTMLFormElement>('[data-edit-form]');
+    if (!f) return;
+    ev.preventDefault();
+    const p = d.plays.find(x => x.id === Number(f.dataset.editForm));
+    if (!p) return;
+    const data = new FormData(f);
+    const msg = f.querySelector<HTMLElement>('[data-edit-msg]')!;
+    const clip = String(data.get('clip') ?? '').trim();
+    if (clip && !clipOk(clip)) { msg.textContent = t('A clip has to be a YouTube, Twitch or Streamable link.'); return; }
+    const button = f.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    button.disabled = true;
+    const res = await top10Api(`/api/top10/plays/${p.id}`, { method: 'PATCH', body: { caption: String(data.get('caption') ?? '').trim(), clip } });
+    button.disabled = false;
+    if (!res.ok) { msg.textContent = problemText(t, res, { scope: d.scope }); return; }
+    const saved = (res.body?.play ?? {}) as Partial<ShowPlay>;
+    p.caption = saved.caption ?? p.caption;
+    p.clip = saved.clip === undefined ? p.clip : saved.clip;
+    drawList();
+    toast(t('Saved.'));
+  });
+
   root.querySelector<HTMLSelectElement>('[data-filter-player]')?.addEventListener('change', ev => {
     const v = (ev.target as HTMLSelectElement).value;
     const scope = d.scope === 'alltime' ? 'scope=alltime' : '';
@@ -140,8 +173,8 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const msg = form.querySelector<HTMLElement>('[data-msg]')!;
     const data = new FormData(form);
     const caption = String(data.get('caption') ?? '').trim();
-    const picked = data.get('replay');
-    const file = (kind === 'link' || kind === 'replay') && picked instanceof File && picked.size ? picked : null;
+    const upload = data.get('replay');
+    const file = (kind === 'link' || kind === 'replay') && upload instanceof File && upload.size ? upload : null;
     if (file && !/\.osr$/i.test(file.name)) { msg.textContent = t('A replay has to be an .osr file.'); return; }
     if (file && file.size > MAX_REPLAY_BYTES) { msg.textContent = t('That replay is over 2 MB.'); return; }
     let body: Record<string, unknown>;
@@ -155,7 +188,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
       body = { scope: d.scope, player: Number(data.get('player')), clip, caption };
     } else {
       // A pick may be filtered out of view: the one chosen is remembered.
-      const score = String(kind === 'link' ? data.get('score') ?? '' : picked).trim();
+      const score = String(kind === 'link' ? data.get('score') ?? '' : chosen).trim();
       if (!score) { msg.textContent = kind === 'link' ? t('Paste the score’s link from osu!.') : t('Choose a player, then one of their plays.'); return; }
       // A pick is a canonical ref (osu:, legacy: or map:<beatmap>:<player>: ui/top10.ts playRef); a link goes as pasted.
       body = { scope: d.scope, score, caption };

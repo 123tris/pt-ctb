@@ -494,6 +494,18 @@ export async function handle(method: string, path: string, body: unknown, me: nu
     if (!signed) return no(401, '', 'Sign in with osu! first.');
     const p = s.plays.find(x => x.id === Number(playMatch[1]));
     if (!p) return no(404, 'no_play', 'No such showcase entry.');
+    if (method === 'PATCH' && !playMatch[2]) {
+      if (p.submitter !== me) return no(403, 'not_yours', 'Only whoever added an entry can edit it.');
+      if (b.caption !== undefined) p.caption = String(b.caption ?? '').trim().replace(/\s+/g, ' ');
+      if (b.clip !== undefined) {
+        const clip = String(b.clip ?? '').trim();
+        if (clip && !clipOk(clip)) return no(400, 'clip', 'A clip must be a link on youtube.com, youtu.be, twitch.tv or streamable.com.');
+        if (!clip && !p.score_ref && !p.score && !p.replay) return no(400, 'clip_needed', 'This entry is a clip: change its link, or remove the entry.');
+        p.clip = clip || null;
+      }
+      save(s);
+      return ok({ play: playView(p, me) });
+    }
     if (method === 'DELETE' && !playMatch[2]) {
       if (p.submitter !== me) return no(403, 'not_yours', 'Only whoever added an entry can remove it.');
       s.plays = s.plays.filter(x => x !== p);

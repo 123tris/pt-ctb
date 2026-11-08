@@ -231,6 +231,9 @@ body.t10-noscroll { overflow: hidden; }
 .t10-endorse-on { border-color: var(--accent-line); background: var(--accent-bg); color: var(--accent); }
 .t10-endorse:disabled { cursor: default; opacity: .7; }
 .t10-remove { margin-left: auto; }
+.t10-own-actions { margin-left: auto; display: flex; gap: var(--sp-2); }
+.t10-own-actions .t10-remove { margin-left: 0; }
+.t10-edit-form { display: grid; gap: var(--sp-2); margin-top: var(--sp-2); }
 
 /* The results: spot, player, score; then the figures and the spots strip, beside them from tablet width. */
 .t10-res-key { margin: 0 0 var(--sp-2); }

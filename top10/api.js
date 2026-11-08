@@ -70,6 +70,8 @@
 //                                        The file is stored only when osu! doesn't keep the score's replay (§13.9).
 //                                        → 201 { play }, plus replay: 'kept' (the file is stored) or 'osu' (osu! keeps
 //                                        this score's replay, so the entry links to theirs) when a file was sent
+//   PATCH  /api/top10/plays/:id          the submitter, while the showcase is open. { caption?, clip? } (left out: kept;
+//                                        '' or null: none, except a clip-only entry's clip). → { play }
 //   DELETE /api/top10/plays/:id          the submitter. → { ok }
 //   POST   /api/top10/plays/:id/endorse  PT. { endorsed? } (left out: toggles). → { endorsed, endorsements }
 //   POST   /api/top10/thanks             the subject of a write-up on a public ballot, until thanksUntil.
@@ -735,7 +737,7 @@ async function readPlayRequest(request) {
   let form;
   try { form = await request.formData(); } catch { return { response: refuse('bad_form', 'That upload couldn’t be read.', 400) }; }
   const body = {};
-  for (const key of ['score', 'player', 'caption', 'clip']) {
+  for (const key of ['scope', 'score', 'player', 'caption', 'clip']) {
     const value = form.get(key);
     if (typeof value === 'string') body[key] = value;
   }
@@ -880,6 +882,37 @@ export async function addPlay(request, env, now = nowSec()) {
     if (/UNIQUE/i.test(String(e?.message))) return refuse('duplicate', `That play is already in the ${showcase}.`, 409);
     throw e;
   }
+}
+
+/** PATCH /api/top10/plays/:id: the submitter edits their entry's caption and clip while the showcase is open. */
+export async function editPlay(request, env, id, now = nowSec()) {
+  const who = await signedIn(request, env, now);
+  if (who.response) return who.response;
+  const shut = unlessShowcaseOpen(who.season, now);
+  if (shut) return shut;
+  const play = toId(id) ? await store.readPlay(who.db, toId(id)) : null;
+  if (!play) return refuse('no_play', 'No such showcase entry.', 404);
+  if (play.submitter !== who.osuId) return refuse('not_yours', 'Only whoever added an entry can edit it.', 403);
+  const read = await readJson(request);
+  if (!read.body) return badBody(read);
+  const body = read.body;
+  const cleared = v => v === null || v === '';
+  let caption = play.caption ?? '';
+  if (body.caption !== undefined) {
+    caption = cleared(body.caption) ? '' : cleanLine(body.caption);
+    if (caption === null) return refuse('shape', 'caption is text.', 400);
+    if (caption.length > LIMITS.caption) return refuse('too_long', `A caption can be ${LIMITS.caption} characters.`, 400);
+  }
+  let clip = play.clip ?? null;
+  if (body.clip !== undefined) {
+    clip = cleared(body.clip) ? null : clipOf(body.clip);
+    if (clip === undefined) return refuse('clip', `A clip must be a link on ${CLIP_HOSTS.join(', ')}.`, 400);
+  }
+  // A clip-only entry is its clip: it can change, not go.
+  if (!clip && !play.score_ref && !play.replay_sha && !play.card) return refuse('clip_needed', 'This entry is a clip: change its link, or remove the entry.', 400);
+  await store.editPlay(who.db, play.id, { caption, clip });
+  const endorsements = await store.endorsements(who.db, play.year, play.id);
+  return json({ play: playView({ ...play, caption, clip, endorsements }, env) });
 }
 
 export async function deletePlay(request, env, id, now = nowSec()) {

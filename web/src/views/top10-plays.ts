@@ -63,9 +63,24 @@ export function playItem(ctx: Ctx, d: Pick<Data, 'core' | 'showcase'>, p: ShowPl
       <button class="t10-endorse ${p.endorsed ? 't10-endorse-on' : ''}" type="button" data-endorse="${p.id}" aria-pressed="${String(Boolean(p.endorsed))}"
         ${ctx.me === null || d.showcase === 'before' ? raw('disabled') : ''} aria-label="${t('Endorse: {n}', { n: fmt.num(n) })}">🔥 <b>${fmt.num(n)}</b></button>
       <span class="small faint">${t('shown by {name}', { name: nameOf(d.core, p.submitter) })}${created ? html` · ${fmt.ago(created)}` : ''}</span>
-      ${p.submitter === ctx.me ? html`<button class="btn btn-small t10-remove" type="button" data-delete="${p.id}">${t('Remove')}</button>` : ''}
+      ${p.submitter === ctx.me ? html`<span class="t10-own-actions">${d.showcase === 'open' ? html`<button class="btn btn-small" type="button" data-edit="${p.id}">${t('Edit')}</button>` : ''}<button class="btn btn-small t10-remove" type="button" data-delete="${p.id}">${t('Remove')}</button></span>` : ''}
     </div>
   </li>`;
+}
+
+/** Editing your own entry (PATCH /api/top10/plays/:id): its caption and clip. A clip-only entry keeps a clip. */
+export function editForm(ctx: Ctx, p: ShowPlay): Safe {
+  const { t } = ctx;
+  const clipOnly = !p.score_ref && !p.score && !p.replay;
+  return html`<form class="t10-edit-form" data-edit-form="${p.id}" novalidate>
+    <label class="t10-field"><span>${t('Caption (optional)')}</span>
+      <input class="input" name="caption" maxlength="${MAX_CAPTION}" value="${p.caption ?? ''}" autocomplete="off"></label>
+    <label class="t10-field"><span>${clipOnly ? t('Clip link (YouTube, Twitch or Streamable)') : t('Clip link (optional)')}</span>
+      <input class="input" name="clip" type="url" inputmode="url" value="${p.clip ?? ''}" placeholder="https://youtu.be/…" autocomplete="off"></label>
+    <p class="small t10-form-msg" data-edit-msg role="status"></p>
+    <div class="btn-row"><button class="btn btn-primary btn-small" type="submit">${t('Save')}</button>
+      <button class="btn btn-small" type="button" data-edit-cancel="${p.id}">${t('Cancel')}</button></div>
+  </form>`;
 }
 
 /** How many entries you've added this year, of the limits (§4.1). */

@@ -340,6 +340,11 @@ export async function readPlay(db, id) {
   return row ? playOf(row) : null;
 }
 
+/** Sets an entry's caption and clip (null for none). */
+export async function editPlay(db, id, { caption, clip }) {
+  await db.prepare('UPDATE top10_plays SET caption = ?, clip = ? WHERE id = ?').bind(caption, clip, id).run();
+}
+
 /** Deletes an entry and its endorsements. */
 export async function deletePlay(db, play) {
   await db.batch([

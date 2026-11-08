@@ -2216,5 +2216,11 @@ export const PT = {
   'Show {n} more': 'Mostrar mais {n}',
   'No plays match “{q}”.': 'Nenhuma jogada corresponde a “{q}”.',
   '{n} plays': '{n} jogadas',
+  'Edit': 'Editar',
+  'Save': 'Guardar',
+  'Saved.': 'Guardado.',
+  'Clip link (optional)': 'Link do clip (opcional)',
+  'This entry is a clip: change its link, or remove the entry.': 'Esta entrada é um clip: muda o link ou remove a entrada.',
+  'Only whoever added an entry can change it.': 'Só quem adicionou uma entrada a pode alterar.',
   'The squares count the lists that put each player #1, #2 and so on, to #10.': 'Os quadrados contam as listas que puseram cada jogador em #1, #2 e assim por diante, até #10.',
 };

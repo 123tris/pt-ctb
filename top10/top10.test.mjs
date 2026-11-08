@@ -1286,6 +1286,42 @@ test('a replay osu! keeps isn’t stored: a link with its .osr, or an .osr whose
   }
 });
 
+test('your own entry: edit its caption and clip while the showcase is open; only yours', async () => {
+  const env = envWith();
+  const patch = (as, id, body, now = OPEN) => call(api.editPlay, env, { as, now, method: 'PATCH', path: `/api/top10/plays/${id}`, id: String(id), body });
+  const added = await addPlay(env, 5, { score: 'https://osu.ppy.sh/scores/5000000001', player: 2, caption: 'first try' });
+  assert.equal(added.status, 201, added.body.error);
+  const id = added.body.play.id;
+  const edited = await patch(5, id, { caption: '  the  first PT FC  ' });
+  assert.deepEqual([edited.status, edited.body.play.caption, edited.body.play.score_ref], [200, 'the first PT FC', 'osu:5000000001']);
+  const withClip = await patch(5, id, { clip: 'https://youtu.be/abc' });
+  assert.deepEqual([withClip.body.play.caption, withClip.body.play.clip], ['the first PT FC', 'https://youtu.be/abc'], 'a field left out is kept');
+  assert.equal((await patch(5, id, { clip: '' })).body.play.clip, null, 'a score entry can drop its clip');
+  assert.equal((await patch(5, id, { caption: null })).body.play.caption, '');
+  // Before voting opens, the showcase is already open; after the close, it isn't.
+  assert.equal((await patch(5, id, { caption: 'early' }, BEFORE)).status, 200);
+  assert.deepEqual([(await patch(5, id, { caption: 'late' }, CLOSED)).body.code], ['closed']);
+  // Refusals: someone else's, no such entry, too long, not a clip site.
+  assert.deepEqual([(await patch(7, id, { caption: 'mine now' })).status, (await patch(7, id, { caption: 'x' })).body.code], [403, 'not_yours']);
+  assert.equal((await patch(5, 999, { caption: 'x' })).status, 404);
+  assert.equal((await patch(5, id, { caption: 'x'.repeat(281) })).body.code, 'too_long');
+  assert.equal((await patch(5, id, { clip: 'https://evil.example/youtube.com' })).body.code, 'clip');
+  // A clip-only entry is its clip: it can change, not go.
+  const clip = await addPlay(env, 5, { player: 6, clip: 'https://youtu.be/one' });
+  assert.equal((await patch(5, clip.body.play.id, { clip: '' })).body.code, 'clip_needed');
+  assert.equal((await patch(5, clip.body.play.id, { clip: 'https://streamable.com/two' })).body.play.clip, 'https://streamable.com/two');
+  // The listing shows the edit.
+  const listed = (await call(api.plays, env, { path: '/api/top10/plays' })).body.plays.find(p => p.id === id);
+  assert.equal(listed.caption, 'early');
+});
+
+test('a replay uploaded to the Legendary plays lands there (multipart carries the scope)', async () => {
+  const env = envWith({ REPLAYS: fakeBucket() });
+  const out = await upload(env, 5, { scope: 'alltime', replay: osrFile({ player: 'Player9', time: '2021-06-01T10:00:00Z' }) });
+  assert.equal(out.status, 201, out.body.error);
+  assert.equal(out.body.play.scope, 'alltime');
+});
+
 // ---- Past editions (§13.10) ---------------------------------------------------------------------------------------
 
 /** A history file as top10/history/<edition>.json has it, with a voter from outside PT and an oddly numbered list. */
