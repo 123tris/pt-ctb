@@ -90,6 +90,15 @@ export function parseOsr(input) {
   }
 }
 
+/**
+ * A catch play's grade from its accuracy (%) and mods, as osu!'s stable client gives it: X (SS) at 100%, S over 98,
+ * A over 94, B over 90, C over 85, D below; XH and SH with HD or FL.
+ */
+export function catchGrade(accuracy, mods = 0) {
+  const grade = accuracy >= 100 ? 'X' : accuracy > 98 ? 'S' : accuracy > 94 ? 'A' : accuracy > 90 ? 'B' : accuracy > 85 ? 'C' : 'D';
+  return (mods & (8 | 1024)) !== 0 && (grade === 'X' || grade === 'S') ? `${grade}H` : grade;
+}
+
 /** The SHA-256 of some bytes, as 64 hex characters: a replay's name in R2. */
 export async function sha256Hex(bytes) {
   return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join('');

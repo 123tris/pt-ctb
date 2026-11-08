@@ -15,13 +15,13 @@ CREATE TABLE IF NOT EXISTS top10_ballots (
 
 CREATE TABLE IF NOT EXISTS top10_writeups (
   year INTEGER NOT NULL, voter INTEGER NOT NULL, subject INTEGER NOT NULL, body TEXT NOT NULL, words INTEGER NOT NULL DEFAULT 0,
-  cites TEXT NOT NULL DEFAULT '[]', flags TEXT NOT NULL DEFAULT '', mod TEXT NOT NULL DEFAULT 'ok', mod_reason TEXT,
-  updated INTEGER NOT NULL, PRIMARY KEY (year, voter, subject)) WITHOUT ROWID;
+  cites TEXT NOT NULL DEFAULT '[]', cards TEXT NOT NULL DEFAULT '{}', flags TEXT NOT NULL DEFAULT '', mod TEXT NOT NULL DEFAULT 'ok',
+  mod_reason TEXT, updated INTEGER NOT NULL, PRIMARY KEY (year, voter, subject)) WITHOUT ROWID;
 
 CREATE TABLE IF NOT EXISTS top10_plays (
   id INTEGER PRIMARY KEY AUTOINCREMENT, year INTEGER NOT NULL, submitter INTEGER NOT NULL, player INTEGER NOT NULL,
-  score_ref INTEGER, beatmap_id INTEGER, caption TEXT, clip TEXT, created INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'ok',
-  reason TEXT, has_replay INTEGER, played_at INTEGER, replay_sha TEXT, replay_name TEXT);
+  score_ref TEXT, refs TEXT NOT NULL DEFAULT '[]', beatmap_id INTEGER, card TEXT, caption TEXT, clip TEXT, created INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ok', reason TEXT, has_replay INTEGER, played_at INTEGER, replay_sha TEXT, replay_name TEXT);
 CREATE INDEX IF NOT EXISTS top10_plays_by_year ON top10_plays (year, player);
 CREATE UNIQUE INDEX IF NOT EXISTS top10_plays_score ON top10_plays (year, score_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS top10_plays_replay ON top10_plays (year, replay_sha);

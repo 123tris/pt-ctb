@@ -20,10 +20,11 @@ import * as api from './api.js';
 import { SEASON, seasonOf, phaseOf, normalizeSeason } from './season.js';
 import { tokens, countWords, analyse, shingles, overlap, bananasFor } from './words.js';
 import { spotPoints, spotsValid, listPoints, computeResults, payoutsFor } from './score.js';
-import { forgetData, parseScore, tuplesWithId, ptPlayers } from './data.js';
+import { forgetData, tuplesWithId, tuplesOnMap, bestOnMap, mapTuple, ptPlayers } from './data.js';
+import { parseRef, refSid, scoreUrl, sidRef } from './refs.js';
 import { forgetOsuToken, scoreFromApi } from './osu.js';
 import { MAX_REPLAY_BYTES, attachment, modNames, parseOsr, replayFileName } from './osr.js';
-import { checkEdition, editionYear, pastResults, pastSql } from './past.js';
+import { checkEdition, editionYear, namesFromAliases, pastResults, pastSql } from './past.js';
 import fs from 'node:fs';
 
 const SECRET = 'top10-secret';
@@ -398,7 +399,11 @@ test('ballot rules: 5–10 distinct PT players, never yourself, spots in order; 
   await refused({ picks: picks(4, 5, 6, 7, 8), writeups: { 12: { body: 'not on my list at all' } } }, 'not_listed');
   await refused({ picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'x'.repeat(4001) } } }, 'too_long');
   await refused({ picks: picks(4, 5, 6, 7, 8), intro: 'x'.repeat(2001) }, 'too_long');
-  await refused({ picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'ok', cites: ['nope'] } } }, 'shape');
+  await refused({ picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'ok', cites: ['nope'] } } }, 'cite');
+  await refused({ picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'ok', cites: ['osu:1', 'osu:2', 'osu:3', 'osu:4', 'osu:5', 'osu:6'] } } }, 'cite');
+  await refused({ picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'ok', cites: ['osu:123456'] } } }, 'cite');
+  await refused({ picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'ok', cites: ['map:999'] } } }, 'cite');
+  await refused({ picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'ok', cites: ['play:3'] } } }, 'cite');
   assert.equal((await save(env, 3, '[1,2]')).status, 400);
   assert.equal((await save(env, 3, `{"intro":"${'x'.repeat(70000)}"}`)).status, 413);
 
@@ -406,11 +411,17 @@ test('ballot rules: 5–10 distinct PT players, never yourself, spots in order; 
   const ok = await save(env, 3, {
     picks: [4, 5, 6, 7, 8].map((id, i) => ({ id, spot: [1, 2, 3, 3, 5][i] })), mentions: [9, 10], watch: [10, 11],
     intro: '  Olá a todos!\r\nAqui vai.  ', outro: 'Até para o ano.',
-    writeups: { 4: { body: 'What a year: 9 first PT FCs.', cites: [5000000001, '-77', 'p3'] }, 10: { body: 'Ones to watch!' } },
+    writeups: { 4: { body: 'What a year: 9 first PT FCs.', cites: [4000000001, 'map:405', 'osu:4000000002'] }, 10: { body: 'Ones to watch!' } },
   });
-  assert.equal(ok.status, 200);
+  assert.equal(ok.status, 200, ok.body.error);
   assert.equal(ok.body.ballot.intro, 'Olá a todos!\nAqui vai.');
-  assert.deepEqual(ok.body.ballot.writeups[4].cites, [5000000001, -77, 'p3']);
+  // Cites come back canonical (a map ref without a player is the subject's), each with its card from the data.
+  assert.deepEqual(ok.body.ballot.writeups[4].cites, ['osu:4000000001', 'map:405:4', 'osu:4000000002']);
+  assert.deepEqual(Object.keys(ok.body.ballot.scores), ['osu:4000000001', 'map:405:4', 'osu:4000000002']);
+  assert.deepEqual(ok.body.ballot.scores['map:405:4'], {
+    ref: 'map:405:4', player: 4, map: 405, set: null, artist: null, title: null, version: null, stars: null, pp: 120.5, acc: 99.1, miss: 1,
+    combo: 800, mods: 'NM', grade: 'S', time: at('2026-08-01T10:00:00Z'), url: 'https://osu.ppy.sh/scores/4000000005',
+  });
   assert.deepEqual([ok.body.ballot.writeups[4].words, ok.body.ballot.writeups[4].flags, ok.body.ballot.writeups[4].mod], [5, [], 'ok']);
   assert.equal((await save(env, 5, { picks: picks(4, 6) })).status, 200, 'a draft can be short');
 });
@@ -426,7 +437,7 @@ test('submit makes a ballot public; edits stay live and must keep it complete; w
   const sent = await submit(env, 5);
   assert.equal(sent.status, 200);
   assert.equal(sent.body.ballot.status, 'submitted');
-  assert.ok(sent.body.ballot.submittedAt);
+  assert.ok(sent.body.ballot.submitted_at);
   assert.equal((await submit(env, 5)).body.ballot.status, 'submitted', 'submitting twice is fine');
   assert.equal((await call(api.hub, env)).body.turnout, 1);
 
@@ -448,7 +459,7 @@ test('submit makes a ballot public; edits stay live and must keep it complete; w
   assert.deepEqual(Object.keys(public5.writeups), []);
 
   const back = await withdraw(env, 5);
-  assert.deepEqual([back.body.ballot.status, back.body.ballot.submittedAt], ['draft', null]);
+  assert.deepEqual([back.body.ballot.status, back.body.ballot.submitted_at], ['draft', null]);
   assert.deepEqual((await feed(env)).body.ballots, [], 'drafts are never public');
   assert.equal((await call(api.hub, env)).body.turnout, 0);
 });
@@ -483,23 +494,27 @@ test('the public feed: submitted ballots only, struck write-ups and void ballots
   await submit(env, 3);
   await submit(env, 4, OPEN + 10);
   assert.deepEqual((await feed(env)).body.ballots.map(b => b.voter), [3, 4], 'first submitted first; 5 is a draft');
-  assert.equal((await thank(env, 9, { voter: 3 })).body.thanked, true);
+  assert.deepEqual((await thank(env, 9, { voter: 3 })).body, { thanked: true, thanks: 1 });
   assert.equal((await act(env, 1, { action: 'strike', target: { voter: 3, subject: 10 }, reason: 'filler' }, OPEN)).body.changed, true);
   assert.equal((await act(env, 1, { action: 'void', target: 4, reason: 'alt account' }, OPEN)).body.changed, true);
   const ballots = (await feed(env)).body.ballots;
   assert.equal(ballots.length, 1);
   assert.deepEqual(Object.keys(ballots[0].writeups), ['9']);
-  assert.deepEqual([ballots[0].thanks, ballots[0].writeups[9].thanked], [1, true]);
+  assert.deepEqual([ballots[0].thanks, ballots[0].writeups[9].thanks, ballots[0].writeups[9].thanked], [1, 1, undefined], 'signed out: no thanked');
+  // Signed in, `thanked` says whether you did: the subject sees their own, anyone else false.
+  assert.equal((await call(api.ballots, env, { as: 9, path: '/api/top10/ballots' })).body.ballots[0].writeups[9].thanked, true);
+  assert.equal((await call(api.ballots, env, { as: 5, path: '/api/top10/ballots' })).body.ballots[0].writeups[9].thanked, false);
   // The voided voter sees why, and can't edit it.
   const four = await mine(env, 4);
-  assert.deepEqual([four.body.ballot.status, four.body.ballot.voidReason], ['void', 'alt account']);
-  assert.equal(four.body.modlog[0].action, 'void');
+  assert.deepEqual([four.body.ballot.status, four.body.ballot.void_reason], ['void', 'alt account']);
+  assert.equal(four.body.log[0].action, 'void');
   assert.equal((await save(env, 4, { intro: 'hi' })).status, 403);
   assert.equal((await withdraw(env, 4)).status, 403);
   // The struck writer sees the strike; editing the text is their fix.
   const three = await mine(env, 3);
-  assert.deepEqual([three.body.ballot.writeups[10].mod, three.body.ballot.writeups[10].modReason], ['struck', 'filler']);
-  assert.deepEqual(three.body.modlog.map(l => [l.action, l.target, l.reason]), [['strike', 'writeup:3:10', 'filler']]);
+  assert.deepEqual([three.body.ballot.writeups[10].mod, three.body.ballot.writeups[10].mod_reason], ['struck', 'filler']);
+  assert.deepEqual([three.body.ballot.writeups[9].thanks, three.body.ballot.writeups[10].thanks], [1, 0]);
+  assert.deepEqual(three.body.log.map(l => [l.action, l.target, l.reason]), [['strike', 'writeup:3:10', 'filler']]);
   const fixed = await save(env, 3, { writeups: { 10: { body: 'Second place: the most consistent player all year.' } } });
   assert.equal(fixed.body.ballot.writeups[10].mod, 'ok');
   assert.ok((await feed(env)).body.ballots[0].writeups[10]);
@@ -523,34 +538,62 @@ test('the Functions answer for the ballot routes', async () => {
 
 // ---- The showcase -------------------------------------------------------------------------------------------------
 
-test('parseScore reads score links the way /addscore does', () => {
-  assert.deepEqual(parseScore('https://osu.ppy.sh/scores/5000000001'), { ids: [5000000001] });
-  assert.deepEqual(parseScore('https://osu.ppy.sh/scores/fruits/77/'), { ids: [-77] });
-  assert.deepEqual(parseScore('https://osu.ppy.sh/scores/osu/77'), { error: 'mode' });
-  assert.deepEqual(parseScore(' 77 '), { ids: [77, -77] });
-  assert.deepEqual(parseScore(77), { ids: [77, -77] });
-  for (const bad of ['https://osu.ppy.sh/beatmapsets/1#fruits/2', 'https://evil.example/scores/1', 'scores/1', '0', '', null, 'javascript:alert(1)']) assert.equal(parseScore(bad), null, String(bad));
-  // The tuple scan skips a map tuple that ends with the same number.
+test('score refs: one grammar (osu:, legacy:, map:, play:), and the forms read into it', () => {
+  const ref = (input, opts) => parseRef(input, opts)?.ref ?? parseRef(input, opts);
+  // The canonical forms.
+  assert.equal(ref('osu:5000000001'), 'osu:5000000001');
+  assert.equal(ref('legacy:77'), 'legacy:77');
+  assert.equal(ref('map:4685818:19423459'), 'map:4685818:19423459');
+  assert.equal(ref('play:3'), 'play:3');
+  // What's read into them: score links as /addscore reads them, bare numbers, S.IDs, a map with the player apart, p<id>.
+  assert.equal(ref('https://osu.ppy.sh/scores/5000000001'), 'osu:5000000001');
+  assert.equal(ref('https://osu.ppy.sh/scores/fruits/77/'), 'legacy:77');
+  assert.deepEqual(parseRef('https://osu.ppy.sh/scores/osu/77'), { error: 'mode' });
+  assert.deepEqual(parseRef(' 77 '), { kind: 'osu', id: 77, ref: 'osu:77', bare: true });
+  assert.equal(ref(77), 'osu:77');
+  assert.equal(ref(-77), 'legacy:77');
+  assert.equal(ref('-77'), 'legacy:77');
+  assert.equal(ref('map:405', { player: 4 }), 'map:405:4');
+  assert.equal(ref('MAP:405:4', { player: 9 }), 'map:405:4', 'a player in the ref wins');
+  assert.equal(ref('p3'), 'play:3');
+  for (const bad of ['map:405', 'https://osu.ppy.sh/beatmapsets/1#fruits/2', 'https://evil.example/scores/1', 'scores/1', '0', 'osu:0', '', null, 'javascript:alert(1)', 'play:x']) {
+    assert.equal(parseRef(bad), null, String(bad));
+  }
+  assert.deepEqual([sidRef(5), sidRef(-5), sidRef(0), refSid('legacy:5'), refSid('map:1:2')], ['osu:5', 'legacy:5', null, -5, null]);
+  assert.deepEqual([scoreUrl('osu:5'), scoreUrl('legacy:5'), scoreUrl('map:1:2')], ['https://osu.ppy.sh/scores/5', 'https://osu.ppy.sh/scores/fruits/5', null]);
+  // The tuple scans: by id (skipping a map tuple that ends with the same number), and by map (a title with brackets).
   const text = JSON.stringify(FILES['players/2.json']);
   assert.equal(tuplesWithId(text, 5000000001).length, 1);
   assert.equal(tuplesWithId(text, 5000000001)[0][0], 111);
   assert.deepEqual(tuplesWithId(text, 123), []);
+  assert.equal(tuplesOnMap(text, 112)[0][11], -77);
+  assert.equal(bestOnMap(text, 113, 2026), null, 'its only play on 113 is from 2025');
+  assert.deepEqual(mapTuple(JSON.stringify({ maps: { 9: ['A [B]', 'T]"[', 'V', 1, 2] } }), 9), ['A [B]', 'T]"[', 'V', 1, 2]);
 });
 
 test('showcase: a PT player’s score set this year, checked against the exported data', async () => {
   const env = envWith();
   const mineScore = await addPlay(env, 2, { score: 'https://osu.ppy.sh/scores/5000000001', caption: '  First PT FC\non this one  ' });
   assert.equal(mineScore.status, 201);
-  // osu! isn't set up in this env, so the exported data is checked, and there's no replay to link.
+  // osu! isn't set up in this env, so the exported data is checked (and gives the card), and there's no replay to link.
   assert.deepEqual({ ...mineScore.body.play, created: undefined }, {
-    id: 1, year: 2026, submitter: 2, player: 2, score: 5000000001, beatmap: 111, caption: 'First PT FC on this one', clip: null, created: undefined,
-    played: '2026-03-01T10:00:00Z', endorsements: 0, replay: null,
+    id: 1, year: 2026, submitter: 2, player: 2, score_ref: 'osu:5000000001', beatmap_id: 111, caption: 'First PT FC on this one', clip: null,
+    created: undefined, played: '2026-03-01T10:00:00Z', endorsements: 0,
+    score: {
+      ref: 'osu:5000000001', player: 2, map: 111, set: 77, artist: 'Artist', title: 'Title', version: 'Hard', stars: 5.1, pp: 120.5, acc: 99.1,
+      miss: 1, combo: 800, mods: 'NM', grade: 'S', time: at('2026-03-01T10:00:00Z'), url: 'https://osu.ppy.sh/scores/5000000001',
+    },
+    replay: null,
   });
   // Someone else's: from the recent plays, or named.
   const theirs = await addPlay(env, 5, { score: 'https://osu.ppy.sh/scores/fruits/88' });
-  assert.deepEqual([theirs.status, theirs.body.play.player, theirs.body.play.score], [201, 3, -88]);
+  assert.deepEqual([theirs.status, theirs.body.play.player, theirs.body.play.score_ref], [201, 3, 'legacy:88']);
   const named = await addPlay(env, 5, { score: '77', player: 2 });
-  assert.deepEqual([named.status, named.body.play.score], [201, -77], 'a bare id matches the legacy one');
+  assert.deepEqual([named.status, named.body.play.score_ref], [201, 'legacy:77'], 'a bare id matches the legacy one');
+  // A map ref: that player's best play on the map this season, for plays the export has no score id for.
+  const byMap = await addPlay(env, 5, { score: 'map:110', player: 2 });
+  assert.deepEqual([byMap.status, byMap.body.play.score_ref, byMap.body.play.score.ref, byMap.body.play.score.url, byMap.body.play.beatmap_id], [201, 'map:110:2', 'map:110:2', null, 110]);
+  assert.equal((await addPlay(env, 5, { score: 'map:112:2' })).body.code, 'duplicate', 'map:112:2 is the play already in as legacy:77');
 
   const refused = async (body, status, code, as = 5) => {
     const out = await addPlay(env, as, body);
@@ -566,9 +609,13 @@ test('showcase: a PT player’s score set this year, checked against the exporte
   await refused({ score: 'not a score' }, 400, 'score');
   await refused({ score: '4000000001', player: 999 }, 422, 'not_pt');
   await refused({ score: 'https://osu.ppy.sh/scores/5000000001', player: 2 }, 409, 'duplicate');
+  await refused({ score: 'map:113:2' }, 422, 'not_in_data');
+  await refused({ score: 'map:110:2', player: 3 }, 422, 'not_theirs');
+  await refused({ score: 'map:110:999' }, 422, 'not_pt');
+  await refused({ score: 'play:1' }, 400, 'score');
   // A clip instead: allowed sites only, for a PT player.
   const clip = await addPlay(env, 5, { player: 6, clip: 'http://www.youtube.com/watch?v=abc', caption: 'offline ScoreV2 run' });
-  assert.deepEqual([clip.status, clip.body.play.clip, clip.body.play.score], [201, 'https://www.youtube.com/watch?v=abc', null]);
+  assert.deepEqual([clip.status, clip.body.play.clip, clip.body.play.score_ref, clip.body.play.score], [201, 'https://www.youtube.com/watch?v=abc', null, null]);
   for (const ok of ['https://youtu.be/x', 'https://clips.twitch.tv/x', 'https://streamable.com/x']) assert.equal((await addPlay(env, 7, { player: 6, clip: ok })).status, 201, ok);
   await refused({ player: 6, clip: 'https://evil.example/youtube.com' }, 400, 'clip');
   await refused({ player: 6, clip: 'javascript:alert(1)//youtube.com' }, 400, 'clip');
@@ -617,7 +664,7 @@ test('showcase: the list, endorsements (one each, toggled) and removing your own
   assert.equal((await act(env, 1, { action: 'hide-play', target: 'play:2', reason: 'clip spam' }, OPEN)).body.changed, true);
   assert.deepEqual((await call(api.plays, env, { path: '/api/top10/plays' })).body.plays.map(p => p.id), [1]);
   assert.equal((await endorse(7, 2)).status, 404);
-  assert.deepEqual((await mine(env, 5)).body.modlog.map(l => [l.action, l.target, l.reason]), [['hide-play', 'play:2', 'clip spam']]);
+  assert.deepEqual((await mine(env, 5)).body.log.map(l => [l.action, l.target, l.reason]), [['hide-play', 'play:2', 'clip spam']]);
   const del = async (as, id) => (await playDeleteRoute({ request: new Request(`${BASE}/api/top10/plays/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${await makeSession(SECRET, as)}` } }), env, params: { id: String(id) } })).status;
   assert.equal(await del(5, 1), 403);
   assert.equal(await del(2, 1), 200);
@@ -650,9 +697,9 @@ test('thanks: only the subject, only on a public ballot, until thanksUntil; togg
   await submit(env, 3);
   assert.equal((await thank(env, 5, { voter: 3 })).status, 404, 'no write-up about 5');
   assert.equal((await thank(env, 4, { voter: 'x' })).status, 400);
-  assert.deepEqual((await thank(env, 4, { voter: 3 })).body, { thanked: true });
-  assert.deepEqual((await thank(env, 4, { voter: 3 })).body, { thanked: false }, 'toggled back before finalize');
-  assert.deepEqual((await thank(env, 4, { voter: 3, thanked: true }, CLOSED)).body, { thanked: true }, 'still open after voting closes');
+  assert.deepEqual((await thank(env, 4, { voter: 3 })).body, { thanked: true, thanks: 1 });
+  assert.deepEqual((await thank(env, 4, { voter: 3 })).body, { thanked: false, thanks: 0 }, 'toggled back before finalize');
+  assert.deepEqual((await thank(env, 4, { voter: 3, thanked: true }, CLOSED)).body, { thanked: true, thanks: 1 }, 'still open after voting closes');
   const late = await thank(env, 4, { voter: 3 }, LATE);
   assert.deepEqual([late.status, late.body.code], [409, 'thanks_closed']);
   assert.equal((await call(api.thank, env, { method: 'POST', path: '/api/top10/thanks', body: { voter: 3 } })).status, 401);
@@ -682,7 +729,10 @@ test('moderation: admins only; no mod acts on write-ups about themselves (or the
   assert.deepEqual(queue.body.writeups.find(w => w.target === 'writeup:3:1').own, true);
   assert.deepEqual(queue.body.writeups.find(w => w.target === 'writeup:3:4').own, false);
   assert.deepEqual(queue.body.ballots.find(b => b.voter === 1).own, true);
-  assert.deepEqual(queue.body.modlog.map(l => [l.admin, l.action, l.target]), [[2, 'strike', 'writeup:3:1']]);
+  assert.deepEqual(queue.body.log.map(l => [l.admin, l.action, l.target]), [[2, 'strike', 'writeup:3:1']]);
+  assert.deepEqual([queue.body.phase, queue.body.year, queue.body.finalized], ['open', 2026, false]);
+  // ranked: a write-up about a pick, which pays. Every one here is.
+  assert.ok(queue.body.writeups.every(w => w.ranked === true && w.ballot_status === 'submitted' && 'mod_reason' in w));
 });
 
 test('moderation: flagged write-ups come first; restore clears the flags until the text changes', async () => {
@@ -690,8 +740,9 @@ test('moderation: flagged write-ups come first; restore clears the flags until t
   await save(env, 3, { picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'sdfghj zxcvbn hjklmn ok nice' }, 5: { body: 'A normal write-up with real words.' } } });
   await submit(env, 3);
   await save(env, 6, { picks: picks(4, 5, 7, 8, 9) }); // a draft: not in the queue
+  await save(env, 3, { mentions: [9], writeups: { 9: { body: 'A mention: worth a line, pays nothing.' } } }, OPEN + 60);
   const queue = (await call(api.adminQueue, env, { as: 1, path: '/api/top10/admin/queue' })).body;
-  assert.deepEqual(queue.writeups.map(w => [w.subject, w.flags]), [[4, ['mash']], [5, []]]);
+  assert.deepEqual(queue.writeups.map(w => [w.subject, w.flags, w.ranked]), [[4, ['mash'], true], [9, [], false], [5, [], true]]);
   assert.deepEqual(queue.ballots.find(b => b.voter === 6), { voter: 6, status: 'draft', updated: queue.ballots.find(b => b.voter === 6).updated, target: 'ballot:6', own: false });
   assert.equal((await act(env, 1, { action: 'restore', target: { voter: 3, subject: 4 } }, OPEN)).body.changed, true);
   assert.deepEqual((await mine(env, 3)).body.ballot.writeups[4].flags, []);
@@ -746,14 +797,16 @@ test('finalize: admins once voting closed, a dry run first, then once only, with
     { osuId: 3, type: 'top10.thanks', payload: { year: 2026, subject: 1 } },
     { osuId: 3, type: 'top10.thanks', payload: { year: 2026, subject: 9 } },
   ];
-  assert.deepEqual(dry.body.payouts, expected);
+  // The answer lists the payouts and the thanks apart; the bot gets them in this order.
+  assert.deepEqual(dry.body.payouts, expected.slice(0, 5));
+  assert.deepEqual(dry.body.thanks, expected.slice(5));
 
   // Results stay hidden until the reveal, even once finalized.
   assert.equal((await call(api.results, env, { now: CLOSED, path: '/api/top10/results' })).status, 404);
   const real = await finalize(env, 1, { year: 2026, dryRun: false });
   assert.equal(real.status, 200);
-  assert.deepEqual(real.body.payouts.map(({ requestId, ...p }) => p), expected);
-  assert.ok(real.body.payouts.every(p => /^[0-9a-f]{24}$/.test(p.requestId)));
+  assert.deepEqual([...real.body.payouts, ...real.body.thanks].map(({ requestId, ...p }) => p), expected);
+  assert.ok([...real.body.payouts, ...real.body.thanks].every(p => /^[0-9a-f]{24}$/.test(p.requestId)));
   assert.deepEqual(real.body.results, { ...dry.body.results, finalizedAt: real.body.results.finalizedAt });
   const again = await finalize(env, 2, { year: 2026, dryRun: false });
   assert.deepEqual([again.status, again.body.code], [409, 'already']);
@@ -764,9 +817,9 @@ test('finalize: admins once voting closed, a dry run first, then once only, with
   // After finalize: no more strikes or voids, thanks can't be taken back, and a new one is paid at once (once).
   assert.equal((await act(env, 1, { action: 'strike', target: { voter: 3, subject: 5 }, reason: 'late' })).body.code, 'final');
   assert.equal((await thank(env, 1, { voter: 3, thanked: false }, REVEALED)).body.code, 'final');
-  assert.deepEqual((await thank(env, 4, { voter: 3 }, REVEALED)).body, { thanked: true });
-  assert.deepEqual((await thank(env, 4, { voter: 3, thanked: true }, REVEALED)).body, { thanked: true }, 'already thanked: nothing new');
-  assert.deepEqual((await thank(env, 2, { voter: 4 }, REVEALED)).body, { thanked: true });
+  assert.deepEqual((await thank(env, 4, { voter: 3 }, REVEALED)).body, { thanked: true, thanks: 1 });
+  assert.deepEqual((await thank(env, 4, { voter: 3, thanked: true }, REVEALED)).body, { thanked: true, thanks: 1 }, 'already thanked: nothing new');
+  assert.deepEqual((await thank(env, 2, { voter: 4 }, REVEALED)).body, { thanked: true, thanks: 1 });
 
   // The bot reads them all through the inbox, unchanged, and acks them.
   const pull = await inboxRoute({ request: new Request(`${BASE}/api/economy/inbox`, { headers: { Authorization: `Bearer ${KEY}` } }), env });
@@ -813,6 +866,17 @@ test('players can never queue top10.* requests themselves', async () => {
   assert.equal(res.status, 400);
   assert.equal(env.ECONOMY.sqlite.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'requests'").get().n === 0
     || env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM requests').get().n === 0, true);
+});
+
+test('the site’s top10.* requests don’t count against a player’s own request caps', async () => {
+  const env = envWith();
+  const spend = async () => (await walletRoute({ request: new Request(`${BASE}/api/wallet/request`, { method: 'POST', headers: { Authorization: `Bearer ${await makeSession(SECRET, 3)}` }, body: JSON.stringify({ type: 'shield', payload: { on: true } }) }), env })).status;
+  assert.equal(await spend(), 202);
+  // Finalize day for a voter with a payout and 24 thanks, all still waiting for the bot: more than both caps (5, 20).
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Lisbon' }).format(new Date());
+  const insert = env.ECONOMY.sqlite.prepare("INSERT INTO requests (id, osu_id, kind, payload, created, day) VALUES (?, 3, ?, '{}', ?, ?)");
+  for (let i = 0; i < 25; i++) insert.run(`t${String(i).padStart(23, '0')}`, i ? 'top10.thanks' : 'top10.payout', Math.floor(Date.now() / 1000), today);
+  assert.equal(await spend(), 202, 'their own spending still goes through');
 });
 
 // ---- Replays (§13.9): the osu! API check, .osr uploads -------------------------------------------------------------
@@ -875,7 +939,15 @@ async function upload(env, as, fields, now = OPEN) {
 /** A score as osu!'s API answers it with x-api-version 20240529. */
 const apiScore = (id, { user = 6, ruleset = 2, ended = '2026-04-02T18:00:00Z', replay = true, legacy = null, beatmap = 777, checksum = 'c'.repeat(32) } = {}) => ({
   id, legacy_score_id: legacy, ruleset_id: ruleset, user_id: user, beatmap_id: beatmap, ended_at: ended, has_replay: replay, passed: true,
-  user: { id: user, username: `Player${user}` }, beatmap: { id: beatmap, checksum, version: 'Insane' }, beatmapset: { artist: 'Camellia', title: 'Exit This Earth' },
+  pp: 812.4, accuracy: 0.99515, max_combo: 1820, statistics: { great: 1700, large_tick_hit: 90, small_tick_hit: 400, small_tick_miss: 3, miss: 2 },
+  mods: [{ acronym: 'HR' }, { acronym: 'HD' }, { acronym: 'CL' }], rank: 'SH',
+  user: { id: user, username: `Player${user}` }, beatmap: { id: beatmap, beatmapset_id: 4242, checksum, version: 'Insane', difficulty_rating: 8.12 },
+  beatmapset: { id: 4242, artist: 'Camellia', title: 'Exit This Earth' },
+});
+/** The card a play made from apiScore shows. */
+const apiCard = (ref, { player = 6, map = 777, time = '2026-04-02T18:00:00Z' } = {}) => ({
+  ref, player, map, set: 4242, artist: 'Camellia', title: 'Exit This Earth', version: 'Insane', stars: 8.12, pp: 812.4, acc: 99.52, miss: 2,
+  combo: 1820, mods: 'HDHR', grade: 'SH', time: at(time), url: scoreUrl(ref),
 });
 const osuEnv = (extra = {}) => envWith({ OSU_CLIENT_ID: '73866', OSU_URL: OSU, ...extra });
 
@@ -906,7 +978,8 @@ test('the .osr header: every field, a UTF-8 name, long strings, and junk refused
 test('osu!’s score answer, read in both formats', () => {
   assert.deepEqual(scoreFromApi(apiScore(9001, { legacy: 555 })), {
     solo: 9001, legacy: 555, ruleset: 2, userId: 6, username: 'Player6', beatmapId: 777, checksum: 'c'.repeat(32),
-    map: { artist: 'Camellia', title: 'Exit This Earth', version: 'Insane' }, time: at('2026-04-02T18:00:00Z'), hasReplay: true,
+    map: { set: 4242, artist: 'Camellia', title: 'Exit This Earth', version: 'Insane', stars: 8.12 }, time: at('2026-04-02T18:00:00Z'), hasReplay: true,
+    pp: 812.4, acc: 99.52, combo: 1820, miss: 2, mods: 'HDHR', grade: 'SH',
   });
   const old = { id: 555, mode: 'fruits', mode_int: 2, user_id: 6, created_at: '2026-04-02T18:00:00+00:00', replay: false, beatmap: { id: 777 } };
   assert.deepEqual([scoreFromApi(old, { legacyRoute: true }).legacy, scoreFromApi(old, { legacyRoute: true }).solo, scoreFromApi(old).ruleset], [555, null, 2]);
@@ -920,8 +993,8 @@ test('a score link is checked with the osu! API: one call per entry, the token k
   const first = await addPlay(env, 5, { score: 'https://osu.ppy.sh/scores/9001', caption: 'nobody FCs this' });
   assert.equal(first.status, 201);
   assert.deepEqual({ ...first.body.play, created: undefined }, {
-    id: 1, year: 2026, submitter: 5, player: 6, score: 9001, beatmap: 777, caption: 'nobody FCs this', clip: null, created: undefined,
-    played: '2026-04-02T18:00:00Z', endorsements: 0, replay: { kind: 'osu', url: 'https://osu.ppy.sh/scores/9001/download' },
+    id: 1, year: 2026, submitter: 5, player: 6, score_ref: 'osu:9001', beatmap_id: 777, caption: 'nobody FCs this', clip: null, created: undefined,
+    played: '2026-04-02T18:00:00Z', endorsements: 0, score: apiCard('osu:9001'), replay: { kind: 'osu', url: 'https://osu.ppy.sh/scores/9001/download' },
   });
   const second = await addPlay(env, 5, { score: '9002' });
   assert.deepEqual([second.status, second.body.play.replay], [201, null], 'osu! keeps no replay of it: no button');
@@ -978,14 +1051,21 @@ test('an .osr upload: parsed, checked, stored once by its SHA-256 in R2, and lin
 
   const bucket = fakeBucket();
   const env = osuEnv({ REPLAYS: bucket });
-  osuRoutes[`/api/v2/beatmaps/lookup?checksum=${'c'.repeat(32)}`] = { id: 777, version: 'Insane', checksum: 'c'.repeat(32), beatmapset: { artist: 'Camellia', title: 'Exit This Earth' } };
+  osuRoutes[`/api/v2/beatmaps/lookup?checksum=${'c'.repeat(32)}`] = {
+    id: 777, version: 'Insane', checksum: 'c'.repeat(32), difficulty_rating: 8.12, beatmapset: { id: 4242, artist: 'Camellia', title: 'Exit This Earth' },
+  };
   const out = await upload(env, 5, { replay, caption: 'offline ScoreV2 run' });
   assert.equal(out.status, 201, out.body.error);
   const sha = [...bucket.objects.keys()][0].slice('replays/'.length, -'.osr'.length);
   assert.match(sha, /^[0-9a-f]{64}$/);
+  // The card comes from the replay's header (no pp in a replay) and osu!'s answer about its map.
   assert.deepEqual({ ...out.body.play, created: undefined }, {
-    id: 1, year: 2026, submitter: 5, player: 6, score: null, beatmap: 777, caption: 'offline ScoreV2 run', clip: null, created: undefined,
+    id: 1, year: 2026, submitter: 5, player: 6, score_ref: null, beatmap_id: 777, caption: 'offline ScoreV2 run', clip: null, created: undefined,
     played: '2026-06-01T20:30:00Z', endorsements: 0,
+    score: {
+      ref: null, player: 6, map: 777, set: 4242, artist: 'Camellia', title: 'Exit This Earth', version: 'Insane', stars: 8.12, pp: null, acc: 99.43,
+      miss: 2, combo: 850, mods: 'HDHR', grade: 'SH', time: at('2026-06-01T20:30:00Z'), url: null,
+    },
     replay: { kind: 'file', url: `${DATA}replays/${sha}.osr`, name: 'Player6 - Camellia - Exit This Earth [Insane] (2026-06-01).osr' },
   });
   const stored = bucket.objects.get(`replays/${sha}.osr`);
@@ -1036,7 +1116,7 @@ test('an .osr with a score link must be that score’s; osu!’s own replay is l
   osuRoutes['/api/v2/scores/9102'] = apiScore(9102, { user: 7 });
   const both = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9100', replay: osrFile({ player: 'Player6' }) });
   assert.equal(both.status, 201, both.body.error);
-  assert.deepEqual([both.body.play.score, both.body.play.replay.kind], [9100, 'file'], 'osu! keeps none, so the upload is the link');
+  assert.deepEqual([both.body.play.score_ref, both.body.play.score, both.body.play.replay.kind], ['osu:9100', apiCard('osu:9100'), 'file'], 'osu! keeps none, so the upload is the link');
   const kept = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9101', replay: osrFile({ player: 'Player6', md5: 'e'.repeat(32), time: '2026-04-03T10:00:00Z' }) });
   assert.deepEqual([kept.status, kept.body.play.replay], [201, { kind: 'osu', url: 'https://osu.ppy.sh/scores/9101/download' }]);
   const wrongMap = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9102', replay: osrFile({ player: 'Player6', md5: 'f'.repeat(32) }) });
@@ -1066,7 +1146,7 @@ test('past editions: year keys, the file check, and the same score.js whatever t
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /ballot 3 .*1, 2, 3, 4, 5, 6, 7, 8, 8, 9/);
 
-  const results = pastResults(EDITION, { importedAt: '2026-11-08T00:00:00Z' });
+  const results = pastResults(EDITION, { importedAt: '2026-11-08T00:00:00Z', names: new Map([[1, 'Tris'], [999, 'Patatita']]) });
   assert.deepEqual([results.year, results.edition, results.label, results.past, results.ballots], [2024, '2023-24', '2023–24', true, 3]);
   const of = id => results.ranking.find(r => r.id === id);
   // Player 1 voted, so only 2 of the 3 lists could name them: (10 + 10) / 2.
@@ -1076,9 +1156,25 @@ test('past editions: year keys, the file check, and the same score.js whatever t
   assert.equal(of(7).mentions, 2);
   assert.deepEqual(results.watch, [{ id: 8, count: 1 }]);
 
-  // One list (2020 had only Tris's) is still an edition.
+  // One list (2020 had only Tris's) is still an edition; so are four (2023–24).
   const single = pastResults({ edition: '2020', label: '2020', ballots: [EDITION.ballots[0]] });
   assert.deepEqual([single.year, single.ballots, single.ranking[0].id, single.ranking[0].score], [2020, 1, 2, 10]);
+  assert.equal(pastResults({ edition: 2024, ballots: [...EDITION.ballots, { voter: 2, picks: picks(3, 4, 5, 6, 7) }] }).ballots, 4);
+  // More than 10 picks (tartaruga57's 2023–24 list: 11 names numbered to 10, spots 8, 8, 10, 11): past 10 scores 0,
+  // but the player is still on the list. The live limit of 10 doesn't apply here.
+  const eleven = { voter: 50, post: 'p', picks: [...picks(1, 2, 3, 4, 5, 6, 7), { id: 8, spot: 8 }, { id: 9, spot: 8 }, { id: 10, spot: 10 }, { id: 11, spot: 11 }] };
+  assert.deepEqual(checkEdition({ edition: 2024, ballots: [eleven] }), { errors: [], warnings: [] });
+  const long = pastResults({ edition: 2024, ballots: [eleven] });
+  const in11 = id => long.ranking.find(r => r.id === id);
+  assert.deepEqual([in11(10).points, in11(11)], [1, undefined], '#11 gets 0 points, so no ranking line');
+  // Names, for every id the edition names, from the map given (the import's: the index, then ALIASES.md).
+  assert.deepEqual(results.names, { 1: 'Tris', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10', 999: 'Patatita' }, 'no name given: the number');
+  assert.deepEqual(pastResults(EDITION, { names: new Map([[2, 'Hiroto-']]) }).names[2], 'Hiroto-');
+  // The forum posts come along, as written.
+  assert.deepEqual(results.lists.map(l => [l.voter, l.post, l.picks.length, l.notes ?? null]), [
+    [1, 'https://osu.ppy.sh/community/forums/posts/11', 5, null], [2, 'https://osu.ppy.sh/community/forums/posts/12', 5, null],
+    [999, 'https://osu.ppy.sh/community/forums/posts/13', 10, 'not a PT player'],
+  ]);
   // A broken file isn't imported.
   const broken = { edition: '2022', ballots: [{ voter: 1, picks: [{ id: 1, spot: 1 }, { id: 'Hiroto-', spot: 2 }] }] };
   assert.equal(checkEdition(broken).errors.length, 2, 'a voter on their own list, and a name instead of an id');
@@ -1098,11 +1194,40 @@ test('past editions are served by GET /api/top10/results and listed on the hub',
   assert.equal(env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM top10_results').get().n, 2);
 });
 
-const HISTORY_2025 = new URL('./history/2025.json', import.meta.url);
-test('past editions: 2025 comes out as §13.10 says', { skip: fs.existsSync(HISTORY_2025) ? false : 'top10/history/2025.json isn’t here yet' }, () => {
-  const results = pastResults(JSON.parse(fs.readFileSync(HISTORY_2025, 'utf8')));
-  // Hiroto- 10.00, anomi 8.63 (2nd on #1 votes), ExPin 8.63, AfonsoMpt 6.78, GoncS 6.22, Rosa 5.56, AlexFenom 4.25,
-  // DemiGod Yoxide 3.13, Leo5h 3.00, TRUE_PLAYER36 2.25, and Nelson 1.00 in 11th.
-  assert.deepEqual(results.ranking.slice(0, 11).map(r => [r.rank, r.score]), [[1, 10], [2, 8.63], [3, 8.63], [4, 6.78], [5, 6.22], [6, 5.56], [7, 4.25], [8, 3.13], [9, 3], [10, 2.25], [11, 1]]);
+test('ALIASES.md’s tables give current names (the "Today" column, or the voter’s where there’s none)', () => {
+  const md = [
+    '## Please confirm', '', '| As written (where) | osu! id | Today | Evidence | Confidence |', '|---|---|---|---|---|',
+    '| **Tuga** (2022 Tris) | — | — | Not identified. | — |',
+    '| **anomi** (2025) | 24642612 | anomi | **Post link:** … | High |', '',
+    '## Settled', '', '| As written | osu! id | Today | Evidence |', '|---|---|---|---|',
+    '| **GoncS**, Goncs | 19423459 | **_wb** | **Profile:** previous name GoncS. |',
+    '| Hiroto-, -Hiroto | 14917517 | suzuhiro77 | … |', '| uwu | 2788013 | Airdown | … |', '| Air, Airdown | 2788013 | Airdown | … |', '',
+    '## Voters from outside Portugal', '', '| Voter | osu! id | Country (today) | Edition |', '|---|---|---|---|',
+    '| Ritmo Brigido | 5124924 | Chile | 2021 |', '| [ Ajia ] | 17578266 | Belgium | 2025 |',
+  ].join('\n');
+  assert.deepEqual([...namesFromAliases(md)], [[24642612, 'anomi'], [19423459, '_wb'], [14917517, 'suzuhiro77'], [2788013, 'Airdown'], [5124924, 'Ritmo Brigido'], [17578266, '[ Ajia ]']]);
+});
+
+// The real editions (top10/history/, on the history branch until it's merged; TOP10_HISTORY_DIR points elsewhere).
+const HISTORY = process.env.TOP10_HISTORY_DIR ? new URL(`file:///${process.env.TOP10_HISTORY_DIR.replace(/\\/g, '/').replace(/\/?$/, '/')}`) : new URL('./history/', import.meta.url);
+const edition = name => JSON.parse(fs.readFileSync(new URL(name, HISTORY), 'utf8'));
+const historyHere = fs.existsSync(new URL('2025.json', HISTORY)) ? false : 'top10/history/ isn’t here yet';
+test('past editions: 2025 comes out as the history import found (§13.10, with GoncS as a voter)', { skip: historyHere }, () => {
+  const results = pastResults(edition('2025.json'));
+  // Hiroto- 10.00, anomi 8.63 (2nd on #1s), ExPin 8.63, GoncS 7.00 (voted as _wb, so 56 ÷ 8: §13.10's 6.22 was wrong),
+  // AfonsoMPt 6.78, Rosa 5.56, AlexFenom 4.25, DemiGod Yoxide 3.13, Leo5h 3.00, TRUE_PLAYER36 2.25, Nelson 1.00 in 11th.
+  assert.deepEqual(results.ranking.slice(0, 11).map(r => [r.id, r.rank, r.score]), [
+    [14917517, 1, 10], [24642612, 2, 8.63], [16935754, 3, 8.63], [19423459, 4, 7], [13294871, 5, 6.78], [7385703, 6, 5.56],
+    [20942650, 7, 4.25], [6205809, 8, 3.13], [26323728, 9, 3], [10067533, 10, 2.25], [4095868, 11, 1],
+  ]);
   assert.equal(results.ballots, 9);
+});
+test('past editions: 2020–2024 come out as the history import’s check does', { skip: historyHere }, () => {
+  const top = (file, n) => pastResults(edition(file)).ranking.slice(0, n).map(r => [r.rank, r.score]);
+  assert.deepEqual(top('2020.json', 3), [[1, 10], [2, 9], [3, 8]]);
+  assert.deepEqual(top('2021.json', 13), [[1, 9.6], [2, 9.5], [3, 7.5], [4, 6.67], [5, 6.4], [6, 5.8], [7, 5], [8, 2.33], [9, 2.33], [10, 1.83], [11, 1.83], [12, 0.5], [13, 0.17]]);
+  assert.deepEqual(top('2022.json', 12), [[1, 10], [2, 8.2], [3, 8], [4, 6.2], [5, 6.17], [6, 5.8], [7, 5.58], [8, 4.25], [9, 1], [10, 0.5], [11, 0.33], [12, 0.17]]);
+  const y2024 = pastResults(edition('2024.json'));
+  assert.deepEqual([y2024.year, y2024.label, y2024.ballots], [2024, '2023–24', 4]);
+  assert.deepEqual(y2024.ranking.map(r => [r.rank, r.score]), [[1, 10], [2, 9.33], [3, 8.5], [4, 7.67], [5, 6.25], [6, 6], [7, 4.25], [8, 4.13], [9, 2.88], [10, 2], [11, 0.5], [12, 0.25], [13, 0.13]]);
 });

@@ -10,6 +10,8 @@
 // Both answer null when osu! says 404, and throw OsuUnavailable when osu! can't be asked (no app set up here, no token,
 // a network error or another status), so the caller can fall back to the site's exported data.
 
+import { MOD, modString } from '../assets/js/core/model.js';
+
 const API_VERSION = '20240529'; // the score format with ruleset_id, has_replay, ended_at and legacy_score_id
 const MODES = { osu: 0, taiko: 1, fruits: 2, mania: 3 };
 const tokens = new Map(); // client id → { token, until (unix seconds) }
@@ -62,17 +64,25 @@ async function get(env, path, now) {
 }
 
 const positive = v => (Number.isSafeInteger(v) && v > 0 ? v : null);
+const number = v => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+const round2 = v => (v === null ? null : Math.round(v * 100) / 100);
+
+/** Mods as osu! lists them (acronyms, or objects with one) → "HDHR", "NM", in the site's order; CL (classic) left out. */
+export const apiMods = mods => modString((Array.isArray(mods) ? mods : []).reduce((mask, m) => mask | (MOD[typeof m === 'string' ? m : m?.acronym] ?? 0), 0));
 
 /**
- * A score from the API, in the few fields the showcase needs: { solo, legacy (ids or null), ruleset (0–3), userId,
- * username, beatmapId, checksum (the map's MD5), map { artist, title, version }, time (when it was set, unix
- * seconds), hasReplay }. Reads the 2024 format, and the older one in case osu! ignores the version header.
+ * A score from the API, in the fields the showcase needs: { solo, legacy (ids or null), ruleset (0–3), userId,
+ * username, beatmapId, checksum (the map's MD5), map { set, artist, title, version, stars }, time (when it was set,
+ * unix seconds), hasReplay, pp, acc (%), combo, miss, mods ("HDHR", "NM"), grade }. Reads the 2024 format, and the older
+ * one in case osu! ignores the version header.
  */
 export function scoreFromApi(s, { legacyRoute = false } = {}) {
   const current = s.ruleset_id !== undefined;
   const ruleset = current ? s.ruleset_id : Number.isInteger(s.mode_int) ? s.mode_int : MODES[s.mode];
   const ended = Date.parse(s.ended_at ?? s.created_at ?? '');
   const set = s.beatmapset ?? s.beatmap?.beatmapset;
+  const stats = s.statistics ?? {};
+  const accuracy = number(s.accuracy);
   return {
     solo: positive(current ? s.id : legacyRoute ? null : s.id),
     legacy: positive(current ? s.legacy_score_id : legacyRoute ? s.id : null),
@@ -81,9 +91,18 @@ export function scoreFromApi(s, { legacyRoute = false } = {}) {
     username: typeof s.user?.username === 'string' ? s.user.username : null,
     beatmapId: positive(s.beatmap_id ?? s.beatmap?.id),
     checksum: typeof s.beatmap?.checksum === 'string' ? s.beatmap.checksum.toLowerCase() : null,
-    map: set ? { artist: String(set.artist ?? ''), title: String(set.title ?? ''), version: String(s.beatmap?.version ?? '') } : null,
+    map: set || s.beatmap ? {
+      set: positive(set?.id ?? s.beatmap?.beatmapset_id), artist: set ? String(set.artist ?? '') : null, title: set ? String(set.title ?? '') : null,
+      version: s.beatmap?.version !== undefined ? String(s.beatmap.version) : null, stars: number(s.beatmap?.difficulty_rating),
+    } : null,
     time: Number.isFinite(ended) ? Math.floor(ended / 1000) : null,
     hasReplay: Boolean(s.has_replay ?? s.replay),
+    pp: number(s.pp),
+    acc: accuracy === null ? null : round2(accuracy <= 1 ? accuracy * 100 : accuracy),
+    combo: number(s.max_combo),
+    miss: number(stats.miss ?? stats.count_miss),
+    mods: apiMods(s.mods),
+    grade: typeof s.rank === 'string' ? s.rank : null,
   };
 }
 
@@ -93,10 +112,13 @@ export async function fetchScore(env, { id, legacy = false }, now = Math.floor(D
   return body ? scoreFromApi(body, { legacyRoute: legacy }) : null;
 }
 
-/** A map by its MD5 (an .osr's beatmap hash): { id, artist, title, version }, or null if osu! doesn't know it. */
+/** A map by its MD5 (an .osr's beatmap hash): { id, set, artist, title, version, stars }, or null if osu! doesn't know it. */
 export async function lookupBeatmap(env, md5, now = Math.floor(Date.now() / 1000)) {
   const body = await get(env, `/api/v2/beatmaps/lookup?${new URLSearchParams({ checksum: md5 })}`, now);
   if (!positive(body?.id)) return null;
   const set = body.beatmapset ?? {};
-  return { id: body.id, artist: String(set.artist ?? ''), title: String(set.title ?? ''), version: String(body.version ?? '') };
+  return {
+    id: body.id, set: positive(set.id ?? body.beatmapset_id), artist: String(set.artist ?? ''), title: String(set.title ?? ''),
+    version: String(body.version ?? ''), stars: number(body.difficulty_rating),
+  };
 }

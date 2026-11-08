@@ -5,17 +5,24 @@
 //                   [id], skills (null for now), intro and outro, and status: 'draft' (private), 'submitted' (public,
 //                   counts) or 'void' (a mod's, with void_reason). `updated` is the last save; submitted_at the submit.
 //   top10_writeups  one per (year, voter, subject): the text, its words and flags (top10/words.js; a comma list),
-//                   cited scores, and the mods' word: mod 'ok' (the default) or 'struck', with mod_reason.
-//   top10_plays     the score showcase: who submitted which player's score (score_ref is its S.ID: the lazer score id,
-//                   or a legacy one negated; null for a replay file or a clip), caption, clip link, status 'ok' or
-//                   'hidden' (with the mod's reason). From the osu! API check (§13.9): has_replay (null when osu!
-//                   wasn't asked), played_at. From an uploaded .osr: replay_sha (its SHA-256, the R2 key
-//                   replays/<sha>.osr) and replay_name (the file name it downloads as).
+//                   cites (score refs, top10/refs.js) and `cards`, what each cited score looked like when it was cited
+//                   ({ [ref]: card }, so reads never look anything up), and the mods' word: mod 'ok' (the default) or
+//                   'struck', with mod_reason.
+//   top10_plays     the score showcase: who submitted which player's play. score_ref is its canonical ref
+//                   (osu:<id>, legacy:<id> or map:<beatmap>:<player>; null for a replay file or a clip), `refs` every
+//                   ref it's known by (for duplicates), `card` its score as shown (resolved once, at submit), caption,
+//                   clip link, status 'ok' or 'hidden' (with the mod's reason). From the osu! API check (§13.9):
+//                   has_replay (null when osu! wasn't asked) and played_at. From an uploaded .osr: replay_sha (its
+//                   SHA-256, the R2 key replays/<sha>.osr) and replay_name (the file name it downloads as).
 //   top10_marks     endorsements (osu_id endorses play `target`) and thanks (osu_id, the subject, thanks the write-up
 //                   by voter `target`). The primary key is the "once per person" rule.
-//   top10_results   the finalized results JSON per year (top10/score.js), when and by whom. Once only.
+//   top10_results   the results JSON per year (top10/score.js): a finalized season's, once only, or a past edition's
+//                   (top10/past.js, "by" 0). When and by whom.
 //   top10_modlog    every mod action: who, what, on what ("writeup:<voter>:<subject>", "play:<id>", "ballot:<voter>",
 //                   "results:<year>"), why and when. Writers see the entries about their own things.
+//
+// What this hands on uses the columns' names (submitted_at, void_reason, mod_reason, score_ref, beatmap_id…); top10/api.js
+// shapes the answers from them.
 //
 // Payouts and thanks are rows in economy's `requests` (kinds top10.payout and top10.thanks), inserted only here, so
 // the bot reads them through /api/economy/inbox like any other request (§13.6).
@@ -34,12 +41,12 @@ const SCHEMA = [
     PRIMARY KEY (year, osu_id)) WITHOUT ROWID`,
   `CREATE TABLE IF NOT EXISTS top10_writeups (
     year INTEGER NOT NULL, voter INTEGER NOT NULL, subject INTEGER NOT NULL, body TEXT NOT NULL, words INTEGER NOT NULL DEFAULT 0,
-    cites TEXT NOT NULL DEFAULT '[]', flags TEXT NOT NULL DEFAULT '', mod TEXT NOT NULL DEFAULT 'ok', mod_reason TEXT,
-    updated INTEGER NOT NULL, PRIMARY KEY (year, voter, subject)) WITHOUT ROWID`,
+    cites TEXT NOT NULL DEFAULT '[]', cards TEXT NOT NULL DEFAULT '{}', flags TEXT NOT NULL DEFAULT '', mod TEXT NOT NULL DEFAULT 'ok',
+    mod_reason TEXT, updated INTEGER NOT NULL, PRIMARY KEY (year, voter, subject)) WITHOUT ROWID`,
   `CREATE TABLE IF NOT EXISTS top10_plays (
     id INTEGER PRIMARY KEY AUTOINCREMENT, year INTEGER NOT NULL, submitter INTEGER NOT NULL, player INTEGER NOT NULL,
-    score_ref INTEGER, beatmap_id INTEGER, caption TEXT, clip TEXT, created INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'ok',
-    reason TEXT, has_replay INTEGER, played_at INTEGER, replay_sha TEXT, replay_name TEXT)`,
+    score_ref TEXT, refs TEXT NOT NULL DEFAULT '[]', beatmap_id INTEGER, card TEXT, caption TEXT, clip TEXT, created INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'ok', reason TEXT, has_replay INTEGER, played_at INTEGER, replay_sha TEXT, replay_name TEXT)`,
   'CREATE INDEX IF NOT EXISTS top10_plays_by_year ON top10_plays (year, player)',
   'CREATE UNIQUE INDEX IF NOT EXISTS top10_plays_score ON top10_plays (year, score_ref)',
   'CREATE UNIQUE INDEX IF NOT EXISTS top10_plays_replay ON top10_plays (year, replay_sha)',
@@ -80,18 +87,18 @@ function ballotOf(row) {
     year: row.year, voter: row.osu_id, status: row.status,
     picks: parse(row.picks, []), mentions: parse(row.mentions, []), watch: parse(row.watch, []), skills: parse(row.skills, null),
     intro: row.intro, outro: row.outro,
-    submittedAt: row.submitted_at ? iso(row.submitted_at) : null, updated: iso(row.updated),
-    voidReason: row.void_reason ?? null,
+    submitted_at: row.submitted_at ? iso(row.submitted_at) : null, updated: iso(row.updated),
+    void_reason: row.void_reason ?? null,
   };
 }
 
-/** A write-up row as the store hands it on: { subject, body, words, cites, flags: [...], mod, modReason, updated }. */
+/** A write-up row: { voter, subject, body, words, cites, cards, flags: [...], mod, mod_reason, updated (unix seconds) }. */
 const writeupOf = row => ({
-  voter: row.voter, subject: row.subject, body: row.body, words: row.words, cites: parse(row.cites, []), flags: flagList(row.flags),
-  mod: row.mod, modReason: row.mod_reason ?? null, updated: row.updated,
+  voter: row.voter, subject: row.subject, body: row.body, words: row.words, cites: parse(row.cites, []), cards: parse(row.cards, {}),
+  flags: flagList(row.flags), mod: row.mod, mod_reason: row.mod_reason ?? null, updated: row.updated,
 });
 
-/** A player's ballot for a year with all its write-ups (the owner's view), or null. */
+/** A player's ballot for a year with all its write-ups (the owner's view; `thanks` is 0 or 1 on each), or null. */
 export async function readBallot(db, year, osuId) {
   await ensureSchema(db);
   const [row, { results }, { results: thanks }] = await Promise.all([
@@ -101,7 +108,7 @@ export async function readBallot(db, year, osuId) {
   ]);
   if (!row) return null;
   const thanked = new Set(thanks.map(t => t.osu_id));
-  return { ...ballotOf(row), writeups: results.map(r => ({ ...writeupOf(r), thanked: thanked.has(r.subject) })) };
+  return { ...ballotOf(row), writeups: results.map(r => ({ ...writeupOf(r), thanks: thanked.has(r.subject) ? 1 : 0 })) };
 }
 
 /** The bodies of every write-up of a year except a voter's own, for the copy check: [{ voter, subject, body }]. */
@@ -113,8 +120,8 @@ export async function otherBodies(db, year, voter) {
 
 /**
  * Saves a ballot: the lists and texts (a new ballot is a draft; an existing one keeps its status, so a submitted
- * ballot's edits are live), the write-ups that changed (`upserts`: [{ subject, body, words, cites, flags, mod,
- * modReason }]), and drops the write-ups on anyone no longer listed (`keep`: the listed ids). A void ballot isn't
+ * ballot's edits are live), the write-ups that changed (`upserts`: [{ subject, body, words, cites, cards, flags, mod,
+ * mod_reason }]), and drops the write-ups on anyone no longer listed (`keep`: the listed ids). A void ballot isn't
  * touched. Returns false when it was void.
  */
 export async function saveBallot(db, { year, voter, picks, mentions, watch, intro, outro }, { upserts = [], keep }, now) {
@@ -132,14 +139,16 @@ export async function saveBallot(db, { year, voter, picks, mentions, watch, intr
   ];
   if (upserts.length) {
     const rows = upserts.map(w => ({
-      subject: w.subject, body: w.body, words: w.words, cites: JSON.stringify(w.cites), flags: w.flags.join(','), mod: w.mod, reason: w.modReason ?? null,
+      subject: w.subject, body: w.body, words: w.words, cites: JSON.stringify(w.cites), cards: JSON.stringify(w.cards ?? {}),
+      flags: w.flags.join(','), mod: w.mod, reason: w.mod_reason ?? null,
     }));
-    statements.push(db.prepare(`INSERT INTO top10_writeups (year, voter, subject, body, words, cites, flags, mod, mod_reason, updated)
+    statements.push(db.prepare(`INSERT INTO top10_writeups (year, voter, subject, body, words, cites, cards, flags, mod, mod_reason, updated)
       SELECT ?1, ?2, json_extract(value, '$.subject'), json_extract(value, '$.body'), json_extract(value, '$.words'),
-        json_extract(value, '$.cites'), json_extract(value, '$.flags'), json_extract(value, '$.mod'), json_extract(value, '$.reason'), ?4
+        json_extract(value, '$.cites'), json_extract(value, '$.cards'), json_extract(value, '$.flags'), json_extract(value, '$.mod'),
+        json_extract(value, '$.reason'), ?4
       FROM json_each(?3) WHERE EXISTS (SELECT 1 FROM top10_ballots WHERE year = ?1 AND osu_id = ?2 AND status != 'void')
       ON CONFLICT (year, voter, subject) DO UPDATE SET body = excluded.body, words = excluded.words, cites = excluded.cites,
-        flags = excluded.flags, mod = excluded.mod, mod_reason = excluded.mod_reason, updated = excluded.updated`)
+        cards = excluded.cards, flags = excluded.flags, mod = excluded.mod, mod_reason = excluded.mod_reason, updated = excluded.updated`)
       .bind(year, voter, JSON.stringify(rows), now));
   }
   const [ballot] = await db.batch(statements);
@@ -160,23 +169,25 @@ export async function withdrawBallot(db, year, voter, now) {
   return changed(r);
 }
 
-/** How many ballots are submitted for a year. */
+/** How many ballots are submitted for a year (a whole number: void ballots and drafts don't count). */
 export async function turnout(db, year) {
   await ensureSchema(db);
   const row = await db.prepare("SELECT COUNT(*) AS n FROM top10_ballots WHERE year = ? AND status = 'submitted'").bind(year).first();
-  return row?.n ?? 0;
+  return Number(row?.n ?? 0);
 }
 
 /**
- * Every submitted ballot of a year, first submitted first, with its write-ups that aren't struck and whether each was
- * thanked: [{ voter, picks, …, thanks, writeups: { [subject]: { body, words, cites, thanked, updated } } }]. Flags and
- * mod notes are the writer's and the mods' business, so they aren't here.
+ * Every submitted ballot of a year, first submitted first, with its write-ups that aren't struck: [{ voter, picks,
+ * mentions, watch, skills, intro, outro, submitted_at, updated, thanks, writeups: { [subject]: { body, words, cites,
+ * thanks, updated } }, scores: { [ref]: card } }]. `thanks` is 0 or 1 on a write-up (only its subject can thank it), and
+ * the ballot's total. Flags and mod notes are the writer's and the mods' business, so they aren't here; who's looking
+ * isn't either, so this can be cached (the API adds `thanked` for a signed-in viewer).
  */
 export async function publicBallots(db, year) {
   await ensureSchema(db);
   const [{ results: rows }, { results: writeups }, { results: thanks }] = await Promise.all([
     db.prepare("SELECT * FROM top10_ballots WHERE year = ? AND status = 'submitted' ORDER BY submitted_at, osu_id").bind(year).all(),
-    db.prepare(`SELECT w.voter, w.subject, w.body, w.words, w.cites, w.updated FROM top10_writeups w
+    db.prepare(`SELECT w.voter, w.subject, w.body, w.words, w.cites, w.cards, w.updated FROM top10_writeups w
       JOIN top10_ballots b ON b.year = w.year AND b.osu_id = w.voter
       WHERE w.year = ? AND b.status = 'submitted' AND w.mod = 'ok'`).bind(year).all(),
     db.prepare("SELECT osu_id, target FROM top10_marks WHERE year = ? AND kind = 'thanks'").bind(year).all(),
@@ -184,14 +195,25 @@ export async function publicBallots(db, year) {
   const thanked = new Set(thanks.map(t => `${t.target}:${t.osu_id}`));
   const byVoter = new Map();
   for (const w of writeups) {
-    if (!byVoter.has(w.voter)) byVoter.set(w.voter, {});
-    byVoter.get(w.voter)[w.subject] = { body: w.body, words: w.words, cites: parse(w.cites, []), thanked: thanked.has(`${w.voter}:${w.subject}`), updated: iso(w.updated) };
+    if (!byVoter.has(w.voter)) byVoter.set(w.voter, { writeups: {}, scores: {} });
+    const mine = byVoter.get(w.voter);
+    const cites = parse(w.cites, []);
+    mine.writeups[w.subject] = { body: w.body, words: w.words, cites, thanks: thanked.has(`${w.voter}:${w.subject}`) ? 1 : 0, updated: iso(w.updated) };
+    const cards = parse(w.cards, {});
+    for (const ref of cites) if (cards[ref]) mine.scores[ref] = cards[ref];
   }
   return rows.map(row => {
-    const { year: _, status, voidReason, ...ballot } = ballotOf(row);
-    const writeupsOf = byVoter.get(row.osu_id) ?? {};
-    return { ...ballot, thanks: Object.values(writeupsOf).filter(w => w.thanked).length, writeups: writeupsOf };
+    const { year: _, status, void_reason, ...ballot } = ballotOf(row);
+    const { writeups: written, scores } = byVoter.get(row.osu_id) ?? { writeups: {}, scores: {} };
+    return { ...ballot, thanks: Object.values(written).reduce((n, w) => n + w.thanks, 0), writeups: written, scores };
   });
+}
+
+/** The voters whose write-up about `subject` that subject has thanked, in a year. */
+export async function thankedBy(db, year, subject) {
+  await ensureSchema(db);
+  const { results } = await db.prepare("SELECT target FROM top10_marks WHERE year = ? AND kind = 'thanks' AND osu_id = ?").bind(year, subject).all();
+  return new Set(results.map(r => r.target));
 }
 
 // ---- Thanks and endorsements ----------------------------------------------------------------------------------------
@@ -230,11 +252,12 @@ export async function thankAfterFinalize(db, year, subject, voter, now) {
 
 // ---- The showcase ---------------------------------------------------------------------------------------------------
 
+/** A play row: the columns, with created as ISO, refs and card parsed, has_replay as true / false / null. */
 const playOf = row => ({
-  id: row.id, year: row.year, submitter: row.submitter, player: row.player, score: row.score_ref ?? null, beatmap: row.beatmap_id ?? null,
-  caption: row.caption ?? '', clip: row.clip ?? null, created: iso(row.created), status: row.status, reason: row.reason ?? null,
-  hasReplay: row.has_replay === null || row.has_replay === undefined ? null : Boolean(row.has_replay), playedAt: row.played_at ?? null,
-  replaySha: row.replay_sha ?? null, replayName: row.replay_name ?? null,
+  id: row.id, year: row.year, submitter: row.submitter, player: row.player, score_ref: row.score_ref ?? null, refs: parse(row.refs, []),
+  beatmap_id: row.beatmap_id ?? null, card: parse(row.card, null), caption: row.caption ?? '', clip: row.clip ?? null, created: iso(row.created),
+  status: row.status, reason: row.reason ?? null, has_replay: row.has_replay === null || row.has_replay === undefined ? null : Boolean(row.has_replay),
+  played_at: row.played_at ?? null, replay_sha: row.replay_sha ?? null, replay_name: row.replay_name ?? null,
 });
 
 /** How many showcase entries a player submitted in a year: { all, own } (own: of their own scores). */
@@ -244,11 +267,12 @@ export async function playCounts(db, year, submitter) {
   return { all: row?.n ?? 0, own: row?.own ?? 0 };
 }
 
-/** The entry in a year's showcase for a score under any of its ids (`refs`, S.ID form), or null. */
+/** The entry in a year's showcase known by any of these refs (top10/refs.js), or null. */
 export async function playByRefs(db, year, refs) {
   await ensureSchema(db);
-  if (!refs.length) return null;
-  const row = await db.prepare('SELECT * FROM top10_plays WHERE year = ? AND score_ref IN (SELECT value FROM json_each(?))').bind(year, JSON.stringify(refs)).first();
+  if (!refs?.length) return null;
+  const row = await db.prepare(`SELECT * FROM top10_plays p WHERE year = ?1
+    AND EXISTS (SELECT 1 FROM json_each(p.refs) r WHERE r.value IN (SELECT value FROM json_each(?2)))`).bind(year, JSON.stringify(refs)).first();
   return row ? playOf(row) : null;
 }
 
@@ -265,12 +289,13 @@ export async function replayInUse(db, sha) {
   return Boolean(await db.prepare('SELECT 1 AS y FROM top10_plays WHERE replay_sha = ? LIMIT 1').bind(sha).first());
 }
 
-/** Adds a showcase entry; returns it. */
-export async function addPlay(db, { year, submitter, player, ref = null, beatmap = null, caption = '', clip = null, hasReplay = null, playedAt = null, replaySha = null, replayName = null }, now) {
+/** Adds a showcase entry; returns it (playOf's shape, with no endorsements yet). */
+export async function addPlay(db, { year, submitter, player, ref = null, refs = [], beatmap = null, card = null, caption = '', clip = null, hasReplay = null, playedAt = null, replaySha = null, replayName = null }, now) {
   await ensureSchema(db);
-  const row = await db.prepare(`INSERT INTO top10_plays (year, submitter, player, score_ref, beatmap_id, caption, clip, created, has_replay, played_at, replay_sha, replay_name)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
-    .bind(year, submitter, player, ref, beatmap, caption, clip, now, hasReplay === null ? null : hasReplay ? 1 : 0, playedAt, replaySha, replayName).first();
+  const row = await db.prepare(`INSERT INTO top10_plays (year, submitter, player, score_ref, refs, beatmap_id, card, caption, clip, created, has_replay, played_at, replay_sha, replay_name)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+    .bind(year, submitter, player, ref, JSON.stringify(refs), beatmap, card ? JSON.stringify(card) : null, caption, clip, now,
+      hasReplay === null ? null : hasReplay ? 1 : 0, playedAt, replaySha, replayName).first();
   return { ...playOf(row), endorsements: 0 };
 }
 
@@ -321,20 +346,20 @@ export async function readWriteup(db, year, voter, subject) {
   return row ? writeupOf(row) : null;
 }
 
-/** A ballot row's status and void reason, or null. */
+/** A ballot row's status: { status, submitted_at, updated (unix seconds), void_reason }, or null. */
 export async function ballotStatus(db, year, voter) {
   await ensureSchema(db);
   const row = await db.prepare('SELECT status, submitted_at, updated, void_reason FROM top10_ballots WHERE year = ? AND osu_id = ?').bind(year, voter).first();
-  return row ? { status: row.status, submittedAt: row.submitted_at, updated: row.updated, voidReason: row.void_reason ?? null } : null;
+  return row ? { status: row.status, submitted_at: row.submitted_at, updated: row.updated, void_reason: row.void_reason ?? null } : null;
 }
 
 const logStatement = (db, { year, admin, action, target, reason }, now) => db.prepare('INSERT INTO top10_modlog (year, admin, action, target, reason, at) VALUES (?, ?, ?, ?, ?, ?)')
   .bind(year, admin, action, target, reason ?? null, now);
 
 /**
- * Applies a mod action and logs it, in one batch. `action` is strike / restore / hide-play / show-play / void /
- * unvoid; `target` { voter, subject } for a write-up, { play } for a showcase entry, { voter } for a ballot.
- * Returns false when the thing didn't change (already in that state).
+ * Applies a mod action and logs it. `action` is strike / restore / hide-play / show-play / void / unvoid; `target`
+ * { voter, subject } for a write-up, { play } for a showcase entry, { voter } for a ballot. Returns false when the
+ * thing didn't change (already in that state); nothing is logged then.
  */
 export async function moderate(db, { year, admin, action, target, reason }, now) {
   await ensureSchema(db);
@@ -385,8 +410,9 @@ export async function modlogAbout(db, year, osuId) {
 }
 
 /**
- * The admin queue: every write-up on a ballot that isn't a draft (flagged first, then the newest), every showcase
- * entry, the ballots (a draft's content stays private: only that it exists), and the latest mod log.
+ * The admin queue: every write-up on a ballot that isn't a draft (flagged first, then the newest; `ranked` when it's
+ * about a pick, so it pays), every showcase entry (playOf rows), the ballots (a draft's content stays private: only
+ * that it exists), and the latest mod log.
  */
 export async function adminQueue(db, year) {
   await ensureSchema(db);
@@ -399,21 +425,24 @@ export async function adminQueue(db, year) {
     db.prepare('SELECT * FROM top10_modlog WHERE year = ? ORDER BY seq DESC LIMIT 300').bind(year).all(),
   ]);
   return {
-    writeups: writeups.map(r => ({
-      ...writeupOf(r), updated: iso(r.updated), target: `writeup:${r.voter}:${r.subject}`, ballotStatus: r.ballot_status,
-      pick: parse(r.ballot_picks, []).some(p => p.id === r.subject),
-    })),
-    plays: plays.map(p => ({ ...p, target: `play:${p.id}` })),
+    writeups: writeups.map(r => {
+      const { cards, ...w } = writeupOf(r);
+      return {
+        ...w, updated: iso(r.updated), ranked: parse(r.ballot_picks, []).some(p => p.id === r.subject), ballot_status: r.ballot_status,
+        target: `writeup:${r.voter}:${r.subject}`,
+      };
+    }),
+    plays,
     ballots: ballots.map(r => (r.status === 'draft'
       ? { voter: r.osu_id, status: r.status, updated: iso(r.updated), target: `ballot:${r.osu_id}` }
       : { ...ballotOf(r), target: `ballot:${r.osu_id}` })),
-    modlog: log.map(logOf),
+    log: log.map(logOf),
   };
 }
 
 // ---- Results and finalize -------------------------------------------------------------------------------------------
 
-/** A year's finalized results: { results (the JSON), finalizedAt, by }, or null. */
+/** A year's saved results: { results (the JSON), finalizedAt, by }, or null. */
 export async function readResults(db, year) {
   await ensureSchema(db);
   const row = await db.prepare('SELECT json, finalized_at, "by" AS admin FROM top10_results WHERE year = ?').bind(year).first();
