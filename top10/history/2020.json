@@ -1,0 +1,26 @@
+{
+  "edition": 2020,
+  "label": "2020",
+  "thread": "https://osu.ppy.sh/community/forums/topics/1219987",
+  "ballots": [
+    {
+      "voter": 3821475,
+      "post": "https://osu.ppy.sh/community/forums/posts/7855415",
+      "picks": [
+        { "id": 2788013, "spot": 1 },
+        { "id": 4427038, "spot": 2 },
+        { "id": 3006672, "spot": 3 },
+        { "id": 6502093, "spot": 4 },
+        { "id": 6205809, "spot": 5 },
+        { "id": 2600197, "spot": 6 },
+        { "id": 14917517, "spot": 7 },
+        { "id": 7385703, "spot": 8 },
+        { "id": 1267642, "spot": 9 },
+        { "id": 10561635, "spot": 10 }
+      ],
+      "mentions": [],
+      "watch": [],
+      "notes": "The only list that year. Written as uwu (Airdown), Gold801, Hiroto- (now suzuhiro77) and N1tro321 (now Rosa)."
+    }
+  ]
+}

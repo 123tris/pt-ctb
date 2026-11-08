@@ -1,0 +1,105 @@
+{
+  "edition": 2022,
+  "label": "2022",
+  "thread": "https://osu.ppy.sh/community/forums/topics/1692581",
+  "ballots": [
+    {
+      "voter": 3821475,
+      "post": "https://osu.ppy.sh/community/forums/posts/8911683",
+      "picks": [
+        { "id": 2788013, "spot": 1 },
+        { "id": 14917517, "spot": 2 },
+        { "id": 7385703, "spot": 3 },
+        { "id": 19423459, "spot": 4 },
+        { "id": 6205809, "spot": 5 },
+        { "id": 4095868, "spot": 6 },
+        { "id": 2600197, "spot": 6 }
+      ],
+      "mentions": [10561635, 19829882, 31305210, 19896388, 11491079],
+      "watch": [],
+      "notes": "Seven names, inactive players left out. \"6. Nelson / 6. [SS]Bell\" is a tie at 6: positions 6 and 7, 4.5 points each. Honourable mentions: Nicole (Nicolexd13) and \"Tuga\" (not identified, so left out), then the new top-50 players DPkf, Tyuni (Tyiuni), Zeluis (now Lulushark) and sagiiT. Buffow, gold and ptrollyo are named there only as left out for inactivity, so they aren't counted as mentions."
+    },
+    {
+      "voter": 19423459,
+      "post": "https://osu.ppy.sh/community/forums/posts/8911731",
+      "picks": [
+        { "id": 3821475, "spot": 1 },
+        { "id": 2788013, "spot": 2 },
+        { "id": 7385703, "spot": 3 },
+        { "id": 14917517, "spot": 4 },
+        { "id": 2600197, "spot": 5 },
+        { "id": 6205809, "spot": 6 },
+        { "id": 4095868, "spot": 7 }
+      ],
+      "mentions": [],
+      "watch": [],
+      "notes": "_wb is GoncS (osu! lists GoncS as a previous name of this account). \"6.5. Nelson\" is encoded as spot 7: below Yoxide, not tied with him."
+    },
+    {
+      "voter": 7385703,
+      "post": "https://osu.ppy.sh/community/forums/posts/8912645",
+      "picks": [
+        { "id": 3821475, "spot": 1 },
+        { "id": 2788013, "spot": 2 },
+        { "id": 14917517, "spot": 3 },
+        { "id": 19423459, "spot": 4 },
+        { "id": 2600197, "spot": 5 },
+        { "id": 6205809, "spot": 6 },
+        { "id": 4095868, "spot": 7 }
+      ],
+      "mentions": [],
+      "watch": []
+    },
+    {
+      "voter": 16294034,
+      "post": "https://osu.ppy.sh/community/forums/posts/8912719",
+      "picks": [
+        { "id": 3821475, "spot": 1 },
+        { "id": 14917517, "spot": 2 },
+        { "id": 7385703, "spot": 3 },
+        { "id": 6205809, "spot": 4 },
+        { "id": 4427038, "spot": 5 },
+        { "id": 2600197, "spot": 6 },
+        { "id": 4095868, "spot": 7 },
+        { "id": 19423459, "spot": 8 }
+      ],
+      "mentions": [],
+      "watch": [],
+      "notes": "Not a PT player: Patatita is from Spain. Kept, as the forum was the electorate then. Says they ranked mostly from profiles, and left out Air and gold as inactive."
+    },
+    {
+      "voter": 14917517,
+      "post": "https://osu.ppy.sh/community/forums/posts/8912761",
+      "picks": [
+        { "id": 3821475, "spot": 1 },
+        { "id": 7385703, "spot": 2 },
+        { "id": 19423459, "spot": 3 },
+        { "id": 2600197, "spot": 4 },
+        { "id": 6205809, "spot": 5 },
+        { "id": 4095868, "spot": 6 }
+      ],
+      "mentions": [],
+      "watch": [17076179, 13140949, 16935754, 31305210, 16589307],
+      "notes": "suzuhiro77 is Hiroto-. Inactive players left out. \"Investments\" (ones to watch) written as Tartaruga, held, ExPin, Tyiuni and -Abstr4ct-."
+    },
+    {
+      "voter": 6205809,
+      "post": "https://osu.ppy.sh/community/forums/posts/8915922",
+      "picks": [
+        { "id": 3821475, "spot": 1 },
+        { "id": 2788013, "spot": 2 },
+        { "id": 14917517, "spot": 3 },
+        { "id": 7385703, "spot": 4 },
+        { "id": 19423459, "spot": 5 },
+        { "id": 2600197, "spot": 6 },
+        { "id": 4095868, "spot": 7 },
+        { "id": 16935754, "spot": 8 },
+        { "id": 10816573, "spot": 9 },
+        { "id": 13140949, "spot": 10 }
+      ],
+      "mentions": [],
+      "watch": [],
+      "notes": "\"9 && 10- Godo_Plays // held\" is not a tie: he says the order came from their 1v1, Godo first, so Godo_Plays 9 and held 10. #8 written as ExPin_123 (ExPin's old name)."
+    }
+  ]
+}
