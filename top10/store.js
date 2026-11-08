@@ -6,8 +6,11 @@
 //                   counts) or 'void' (a mod's, with void_reason). `updated` is the last save; submitted_at the submit.
 //   top10_writeups  one per (year, voter, subject): the text, its words and flags (top10/words.js; a comma list),
 //                   cited scores, and the mods' word: mod 'ok' (the default) or 'struck', with mod_reason.
-//   top10_plays     the score showcase: who submitted which player's score (score_ref is its S.ID in the site's data,
-//                   null for a clip), caption, clip link, status 'ok' or 'hidden' (with the mod's reason).
+//   top10_plays     the score showcase: who submitted which player's score (score_ref is its S.ID: the lazer score id,
+//                   or a legacy one negated; null for a replay file or a clip), caption, clip link, status 'ok' or
+//                   'hidden' (with the mod's reason). From the osu! API check (§13.9): has_replay (null when osu!
+//                   wasn't asked), played_at. From an uploaded .osr: replay_sha (its SHA-256, the R2 key
+//                   replays/<sha>.osr) and replay_name (the file name it downloads as).
 //   top10_marks     endorsements (osu_id endorses play `target`) and thanks (osu_id, the subject, thanks the write-up
 //                   by voter `target`). The primary key is the "once per person" rule.
 //   top10_results   the finalized results JSON per year (top10/score.js), when and by whom. Once only.
@@ -36,9 +39,10 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS top10_plays (
     id INTEGER PRIMARY KEY AUTOINCREMENT, year INTEGER NOT NULL, submitter INTEGER NOT NULL, player INTEGER NOT NULL,
     score_ref INTEGER, beatmap_id INTEGER, caption TEXT, clip TEXT, created INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'ok',
-    reason TEXT)`,
+    reason TEXT, has_replay INTEGER, played_at INTEGER, replay_sha TEXT, replay_name TEXT)`,
   'CREATE INDEX IF NOT EXISTS top10_plays_by_year ON top10_plays (year, player)',
   'CREATE UNIQUE INDEX IF NOT EXISTS top10_plays_score ON top10_plays (year, score_ref)',
+  'CREATE UNIQUE INDEX IF NOT EXISTS top10_plays_replay ON top10_plays (year, replay_sha)',
   `CREATE TABLE IF NOT EXISTS top10_marks (
     year INTEGER NOT NULL, kind TEXT NOT NULL, osu_id INTEGER NOT NULL, target INTEGER NOT NULL, created INTEGER NOT NULL,
     PRIMARY KEY (year, kind, osu_id, target)) WITHOUT ROWID`,
@@ -229,6 +233,8 @@ export async function thankAfterFinalize(db, year, subject, voter, now) {
 const playOf = row => ({
   id: row.id, year: row.year, submitter: row.submitter, player: row.player, score: row.score_ref ?? null, beatmap: row.beatmap_id ?? null,
   caption: row.caption ?? '', clip: row.clip ?? null, created: iso(row.created), status: row.status, reason: row.reason ?? null,
+  hasReplay: row.has_replay === null || row.has_replay === undefined ? null : Boolean(row.has_replay), playedAt: row.played_at ?? null,
+  replaySha: row.replay_sha ?? null, replayName: row.replay_name ?? null,
 });
 
 /** How many showcase entries a player submitted in a year: { all, own } (own: of their own scores). */
@@ -238,18 +244,33 @@ export async function playCounts(db, year, submitter) {
   return { all: row?.n ?? 0, own: row?.own ?? 0 };
 }
 
-/** The entry for a score already in a year's showcase, or null. */
-export async function playByScore(db, year, ref) {
+/** The entry in a year's showcase for a score under any of its ids (`refs`, S.ID form), or null. */
+export async function playByRefs(db, year, refs) {
   await ensureSchema(db);
-  const row = await db.prepare('SELECT * FROM top10_plays WHERE year = ? AND score_ref = ?').bind(year, ref).first();
+  if (!refs.length) return null;
+  const row = await db.prepare('SELECT * FROM top10_plays WHERE year = ? AND score_ref IN (SELECT value FROM json_each(?))').bind(year, JSON.stringify(refs)).first();
   return row ? playOf(row) : null;
 }
 
-/** Adds a showcase entry; returns it. */
-export async function addPlay(db, { year, submitter, player, ref = null, beatmap = null, caption = '', clip = null }, now) {
+/** The entry in a year's showcase with this replay file, or null. */
+export async function playBySha(db, year, sha) {
   await ensureSchema(db);
-  const row = await db.prepare(`INSERT INTO top10_plays (year, submitter, player, score_ref, beatmap_id, caption, clip, created)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`).bind(year, submitter, player, ref, beatmap, caption, clip, now).first();
+  const row = await db.prepare('SELECT * FROM top10_plays WHERE year = ? AND replay_sha = ?').bind(year, sha).first();
+  return row ? playOf(row) : null;
+}
+
+/** Whether any entry (any year) still uses a replay file. */
+export async function replayInUse(db, sha) {
+  await ensureSchema(db);
+  return Boolean(await db.prepare('SELECT 1 AS y FROM top10_plays WHERE replay_sha = ? LIMIT 1').bind(sha).first());
+}
+
+/** Adds a showcase entry; returns it. */
+export async function addPlay(db, { year, submitter, player, ref = null, beatmap = null, caption = '', clip = null, hasReplay = null, playedAt = null, replaySha = null, replayName = null }, now) {
+  await ensureSchema(db);
+  const row = await db.prepare(`INSERT INTO top10_plays (year, submitter, player, score_ref, beatmap_id, caption, clip, created, has_replay, played_at, replay_sha, replay_name)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+    .bind(year, submitter, player, ref, beatmap, caption, clip, now, hasReplay === null ? null : hasReplay ? 1 : 0, playedAt, replaySha, replayName).first();
   return { ...playOf(row), endorsements: 0 };
 }
 
@@ -397,6 +418,13 @@ export async function readResults(db, year) {
   await ensureSchema(db);
   const row = await db.prepare('SELECT json, finalized_at, "by" AS admin FROM top10_results WHERE year = ?').bind(year).first();
   return row ? { results: parse(row.json, null), finalizedAt: iso(row.finalized_at), by: row.admin } : null;
+}
+
+/** The years with saved results (past editions included), newest first: [{ year, label }]. */
+export async function resultYears(db) {
+  await ensureSchema(db);
+  const { results } = await db.prepare("SELECT year, json_extract(json, '$.label') AS label FROM top10_results ORDER BY year DESC").all();
+  return results.map(r => ({ year: r.year, label: r.label ?? String(r.year) }));
 }
 
 /** When a year was finalized (ISO), or null: readResults without reading the JSON. */

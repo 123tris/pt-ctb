@@ -21,6 +21,10 @@ import { SEASON, seasonOf, phaseOf, normalizeSeason } from './season.js';
 import { tokens, countWords, analyse, shingles, overlap, bananasFor } from './words.js';
 import { spotPoints, spotsValid, listPoints, computeResults, payoutsFor } from './score.js';
 import { forgetData, parseScore, tuplesWithId, ptPlayers } from './data.js';
+import { forgetOsuToken, scoreFromApi } from './osu.js';
+import { MAX_REPLAY_BYTES, attachment, modNames, parseOsr, replayFileName } from './osr.js';
+import { checkEdition, editionYear, pastResults, pastSql } from './past.js';
+import fs from 'node:fs';
 
 const SECRET = 'top10-secret';
 const KEY = 'inbox-key-0123456789';
@@ -70,14 +74,30 @@ function serve(files) {
   served.set(`${DATA}meta.json`, JSON.stringify(meta));
 }
 
+// A fake osu!: the token endpoint, and API paths → a body, or a status to answer with. Every call is kept.
+const OSU = 'https://osu.example';
+let osuRoutes;
+let osuCalls;
+
 beforeEach(() => {
   forgetData();
+  forgetOsuToken();
   delete globalThis.caches;
   serve(FILES);
   fetched = [];
-  globalThis.fetch = async input => {
+  osuRoutes = {};
+  osuCalls = [];
+  globalThis.fetch = async (input, init = {}) => {
     const url = String(input);
     fetched.push(url);
+    if (url.startsWith(OSU)) {
+      const path = url.slice(OSU.length);
+      osuCalls.push({ path, headers: new Headers(init.headers), body: init.body ? String(init.body) : null });
+      if (path === '/oauth/token') return Response.json({ token_type: 'Bearer', expires_in: 86400, access_token: 'app-token' });
+      const hit = osuRoutes[path];
+      if (typeof hit === 'number') return new Response('{}', { status: hit });
+      return hit ? Response.json(hit) : Response.json({ error: null }, { status: 404 });
+    }
     return served.has(url) ? new Response(served.get(url), { headers: { 'Content-Type': 'application/json' } }) : new Response('not here', { status: 404 });
   };
 });
@@ -200,9 +220,11 @@ test('flags: mash is over 20% of words with no vowel and 6+ characters', () => {
   assert.deepEqual(analyse('sdfghj is one word among many other real normal words here').flags, [], '1 of 10 is under 20%');
   assert.deepEqual(analyse('nth pls thx').flags, [], 'short words without vowels are fine');
   assert.deepEqual(analyse('gg gg gg gg gg gg gg gg sdfghj qwrtpk zxcvbn').flags, ['repetitive', 'mash']);
-  assert.equal(bananasFor(9), 2);
-  assert.equal(bananasFor(40), 10);
-  assert.equal(bananasFor(400), 10);
+  // 1 banana a word, up to 40 (§9, since 2026-11-08). The bot pays it; this is the ballot page's counter.
+  assert.equal(bananasFor(9), 9);
+  assert.equal(bananasFor(40), 40);
+  assert.equal(bananasFor(400), 40);
+  assert.equal(bananasFor(0), 0);
 });
 
 // ---- Scoring ------------------------------------------------------------------------------------------------------
@@ -320,7 +342,8 @@ test('payouts: approved unflagged write-ups on picks; a strike costs the ballot 
 test('the hub: season, turnout, and for a signed-in player whether they can vote', async () => {
   const env = envWith();
   const out = await call(api.hub, env, { now: OPEN });
-  assert.deepEqual(out.body, { season: { ...SEASON, phase: 'open' }, turnout: 0, finalized: false });
+  assert.deepEqual(out.body, { season: { ...SEASON, phase: 'open' }, turnout: 0, finalized: false, editions: [] });
+  assert.ok(Number.isInteger(out.body.turnout), 'turnout is a plain whole number, for the bot');
   const pt = await call(api.hub, env, { as: 3, now: OPEN });
   assert.deepEqual(pt.body.me, { osuId: 3, eligible: true, ballot: null });
   const outsider = await call(api.hub, env, { as: 999, now: OPEN });
@@ -518,7 +541,11 @@ test('showcase: a PT player’s score set this year, checked against the exporte
   const env = envWith();
   const mineScore = await addPlay(env, 2, { score: 'https://osu.ppy.sh/scores/5000000001', caption: '  First PT FC\non this one  ' });
   assert.equal(mineScore.status, 201);
-  assert.deepEqual({ ...mineScore.body.play, created: undefined }, { id: 1, year: 2026, submitter: 2, player: 2, score: 5000000001, beatmap: 111, caption: 'First PT FC on this one', clip: null, created: undefined, endorsements: 0 });
+  // osu! isn't set up in this env, so the exported data is checked, and there's no replay to link.
+  assert.deepEqual({ ...mineScore.body.play, created: undefined }, {
+    id: 1, year: 2026, submitter: 2, player: 2, score: 5000000001, beatmap: 111, caption: 'First PT FC on this one', clip: null, created: undefined,
+    played: '2026-03-01T10:00:00Z', endorsements: 0, replay: null,
+  });
   // Someone else's: from the recent plays, or named.
   const theirs = await addPlay(env, 5, { score: 'https://osu.ppy.sh/scores/fruits/88' });
   assert.deepEqual([theirs.status, theirs.body.play.player, theirs.body.play.score], [201, 3, -88]);
@@ -533,11 +560,11 @@ test('showcase: a PT player’s score set this year, checked against the exporte
   const wrongYear = await refused({ score: 'https://osu.ppy.sh/scores/5000000002', player: 2 }, 422, 'wrong_year');
   assert.equal(wrongYear.body.year, 2025);
   const missing = await refused({ score: 'https://osu.ppy.sh/scores/123456' }, 422, 'not_in_data');
-  assert.match(missing.body.error, /\/addscore first, or attach a clip/);
+  assert.match(missing.body.error, /\/addscore first, or attach its replay \(\.osr\) or a clip/);
   await refused({ score: 'https://osu.ppy.sh/scores/123456', player: 2 }, 422, 'not_in_data');
   await refused({ score: 'https://osu.ppy.sh/scores/osu/1' }, 400, 'mode');
   await refused({ score: 'not a score' }, 400, 'score');
-  await refused({ score: '5000000001', player: 999 }, 422, 'not_pt');
+  await refused({ score: '4000000001', player: 999 }, 422, 'not_pt');
   await refused({ score: 'https://osu.ppy.sh/scores/5000000001', player: 2 }, 409, 'duplicate');
   // A clip instead: allowed sites only, for a PT player.
   const clip = await addPlay(env, 5, { player: 6, clip: 'http://www.youtube.com/watch?v=abc', caption: 'offline ScoreV2 run' });
@@ -786,4 +813,296 @@ test('players can never queue top10.* requests themselves', async () => {
   assert.equal(res.status, 400);
   assert.equal(env.ECONOMY.sqlite.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'requests'").get().n === 0
     || env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM requests').get().n === 0, true);
+});
+
+// ---- Replays (§13.9): the osu! API check, .osr uploads -------------------------------------------------------------
+
+/**
+ * A synthetic catch replay, written field by field as the .osr format has it (osr.js's header comment). There's no
+ * real one in the repo; this one exercises the same layout, multi-byte ULEB128 lengths and UTF-8 names included.
+ */
+function osrFile({ mode = 2, md5 = 'c'.repeat(32), player = 'Player6', counts = [900, 20, 300, 0, 5, 2], score = 5000000, combo = 850, perfect = 0,
+  mods = 24, lifeBar = '0|1,100|1,'.repeat(40), time = '2026-06-01T20:30:00Z', data = 120, onlineId = 0, truncate = 0 } = {}) {
+  const parts = [];
+  const enc = new TextEncoder();
+  const u8 = v => parts.push(Uint8Array.of(v));
+  const le = (size, set) => { const b = new Uint8Array(size); set(new DataView(b.buffer)); parts.push(b); };
+  const u16 = v => le(2, d => d.setUint16(0, v, true));
+  const i32 = v => le(4, d => d.setInt32(0, v, true));
+  const i64 = v => le(8, d => d.setBigInt64(0, BigInt(v), true));
+  const str = s => {
+    if (s === '') return u8(0);
+    const b = enc.encode(s);
+    u8(0x0b);
+    let n = b.length;
+    do { let byte = n & 0x7f; n >>>= 7; if (n) byte |= 0x80; u8(byte); } while (n);
+    parts.push(b);
+  };
+  u8(mode); i32(20240501); str(md5); str(player); str('d'.repeat(32));
+  counts.forEach(u16); i32(score); u16(combo); u8(perfect); i32(mods); str(lifeBar);
+  i64(BigInt(Date.parse(time)) * 10000n + 621355968000000000n);
+  i32(data); parts.push(new Uint8Array(data).fill(0x5d)); i64(onlineId);
+  const all = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) { all.set(p, at); at += p.length; }
+  return truncate ? all.subarray(0, all.length - truncate) : all;
+}
+
+/** A stand-in for an R2 bucket binding: head, put and delete over a Map, with a log. */
+function fakeBucket() {
+  const objects = new Map();
+  const log = [];
+  return {
+    objects, log,
+    head: async key => (objects.has(key) ? { key, size: objects.get(key).bytes.length } : null),
+    put: async (key, bytes, options) => { log.push(`put ${key}`); objects.set(key, { bytes: new Uint8Array(bytes), options }); return { key }; },
+    delete: async key => { log.push(`delete ${key}`); objects.delete(key); },
+  };
+}
+
+/** POSTs a showcase entry as multipart/form-data, the way the UI uploads an .osr. */
+async function upload(env, as, fields, now = OPEN) {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    if (value instanceof Uint8Array) form.append(key, new Blob([value]), 'play.osr');
+    else form.append(key, String(value));
+  }
+  const request = new Request(`${BASE}/api/top10/plays`, { method: 'POST', headers: { Authorization: `Bearer ${await makeSession(SECRET, as, now)}` }, body: form });
+  const res = await api.addPlay(request, env, now);
+  return { status: res.status, body: await res.json() };
+}
+
+/** A score as osu!'s API answers it with x-api-version 20240529. */
+const apiScore = (id, { user = 6, ruleset = 2, ended = '2026-04-02T18:00:00Z', replay = true, legacy = null, beatmap = 777, checksum = 'c'.repeat(32) } = {}) => ({
+  id, legacy_score_id: legacy, ruleset_id: ruleset, user_id: user, beatmap_id: beatmap, ended_at: ended, has_replay: replay, passed: true,
+  user: { id: user, username: `Player${user}` }, beatmap: { id: beatmap, checksum, version: 'Insane' }, beatmapset: { artist: 'Camellia', title: 'Exit This Earth' },
+});
+const osuEnv = (extra = {}) => envWith({ OSU_CLIENT_ID: '73866', OSU_URL: OSU, ...extra });
+
+test('the .osr header: every field, a UTF-8 name, long strings, and junk refused', () => {
+  const replay = parseOsr(osrFile({ player: 'João Ç', mods: 8 | 16 | 64 | 512, time: '2026-06-01T20:30:00Z', onlineId: 4567890123 }));
+  assert.deepEqual({ ...replay, version: undefined }, {
+    mode: 2, version: undefined, beatmapMd5: 'c'.repeat(32), player: 'João Ç', replayMd5: 'd'.repeat(32),
+    counts: { n300: 900, n100: 20, n50: 300, geki: 0, katu: 5, miss: 2 }, score: 5000000, combo: 850, perfect: false, mods: 600,
+    time: at('2026-06-01T20:30:00Z'), onlineId: 4567890123, accuracy: 99.43,
+  });
+  assert.deepEqual(modNames(replay.mods), ['HD', 'HR', 'NC']);
+  assert.equal(parseOsr(osrFile({ mode: 0 })).mode, 0, 'other rulesets parse; the API refuses them');
+  assert.equal(parseOsr(osrFile({ onlineId: 0 })).onlineId, null);
+  for (const [bad, why] of [
+    [osrFile({ truncate: 20 }), 'cut short in the replay data'],
+    [osrFile().subarray(0, 40), 'cut short in the header'],
+    [osrFile({ md5: 'not an md5' }), 'a map hash that isn’t MD5'],
+    [osrFile({ player: '' }), 'no player'],
+    [osrFile({ time: '1990-01-01T00:00:00Z' }), 'a timestamp from before osu!'],
+    [new TextEncoder().encode('{"not":"a replay"}'), 'JSON'],
+    [new Uint8Array(0), 'empty'],
+  ]) assert.equal(parseOsr(bad), null, why);
+  assert.equal(replayFileName({ player: 'Player6', map: { artist: 'Camellia', title: 'Exit/This: Earth?', version: 'Insane' }, time: at('2026-06-01T20:30:00Z') }), 'Player6 - Camellia - ExitThis Earth [Insane] (2026-06-01).osr');
+  assert.equal(replayFileName({ player: 'João', map: null, time: at('2026-06-01T20:30:00Z') }), 'João (2026-06-01).osr');
+  assert.equal(attachment('João (2026-06-01).osr'), 'attachment; filename="Joao (2026-06-01).osr"; filename*=UTF-8\'\'Jo%C3%A3o%20(2026-06-01).osr');
+});
+
+test('osu!’s score answer, read in both formats', () => {
+  assert.deepEqual(scoreFromApi(apiScore(9001, { legacy: 555 })), {
+    solo: 9001, legacy: 555, ruleset: 2, userId: 6, username: 'Player6', beatmapId: 777, checksum: 'c'.repeat(32),
+    map: { artist: 'Camellia', title: 'Exit This Earth', version: 'Insane' }, time: at('2026-04-02T18:00:00Z'), hasReplay: true,
+  });
+  const old = { id: 555, mode: 'fruits', mode_int: 2, user_id: 6, created_at: '2026-04-02T18:00:00+00:00', replay: false, beatmap: { id: 777 } };
+  assert.deepEqual([scoreFromApi(old, { legacyRoute: true }).legacy, scoreFromApi(old, { legacyRoute: true }).solo, scoreFromApi(old).ruleset], [555, null, 2]);
+});
+
+test('a score link is checked with the osu! API: one call per entry, the token kept, never on a read', async () => {
+  const env = osuEnv();
+  osuRoutes['/api/v2/scores/9001'] = apiScore(9001, { legacy: 555 });
+  osuRoutes['/api/v2/scores/9002'] = apiScore(9002, { user: 7, replay: false, beatmap: 778 });
+  // Player 6 isn't in the exported data at all: osu!'s answer is enough now.
+  const first = await addPlay(env, 5, { score: 'https://osu.ppy.sh/scores/9001', caption: 'nobody FCs this' });
+  assert.equal(first.status, 201);
+  assert.deepEqual({ ...first.body.play, created: undefined }, {
+    id: 1, year: 2026, submitter: 5, player: 6, score: 9001, beatmap: 777, caption: 'nobody FCs this', clip: null, created: undefined,
+    played: '2026-04-02T18:00:00Z', endorsements: 0, replay: { kind: 'osu', url: 'https://osu.ppy.sh/scores/9001/download' },
+  });
+  const second = await addPlay(env, 5, { score: '9002' });
+  assert.deepEqual([second.status, second.body.play.replay], [201, null], 'osu! keeps no replay of it: no button');
+  assert.deepEqual(osuCalls.map(c => c.path), ['/oauth/token', '/api/v2/scores/9001', '/api/v2/scores/9002'], 'one token, one call per entry');
+  const tokenCall = new URLSearchParams(osuCalls[0].body);
+  assert.deepEqual([tokenCall.get('client_id'), tokenCall.get('grant_type'), tokenCall.get('scope')], ['73866', 'client_credentials', 'public']);
+  assert.equal(osuCalls[1].headers.get('Authorization'), 'Bearer app-token');
+  assert.equal(osuCalls[1].headers.get('x-api-version'), '20240529');
+
+  // The same score by its legacy link: osu! says it's 9001, already in.
+  osuRoutes['/api/v2/scores/fruits/555'] = apiScore(9001, { legacy: 555 });
+  const again = await addPlay(env, 8, { score: 'https://osu.ppy.sh/scores/fruits/555' });
+  assert.deepEqual([again.status, again.body.code, again.body.id], [409, 'duplicate', 1]);
+  const calls = osuCalls.length;
+  assert.equal((await addPlay(env, 8, { score: 'https://osu.ppy.sh/scores/9001' })).status, 409);
+  assert.equal(osuCalls.length, calls, 'a link already in the showcase doesn’t ask osu!');
+
+  // Reads never ask osu!.
+  await call(api.plays, env, { path: '/api/top10/plays' });
+  await call(api.plays, env, { as: 5, path: '/api/top10/plays?player=6' });
+  assert.equal(osuCalls.length, calls);
+  const listed = (await call(api.plays, env, { path: '/api/top10/plays' })).body.plays;
+  assert.deepEqual(listed.map(p => [p.id, p.replay?.kind ?? null]), [[1, 'osu'], [2, null]]);
+});
+
+test('osu!’s answer decides: catch only, a PT player, this year, the player named; 404s refused; osu! down falls back to the data', async () => {
+  const env = osuEnv();
+  osuRoutes['/api/v2/scores/1'] = apiScore(1, { ruleset: 0 });
+  osuRoutes['/api/v2/scores/2'] = apiScore(2, { user: 999 });
+  osuRoutes['/api/v2/scores/3'] = apiScore(3, { ended: '2025-12-31T23:59:00Z' });
+  osuRoutes['/api/v2/scores/4'] = apiScore(4, { user: 6 });
+  osuRoutes['/api/v2/scores/5000000001'] = 503;
+  const refused = async (body, status, code) => {
+    const out = await addPlay(env, 5, body);
+    assert.deepEqual([out.status, out.body.code], [status, code], `${JSON.stringify(body)} → ${out.body.error}`);
+    return out;
+  };
+  await refused({ score: 'https://osu.ppy.sh/scores/1' }, 422, 'mode');
+  await refused({ score: 'https://osu.ppy.sh/scores/2' }, 422, 'not_pt');
+  assert.equal((await refused({ score: 'https://osu.ppy.sh/scores/3' }, 422, 'wrong_year')).body.year, 2025);
+  assert.equal((await refused({ score: 'https://osu.ppy.sh/scores/4', player: 7 }, 422, 'not_theirs')).body.player, 6);
+  assert.match((await refused({ score: 'https://osu.ppy.sh/scores/404404' }, 422, 'not_found')).body.error, /replay \(\.osr\) or a clip/);
+  // osu! answers 503: the exported data still knows player 2's score.
+  const fallback = await addPlay(env, 5, { score: 'https://osu.ppy.sh/scores/5000000001', player: 2 });
+  assert.deepEqual([fallback.status, fallback.body.play.player, fallback.body.play.replay], [201, 2, null]);
+});
+
+test('an .osr upload: parsed, checked, stored once by its SHA-256 in R2, and linked from the entry', async () => {
+  const noBucket = envWith();
+  const replay = osrFile({ player: 'player6' });
+  const off = await upload(noBucket, 5, { replay });
+  assert.deepEqual([off.status, off.body.code], [503, 'no_replays'], 'uploads need the REPLAYS binding');
+  assert.equal((await addPlay(noBucket, 5, { player: 6, clip: 'https://youtu.be/x' })).status, 201, 'everything else works without it');
+
+  const bucket = fakeBucket();
+  const env = osuEnv({ REPLAYS: bucket });
+  osuRoutes[`/api/v2/beatmaps/lookup?checksum=${'c'.repeat(32)}`] = { id: 777, version: 'Insane', checksum: 'c'.repeat(32), beatmapset: { artist: 'Camellia', title: 'Exit This Earth' } };
+  const out = await upload(env, 5, { replay, caption: 'offline ScoreV2 run' });
+  assert.equal(out.status, 201, out.body.error);
+  const sha = [...bucket.objects.keys()][0].slice('replays/'.length, -'.osr'.length);
+  assert.match(sha, /^[0-9a-f]{64}$/);
+  assert.deepEqual({ ...out.body.play, created: undefined }, {
+    id: 1, year: 2026, submitter: 5, player: 6, score: null, beatmap: 777, caption: 'offline ScoreV2 run', clip: null, created: undefined,
+    played: '2026-06-01T20:30:00Z', endorsements: 0,
+    replay: { kind: 'file', url: `${DATA}replays/${sha}.osr`, name: 'Player6 - Camellia - Exit This Earth [Insane] (2026-06-01).osr' },
+  });
+  const stored = bucket.objects.get(`replays/${sha}.osr`);
+  assert.deepEqual(stored.bytes, replay);
+  assert.equal(stored.options.sha256, sha);
+  assert.equal(stored.options.httpMetadata.contentType, 'application/octet-stream');
+  assert.match(stored.options.httpMetadata.contentDisposition, /^attachment; filename="Player6 - Camellia - Exit This Earth \[Insane\] \(2026-06-01\)\.osr"/);
+  assert.deepEqual(osuCalls.map(c => c.path), ['/oauth/token', `/api/v2/beatmaps/lookup?checksum=${'c'.repeat(32)}`], 'one call for the map');
+  const asJson = await addPlay(env, 5, { replay: 'T1NSIGJ5dGVz' });
+  assert.deepEqual([asJson.status, asJson.body.code], [400, 'shape'], 'a replay comes as a file, never in JSON');
+
+  // The same file again, by anyone: refused, and not stored twice.
+  for (const as of [5, 8]) {
+    const twin = await upload(env, as, { replay });
+    assert.deepEqual([twin.status, twin.body.code, twin.body.id], [409, 'duplicate', 1]);
+  }
+  assert.deepEqual(bucket.log, [`put replays/${sha}.osr`]);
+  // A file already in R2 (say, from an entry since removed and re-added) isn't put again.
+  const other = osrFile({ player: 'Player7', time: '2026-07-01T10:00:00Z' });
+  bucket.objects.set('replays/placeholder', { bytes: other });
+  const second = await upload(env, 5, { replay: other });
+  assert.equal(second.status, 201);
+  assert.equal(bucket.log.length, 2);
+
+  // Refusals: not catch, not a replay, too big, not a PT player, another year, a player named who isn't the replay's.
+  const refused = async (fields, status, code) => {
+    const res = await upload(env, 8, fields);
+    assert.deepEqual([res.status, res.body.code], [status, code], `${code}: ${res.body.error}`);
+  };
+  await refused({ replay: osrFile({ mode: 0, player: 'Player9' }) }, 400, 'mode');
+  await refused({ replay: new TextEncoder().encode('not a replay at all') }, 400, 'osr');
+  await refused({ replay: new Uint8Array(MAX_REPLAY_BYTES + 1) }, 413, 'too_big');
+  await refused({ replay: osrFile({ player: 'SomeoneElse' }) }, 422, 'not_pt');
+  await refused({ replay: osrFile({ player: 'Player9', time: '2025-12-30T10:00:00Z' }) }, 422, 'wrong_year');
+  await refused({ replay: osrFile({ player: 'Player9', time: '2026-02-02T10:00:00Z' }), player: 10 }, 422, 'not_theirs');
+
+  // The entry's submitter removes it: the file goes too, since nothing else uses it.
+  const del = await call(api.deletePlay, env, { as: 5, method: 'DELETE', path: '/api/top10/plays/1', id: '1' });
+  assert.equal(del.status, 200);
+  assert.ok(!bucket.objects.has(`replays/${sha}.osr`));
+});
+
+test('an .osr with a score link must be that score’s; osu!’s own replay is linked first', async () => {
+  const bucket = fakeBucket();
+  const env = osuEnv({ REPLAYS: bucket });
+  osuRoutes['/api/v2/scores/9100'] = apiScore(9100, { replay: false });
+  osuRoutes['/api/v2/scores/9101'] = apiScore(9101, { replay: true, beatmap: 779, checksum: 'e'.repeat(32) });
+  osuRoutes['/api/v2/scores/9102'] = apiScore(9102, { user: 7 });
+  const both = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9100', replay: osrFile({ player: 'Player6' }) });
+  assert.equal(both.status, 201, both.body.error);
+  assert.deepEqual([both.body.play.score, both.body.play.replay.kind], [9100, 'file'], 'osu! keeps none, so the upload is the link');
+  const kept = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9101', replay: osrFile({ player: 'Player6', md5: 'e'.repeat(32), time: '2026-04-03T10:00:00Z' }) });
+  assert.deepEqual([kept.status, kept.body.play.replay], [201, { kind: 'osu', url: 'https://osu.ppy.sh/scores/9101/download' }]);
+  const wrongMap = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9102', replay: osrFile({ player: 'Player6', md5: 'f'.repeat(32) }) });
+  assert.deepEqual([wrongMap.status, wrongMap.body.code], [422, 'replay_mismatch']);
+  assert.equal(osuCalls.filter(c => c.path.startsWith('/api/v2/beatmaps')).length, 0, 'the score call gives the map: no lookup');
+});
+
+// ---- Past editions (§13.10) ---------------------------------------------------------------------------------------
+
+/** A history file as top10/history/<edition>.json has it, with a voter from outside PT and an oddly numbered list. */
+const EDITION = {
+  edition: '2023-24',
+  label: '2023–24',
+  thread: 'https://osu.ppy.sh/community/forums/topics/1',
+  ballots: [
+    { voter: 1, post: 'https://osu.ppy.sh/community/forums/posts/11', picks: picks(2, 3, 4, 5, 6), mentions: [7], watch: [8] },
+    { voter: 2, post: 'https://osu.ppy.sh/community/forums/posts/12', picks: picks(1, 3, 4, 6, 5), mentions: [7], watch: [] },
+    // tartaruga57-style: "8. A / B … 9. C" kept as written.
+    { voter: 999, post: 'https://osu.ppy.sh/community/forums/posts/13', notes: 'not a PT player', picks: [...picks(1, 2, 3, 4, 5, 6, 7), { id: 8, spot: 8 }, { id: 9, spot: 8 }, { id: 10, spot: 9 }] },
+  ],
+};
+
+test('past editions: year keys, the file check, and the same score.js whatever the turnout', () => {
+  assert.deepEqual(['2025', '2023-24', '2023–24', 2020, 'next year'].map(editionYear), [2025, 2024, 2024, 2020, null]);
+  const { errors, warnings } = checkEdition(EDITION);
+  assert.deepEqual(errors, []);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /ballot 3 .*1, 2, 3, 4, 5, 6, 7, 8, 8, 9/);
+
+  const results = pastResults(EDITION, { importedAt: '2026-11-08T00:00:00Z' });
+  assert.deepEqual([results.year, results.edition, results.label, results.past, results.ballots], [2024, '2023-24', '2023–24', true, 3]);
+  const of = id => results.ranking.find(r => r.id === id);
+  // Player 1 voted, so only 2 of the 3 lists could name them: (10 + 10) / 2.
+  assert.deepEqual([of(1).points, of(1).eligible, of(1).score, of(1).rank], [20, 2, 10, 1]);
+  // 8 and 9 share spot 8 on the forum list, covering 8 and 9: (3 + 2) / 2 each; 10 at its written 9 gets 2.
+  assert.deepEqual([of(8).points, of(9).points, of(10).points], [2.5, 2.5, 2]);
+  assert.equal(of(7).mentions, 2);
+  assert.deepEqual(results.watch, [{ id: 8, count: 1 }]);
+
+  // One list (2020 had only Tris's) is still an edition.
+  const single = pastResults({ edition: '2020', label: '2020', ballots: [EDITION.ballots[0]] });
+  assert.deepEqual([single.year, single.ballots, single.ranking[0].id, single.ranking[0].score], [2020, 1, 2, 10]);
+  // A broken file isn't imported.
+  const broken = { edition: '2022', ballots: [{ voter: 1, picks: [{ id: 1, spot: 1 }, { id: 'Hiroto-', spot: 2 }] }] };
+  assert.equal(checkEdition(broken).errors.length, 2, 'a voter on their own list, and a name instead of an id');
+  assert.throws(() => pastResults(broken), /2022/);
+});
+
+test('past editions are served by GET /api/top10/results and listed on the hub', async () => {
+  const env = envWith();
+  const editions = [pastResults(EDITION, { importedAt: '2026-11-08T00:00:00Z' }), pastResults({ edition: '2020', label: '2020', ballots: [EDITION.ballots[0]] })];
+  env.ECONOMY.sqlite.exec(pastSql(editions, { importedAt: at('2026-11-08T00:00:00Z') }));
+  env.ECONOMY.sqlite.exec(pastSql(editions.slice(0, 1))); // run again: it replaces, never doubles
+  const served = await call(api.results, env, { now: OPEN, path: '/api/top10/results?year=2024' });
+  assert.equal(served.status, 200);
+  assert.deepEqual([served.body.label, served.body.edition, served.body.past, served.body.ranking[0].id], ['2023–24', '2023-24', true, 1]);
+  assert.equal((await call(api.results, env, { now: OPEN, path: '/api/top10/results?year=2021' })).body.code, 'not_published');
+  assert.deepEqual((await call(api.hub, env, { now: OPEN })).body.editions, [{ year: 2024, label: '2023–24' }, { year: 2020, label: '2020' }]);
+  assert.equal(env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM top10_results').get().n, 2);
+});
+
+const HISTORY_2025 = new URL('./history/2025.json', import.meta.url);
+test('past editions: 2025 comes out as §13.10 says', { skip: fs.existsSync(HISTORY_2025) ? false : 'top10/history/2025.json isn’t here yet' }, () => {
+  const results = pastResults(JSON.parse(fs.readFileSync(HISTORY_2025, 'utf8')));
+  // Hiroto- 10.00, anomi 8.63 (2nd on #1 votes), ExPin 8.63, AfonsoMpt 6.78, GoncS 6.22, Rosa 5.56, AlexFenom 4.25,
+  // DemiGod Yoxide 3.13, Leo5h 3.00, TRUE_PLAYER36 2.25, and Nelson 1.00 in 11th.
+  assert.deepEqual(results.ranking.slice(0, 11).map(r => [r.rank, r.score]), [[1, 10], [2, 8.63], [3, 8.63], [4, 6.78], [5, 6.22], [6, 5.56], [7, 4.25], [8, 3.13], [9, 3], [10, 2.25], [11, 1]]);
+  assert.equal(results.ballots, 9);
 });

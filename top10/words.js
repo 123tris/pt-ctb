@@ -77,5 +77,10 @@ export function analyse(body, others = []) {
   return { words: list.length, flags };
 }
 
-/** What a write-up pays the writer in bananas (the bot's rule, §9): 1 per 4 words, at most 10. */
-export const bananasFor = n => Math.min(10, Math.floor(n / 4));
+/**
+ * What a write-up on a ranked player pays its writer, in bananas, if it's approved and unflagged: 1 per word, at most
+ * 40 (§9 and §13.6, since 2026-11-08). The bot works it out itself from the words finalize sends; this is for the
+ * ballot page's counter ("18 words · 🍌 18 of 40").
+ */
+export const MAX_WORD_BANANAS = 40;
+export const bananasFor = n => Math.min(MAX_WORD_BANANAS, Math.max(0, Math.floor(n)));

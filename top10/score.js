@@ -44,10 +44,11 @@ const median = sorted => (sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : 
 /**
  * The results JSON (§13.5) from the counted ballots, [{ voter, picks: [{ id, spot }], mentions: [id], watch: [id] }],
  * and the write-ups to count in the stats, [{ voter, subject, words }] (the caller passes the ones that aren't struck).
- * Returns { results } or { error: 'turnout', ballots } below MIN_BALLOTS counted ballots.
+ * Returns { results } or { error: 'turnout', ballots } below `minBallots` counted ballots (MIN_BALLOTS for a season;
+ * past editions imported from the forum threads pass 1, since 2020 had a single list, top10/past.js).
  */
-export function computeResults({ year, ballots, writeups = [], finalizedAt }) {
-  if (ballots.length < MIN_BALLOTS) return { error: 'turnout', ballots: ballots.length };
+export function computeResults({ year, ballots, writeups = [], finalizedAt, minBallots = MIN_BALLOTS }) {
+  if (ballots.length < Math.max(1, minBallots)) return { error: 'turnout', ballots: ballots.length };
   const voters = new Set(ballots.map(b => b.voter));
   const players = new Map();
   const entry = id => {
