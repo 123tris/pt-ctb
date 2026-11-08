@@ -279,6 +279,23 @@ test('unlocks.json also goes up under its plain name, for the bot, only when it 
   assert.ok(!ctx2.ledger.retired['unlocks.json']);
 });
 
+test('the Top 10’s uploaded replays (replays/…) are never retired or pruned, however many exports go by', async () => {
+  const files = { 'players.json': '[1]' };
+  const dirs = folders({ files });
+  const replay = `replays/${'a'.repeat(64)}.osr`;
+  const ctx = context(dirs);
+  const r2 = fakeR2(ctx.budget, { [BUCKETS.data]: { [replay]: { body: 'osr bytes', modified: NOW - 30 * 24 * HOUR }, 'stale.json': 'old' } });
+  await upload({ ...ctx, client: r2 }, dirs);
+  assert.ok(!(replay in ctx.ledger.retired));
+  assert.ok('stale.json' in ctx.ledger.retired, 'anything else the export doesn’t name is retired as before');
+  const later = context(dirs, NOW + 3 * GRACE_MS);
+  later.ledger.retired = { ...ctx.ledger.retired, [replay]: NOW };
+  await upload({ ...later, client: fakeR2Wrap(r2, later.budget) }, dirs);
+  assert.ok(r2.buckets[BUCKETS.data].has(replay), 'kept, even if an older ledger had it retired');
+  assert.ok(!r2.buckets[BUCKETS.data].has('stale.json'));
+  assert.ok(!r2.log.includes(`delete ${BUCKETS.data}/${replay}`));
+});
+
 test('packs go up under hashed names as compressible binary, packs.json after meta.json; a stale packs.json keeps R2’s packs', async () => {
   const files = { 'players.json': '[1]' };
   const pack = Buffer.from([0x50, 0x54, 0x43, 0x42, 0xff, 0x00]);

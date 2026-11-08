@@ -23,12 +23,12 @@ import { pickRound, quizSets } from './daily.js';
 
 const nowSec = () => Math.floor(Date.now() / 1000);
 
-// Pages doesn't apply _headers to Functions, so these responses carry their own.
-const json = (body, status = 200) => new Response(JSON.stringify(body), {
+// Pages doesn't apply _headers to Functions, so these responses carry their own. Shared with top10/api.js.
+export const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
 });
-const problem = (error, status) => json({ error }, status);
+export const problem = (error, status) => json({ error }, status);
 
 const NOT_HERE = 'Bananas aren’t set up on this copy of the site.';
 const SIGN_IN = 'Sign in with osu! first (or again: a sign-in lasts 30 days).';

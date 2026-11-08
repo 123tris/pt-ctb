@@ -59,6 +59,29 @@ const PAGES = {
   duel: ['Duel', 'A rated 1v1 osu!catch duel between two Portuguese players, round by round.'],
 };
 
+// The Top 10 of the year (/top10, /top10/<view>, /top10/<year>, the new web client's pages): the bot's announcement
+// links /top10, so it gets its own preview rather than the home page's.
+const TOP10 = {
+  '': ['Top 10 of the year', 'Portugal’s osu!catch community ranks the year’s 10 best players: lists and write-ups all December, the reveal on 2 January.'],
+  vote: ['Your ballot · Top 10 of the year', 'Rank your top 10 Portuguese osu!catch players of the year, and say why each one made your list.'],
+  ballots: ['Ballots · Top 10 of the year', 'Every Top 10 list sent in so far, with what each voter wrote about the players on it.'],
+  plays: ['Plays of the year · Top 10', 'The year’s standout osu!catch plays by Portuguese players, picked by the community, with replays and clips.'],
+  dossier: ['Dossier · Top 10 of the year', 'A Portuguese osu!catch player’s year in numbers, for the Top 10 vote: plays, #1s, Dan passes and more.'],
+};
+/** An edition's name from its year key: 2024 is the one "2023–24" edition (§13.10). */
+const top10Label = year => (year === 2024 ? '2023–24' : String(year));
+
+/** The Top 10's preview, or null when the address isn't one of its pages. */
+function top10Page(path, pair) {
+  const [section, view = '', ...rest] = path.split('/');
+  if (section !== 'top10' || rest.length > 2) return null;
+  if (/^\d{4}$/.test(view)) {
+    const label = top10Label(Number(view));
+    return pair([`Top 10 of ${label}`, `Portugal’s osu!catch Top 10 of ${label}: who the community ranked, the scores, and what the voters wrote.`]);
+  }
+  return TOP10[view] ? pair(TOP10[view]) : null;
+}
+
 /**
  * A page's preview from its address alone: { title, description, kind?, id?, a?, b?, year? } or null for an address
  * that is no page. `kind` asks for data to name what the page is about (see withData).
@@ -66,11 +89,13 @@ const PAGES = {
 export function describe(pathname) {
   let path = String(pathname).replace(/^\/+/, '').replace(/\/+$/, '');
   path = unmoved(path);
+  const pair = ([title, description]) => ({ title: title.includes(SITE) ? title : `${title} · ${SITE}`, description });
+  // Before the route table: the Top 10's pages are the new client's, and assets/js/core/routes.js may not list them yet.
+  if (path === 'top10' || path.startsWith('top10/')) return top10Page(path, pair);
   const found = matchPage(path);
   if (!found) return null;
   const { pattern, params } = found;
   const section = pattern.split('/')[0];
-  const pair = ([title, description]) => ({ title: title.includes(SITE) ? title : `${title} · ${SITE}`, description });
   const isId = v => /^\d{1,10}$/.test(v ?? '');
 
   if (section === 'rankings') return pair(BOARDS[params.board] ?? BOARDS.converts);

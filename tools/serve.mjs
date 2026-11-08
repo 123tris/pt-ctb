@@ -12,7 +12,10 @@
 // --economy does the same for Bananas (the daily game, wallet and admin requests, the bot's inbox: economy/api.js) and
 // turns "Sign in with osu!" on, with a local stand-in for osu! that asks which player to be (the admins first). With
 // --local-data and no admin.json of its own, the data gets tools/admin-sample.json as admin.json, so #/admin has
-// settings and a log to show.
+// settings and a log to show. It runs the Top 10's endpoints too (/api/top10/*, top10/api.js), with uploaded replays
+// kept in a temp folder (served at /local-replays/) and no osu! API (a score is checked against the data). The season
+// is the built-in one unless TOP10_SEASON is set in the shell (top10/season.js), e.g. one that's open now:
+//   TOP10_SEASON='{"year":2026,"opens":"2026-11-01T00:00:00Z","closes":"2026-11-30T23:59:59Z","reveal":"2026-12-02T12:00:00Z","thanksUntil":"2026-12-31T23:59:59Z"}'
 //
 // Review aids, for requests to localhost only (tools/local-review.js, never deployed): a "Design: new / old" button
 // sits in the corner. "Old" sets a cookie, and then every site file this branch has changed since it last took in dev is served as dev had it, straight from git, so the old CSS,
@@ -35,6 +38,8 @@ const localData = process.argv.includes('--local-data');
 /** The export --local-data serves at /data/: the folder named after it, or this repo's data/. */
 const dataArg = process.argv[process.argv.indexOf('--local-data') + 1];
 const dataDir = localData && dataArg && !dataArg.startsWith('--') && !/^\d+$/.test(dataArg) ? path.resolve(dataArg) : path.join(root, 'data');
+/** Where --economy keeps the Top 10's uploaded replays: a temp folder standing in for the REPLAYS R2 bucket. */
+const replaysDir = path.join(os.tmpdir(), 'ptctb-replays-local');
 const usage = process.argv.includes('--usage') ? await usageFunctions() : null;
 const economy = process.argv.includes('--economy') ? await economyFunctions() : null;
 
@@ -43,17 +48,36 @@ const economy = process.argv.includes('--economy') ? await economyFunctions() : 
  * which player to be instead of asking osu! (localhost only; it makes a real session token with the local secret).
  */
 async function economyFunctions() {
-  const [{ sqliteD1 }, api, { makeSession }, { makeProof }, { recordSignin }] = await Promise.all([
+  const [{ sqliteD1 }, api, { makeSession }, { makeProof }, { recordSignin }, top10] = await Promise.all([
     import('./lib/d1-sqlite.mjs'), import('../economy/api.js'), import('../signin/session.js'), import('../signin/proof.js'), import('../economy/store.js'),
+    import('../top10/api.js'),
   ]);
   const file = path.join(os.tmpdir(), 'ptctb-economy-local.sqlite');
   console.log(`Bananas Functions over ${file}: DAILY_SEED, ECONOMY_INBOX_KEY and the session secret are all "local".`);
-  const env = { ECONOMY: sqliteD1(file), OSU_CLIENT_SECRET: 'local', DAILY_SEED: 'local', ECONOMY_INBOX_KEY: 'local' };
+  const env = {
+    ECONOMY: sqliteD1(file), OSU_CLIENT_SECRET: 'local', DAILY_SEED: 'local', ECONOMY_INBOX_KEY: 'local',
+    REPLAYS: folderBucket(replaysDir), ...(process.env.TOP10_SEASON ? { TOP10_SEASON: process.env.TOP10_SEASON } : {}),
+    ...(process.env.ADMIN_OSU_IDS ? { ADMIN_OSU_IDS: process.env.ADMIN_OSU_IDS } : {}),
+  };
   const routes = {
     'GET /api/daily': api.daily, 'POST /api/daily/guess': api.dailyGuess, 'GET /api/daily/cover': api.dailyCover,
     'POST /api/wallet/request': api.walletRequest, 'GET /api/wallet/requests': api.walletRequests,
     'GET /api/economy/inbox': api.economyInbox, 'POST /api/economy/ack': api.economyAck,
     'POST /api/admin/request': api.adminRequest, 'GET /api/admin/requests': api.adminRequests,
+    'GET /api/top10': top10.hub, 'GET /api/top10/ballots': top10.ballots,
+    'GET /api/top10/ballot': top10.myBallot, 'PUT /api/top10/ballot': top10.saveBallot,
+    'POST /api/top10/ballot/submit': top10.submitBallot, 'POST /api/top10/ballot/withdraw': top10.withdrawBallot,
+    'GET /api/top10/plays': top10.plays, 'POST /api/top10/plays': top10.addPlay, 'POST /api/top10/thanks': top10.thank,
+    'GET /api/top10/results': top10.results, 'GET /api/top10/admin/queue': top10.adminQueue,
+    'POST /api/top10/admin/action': top10.adminAction, 'POST /api/top10/admin/finalize': top10.adminFinalize,
+  };
+  /** The routes with an :id in them (functions/api/top10/plays/[id]/…). */
+  const routeFor = (method, pathname) => {
+    if (routes[`${method} ${pathname}`]) return routes[`${method} ${pathname}`];
+    const play = /^\/api\/top10\/plays\/(\d+)(\/endorse)?$/.exec(pathname);
+    if (play && method === 'DELETE' && !play[2]) return (request, e) => top10.deletePlay(request, e, play[1]);
+    if (play && method === 'POST' && play[2]) return (request, e) => top10.endorse(request, e, play[1]);
+    return null;
   };
   /** /auth/login: a form picking the player; then back to the site the way /auth/callback sends it. */
   async function login(request) {
@@ -75,7 +99,18 @@ async function economyFunctions() {
     const answer = new URLSearchParams({ id: String(p.id), name: p.name, state, proof: await makeProof('local', p.id), token: await makeSession('local', p.id) });
     return new Response(null, { status: 302, headers: { Location: `/#signin?${answer}` } });
   }
-  return { env, routes, login };
+  return { env, routeFor, login };
+}
+
+/** The REPLAYS binding's head, put and delete, over a folder. */
+function folderBucket(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const at = key => path.join(dir, path.basename(key));
+  return {
+    head: async key => (fs.existsSync(at(key)) ? { key } : null),
+    put: async (key, bytes) => { fs.writeFileSync(at(key), bytes); return { key }; },
+    delete: async key => { fs.rmSync(at(key), { force: true }); },
+  };
 }
 
 async function usageFunctions() {
@@ -103,7 +138,7 @@ const serveUsage = (req, res, url, handler) => serveFunction(req, res, url, requ
 async function serveFunction(req, res, url, handler) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
-  const request = new Request(url, { method: req.method, headers: req.headers, body: req.method === 'POST' ? Buffer.concat(chunks) : undefined });
+  const request = new Request(url, { method: req.method, headers: req.headers, body: ['POST', 'PUT', 'DELETE'].includes(req.method) && chunks.length ? Buffer.concat(chunks) : undefined });
   const response = await handler(Object.assign(request, { cf: { country: 'PT' } })).catch(e => new Response(String(e?.stack ?? e), { status: 500 }));
   res.writeHead(response.status, Object.fromEntries(response.headers)).end(Buffer.from(await response.arrayBuffer()));
 }
@@ -144,10 +179,16 @@ http.createServer(async (req, res) => {
   if (usage && url.pathname === '/api/hit' && req.method === 'POST') return serveUsage(req, res, url, usage.recordHit);
   if (usage && url.pathname === '/stats') return serveUsage(req, res, url, usage.stats);
   if (economy && isLocal(req)) {
-    const route = economy.routes[`${req.method} ${url.pathname}`];
-    // The daily game's pool comes from this server's data (with --local-data) or R2's.
-    const env = { ...economy.env, DATA_URL: localData ? `${url.origin}/data/` : '' };
+    const route = economy.routeFor(req.method, url.pathname);
+    // The daily game's pool and the Top 10's players come from this server's data (with --local-data) or R2's.
+    const env = { ...economy.env, DATA_URL: localData ? `${url.origin}/data/` : '', REPLAYS_URL: `${url.origin}/local-replays/` };
     if (route) return serveFunction(req, res, url, request => route(request, env));
+    if (url.pathname.startsWith('/local-replays/')) {
+      const replay = path.join(replaysDir, path.basename(url.pathname));
+      if (!fs.existsSync(replay)) { res.writeHead(404).end(); return; }
+      res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': 'attachment' }).end(fs.readFileSync(replay));
+      return;
+    }
     if (url.pathname === '/auth/login') return serveFunction(req, res, url, economy.login);
     // With `home` set the site sends its usage counts; without --usage there's nowhere to keep them.
     if (!usage && url.pathname === '/api/hit') { res.writeHead(204).end(); return; }

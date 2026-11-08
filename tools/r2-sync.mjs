@@ -57,6 +57,13 @@ const MANIFESTS = ['meta.json', 'packs.json'];
 export const PLAIN = ['unlocks.json'];
 
 /**
+ * Key prefixes the site itself writes into the data bucket, which no export names: the Top 10 showcase's uploaded
+ * replays (replays/<sha256>.osr, top10/api.js, through the REPLAYS binding). They're never retired or pruned.
+ */
+export const KEPT_PREFIXES = ['replays/'];
+const keptForever = key => KEPT_PREFIXES.some(prefix => key.startsWith(prefix));
+
+/**
  * meta.json: browsers always revalidate it (max-age=0); Cloudflare's edge keeps it a minute (s-maxage=60), so however
  * many visitors there are it costs R2 at most one read a minute per edge location. A PLAIN copy is kept five minutes at
  * the edge. Everything else never changes.
@@ -175,7 +182,7 @@ export async function upload({ client, budget: b, ledger, now = Date.now() }, { 
     'packs.json', ...packFiles.map(f => f.key), ...keptPacks]);
 
   // Prune: files retired over a day ago that the new manifest doesn't bring back. Deletes are free.
-  const prune = remote.filter(o => !named.has(o.key) && ledger.retired[o.key] && now - ledger.retired[o.key] > GRACE_MS);
+  const prune = remote.filter(o => !named.has(o.key) && !keptForever(o.key) && ledger.retired[o.key] && now - ledger.retired[o.key] > GRACE_MS);
   const uploads = [...local.files, ...packFiles].filter(f => !remoteByKey.has(f.key));
   const metaChanged = remoteByKey.get('meta.json')?.etag !== md5(local.meta.body);
   const packsChanged = Boolean(local.packs) && remoteByKey.get('packs.json')?.etag !== md5(local.packs.body);
@@ -196,7 +203,7 @@ export async function upload({ client, budget: b, ledger, now = Date.now() }, { 
   // Bookkeeping for the next prunes: what's on R2 now and not named is retired from now (if it wasn't already).
   const retired = {};
   for (const o of remote) {
-    if (named.has(o.key) || prune.includes(o)) continue;
+    if (named.has(o.key) || keptForever(o.key) || prune.includes(o)) continue;
     retired[o.key] = ledger.retired[o.key] ?? now;
   }
   ledger.retired = retired;
