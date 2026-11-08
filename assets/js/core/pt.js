@@ -2168,4 +2168,7 @@ export const PT = {
   'Add a legendary play': 'Adicionar uma jogada lendária',
   'Which plays': 'Que jogadas',
   'The plays that made PT catch history, from any year, for the all-time ballot. 🔥 the ones every voter should know; the most endorsed rise to the top.': 'As jogadas que fizeram história no catch PT, de qualquer ano, para o boletim de sempre. Dá 🔥 às que todos os votantes devem conhecer; as mais apoiadas sobem para o topo.',
+  'your all-time write-up about {name}': 'o teu texto de sempre sobre {name}',
+  'your all-time ballot': 'o teu boletim de sempre',
+  'Neither ballot has 5 counted lists: {year} yearly and {alltime} all-time. Nothing was saved.': 'Nenhum boletim tem 5 listas contadas: {year} do ano e {alltime} de sempre. Nada foi guardado.',
 };

@@ -131,7 +131,7 @@ function ballotsTable(ctx: Ctx, d: Data): Safe {
 function logList(ctx: Ctx, d: Data): Safe {
   const { t, fmt } = ctx;
   const log = d.queue?.log ?? [];
-  return log.length ? html`<ul class="admin-log">${log.slice(0, 100).map(l => html`<li><b>${nameOf(d.core, l.admin)}</b> ${l.action} <code>${l.target}</code>${l.reason ? html` · ${l.reason}` : ''}
+  return log.length ? html`<ul class="admin-log">${log.slice(0, 100).map(l => html`<li><b>${nameOf(d.core, l.admin)}</b> ${l.action} <code>${l.target}</code>${l.kind === 'alltime' || l.target.includes(':alltime:') ? html` <span class="t10-pill t10-pill-legend">👑</span>` : ''}${l.reason ? html` · ${l.reason}` : ''}
       ${toSec(l.at) ? html` <span class="faint small">${fmt.dateTime(toSec(l.at))}</span>` : ''}</li>`)}</ul>` : html`<p class="small faint">${t('Nothing yet.')}</p>`;
 }
 

@@ -344,10 +344,14 @@ export function actionBar(ctx: Ctx, d: Data, e: Editor, access: Access): Safe {
 /** What a mod did, in words: "Struck your write-up about Hiroto-: <reason>". */
 export function logLine(ctx: Ctx, core: CorePack, l: LogLine): string {
   const { t } = ctx;
-  const [kind, a, b] = l.target.split(':');
+  // An all-time target has "alltime:" after its type ("writeup:alltime:<voter>:<subject>", §13.11).
+  const parts = l.target.split(':');
+  const alltime = l.kind === 'alltime' || parts.includes('alltime');
+  const [kind, a, b] = parts.filter(p => p !== 'alltime');
   const what = kind === 'writeup' || (/^\d+$/.test(kind) && a !== undefined)
-    ? t('your write-up about {name}', { name: nameOf(core, Number(kind === 'writeup' ? b : a)) })
-    : kind === 'play' ? t('your showcase entry') : t('your ballot');
+    ? (alltime ? t('your all-time write-up about {name}', { name: nameOf(core, Number(kind === 'writeup' ? b : a)) })
+      : t('your write-up about {name}', { name: nameOf(core, Number(kind === 'writeup' ? b : a)) }))
+    : kind === 'play' ? t('your showcase entry') : alltime ? t('your all-time ballot') : t('your ballot');
   const did = ({
     strike: t('Struck {what}', { what }), restore: t('Restored {what}', { what }), 'hide-play': t('Hid {what}', { what }),
     'show-play': t('Showed {what} again', { what }), void: t('Voided {what}', { what }), unvoid: t('Restored {what}', { what }),

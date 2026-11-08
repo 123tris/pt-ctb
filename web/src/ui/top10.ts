@@ -88,7 +88,10 @@ export interface LogLine {
   year?: number;
   admin: number;
   action: string;
+  /** "writeup:<voter>:<subject>", "ballot:<voter>", "play:<id>"; an all-time one has "alltime:" after the type. */
   target: string;
+  /** Whose ballot it was about (§13.11); missing means 'year', and the target says so too. */
+  kind?: Kind;
   reason?: string | null;
   at?: string | number | null;
 }

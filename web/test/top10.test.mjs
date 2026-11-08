@@ -111,3 +111,14 @@ test('finalize’s preview: both kinds, the one left unpublished said so, and a 
   assert.doesNotMatch(old, /all time/);
   assert.match(old, /Finalized\./);
 });
+
+test('the mods’ log on your ballot: all-time targets name the right player and say which ballot', async () => {
+  const { logLine } = await import('../src/views/top10-ballot.ts');
+  const core = { players: { rows: 2, id: [111, 222], name: { at: row => ['Alice', 'bob'][row] } } };
+  const ctx = ctxFor();
+  assert.equal(logLine(ctx, core, { admin: 1, action: 'strike', target: 'writeup:111:222', reason: 'filler' }), 'Struck your write-up about bob: filler');
+  assert.equal(logLine(ctx, core, { admin: 1, action: 'strike', target: 'writeup:alltime:111:222', kind: 'alltime', reason: null }), 'Struck your all-time write-up about bob');
+  assert.equal(logLine(ctx, core, { admin: 1, action: 'void', target: 'ballot:alltime:111', reason: 'alt' }), 'Voided your all-time ballot: alt');
+  assert.equal(logLine(ctx, core, { admin: 1, action: 'void', target: 'ballot:111', reason: 'alt' }), 'Voided your ballot: alt');
+  assert.equal(logLine(ctxFor('pt'), core, { admin: 1, action: 'void', target: 'ballot:alltime:111' }), 'Anulou o teu boletim de sempre');
+});
