@@ -24,6 +24,7 @@ export const PAGES = [
   'team',
   'glossary',
   'privacy',
+  'top10/:view?/:id?/:year?',
 ];
 
 /** Old addresses that moved: the Dan course is now a tab of Challenges (/dan?stage=3 → /challenges/dan?stage=3). */

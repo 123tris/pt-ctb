@@ -25,6 +25,7 @@ import { playerPicker, pickedRow } from '../ui/pickers.ts';
 import { mapLabel, type MapMeta } from '../ui/maps.ts';
 import { bananas, mapIdFrom, signInButton } from '../ui/bananas.ts';
 import { goalLabel } from '../ui/bounty.ts';
+import { adminTabs } from '../ui/admin-tabs.ts';
 import { monthLabel, slotName, tierName } from '../ui/hill.ts';
 import {
   GROUPS, actionText, describe, effectText, groupName, isAdmin, refusalText, starEdge, valueText,
@@ -501,6 +502,7 @@ export function render(ctx: Ctx, data: Data): Safe {
   const head = pageHead({
     title: t('Admin'),
     intro: t('Changes go to the bot as requests. It checks them, applies them within 15 minutes and logs them at the bottom of this page.'),
+    extra: adminTabs(ctx, 'bot'),
   });
   const only = (extra?: Value) => html`${head}${empty(html`<p>${t('Admins only.')}</p>${extra ?? ''}`)}`;
   const view = viewOf(ctx, data);

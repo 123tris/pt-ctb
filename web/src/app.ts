@@ -29,6 +29,8 @@ async function pageModule(pattern: string): Promise<RouterPage> {
   try {
     return (await import(`./entries/${entry}.ts`)).default as RouterPage;
   } catch (e) {
+    // A page of the new client's only (no old page): the router's error page.
+    if (!old) throw e;
     console.warn(`${entry}: the old page stands in:`, e);
     return oldPage(old);
   }

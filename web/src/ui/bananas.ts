@@ -72,6 +72,7 @@ export function kindLabel(ctx: Ctx, kind: string): string {
     'bounty.fee': t('Posting fee'), 'bounty.fund': t('Bounty funded'), 'bounty.refund': t('Bounty refund'),
     shop: t('Shop'), collect: t('Pouch collected'), adjust: t('Correction'), reverse: t('Reversed'),
     lost: t('Lost: the pouch was full'),
+    top10: t('Top 10 vote'),
   };
   return labels[kind] ?? kind;
 }
