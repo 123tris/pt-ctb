@@ -91,10 +91,10 @@ test('the hub: both ballots, each with its turnout, where yours is and its way i
     assert.match(out, /<b>3<\/b>/);
     assert.match(out, lang === 'pt' ? /Top 10 de sempre/ : /Top 10 of all time/);
   }
-  // A past all-time edition among the chips, and its results page.
+  // A past all-time edition among the chips (its results page is views/top10-results.ts's: top10-results.test.mjs).
   const past = { ...hubData, editions: [{ year: 2020, kind: 'alltime', label: '2020' }, { year: 2023, kind: 'year', label: '2023' }] };
-  const page = String(hub(ctxFor(), { season: SEASON, phase: 'open', hub: past, trouble: null, signInHere: false, results: 2020, kind: 'alltime' }));
-  assert.match(page, /href="\/top10\/2020\/alltime"[^>]*aria-current="page"/);
+  const page = String(hub(ctxFor(), { season: SEASON, phase: 'open', hub: past, trouble: null, signInHere: false }));
+  assert.match(page, /href="\/top10\/2020\/alltime"[^>]*>2020, all time</);
   assert.match(page, /href="\/top10\/2023"/);
 });
 
