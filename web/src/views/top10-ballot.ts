@@ -209,8 +209,8 @@ export function pickerSection(ctx: Ctx, d: Data, e: Editor, access: Access): Saf
   return html`<section class="t10-picker" aria-labelledby="t10-pick-h">
     <h2 id="t10-pick-h">${t('Pick players')}</h2>
     <p class="small muted m-0">${d.kind === 'alltime'
-      ? t('By career: the best PT rank they ever reached, then their peak pp, legends included. ⓘ shows a player’s career.')
-      : t('The most active this year come first: pp gained since January, then the latest play. ⓘ shows a player’s year.')}</p>
+      ? t('By official pp now, highest first, legends included. ⓘ shows a player’s career.')
+      : t('By official pp now, highest first. ⓘ shows a player’s year.')}</p>
     ${can ? chipGroup(t('Tapping adds to'), 'target', [['list', t('Your list')], ['mentions', t('Honourable mentions')],
       ...(d.kind === 'alltime' ? [] : [['watch', t('Ones to watch')] as [string, string]])], e.target) : ''}
     <div class="t10-filters">
@@ -254,6 +254,8 @@ export interface CiteChoice {
   ref: string;
   card: Card | null;
   label: string;
+  /** Set before its map was ranked (the pack's pre-rank plays): 0pp. */
+  pre?: boolean;
 }
 
 /** The write-ups, one player at a time. `choices` are the current player's citable scores, once loaded (null before). */

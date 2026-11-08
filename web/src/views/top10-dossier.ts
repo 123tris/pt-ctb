@@ -204,13 +204,40 @@ export function render(ctx: Ctx, d: Data): Safe {
  * (ui/top10.ts playRef): osu:/legacy: when the data has the score's id, which 93% of 2026's stored plays don't, else
  * map:<beatmap>:<player>, which the server reads as that player's best play on the map this year.
  */
-/** `limit`: how many (the ballot's cites take the best 15; the showcase's search takes them all). */
+/**
+ * A player's pre-rank plays (set before their map was ranked: the pack's `pre`, at 0pp) as citable scores, in `year`
+ * (null: any). Not on a map they have another play on: a map ref there would name that one instead.
+ */
+function preChoices(pack: PlayerPack, player: number, year: number | null): CiteChoice[] {
+  const list = pack.pre;
+  if (!list?.rows) return [];
+  const others = new Set<number>();
+  for (const cat of ['c', 'u', 'r'] as const) for (let i = 0; i < pack[cat].rows; i++) others.add(pack[cat].map[i]);
+  const out: CiteChoice[] = [];
+  for (let i = 0; i < list.rows; i++) {
+    const s = play(list, i);
+    if (others.has(s[S.MAP]) || (year !== null && new Date((s[S.TIME] ?? 0) * 1000).getUTCFullYear() !== year)) continue;
+    const meta = mapDetails(pack, list.map[i]);
+    const ref = playRef(s[S.ID], s[S.MAP], player);
+    out.push({
+      ref, label: '', pre: true,
+      card: {
+        ref, player, map: s[S.MAP], title: meta?.[M.TITLE], artist: meta?.[M.ARTIST], version: meta?.[M.VERSION], stars: meta?.[M.STARS],
+        set: meta?.[M.SET], pp: s[S.PP], acc: s[S.ACC], miss: s[S.MISS], combo: s[S.COMBO], mods: modString(s[S.MODS]), grade: s[S.GRADE],
+        time: s[S.TIME], url: scoreHref(ref),
+      },
+    });
+  }
+  return out;
+}
+
+/** `limit`: how many (the ballot's cites take the best 15; the showcase's search takes them all). Pre-rank plays last. */
 export function yearChoices(pack: PlayerPack | null, year: number, player: number, limit = 15): CiteChoice[] {
   if (!pack) return [];
   const w = recapOf({ pack, year });
   if (!w) return [];
   const seen = new Set<string>();
-  return [...w.plays].sort((a, b) => b.s[S.PP] - a.s[S.PP]).flatMap(p => {
+  return [...w.plays].sort((a, b) => b.s[S.PP] - a.s[S.PP]).flatMap((p): CiteChoice[] => {
     const ref = playRef(p.s[S.ID], p.s[S.MAP], player);
     if (seen.has(ref)) return [];
     seen.add(ref);
@@ -222,14 +249,14 @@ export function yearChoices(pack: PlayerPack | null, year: number, player: numbe
         time: p.s[S.TIME], url: scoreHref(ref),
       },
     }];
-  }).slice(0, limit);
+  }).concat(preChoices(pack, player, year)).slice(0, limit);
 }
 
 /** A player's career best plays as citable scores (all time, §13.11: any year), the most pp first, one per map. */
 export function careerChoices(pack: PlayerPack | null, player: number, limit = 15): CiteChoice[] {
   if (!pack) return [];
   const seen = new Set<string>();
-  return careerPlays(pack).flatMap(p => {
+  return careerPlays(pack).flatMap((p): CiteChoice[] => {
     const ref = playRef(p.s[S.ID], p.s[S.MAP], player);
     if (seen.has(ref)) return [];
     seen.add(ref);
@@ -241,5 +268,5 @@ export function careerChoices(pack: PlayerPack | null, player: number, limit = 1
         time: p.s[S.TIME], url: scoreHref(ref),
       },
     }];
-  }).slice(0, limit);
+  }).concat(preChoices(pack, player, null)).slice(0, limit);
 }

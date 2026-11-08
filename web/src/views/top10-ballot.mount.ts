@@ -210,7 +210,12 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
       announce(t('{name} taken off', { name: name(id) }));
     } else {
       const full = where === 'list' ? e.rows.length >= MAX_PICKS : e[where].length >= MAX_EXTRAS;
-      if (full) { toast(where === 'list' ? t('Your list is full. Take someone off first.') : t('That’s {n} already, the most there can be.', { n: MAX_EXTRAS })); return; }
+      if (full) {
+        toast(where === 'list' ? t('Your list is full. Take someone off first.')
+          : where === 'mentions' ? t('Your honourable mentions are full ({n}). Take someone off, or tap “Your list” to add to your list instead.', { n: MAX_EXTRAS })
+          : t('Your ones to watch are full ({n}). Take someone off, or tap “Your list” to add to your list instead.', { n: MAX_EXTRAS }));
+        return;
+      }
       if (already) takeOff(id);
       if (where === 'list') e.rows.push({ id, tie: false });
       else e[where].push(id);

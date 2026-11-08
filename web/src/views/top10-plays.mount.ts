@@ -38,7 +38,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
   let chosen = '';
   let shown = PAGE;
   const taken = () => new Set(d.plays.map(p => p.score_ref).filter(Boolean));
-  const textOf = (c: CiteChoice) => [c.card?.title, c.card?.artist, c.card?.version, c.card?.mods].filter(Boolean).join(' ').toLocaleLowerCase();
+  const textOf = (c: CiteChoice) => [c.card?.title, c.card?.artist, c.card?.version, c.card?.mods, c.pre ? t('pre-rank') : ''].filter(Boolean).join(' ').toLocaleLowerCase();
 
   function drawChoices(): void {
     const list = root.querySelector<HTMLElement>('[data-pick-list]');
@@ -49,7 +49,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const inAlready = taken();
     const more = hits.length - shown;
     list.innerHTML = String(hits.length ? html`<ul class="t10-cite-list">${hits.slice(0, shown).map(c => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${inAlready.has(c.ref) ? raw('disabled') : c.ref === chosen ? raw('checked') : ''}>
-        ${scoreCard(ctx, c.card, c.ref, inAlready.has(c.ref) ? html`<span class="t10-pill">${t('already in')}</span>` : '')}</label></li>`)}</ul>
+        ${scoreCard(ctx, c.card, c.ref, inAlready.has(c.ref) ? html`<span class="t10-pill">${t('already in')}</span>` : c.pre ? html`<span class="t10-pill" title="${t('Set before the map was ranked')}">${t('pre-rank')}</span>` : '')}</label></li>`)}</ul>
       ${more > 0 ? html`<button class="btn btn-small" type="button" data-pick-more>${t('Show {n} more', { n: ctx.fmt.num(Math.min(PAGE, more)) })}</button>` : ''}`
       : html`<p class="small muted">${t('No plays match “{q}”.', { q })}</p>`);
   }

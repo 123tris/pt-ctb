@@ -2222,5 +2222,11 @@ export const PT = {
   'Clip link (optional)': 'Link do clip (opcional)',
   'This entry is a clip: change its link, or remove the entry.': 'Esta entrada é um clip: muda o link ou remove a entrada.',
   'Only whoever added an entry can change it.': 'Só quem adicionou uma entrada a pode alterar.',
+  'pre-rank': 'pré-ranked',
+  'Set before the map was ranked': 'Feita antes de o mapa ser ranked',
+  'Your honourable mentions are full ({n}). Take someone off, or tap “Your list” to add to your list instead.': 'As tuas menções honrosas estão cheias ({n}). Tira alguém, ou toca em “A tua lista” para adicionar à tua lista.',
+  'Your ones to watch are full ({n}). Take someone off, or tap “Your list” to add to your list instead.': 'Os teus jogadores a seguir estão cheios ({n}). Tira alguém, ou toca em “A tua lista” para adicionar à tua lista.',
+  'By official pp now, highest first, legends included. ⓘ shows a player’s career.': 'Por pp oficial atual, do maior para o menor, lendas incluídas. ⓘ mostra a carreira de um jogador.',
+  'By official pp now, highest first. ⓘ shows a player’s year.': 'Por pp oficial atual, do maior para o menor. ⓘ mostra o ano de um jogador.',
   'The squares count the lists that put each player #1, #2 and so on, to #10.': 'Os quadrados contam as listas que puseram cada jogador em #1, #2 e assim por diante, até #10.',
 };

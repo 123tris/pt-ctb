@@ -40,6 +40,16 @@ async function pageModule(pattern: string): Promise<RouterPage> {
 const isNotFound = (e: unknown) => e instanceof NotFound || (e as Error | null)?.constructor?.name === 'NotFound';
 
 const root = document.getElementById('content')!;
+
+// Every page draws into this same element, and its mount() puts its listeners on it. Without this they'd outlive
+// the page and keep running with its state on the pages after it: a tap on the all-time ballot also landed on the
+// yearly one opened before it. So a listener added here without a signal of its own goes with its page.
+let pageListeners = new AbortController();
+const addRootListener = root.addEventListener.bind(root);
+root.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions) => {
+  const opts: AddEventListenerOptions = typeof options === 'boolean' ? { capture: options } : { ...options };
+  if (listener) addRootListener(type, listener, { ...opts, signal: opts.signal ?? pageListeners.signal });
+}) as typeof root.addEventListener;
 const nav = document.getElementById('nav')!;
 const toggle = document.querySelector<HTMLElement>('.nav-toggle')!;
 let ctx: Ctx;
@@ -82,6 +92,9 @@ async function route({ newPage = false, newView = false } = {}): Promise<void> {
   try {
     const page = await pageModule(found.pattern);
     if (ticket !== current) return;
+    // The page before this one takes its listeners with it (above).
+    pageListeners.abort();
+    pageListeners = new AbortController();
     await page(root, { params: found.params, query, isCurrent: () => ticket === current });
     checkOldUi();
     if (ticket === current && newPage) focusHeading();

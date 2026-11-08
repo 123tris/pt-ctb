@@ -43,7 +43,7 @@ export function mapMeta(pack: PlayerPack, id: number): MapMeta {
 const NONE = 0xffffffff;
 
 /** A play as the JSON's score tuple (S). */
-export function play(plays: Plays, row: number): Play {
+export function play(plays: Plays | PlayerPack['pre'], row: number): Play {
   const opt = (v: number) => (v === NONE ? null : v);
   const pos = 'pos' in plays ? (plays as Plays & { pos: Uint16Array }).pos[row] : 0;
   return [
