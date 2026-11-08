@@ -26,8 +26,8 @@ export interface Pick {
 }
 
 /**
- * A write-up. The server adds `words` and `flags` (the voter's own ballot and the admin queue), `thanks` (public ballots)
- * and, signed in, whether you thanked it. `flags` is a comma list in D1: either form is read.
+ * A write-up (top10/api.js Writeup). Yours: words, cites, flags, mod status and reason. On a public ballot: words, cites,
+ * `thanks` (0 or 1: only its subject can thank it) and, signed in, `thanked`: whether you did (so you're its subject).
  */
 export interface Writeup {
   body: string;
@@ -37,8 +37,8 @@ export interface Writeup {
   mod?: 'ok' | 'struck';
   mod_reason?: string | null;
   thanks?: number;
-  /** Not in the contract: whether the signed-in player thanked this one. Read when the server sends it. */
   thanked?: boolean;
+  updated?: string | null;
 }
 
 export type BallotStatus = 'draft' | 'submitted' | 'void';
@@ -53,13 +53,17 @@ export interface BallotInput {
   writeups: Record<string, { body: string; cites: string[] }>;
 }
 
-/** Your own ballot (GET /api/top10/ballot), draft or submitted. */
+/** Your own ballot (GET /api/top10/ballot, PUT, submit, withdraw), draft or submitted. */
 export interface OwnBallot extends Omit<BallotInput, 'writeups'> {
+  year?: number;
+  voter?: number;
   status: BallotStatus;
   submitted_at?: string | number | null;
   updated?: string | number | null;
   void_reason?: string | null;
   writeups: Record<string, Writeup>;
+  /** The cited plays' cards, by ref. */
+  scores?: Record<string, Card>;
 }
 
 /** A submitted ballot as anyone reads it (GET /api/top10/ballots). */
@@ -68,44 +72,65 @@ export interface PublicBallot {
   picks: Pick[];
   mentions: number[];
   watch: number[];
-  intro?: string;
-  outro?: string;
+  intro?: string | null;
+  outro?: string | null;
   submitted_at?: string | number | null;
   updated?: string | number | null;
+  /** Thanks on the whole ballot. */
+  thanks?: number;
   writeups: Record<string, Writeup>;
-  /** Not in the contract: cited scores, by reference, for the cards under a write-up. Read when the server sends it. */
-  scores?: Record<string, ScoreCard>;
+  scores?: Record<string, Card>;
 }
 
-/** GET /api/top10. `me` only when signed in. */
+/** A mod action on your ballot, write-ups or showcase entries (GET /ballot `log`), or in the admin queue's log. */
+export interface LogLine {
+  seq?: number;
+  year?: number;
+  admin: number;
+  action: string;
+  target: string;
+  reason?: string | null;
+  at?: string | number | null;
+}
+
+/** GET /api/top10. `me` only when signed in; `editions` are the years whose results are out. */
 export interface Hub {
   season: Season;
   /** Submitted ballots so far. */
   turnout: number;
-  me?: { eligible: boolean; reason?: string | null; ballot: Partial<OwnBallot> | null } | null;
+  finalized?: boolean;
+  editions?: { year: number; label: string }[];
+  me?: { osuId?: number; eligible: boolean; code?: string | null; reason?: string | null; ballot: Partial<OwnBallot> | null } | null;
 }
 
 /**
- * A score as a card: what the exported data says about it. Not in the contract (a showcase entry has `score_ref` and
- * `beatmap_id` only); the UI draws it when the server sends one and a plain link otherwise.
+ * A play as a card (top10/api.js Card): resolved by the server when the play is showcased or cited, any field null when
+ * not known. `url` is its osu! page (null for a map ref or an .osr). A cited showcase entry's card has `play` (its id)
+ * and `clip` too.
  */
-export interface ScoreCard {
-  map: number;
-  title?: string;
-  artist?: string;
-  version?: string;
-  stars?: number;
-  set?: number;
-  pp?: number;
-  acc?: number;
-  miss?: number;
-  combo?: number;
-  mods?: string;
-  grade?: string;
-  time?: number;
+export interface Card {
+  ref?: string | null;
+  player?: number | null;
+  map?: number | null;
+  set?: number | null;
+  artist?: string | null;
+  title?: string | null;
+  version?: string | null;
+  stars?: number | null;
+  pp?: number | null;
+  acc?: number | null;
+  miss?: number | null;
+  combo?: number | null;
+  mods?: string | null;
+  grade?: string | null;
+  /** Unix seconds. */
+  time?: number | null;
+  url?: string | null;
+  play?: number | null;
+  clip?: string | null;
 }
 
-/** A showcase entry (GET /api/top10/plays). */
+/** A showcase entry (GET /api/top10/plays; in the admin queue with status, reason and target). */
 export interface ShowPlay {
   id: number;
   year: number;
@@ -116,11 +141,14 @@ export interface ShowPlay {
   caption?: string | null;
   clip?: string | null;
   created?: string | number | null;
+  /** When the play was set. */
+  played?: string | number | null;
   status?: 'ok' | 'hidden';
   reason?: string | null;
+  target?: string | null;
   endorsements?: number;
   endorsed?: boolean;
-  score?: ScoreCard | null;
+  score?: Card | null;
   /** Its replay (§13.9): osu!'s own download (signed in on osu! only), a .osr the site keeps, or none. */
   replay?: Replay | null;
 }
@@ -131,8 +159,8 @@ export type Replay = { kind: 'osu'; url: string } | { kind: 'file'; url: string;
 export const MAX_REPLAY_BYTES = 2 * 1024 * 1024;
 
 /**
- * How the showcase's form sends a replay file: as multipart form data, or as JSON with the file in base64. The backend
- * settles which (§13.9); one switch here, read by client/top10.ts showcaseBody().
+ * How the showcase's form sends a replay file: multipart form data, field `replay`, which the backend takes (top10/api.js
+ * POST /plays); 'base64' would send JSON with `replay: { name, data }` instead. Read by client/top10.ts showcaseBody().
  */
 export const REPLAY_UPLOAD: 'multipart' | 'base64' = 'multipart';
 
@@ -143,17 +171,19 @@ export function replayLink(ctx: Ctx, replay: Replay | null | undefined): Safe | 
   if (replay.kind === 'osu') {
     return html`<span class="t10-replay"><a href="${replay.url}" target="_blank" rel="noopener">⬇ ${t('Download replay')} ↗</a> <span class="small faint">${t('needs you signed in on osu!')}</span></span>`;
   }
+  // data.ptcatch.com serves it as an attachment under its name (cross-origin, so download="" alone wouldn't name it).
   return html`<span class="t10-replay"><a href="${replay.url}" ${replay.name ? html`download="${replay.name}"` : raw('download')}>⬇ ${t('Download replay')}</a>${replay.name ? html` <span class="small faint">${replay.name}</span>` : ''}</span>`;
 }
 
 /**
- * The past editions (§13.10): the year key GET /api/top10/results?year= takes, and the label. 2023–24 was one edition,
- * keyed 2024. Their results pages come in December; until then the hub links each year's placeholder.
+ * The past editions' labels (§13.10), for when GET /api/top10 can't be asked: the year key results take, and its label.
+ * 2023–24 was one edition, keyed 2024. The server's `editions` list (the ones whose results are out) wins.
  */
 export const PAST_EDITIONS: readonly (readonly [number, string])[] = [[2020, '2020'], [2021, '2021'], [2022, '2022'], [2024, '2023–24'], [2025, '2025']];
 
-/** An edition's label: "2023–24" for 2024, the year otherwise. */
-export const editionLabel = (year: number): string => PAST_EDITIONS.find(([y]) => y === year)?.[1] ?? String(year);
+/** An edition's label: the server's, else "2023–24" for 2024, the year otherwise. */
+export const editionLabel = (year: number, editions?: Hub['editions']): string =>
+  editions?.find(e => e.year === year)?.label ?? PAST_EDITIONS.find(([y]) => y === year)?.[1] ?? String(year);
 
 // ---- The season ------------------------------------------------------------------------------------------------------
 
@@ -393,20 +423,22 @@ export function top10Tabs(ctx: Ctx, current: string, year: number): Safe {
 }
 
 /**
- * A stored play's reference: its osu! score id when the data has one, else map:<beatmap id> (the player's stored best
- * on that map). Not in the contract, which has osu! score ids only: see the report on scoreRef.
+ * A stored play's ref, in the server's canonical form (top10/refs.js): osu:<id> for a lazer score id, legacy:<id> for a
+ * stable one (the packs keep those negative), else map:<beatmap>:<player>, that player's best play on the map this year.
  */
-export const playRef = (sid: number | null | undefined, map: number): string => (sid ? String(sid) : `map:${map}`);
+export const playRef = (sid: number | null | undefined, map: number, player: number): string =>
+  (sid && sid > 0 ? `osu:${sid}` : sid && sid < 0 ? `legacy:${-sid}` : `map:${map}:${player}`);
 
-/** A link to a score on osu! from its reference (an id, a URL, or a legacy id written negative as the packs keep it). */
+/** A score's page on osu! from its ref (osu:, legacy:, a link, or a bare id as the packs keep them); null for the rest. */
 export function scoreHref(ref: string | null | undefined): string | null {
   if (!ref) return null;
   const s = String(ref).trim();
   if (/^https?:\/\/osu\.ppy\.sh\//i.test(s)) return s;
-  if (/^(map|play):/.test(s)) return null;
+  const m = s.match(/^(osu|legacy):(\d+)$/);
+  if (m) return m[1] === 'osu' ? `https://osu.ppy.sh/scores/${m[2]}` : `https://osu.ppy.sh/scores/fruits/${m[2]}`;
+  if (!/^-?\d+$/.test(s)) return null;
   const n = Number(s);
-  if (!Number.isSafeInteger(n) || n === 0) return null;
-  return n > 0 ? `https://osu.ppy.sh/scores/${n}` : `https://osu.ppy.sh/scores/fruits/${-n}`;
+  return !Number.isSafeInteger(n) || n === 0 ? null : n > 0 ? `https://osu.ppy.sh/scores/${n}` : `https://osu.ppy.sh/scores/fruits/${-n}`;
 }
 
 /** Whether a clip's address is on a site the showcase takes (§13.3). */
@@ -419,14 +451,17 @@ export function clipOk(url: string): boolean {
   }
 }
 
-/** A score as a small card: its map, and the figures when known; a plain link to osu! otherwise. */
-export function scoreCard(ctx: Ctx, card: ScoreCard | null | undefined, ref: string | null | undefined, extra: Value = '', { player = null as number | null } = {}): Safe {
+/**
+ * A play as a small card: its map, the figures, when it was set and its osu! page, from the server's card. A cited
+ * showcase entry with no map (a clip or a replay file) reads as that, with its clip.
+ */
+export function scoreCard(ctx: Ctx, card: Card | null | undefined, ref: string | null | undefined, extra: Value = ''): Safe {
   const { t, fmt } = ctx;
-  const href = scoreHref(ref);
-  if (!card) {
-    // play:<id>: a showcase entry with no score the site knows (a clip or a replay file), shown with that player's.
-    const showcased = ref?.startsWith('play:');
-    const text = showcased ? html`🎬 ${player ? html`<a href="/top10/plays?player=${player}">${t('A play from the showcase')}</a>` : t('A play from the showcase')}`
+  const href = card?.url ?? scoreHref(ref ?? card?.ref);
+  if (!card?.map) {
+    const showcased = Boolean(card?.play) || Boolean(ref?.startsWith('play:'));
+    const who = card?.player ? html` <a class="dim-link" href="/top10/plays?player=${card.player}">${t('in the showcase')}</a>` : '';
+    const text = showcased ? html`🎬 ${t('A play from the showcase')}${who}${card?.clip ? html` · <a href="${card.clip}" target="_blank" rel="noopener">${t('Watch the clip')} ↗</a>` : ''}`
       : href ? html`<a href="${href}" target="_blank" rel="noopener">${t('This score on osu!')} ↗</a>` : t('A score');
     return html`<div class="t10-score t10-score-bare">${text}${extra}</div>`;
   }
@@ -437,6 +472,7 @@ export function scoreCard(ctx: Ctx, card: ScoreCard | null | undefined, ref: str
     card.acc ? fmt.acc(card.acc) : '',
     card.miss === 0 ? 'FC' : card.miss ? t('{n} ✕', { n: fmt.num(card.miss) }) : '',
     card.stars ? `★ ${fmt.num(card.stars, 2)}` : '',
+    card.time ? fmt.date(card.time) : '',
   ].filter(Boolean).join(' · ');
   return html`<div class="t10-score">
     ${card.set ? html`<img class="t10-score-cover" src="https://assets.ppy.sh/beatmaps/${card.set}/covers/list.jpg" alt="" loading="lazy" data-hide-broken>` : html`<span class="t10-score-cover"></span>`}

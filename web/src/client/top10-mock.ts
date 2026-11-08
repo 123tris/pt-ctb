@@ -1,13 +1,14 @@
-// A stand-in for Top 10's endpoints (contract §13.3), for working on the pages before the backend is on a copy of the
-// site. client/top10.ts loads it only on a local address after ?top10mock=1; production never does. It answers the
-// same shapes from a state kept in this browser (localStorage), seeded with real players from the core pack: a few
-// submitted ballots with write-ups, and showcase entries from three players' plays of the year.
+// A stand-in for Top 10's endpoints, for working on the pages without the backend. client/top10.ts loads it only on a
+// local address after ?top10mock=1; production never does. It answers the backend's shapes (top10/api.js, at the top:
+// Ballot, Writeup, Card, Play, the canonical refs, refusals as { error, code }) from a state kept in this browser
+// (localStorage), seeded with real players from the core pack: a few submitted ballots with write-ups and cites, and
+// showcase entries from three players' plays of the year.
 //
 //   ?top10mock=1 / 0          turn it on / off in this browser
 //   ?top10phase=open          before | open | closed | revealed (default open), kept until changed
 //   ?top10reset=1             start again from the seed
 //
-// Everyone is an admin here. Not part of the contract: it only has to answer like it.
+// Everyone is an admin here. For the real thing end to end: tools/serve.mjs --economy on the backend's branch.
 
 import type { Answer } from './bananas.ts';
 import { prefs } from './ui.ts';
@@ -18,63 +19,36 @@ import { rowOf } from '../ui/players.ts';
 import { mapDetails } from '../ui/playerpack.ts';
 import { M, modString } from '../kernel/model.ts';
 import {
-  DEFAULT_SEASON, flagsOf, overlap, spotsOf, wordsOf, MIN_PICKS, MAX_PICKS, MAX_EXTRAS, MAX_BODY, MAX_NOTE, MAX_CAPTION,
-  clipOk, playRef, toSec, type Phase, type Pick, type ScoreCard, type ShowPlay,
+  DEFAULT_SEASON, PAST_EDITIONS, flagsOf, overlap, spotsOf, wordsOf, MIN_PICKS, MAX_PICKS, MAX_EXTRAS, MAX_BODY, MAX_NOTE, MAX_CAPTION,
+  MAX_REPLAY_BYTES, clipOk, playRef, scoreHref, type Card, type Phase, type Pick, type ShowPlay,
 } from '../ui/top10.ts';
 
-interface MockWriteup { body: string; cites: string[]; cards?: Record<string, ScoreCard>; words: number; flags: string; mod: 'ok' | 'struck'; mod_reason: string | null; updated: string }
+interface MockWriteup { body: string; cites: string[]; words: number; flags: string[]; mod: 'ok' | 'struck'; mod_reason: string | null; updated: string }
 interface MockBallot {
   voter: number; picks: Pick[]; mentions: number[]; watch: number[]; intro: string; outro: string;
   status: 'draft' | 'submitted' | 'void'; submitted_at: string | null; updated: string; void_reason: string | null;
   writeups: Record<string, MockWriteup>;
 }
 interface MockPlay extends ShowPlay { endorsers: number[] }
-
-/** osu!'s own replay download for a score with an osu! id (§13.9: only when has_replay; the mock says yes). */
-const osuReplay = (ref: string): ShowPlay['replay'] => {
-  const n = Number(ref);
-  return Number.isSafeInteger(n) && n !== 0 ? { kind: 'osu', url: n > 0 ? `https://osu.ppy.sh/scores/${n}/download` : `https://osu.ppy.sh/scores/fruits/${-n}/download` } : null;
-};
-
-/** An .osr's header (§13.9): ruleset, game version, the map's MD5 and the player's name (osu!'s ULEB128 strings). */
-function osrHeader(bytes: Uint8Array): { mode: number; md5: string; player: string } | null {
-  let at = 0;
-  const str = (): string | null => {
-    if (bytes[at] === 0x00) { at++; return ''; }
-    if (bytes[at++] !== 0x0b) return null;
-    let len = 0, shift = 0, byte: number;
-    do { byte = bytes[at++]; len |= (byte & 0x7f) << shift; shift += 7; } while (byte & 0x80 && at < bytes.length);
-    const text = new TextDecoder().decode(bytes.subarray(at, at + len));
-    at += len;
-    return text;
-  };
-  if (bytes.length < 8) return null;
-  const mode = bytes[at];
-  at += 5;
-  const md5 = str(), player = str();
-  return md5 === null || player === null ? null : { mode, md5, player };
-}
-
-/** The file the site would keep (§13.9): replays/<sha256>.osr on data.ptcatch.com, under a friendly name. */
-async function storedReplay(file: File, player: string): Promise<ShowPlay['replay']> {
-  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))].map(x => x.toString(16).padStart(2, '0')).join('');
-  return { kind: 'file', url: `https://data.ptcatch.com/replays/${hash}.osr`, name: `${player} - ${file.name.replace(/\.osr$/i, '')}.osr` };
-}
 interface State {
   v: number;
   ballots: Record<string, MockBallot>;
   plays: MockPlay[];
+  /** Cards by canonical ref: every play cited or showcased, as the server stores them. */
+  cards: Record<string, Card>;
   thanks: [number, number][]; // [subject, voter]
-  log: { seq: number; admin: number; action: string; target: string; reason: string; at: string }[];
+  log: { seq: number; year: number; admin: number; action: string; target: string; reason: string; at: string }[];
   finalized: boolean;
   nextPlay: number;
 }
 
 const KEY = 'top10mockState';
-const VERSION = 5;
+const VERSION = 6;
+const YEAR = DEFAULT_SEASON.year;
 const now = () => new Date().toISOString();
 const ok = (body: unknown, status = 200): Answer => ({ ok: true, status, body });
-const no = (status: number, error: string): Answer => ({ ok: false, status, body: { error } });
+/** A refusal as the backend sends one: { error, code, …details }. */
+const no = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Answer => ({ ok: false, status, body: { error, code, ...extra } });
 
 function phase(): Phase {
   const asked = new URLSearchParams(location.search).get('top10phase');
@@ -96,54 +70,94 @@ const SAMPLES = [
 const INTROS = ['Ranked by what I saw this year, not by pp alone.', 'Lista feita com base nos perfis e no que vi no Discord.'];
 const OUTROS = ['GG to everyone, see you next year.', 'Obrigado a todos pelo ano!'];
 
-/** The best plays of the year in a pack, as cards with their osu! score ids. */
-function yearCards(pack: PlayerPack, year: number, max: number): { ref: string; card: ScoreCard }[] {
-  const out: { ref: string; card: ScoreCard; pp: number }[] = [];
-  const from = Date.UTC(year, 0, 1) / 1000, to = Date.UTC(year + 1, 0, 1) / 1000;
+// ---- Plays, refs and cards ------------------------------------------------------------------------------------------
+
+/** A player's plays of the year as cards, under their canonical refs (top10/refs.js), the most pp first. */
+function yearCards(pack: PlayerPack, player: number, max: number): Card[] {
+  const out: (Card & { ref: string })[] = [];
+  const from = Date.UTC(YEAR, 0, 1) / 1000, to = Date.UTC(YEAR + 1, 0, 1) / 1000;
   for (const cat of ['c', 'u', 'r'] as const) {
     const list = pack[cat];
     for (let i = 0; i < list.rows; i++) {
       if (list.time[i] < from || list.time[i] >= to) continue;
       const meta = mapDetails(pack, list.map[i]);
+      const ref = playRef(list.sid[i], list.map[i], player);
+      const none = (v: number) => (v === 0xFFFFFFFF ? null : v);
       out.push({
-        ref: playRef(list.sid[i], list.map[i]), pp: list.pp[i],
-        card: {
-          map: list.map[i], title: meta?.[M.TITLE], artist: meta?.[M.ARTIST], version: meta?.[M.VERSION], stars: meta?.[M.STARS], set: meta?.[M.SET],
-          pp: list.pp[i] / 100, acc: list.acc[i] / 100, miss: list.miss[i] === 0xFFFFFFFF ? undefined : list.miss[i],
-          combo: list.combo[i] === 0xFFFFFFFF ? undefined : list.combo[i], mods: modString(list.mods[i]), time: list.time[i],
-        },
+        ref, player, map: list.map[i], set: meta?.[M.SET] ?? null, artist: meta?.[M.ARTIST] ?? null, title: meta?.[M.TITLE] ?? null,
+        version: meta?.[M.VERSION] ?? null, stars: meta?.[M.STARS] ?? null, pp: list.pp[i] / 100, acc: list.acc[i] / 100,
+        miss: none(list.miss[i]), combo: none(list.combo[i]), mods: modString(list.mods[i]), grade: null, time: list.time[i], url: scoreHref(ref),
       });
     }
   }
-  return out.sort((a, b) => b.pp - a.pp).slice(0, max);
+  return out.sort((a, b) => (b.pp ?? 0) - (a.pp ?? 0)).slice(0, max);
 }
 
-let known: Map<string, { player: number; card: ScoreCard }> | null = null;
-
-/** A score by reference: an osu! score id from the players loaded so far, or map:<id> from `player`'s pack. */
-async function findScore(ref: string, player: number | null): Promise<{ player: number; card: ScoreCard } | null> {
-  if (ref.startsWith('map:')) {
-    if (!player) return null;
-    const pack = await store.pack(playerPack(player), readPlayer).catch(() => null);
-    const hit = pack ? yearCards(pack, DEFAULT_SEASON.year, 500).find(c => c.ref === ref) : null;
-    return hit ? { player, card: hit.card } : null;
-  }
-  return known!.get(ref) ?? known!.get(String(-Number(ref))) ?? null;
+/** osu!'s own replay download for an osu:/legacy: score (§13.9: only when osu! keeps one; the mock says it does). */
+function osuReplay(ref: string): ShowPlay['replay'] {
+  const m = ref.match(/^(osu|legacy):(\d+)$/);
+  return m ? { kind: 'osu', url: m[1] === 'osu' ? `https://osu.ppy.sh/scores/${m[2]}/download` : `https://osu.ppy.sh/scores/fruits/${m[2]}/download` } : null;
 }
+
+/** A ref as sent (a canonical one, a score link, a bare id, map:<beatmap> with the player apart) in canonical form. */
+function canonical(raw: unknown, player: number | null): string | null {
+  const s = String(raw ?? '').trim();
+  if (/^(osu|legacy):\d+$/.test(s) || /^map:\d+:\d+$/.test(s) || /^play:\d+$/.test(s)) return s;
+  const legacy = s.match(/osu\.ppy\.sh\/scores\/fruits\/(\d+)/);
+  if (legacy) return `legacy:${legacy[1]}`;
+  const lazer = s.match(/osu\.ppy\.sh\/scores\/(\d+)/);
+  if (lazer) return `osu:${lazer[1]}`;
+  if (/^-\d+$/.test(s)) return `legacy:${s.slice(1)}`;
+  if (/^\d+$/.test(s)) return `osu:${s}`;
+  const map = s.match(/^map:(\d+)$/);
+  return map && player ? `map:${map[1]}:${player}` : null;
+}
+
 let core: CorePack | null = null;
+/** Cards for osu:/legacy: refs, from the first few active players' packs (the real server asks osu!). */
+let known: Map<string, Card> | null = null;
+
+/** A play's card by canonical ref, or null when "the data" doesn't have it. */
+async function cardOf(ref: string): Promise<Card | null> {
+  const map = ref.match(/^map:(\d+):(\d+)$/);
+  if (map) {
+    const pack = await store.pack(playerPack(Number(map[2])), readPlayer).catch(() => null);
+    return pack ? yearCards(pack, Number(map[2]), 500).find(c => c.ref === ref) ?? null : null;
+  }
+  return known!.get(ref) ?? null;
+}
 
 /** The players the seed draws from: the most pp first, active this year. */
-function activeIds(c: CorePack, year: number): number[] {
-  const from = Date.UTC(year, 0, 1) / 1000;
+function activeIds(c: CorePack): number[] {
+  const from = Date.UTC(YEAR, 0, 1) / 1000;
   const rows = [...Array(c.players.rows).keys()].filter(r => c.players.last[r] >= from);
   return rows.sort((a, b) => c.players.pp[b] - c.players.pp[a]).map(r => c.players.id[r]);
 }
 
-async function seed(year: number): Promise<State> {
-  const ids = activeIds(core!, year);
+// ---- The state ------------------------------------------------------------------------------------------------------
+
+async function seed(): Promise<State> {
+  const ids = activeIds(core!);
   const top = ids.slice(0, 24);
   const voters = top.slice(0, 7).filter((_, i) => i !== 1);
-  const state: State = { v: VERSION, ballots: {}, plays: [], thanks: [], log: [], finalized: false, nextPlay: 1 };
+  const state: State = { v: VERSION, ballots: {}, plays: [], cards: {}, thanks: [], log: [], finalized: false, nextPlay: 1 };
+  // Showcase: three players' best plays of the year, and a clip.
+  for (const [i, id] of top.slice(0, 3).entries()) {
+    for (const [j, card] of yearCards(await store.pack(playerPack(id), readPlayer), id, 2).entries()) {
+      const ref = card.ref!;
+      state.cards[ref] = card;
+      state.plays.push({
+        id: state.nextPlay++, year: YEAR, submitter: voters[(i + j + 1) % voters.length], player: id, score_ref: ref, beatmap_id: card.map ?? null,
+        caption: j === 0 ? 'Best play of the year in Portugal, easily.' : 'Pouca gente faz isto com HR.', clip: null, created: now(),
+        played: card.time ? new Date(card.time * 1000).toISOString() : null, status: 'ok', endorsers: voters.filter((_, k) => rand(k + i * 3 + j) > 0.4),
+        score: card, replay: osuReplay(ref),
+      });
+    }
+  }
+  const clip = { id: state.nextPlay++, year: YEAR, submitter: voters[2], player: top[4], score_ref: null, beatmap_id: null, caption: 'Offline ScoreV2 run the site can’t see.',
+    clip: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', created: now(), played: null, status: 'ok' as const, endorsers: [voters[0]], score: null, replay: null };
+  state.plays.push(clip);
+  // Ballots, with write-ups citing the showcase.
   voters.forEach((voter, v) => {
     const others = top.filter(id => id !== voter).sort((a, b) => rand(a + v * 7) - rand(b + v * 7) + (top.indexOf(a) - top.indexOf(b)) / 8);
     const n = 6 + (v % 5);
@@ -153,7 +167,9 @@ async function seed(year: number): Promise<State> {
     const writeups: Record<string, MockWriteup> = {};
     picks.slice(0, 3 + (v % 4)).forEach((p, i) => {
       const body = SAMPLES[(v + i) % SAMPLES.length];
-      writeups[p.id] = { body, cites: [], words: wordsOf(body).length, flags: flagsOf(body).join(','), mod: 'ok', mod_reason: null, updated: now() };
+      const shown = state.plays.find(x => x.player === p.id);
+      const cites = shown && i % 2 === 0 ? [shown.score_ref ?? `play:${shown.id}`] : [];
+      writeups[p.id] = { body, cites, words: wordsOf(body).length, flags: flagsOf(body), mod: 'ok', mod_reason: null, updated: now() };
     });
     state.ballots[voter] = {
       voter, picks, mentions: others.slice(n, n + 2), watch: [ids[30 + v] ?? others[n + 3]].filter(Boolean), intro: INTROS[v % 2], outro: v % 3 ? OUTROS[v % 2] : '',
@@ -165,50 +181,53 @@ async function seed(year: number): Promise<State> {
   const filler = 'good good good good player player player good good';
   const first = state.ballots[voters[0]];
   const subj = first.picks[first.picks.length - 1].id;
-  first.writeups[subj] = { body: filler, cites: [], words: wordsOf(filler).length, flags: flagsOf(filler).join(','), mod: 'ok', mod_reason: null, updated: now() };
-  // Showcase: three players' best plays of the year.
-  for (const [i, id] of top.slice(0, 3).entries()) {
-    for (const [j, { ref, card }] of yearCards(await store.pack(playerPack(id), readPlayer), year, 2).entries()) {
-      state.plays.push({
-        id: state.nextPlay++, year, submitter: voters[(i + j + 1) % voters.length], player: id, score_ref: ref, beatmap_id: card.map,
-        caption: j === 0 ? 'Best play of the year in Portugal, easily.' : 'Pouca gente faz isto com HR.', clip: null, created: now(),
-        status: 'ok', endorsers: voters.filter((_, k) => rand(k + i * 3 + j) > 0.4), score: card, replay: osuReplay(ref),
-      });
-    }
-  }
-  state.plays.push({
-    id: state.nextPlay++, year, submitter: voters[2], player: top[4], score_ref: null, beatmap_id: null, caption: 'Offline ScoreV2 run the site can’t see.',
-    clip: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', created: now(), status: 'ok', endorsers: [voters[0]], score: null,
-  });
+  first.writeups[subj] = { body: filler, cites: [], words: wordsOf(filler).length, flags: flagsOf(filler), mod: 'ok', mod_reason: null, updated: now() };
+  state.cards[`play:${clip.id}`] = { ref: `play:${clip.id}`, player: clip.player, play: clip.id, clip: clip.clip, url: null };
   return state;
 }
 
-async function load(year: number): Promise<State> {
+async function load(): Promise<State> {
   core ??= await store.pack(CORE, readCore);
   if (!known) {
     known = new Map();
-    for (const id of activeIds(core, year).slice(0, 6)) {
-      for (const { ref, card } of yearCards(await store.pack(playerPack(id), readPlayer), year, 25)) known.set(ref, { player: id, card });
+    for (const id of activeIds(core).slice(0, 6)) {
+      for (const card of yearCards(await store.pack(playerPack(id), readPlayer), id, 25)) if (!card.ref!.startsWith('map:')) known.set(card.ref!, card);
     }
   }
   if (new URLSearchParams(location.search).get('top10reset') === '1') prefs.set(KEY, null);
   const saved: State | null = prefs.get(KEY, null);
   if (saved?.v === VERSION) return saved;
-  const fresh = await seed(year);
+  const fresh = await seed();
   prefs.set(KEY, fresh);
   return fresh;
 }
 
 const save = (s: State) => prefs.set(KEY, s);
 const isPt = (id: number) => rowOf(core!.players, id) >= 0;
+const nameRow = (name: string) => [...Array(core!.players.rows).keys()].find(r => core!.players.name.at(r).toLowerCase() === name.toLowerCase());
 
-function wordsAndFlags(s: State, voter: number, subject: string, body: string): { words: number; flags: string } {
+function wordsAndFlags(s: State, voter: number, subject: string, body: string): { words: number; flags: string[] } {
   const others: string[] = [];
   for (const b of Object.values(s.ballots)) for (const [subj, w] of Object.entries(b.writeups)) if (!(b.voter === voter && subj === subject)) others.push(w.body);
   const flags: string[] = flagsOf(body).filter(f => f !== 'copy');
   if (wordsOf(body).length >= 3 && others.some(o => overlap(body, o) >= 0.7)) flags.push('copy');
-  return { words: wordsOf(body).length, flags: flags.join(',') };
+  return { words: wordsOf(body).length, flags };
 }
+
+/** The cards a ballot's cites need, by ref. */
+function scoresOf(s: State, b: MockBallot): Record<string, Card> {
+  const out: Record<string, Card> = {};
+  for (const w of Object.values(b.writeups)) for (const ref of w.cites) if (s.cards[ref]) out[ref] = s.cards[ref];
+  return out;
+}
+
+/** Your own ballot, as GET /ballot and PUT answer it. */
+const ownView = (s: State, b: MockBallot) => ({
+  year: YEAR, voter: b.voter, status: b.status, picks: b.picks, mentions: b.mentions, watch: b.watch, skills: null, intro: b.intro, outro: b.outro,
+  submitted_at: b.submitted_at, updated: b.updated, void_reason: b.void_reason,
+  writeups: Object.fromEntries(Object.entries(b.writeups).map(([k, w]) => [k, { ...w, thanks: s.thanks.some(([su, v]) => String(su) === k && v === b.voter) ? 1 : 0 }])),
+  scores: scoresOf(s, b),
+});
 
 function checkSubmit(b: MockBallot): string | null {
   const ids = b.picks.map(p => p.id);
@@ -217,7 +236,7 @@ function checkSubmit(b: MockBallot): string | null {
   if (ids.includes(b.voter) || b.mentions.includes(b.voter) || b.watch.includes(b.voter)) return 'You can’t vote for yourself.';
   if (!ids.every(isPt)) return 'Only PT players can be ranked.';
   const spots = b.picks.map(p => p.spot);
-  if (spots[0] !== 1 || spots.some((s, i) => i > 0 && s !== spots[i - 1] && s !== i + 1)) return 'The spots don’t add up.';
+  if (spots[0] !== 1 || spots.some((x, i) => i > 0 && x !== spots[i - 1] && x !== i + 1)) return 'The spots don’t add up.';
   return null;
 }
 
@@ -230,8 +249,7 @@ function results(s: State, year: number) {
     const bySpot = new Map<number, number[]>();
     for (const p of b.picks) bySpot.set(p.spot, [...(bySpot.get(p.spot) ?? []), p.id]);
     for (const [spot, group] of bySpot) {
-      const covered = group.map((_, k) => spot + k);
-      const avg = covered.reduce((n, pos) => n + (pos <= 10 ? 11 - pos : 0), 0) / group.length;
+      const avg = group.map((_, k) => spot + k).reduce((n, pos) => n + (pos <= 10 ? 11 - pos : 0), 0) / group.length;
       for (const id of group) {
         const p = get(id);
         p.points += avg; p.lists++; if (spot === 1) p.firsts++; if (spot <= 10) p.positions[spot - 1]++; p.places.push(spot);
@@ -259,99 +277,141 @@ function results(s: State, year: number) {
     year, ballots: counted.length, finalizedAt: now(), ranking: ranked,
     mentions: [...per.values()].filter(p => p.mentions).map(p => ({ id: p.id, count: p.mentions })),
     watch: [...per.values()].filter(p => p.watch).map(p => ({ id: p.id, count: p.watch })),
-    stats: { writeups: writeups.length, words: writeups.reduce((n, [, w]) => n + w.words, 0), subjects: new Set(writeups.map(([s]) => s)).size },
+    stats: { writeups: writeups.length, words: writeups.reduce((n, [, w]) => n + w.words, 0), subjects: new Set(writeups.map(([x]) => x)).size },
   };
 }
 
-/** 13.6: one payout per counted ballot, and thanks on approved write-ups. */
+/** 13.6: one payout per counted ballot, and thanks on approved write-ups, as the requests finalize queues. */
 function payouts(s: State, year: number) {
   const counted = Object.values(s.ballots).filter(b => b.status === 'submitted');
   return {
     payouts: counted.map(b => {
       const writeups = b.picks.map(p => ({ subject: p.id, w: b.writeups[p.id] }))
-        .filter(({ w }) => w && w.mod === 'ok' && !w.flags).map(({ subject, w }) => ({ subject, words: w.words }));
-      return { type: 'top10.payout', osu_id: b.voter, payload: { year, ballot: true, writeups, allFull: b.picks.every(p => (writeups.find(w => w.subject === p.id)?.words ?? 0) >= 40) } };
+        .filter(({ w }) => w && w.mod === 'ok' && !w.flags.length).map(({ subject, w }) => ({ subject, words: w.words }));
+      return { osuId: b.voter, type: 'top10.payout', payload: { year, ballot: true, writeups, allFull: b.picks.every(p => (writeups.find(w => w.subject === p.id)?.words ?? 0) >= 40) } };
     }),
-    thanks: s.thanks.filter(([subject, voter]) => counted.some(b => b.voter === voter && b.writeups[subject]?.mod === 'ok' && !b.writeups[subject].flags))
-      .map(([subject, voter]) => ({ type: 'top10.thanks', osu_id: voter, payload: { year, subject } })),
+    thanks: s.thanks.filter(([subject, voter]) => counted.some(b => b.voter === voter && b.writeups[subject]?.mod === 'ok' && !b.writeups[subject].flags.length))
+      .map(([subject, voter]) => ({ osuId: voter, type: 'top10.thanks', payload: { year, subject } })),
   };
 }
+
+/** An .osr's header (§13.9): ruleset, game version, the map's MD5 and the player's name (osu!'s ULEB128 strings). */
+function osrHeader(bytes: Uint8Array): { mode: number; md5: string; player: string } | null {
+  let at = 0;
+  const str = (): string | null => {
+    if (bytes[at] === 0x00) { at++; return ''; }
+    if (bytes[at++] !== 0x0b) return null;
+    let len = 0, shift = 0, byte: number;
+    do { byte = bytes[at++]; len |= (byte & 0x7f) << shift; shift += 7; } while (byte & 0x80 && at < bytes.length);
+    const text = new TextDecoder().decode(bytes.subarray(at, at + len));
+    at += len;
+    return text;
+  };
+  if (bytes.length < 8) return null;
+  const mode = bytes[at];
+  at += 5;
+  const md5 = str(), player = str();
+  return md5 === null || player === null ? null : { mode, md5, player };
+}
+
+/** The file the site keeps (§13.9): replays/<sha256>.osr on data.ptcatch.com, under a friendly name. */
+async function storedReplay(file: File, player: string): Promise<ShowPlay['replay']> {
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))].map(x => x.toString(16).padStart(2, '0')).join('');
+  return { kind: 'file', url: `https://data.ptcatch.com/replays/${hash}.osr`, name: `${player} - ${file.name.replace(/\.osr$/i, '')}.osr` };
+}
+
+const playView = ({ endorsers, ...p }: MockPlay, me: number | null) => ({ ...p, endorsements: endorsers.length, ...(me !== null ? { endorsed: endorsers.includes(me) } : {}) });
+
+// ---- The endpoints --------------------------------------------------------------------------------------------------
 
 export async function handle(method: string, path: string, body: unknown, me: number | null): Promise<Answer> {
   await new Promise(r => setTimeout(r, 120));
   const url = new URL(path, location.origin);
-  const year = Number(url.searchParams.get('year')) || DEFAULT_SEASON.year;
-  const s = await load(DEFAULT_SEASON.year);
+  const year = Number(url.searchParams.get('year')) || YEAR;
+  const s = await load();
   const ph = phase();
+  const season = { ...DEFAULT_SEASON, phase: ph };
   const route = `${method} ${url.pathname}`;
-  // A multipart body (a showcase entry with a replay file) as fields, with the file aside.
+  // A multipart body (a showcase entry with a replay file) as its text fields, with the file aside.
   const file = body instanceof FormData && body.get('replay') instanceof File ? body.get('replay') as File : null;
   const b = (body instanceof FormData ? Object.fromEntries([...body].filter(([, v]) => typeof v === 'string')) : body ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  const signed = () => me !== null;
+  const signed = me !== null;
   const own = () => s.ballots[me!];
+  const eligible = () => (isPt(me!) ? { eligible: true } : { eligible: false, code: 'not_pt', reason: 'Only PT players on the site can take part.' });
+  const notOpen = () => (ph === 'before' ? no(409, 'not_open', 'Voting opens on 2026-12-01.', { phase: ph }) : no(409, 'closed', 'Voting has closed.', { phase: ph }));
 
   if (route === 'GET /api/top10') {
     const turnout = Object.values(s.ballots).filter(x => x.status === 'submitted').length;
-    const mine = me !== null ? own() : null;
     return ok({
-      season: { ...DEFAULT_SEASON, phase: ph }, turnout,
-      ...(me !== null ? { me: { eligible: isPt(me), reason: isPt(me) ? null : 'Only PT players can vote.', ballot: mine ? { status: mine.status, submitted_at: mine.submitted_at, updated: mine.updated, picks: mine.picks } : null } } : {}),
+      season, turnout, finalized: s.finalized, editions: PAST_EDITIONS.map(([y, label]) => ({ year: y, label })),
+      ...(signed ? { me: { osuId: me, ...eligible(), ballot: own() ? ownView(s, own()) : null } } : {}),
     });
   }
   if (route === 'GET /api/top10/ballots') {
-    const thanksOf = (subject: number, voter: number) => s.thanks.filter(([su, v]) => su === subject && v === voter).length;
-    const ballots = Object.values(s.ballots).filter(x => x.status === 'submitted' && year === DEFAULT_SEASON.year).map(x => {
-      const writeups: Record<string, unknown> = {};
-      const scores: Record<string, ScoreCard> = {};
-      for (const [subject, w] of Object.entries(x.writeups)) {
-        if (w.mod === 'struck') continue;
-        writeups[subject] = { body: w.body, cites: w.cites, words: w.words, thanks: thanksOf(Number(subject), x.voter), ...(me !== null ? { thanked: s.thanks.some(([su, v]) => su === me && v === x.voter && String(su) === subject) } : {}) };
-        for (const ref of w.cites) { const card = w.cards?.[ref] ?? known!.get(ref)?.card; if (card) scores[ref] = card; }
-      }
-      return { voter: x.voter, picks: x.picks, mentions: x.mentions, watch: x.watch, intro: x.intro, outro: x.outro, submitted_at: x.submitted_at, updated: x.updated, writeups, scores };
-    }).sort((a, c) => toSec(c.submitted_at) - toSec(a.submitted_at));
+    const ballots = Object.values(s.ballots).filter(x => x.status === 'submitted' && year === YEAR)
+      .sort((a, c) => String(a.submitted_at).localeCompare(String(c.submitted_at))).map(x => {
+        const writeups: Record<string, unknown> = {};
+        for (const [subject, w] of Object.entries(x.writeups)) {
+          if (w.mod === 'struck') continue;
+          const thanked = s.thanks.some(([su, v]) => String(su) === subject && v === x.voter);
+          writeups[subject] = { body: w.body, words: w.words, cites: w.cites, thanks: thanked ? 1 : 0, updated: w.updated, ...(signed ? { thanked: thanked && String(me) === subject } : {}) };
+        }
+        return {
+          voter: x.voter, picks: x.picks, mentions: x.mentions, watch: x.watch, skills: null, intro: x.intro, outro: x.outro, submitted_at: x.submitted_at, updated: x.updated,
+          thanks: s.thanks.filter(([, v]) => v === x.voter).length, writeups, scores: scoresOf(s, x),
+        };
+      });
     return ok({ year, ballots });
   }
   if (route === 'GET /api/top10/ballot') {
-    if (!signed()) return no(401, 'Sign in first.');
+    if (!signed) return no(401, '', 'Sign in with osu! first.');
     const mine = own();
-    return ok({ ballot: mine ? { ...mine, writeups: Object.fromEntries(Object.entries(mine.writeups).map(([k, w]) => [k, { ...w, flags: w.flags ? w.flags.split(',') : [] }])) } : null });
+    const log = s.log.filter(l => l.target === `ballot:${me}` || l.target.startsWith(`writeup:${me}:`)
+      || s.plays.some(p => p.submitter === me && l.target === `play:${p.id}`));
+    return ok({ season, ...eligible(), ballot: mine ? ownView(s, mine) : null, log });
   }
   if (route === 'PUT /api/top10/ballot') {
-    if (!signed()) return no(401, 'Sign in first.');
-    if (!isPt(me!)) return no(403, 'Only PT players can vote.');
-    if (ph !== 'open') return no(409, 'Voting isn’t open.');
-    const picks: Pick[] = (b.picks ?? []).slice(0, MAX_PICKS);
-    const mentions: number[] = (b.mentions ?? []).slice(0, MAX_EXTRAS), watch: number[] = (b.watch ?? []).slice(0, MAX_EXTRAS);
-    const allowed = new Set([...picks.map(p => String(p.id)), ...mentions.map(String), ...watch.map(String)]);
+    if (!signed) return no(401, '', 'Sign in with osu! first.');
+    if (!isPt(me!)) return no(403, 'not_pt', 'Only PT players on the site can take part.');
+    if (ph !== 'open') return notOpen();
     const before = own();
-    const writeups: Record<string, MockWriteup> = {};
-    for (const [subject, w] of Object.entries((b.writeups ?? {}) as Record<string, { body: string; cites: string[] }>)) {
-      if (!allowed.has(subject) || !w.body?.trim()) continue;
-      const body2 = w.body.slice(0, MAX_BODY);
-      const prev = before?.writeups[subject];
-      const same = prev && prev.body === body2;
-      const cites = (w.cites ?? []).slice(0, 5);
-      const cards: Record<string, ScoreCard> = {};
-      for (const ref of cites) { const hit = await findScore(ref, Number(subject)); if (hit) cards[ref] = hit.card; }
-      writeups[subject] = { body: body2, cites, cards, ...wordsAndFlags(s, me!, subject, body2), mod: same ? prev.mod : 'ok', mod_reason: same ? prev.mod_reason : null, updated: same ? prev.updated : now() };
+    const picks: Pick[] = (b.picks ?? before?.picks ?? []).slice(0, MAX_PICKS);
+    const mentions: number[] = (b.mentions ?? before?.mentions ?? []).slice(0, MAX_EXTRAS), watch: number[] = (b.watch ?? before?.watch ?? []).slice(0, MAX_EXTRAS);
+    const listed = new Set([...picks.map(p => String(p.id)), ...mentions.map(String), ...watch.map(String)]);
+    // `writeups` merges: an empty body (or null) deletes one; one on anyone no longer listed goes.
+    const writeups: Record<string, MockWriteup> = Object.fromEntries(Object.entries(before?.writeups ?? {}).filter(([k]) => listed.has(k)));
+    for (const [subject, w] of Object.entries((b.writeups ?? {}) as Record<string, { body?: string; cites?: string[] } | null>)) {
+      if (!listed.has(subject)) return no(400, 'not_listed', 'Write-ups are only for players on your list, mentions or ones to watch.');
+      if (!w || !w.body?.trim()) { delete writeups[subject]; continue; }
+      const text = w.body.slice(0, MAX_BODY);
+      const cites: string[] = [];
+      for (const raw of (w.cites ?? []).slice(0, 5)) {
+        const ref = canonical(raw, Number(subject));
+        const card = ref ? s.cards[ref] ?? await cardOf(ref) : null;
+        if (!ref || !card) return no(400, 'cite', 'The site’s data has no such play to cite.', { ref: raw });
+        s.cards[ref] = card;
+        cites.push(ref);
+      }
+      const prev = writeups[subject];
+      const same = prev && prev.body === text;
+      writeups[subject] = { body: text, cites, ...wordsAndFlags(s, me!, subject, text), mod: same ? prev.mod : 'ok', mod_reason: same ? prev.mod_reason : null, updated: same ? prev.updated : now() };
     }
     s.ballots[me!] = {
-      voter: me!, picks, mentions, watch, intro: String(b.intro ?? '').slice(0, MAX_NOTE), outro: String(b.outro ?? '').slice(0, MAX_NOTE),
-      status: before?.status === 'submitted' ? 'submitted' : before?.status === 'void' ? 'void' : 'draft', submitted_at: before?.submitted_at ?? null,
-      updated: now(), void_reason: before?.void_reason ?? null, writeups,
+      voter: me!, picks, mentions, watch, intro: String(b.intro ?? before?.intro ?? '').slice(0, MAX_NOTE), outro: String(b.outro ?? before?.outro ?? '').slice(0, MAX_NOTE),
+      status: before?.status ?? 'draft', submitted_at: before?.submitted_at ?? null, updated: now(), void_reason: before?.void_reason ?? null, writeups,
     };
     save(s);
-    return ok({ ballot: { ...s.ballots[me!], writeups: Object.fromEntries(Object.entries(writeups).map(([k, w]) => [k, { ...w, flags: w.flags ? w.flags.split(',') : [] }])) } });
+    return ok({ ballot: ownView(s, s.ballots[me!]) });
   }
   if (route === 'POST /api/top10/ballot/submit' || route === 'POST /api/top10/ballot/withdraw') {
-    if (!signed()) return no(401, 'Sign in first.');
-    if (ph !== 'open') return no(409, 'Voting isn’t open.');
+    if (!signed) return no(401, '', 'Sign in with osu! first.');
+    if (ph !== 'open') return notOpen();
     const mine = own();
-    if (!mine) return no(400, 'Save a list first.');
+    if (!mine) return no(409, 'no_ballot', 'Save your list first.');
+    if (mine.status === 'void') return no(409, 'void', `This ballot was voided: ${mine.void_reason}`);
     if (route.endsWith('submit')) {
       const problem = checkSubmit(mine);
-      if (problem) return no(400, problem);
+      if (problem) return no(400, 'picks', problem);
       mine.status = 'submitted';
       mine.submitted_at ??= now();
     } else {
@@ -359,128 +419,149 @@ export async function handle(method: string, path: string, body: unknown, me: nu
       mine.submitted_at = null;
     }
     save(s);
-    return ok({ status: mine.status });
+    return ok({ ballot: ownView(s, mine) });
   }
   if (route === 'GET /api/top10/plays') {
     const player = Number(url.searchParams.get('player')) || null;
-    const plays = s.plays.filter(p => p.status === 'ok' && (!player || p.player === player)).map(({ endorsers, ...p }) => ({ ...p, endorsements: endorsers.length, ...(me !== null ? { endorsed: endorsers.includes(me) } : {}) }))
-      .sort((a, c) => c.endorsements - a.endorsements || toSec(c.created) - toSec(a.created));
+    const plays = s.plays.filter(p => p.status === 'ok' && (!player || p.player === player)).map(p => playView(p, me))
+      .sort((a, c) => c.endorsements - a.endorsements || String(c.created).localeCompare(String(a.created)));
     return ok({ year, plays });
   }
   if (route === 'POST /api/top10/plays') {
-    if (!signed()) return no(401, 'Sign in first.');
-    if (!isPt(me!)) return no(403, 'Only PT players can submit plays.');
-    if (ph !== 'open') return no(409, 'The showcase isn’t open.');
+    if (!signed) return no(401, '', 'Sign in with osu! first.');
+    if (!isPt(me!)) return no(403, 'not_pt', 'Only PT players on the site can take part.');
+    if (ph !== 'open') return notOpen();
     const mine = s.plays.filter(p => p.submitter === me);
-    if (mine.length >= 15) return no(429, 'You’ve showcased 15 plays this year, the most there can be.');
+    if (mine.length >= 15) return no(409, 'limit', 'That’s 15 showcase entries this year: remove one to add another.');
     const caption = String(b.caption ?? '').slice(0, MAX_CAPTION);
-    let entry: MockPlay;
     // The replay file, when there's one: a catch replay by a PT player (§13.9), at most 2 MB.
     let header: { mode: number; md5: string; player: string } | null = null;
     if (file) {
-      if (file.size > 2 * 1024 * 1024) return no(413, 'A replay can be at most 2 MB.');
+      if (file.size > MAX_REPLAY_BYTES) return no(413, 'too_big', 'A replay can be 2 MB at most.');
       header = osrHeader(new Uint8Array(await file.arrayBuffer()));
-      if (!header) return no(400, 'That isn’t a replay file osu! wrote.');
-      if (header.mode !== 2) return no(400, 'That replay isn’t osu!catch.');
+      if (!header) return no(400, 'osr', 'That file isn’t an osu! replay (.osr).');
+      if (header.mode !== 2) return no(400, 'mode', 'That replay isn’t osu!catch.');
+      if (nameRow(header.player) === undefined) return no(400, 'not_pt', `The replay’s player, ${header.player}, isn’t a PT player on the site.`);
     }
-    const byName = header ? [...Array(core!.players.rows).keys()].find(r => core!.players.name.at(r).toLowerCase() === header!.player.toLowerCase()) : undefined;
-    if (header && byName === undefined) return no(400, 'The replay’s player isn’t a PT player.');
     const replay = file && header ? await storedReplay(file, header.player) : null;
-    if (b.score === undefined && file) {
-      entry = { id: s.nextPlay++, year, submitter: me!, player: core!.players.id[byName!], score_ref: null, beatmap_id: null, caption, clip: null, created: now(), status: 'ok', endorsers: [], score: null, replay };
-    } else if (b.score !== undefined) {
-      const ref = String(b.score).startsWith('map:') ? String(b.score) : String(b.score).match(/(-?\d{4,})\/?$/)?.[1] ?? '';
-      const hit = await findScore(ref, Number(b.player) || null);
-      if (!hit) return no(400, 'add it with /addscore first, or attach a clip');
-      if (s.plays.some(p => p.score_ref === ref && p.player === hit.player && p.status === 'ok')) return no(409, 'That score is in the showcase already.');
-      entry = { id: s.nextPlay++, year, submitter: me!, player: hit.player, score_ref: ref, beatmap_id: hit.card.map, caption, clip: b.clip ?? null, created: now(), status: 'ok', endorsers: [], score: hit.card, replay: replay ?? osuReplay(ref) };
+    let entry: MockPlay;
+    if (b.score !== undefined && b.score !== '') {
+      if (String(b.score).startsWith('play:')) return no(400, 'score', 'score is an osu! score link, an osu: or legacy: ref, or a map: ref.');
+      const ref = canonical(b.score, Number(b.player) || null);
+      const card = ref ? await cardOf(ref) : null;
+      if (!ref || !card) return no(400, 'not_in_data', 'That score isn’t in the site’s data yet: add it with /addscore first, or attach its replay (.osr) or a clip.');
+      if (Number(b.player) && card.player !== Number(b.player)) return no(400, 'not_theirs', 'That score is another player’s.');
+      const dup = s.plays.find(p => p.score_ref === ref && p.status === 'ok');
+      if (dup) return no(409, 'duplicate', 'That play is already in the showcase.', { id: dup.id });
+      s.cards[ref] = card;
+      entry = { id: s.nextPlay++, year, submitter: me!, player: card.player!, score_ref: ref, beatmap_id: card.map ?? null, caption, clip: b.clip ?? null, created: now(),
+        played: card.time ? new Date(card.time * 1000).toISOString() : null, status: 'ok', endorsers: [], score: card, replay: replay ?? osuReplay(ref) };
+    } else if (file && header) {
+      const player = core!.players.id[nameRow(header.player)!];
+      entry = { id: s.nextPlay++, year, submitter: me!, player, score_ref: null, beatmap_id: null, caption, clip: null, created: now(), played: null, status: 'ok',
+        endorsers: [], score: { ref: null, player, map: null, url: null }, replay };
     } else {
-      if (!isPt(Number(b.player))) return no(400, 'Pick a PT player.');
-      if (!clipOk(String(b.clip ?? ''))) return no(400, 'A clip has to be on YouTube, Twitch or Streamable.');
-      entry = { id: s.nextPlay++, year, submitter: me!, player: Number(b.player), score_ref: null, beatmap_id: null, caption, clip: String(b.clip), created: now(), status: 'ok', endorsers: [], score: null };
+      if (!isPt(Number(b.player))) return no(400, 'not_pt', 'That player isn’t a PT player on the site.');
+      if (!clipOk(String(b.clip ?? ''))) return no(400, 'clip', 'A clip must be a link on youtube.com, youtu.be, twitch.tv or streamable.com.');
+      entry = { id: s.nextPlay++, year, submitter: me!, player: Number(b.player), score_ref: null, beatmap_id: null, caption, clip: String(b.clip), created: now(),
+        played: null, status: 'ok', endorsers: [], score: null, replay: null };
     }
-    if (entry.player === me && mine.filter(p => p.player === me).length >= 5) return no(429, 'At most 5 of your own plays.');
+    if (entry.player === me && mine.filter(p => p.player === me).length >= 5) return no(409, 'own_limit', 'At most 5 of your own plays a year.');
     s.plays.push(entry);
+    s.cards[`play:${entry.id}`] = { ...(entry.score ?? {}), ref: `play:${entry.id}`, player: entry.player, play: entry.id, clip: entry.clip };
     save(s);
-    const { endorsers, ...rest } = entry;
-    return ok({ play: { ...rest, endorsements: endorsers.length, endorsed: false } }, 201);
+    return ok({ play: playView(entry, me) }, 201);
   }
   const playMatch = url.pathname.match(/^\/api\/top10\/plays\/(\d+)(\/endorse)?$/);
   if (playMatch) {
-    if (!signed()) return no(401, 'Sign in first.');
+    if (!signed) return no(401, '', 'Sign in with osu! first.');
     const p = s.plays.find(x => x.id === Number(playMatch[1]));
-    if (!p) return no(404, 'No such play.');
+    if (!p) return no(404, 'no_play', 'No such showcase entry.');
     if (method === 'DELETE' && !playMatch[2]) {
-      if (p.submitter !== me) return no(403, 'Only who submitted it can remove it.');
+      if (p.submitter !== me) return no(403, 'not_yours', 'Only whoever added an entry can remove it.');
       s.plays = s.plays.filter(x => x !== p);
       save(s);
-      return ok({ removed: p.id });
+      return ok({ ok: true });
     }
     if (method === 'POST' && playMatch[2]) {
-      p.endorsers = p.endorsers.includes(me!) ? p.endorsers.filter(x => x !== me) : [...p.endorsers, me!];
+      const want = typeof b.endorsed === 'boolean' ? b.endorsed : !p.endorsers.includes(me!);
+      p.endorsers = want ? [...new Set([...p.endorsers, me!])] : p.endorsers.filter(x => x !== me);
       save(s);
-      return ok({ endorsed: p.endorsers.includes(me!), endorsements: p.endorsers.length });
+      return ok({ endorsed: want, endorsements: p.endorsers.length });
     }
   }
   if (route === 'POST /api/top10/thanks') {
-    if (!signed()) return no(401, 'Sign in first.');
+    if (!signed) return no(401, '', 'Sign in with osu! first.');
     const voter = Number(b.voter);
     const ballot = s.ballots[voter];
-    if (!ballot || ballot.status !== 'submitted' || !ballot.writeups[me!]) return no(404, 'There’s no write-up about you on that ballot.');
+    if (!ballot || ballot.status !== 'submitted') return no(404, 'not_public', 'That ballot isn’t public.');
+    if (!ballot.writeups[me!]) return no(404, 'no_writeup', 'There’s no write-up about you on that ballot.');
     const had = s.thanks.some(([su, v]) => su === me && v === voter);
-    if (had && s.finalized) return no(409, 'Thanks can’t be undone after the results are finalized.');
-    s.thanks = had ? s.thanks.filter(([su, v]) => !(su === me && v === voter)) : [...s.thanks, [me!, voter]];
+    const want = typeof b.thanked === 'boolean' ? b.thanked : !had;
+    if (had && !want && s.finalized) return no(409, 'final', 'Thanks can’t be taken back once the results are final.');
+    s.thanks = want ? (had ? s.thanks : [...s.thanks, [me!, voter]]) : s.thanks.filter(([su, v]) => !(su === me && v === voter));
     save(s);
-    return ok({ thanked: !had, thanks: s.thanks.filter(([su, v]) => su === me && v === voter).length });
+    return ok({ thanked: want, thanks: want ? 1 : 0 });
   }
   if (route === 'GET /api/top10/results') {
-    if (ph !== 'revealed') return no(404, 'The results aren’t out yet.');
+    if (year === YEAR && ph !== 'revealed') return no(404, 'not_yet', 'The results aren’t out yet.');
+    if (year !== YEAR) return no(404, 'not_published', 'There are no results for that year.');
     return ok(results(s, year));
   }
   if (url.pathname.startsWith('/api/top10/admin/')) {
-    if (!signed()) return no(401, 'Sign in first.');
+    if (!signed) return no(401, '', 'Sign in with osu! first.');
     if (route === 'GET /api/top10/admin/queue') {
       const writeups = Object.values(s.ballots).flatMap(x => Object.entries(x.writeups).map(([subject, w]) => ({
-        voter: x.voter, subject: Number(subject), body: w.body, words: w.words, flags: w.flags ? w.flags.split(',') : [], mod: w.mod, mod_reason: w.mod_reason,
-        updated: w.updated, ballot: x.status, ranked: x.picks.some(p => String(p.id) === subject),
-      }))).sort((a, c) => Number(c.flags.length > 0) - Number(a.flags.length > 0) || toSec(c.updated) - toSec(a.updated));
-      const plays = s.plays.map(({ endorsers, ...p }) => ({ ...p, endorsements: endorsers.length }));
-      const ballots = Object.values(s.ballots).map(x => ({ voter: x.voter, status: x.status, picks: x.picks.length, submitted_at: x.submitted_at, updated: x.updated, void_reason: x.void_reason }));
-      return ok({ year, phase: ph, finalized: s.finalized, writeups, plays, ballots, log: [...s.log].reverse() });
+        voter: x.voter, subject: Number(subject), body: w.body, words: w.words, cites: w.cites, flags: w.flags, mod: w.mod, mod_reason: w.mod_reason,
+        updated: w.updated, ranked: x.picks.some(p => String(p.id) === subject), ballot_status: x.status, target: `writeup:${x.voter}:${subject}`,
+        own: Number(subject) === me || x.voter === me,
+      }))).sort((a, c) => Number(c.flags.length > 0) - Number(a.flags.length > 0) || String(c.updated).localeCompare(String(a.updated)));
+      const plays = s.plays.map(p => ({ ...playView(p, me), target: `play:${p.id}` }));
+      const ballots = Object.values(s.ballots).map(x => (x.status === 'draft'
+        ? { voter: x.voter, status: x.status, updated: x.updated, target: `ballot:${x.voter}`, own: x.voter === me }
+        : { ...ownView(s, x), writeups: undefined, target: `ballot:${x.voter}`, own: x.voter === me }));
+      return ok({ season, phase: ph, year, finalized: s.finalized, writeups, plays, ballots, log: [...s.log].reverse() });
     }
     if (route === 'POST /api/top10/admin/action') {
-      const action = String(b.action), target = String(b.target ?? ''), reason = String(b.reason ?? '').trim();
-      if (['strike', 'hide-play', 'void'].includes(action) && !reason) return no(400, 'Give a reason: the player sees it.');
+      const action = String(b.action), reason = String(b.reason ?? '').trim();
+      const target = typeof b.target === 'object' && b.target ? `writeup:${b.target.voter}:${b.target.subject}` : String(b.target ?? '');
+      if (['strike', 'hide-play', 'void'].includes(action) && !reason) return no(400, 'reason', 'Say why: the player sees the reason.');
+      const [kind, a, c] = target.includes(':') ? target.split(':') : ['id', target];
       if (action === 'strike' || action === 'restore') {
-        const [voter, subject] = target.split(':').map(Number);
+        const [voter, subject] = kind === 'writeup' ? [Number(a), Number(c)] : [Number(kind), Number(a)];
         const w = s.ballots[voter]?.writeups[subject];
-        if (!w) return no(404, 'No such write-up.');
-        if (subject === me) return no(403, 'You can’t moderate write-ups about yourself; the other mod handles those.');
-        if (action === 'strike') { w.mod = 'struck'; w.mod_reason = reason; } else { w.mod = 'ok'; w.mod_reason = null; w.flags = ''; }
+        if (!w) return no(404, 'no_writeup', 'No such write-up.');
+        if (subject === me || voter === me) return no(403, 'self', 'That write-up is about you (or yours): the other mod handles it.');
+        if (action === 'strike') { w.mod = 'struck'; w.mod_reason = reason; } else { w.mod = 'ok'; w.mod_reason = null; w.flags = []; }
+        s.log.push({ seq: s.log.length + 1, year: YEAR, admin: me!, action, target: `writeup:${voter}:${subject}`, reason, at: now() });
       } else if (action === 'hide-play' || action === 'show-play') {
-        const p = s.plays.find(x => x.id === Number(target));
-        if (!p) return no(404, 'No such play.');
+        const id = Number(kind === 'play' ? a : kind === 'id' ? a : target);
+        const p = s.plays.find(x => x.id === id);
+        if (!p) return no(404, 'no_play', 'No such showcase entry.');
         p.status = action === 'hide-play' ? 'hidden' : 'ok';
         p.reason = action === 'hide-play' ? reason : null;
+        s.log.push({ seq: s.log.length + 1, year: YEAR, admin: me!, action, target: `play:${id}`, reason, at: now() });
       } else if (action === 'void' || action === 'unvoid') {
-        const x = s.ballots[Number(target)];
-        if (!x) return no(404, 'No such ballot.');
+        const voter = Number(kind === 'ballot' ? a : kind === 'id' ? a : target);
+        const x = s.ballots[voter];
+        if (!x) return no(404, 'no_ballot', 'No such ballot.');
+        if (voter === me) return no(403, 'self', 'That’s your own ballot: the other mod handles it.');
         x.status = action === 'void' ? 'void' : 'submitted';
         x.void_reason = action === 'void' ? reason : null;
-      } else return no(400, 'Unknown action.');
-      s.log.push({ seq: s.log.length + 1, admin: me!, action, target, reason, at: now() });
+        s.log.push({ seq: s.log.length + 1, year: YEAR, admin: me!, action, target: `ballot:${voter}`, reason, at: now() });
+      } else return no(400, 'action', 'action is strike, restore, hide-play, show-play, void or unvoid.');
       save(s);
-      return ok({ done: action });
+      return ok({ ok: true, changed: true });
     }
     if (route === 'POST /api/top10/admin/finalize') {
-      if (ph !== 'closed') return no(409, 'Finalize once voting has closed.');
+      if (ph !== 'closed') return no(409, 'not_closed', 'Voting is still open: finalize once it closes.');
       const counted = Object.values(s.ballots).filter(x => x.status === 'submitted').length;
-      if (counted < 5) return no(409, 'Fewer than 5 counted ballots: the results can’t be published.');
-      if (s.finalized && !b.dryRun) return no(409, 'Already finalized.');
+      if (counted < 5) return no(409, 'turnout', `Only ${counted} ballots count; the results need at least 5.`);
+      if (s.finalized && !b.dryRun) return no(409, 'already', `${year} was already finalized.`);
       const out = { dryRun: Boolean(b.dryRun), results: results(s, year), ...payouts(s, year) };
-      if (!b.dryRun) { s.finalized = true; s.log.push({ seq: s.log.length + 1, admin: me!, action: 'finalize', target: String(year), reason: '', at: now() }); save(s); }
+      if (!b.dryRun) { s.finalized = true; s.log.push({ seq: s.log.length + 1, year: YEAR, admin: me!, action: 'finalize', target: String(year), reason: '', at: now() }); save(s); }
       return ok(out);
     }
   }
-  return no(404, `The mock has no ${route}.`);
+  return no(404, 'mock', `The mock has no ${route}.`);
 }

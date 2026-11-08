@@ -114,6 +114,11 @@ export function requestText(ctx: Ctx, r: WalletRequest, index: PlayerNames | nul
       return choice ? th('Buy {item} ({choice}) for {price}', { item, choice, price }) : t('Buy {item} for {price}', { item, price });
     }
     case 'shield': return p.on ? t('Turn the snipe shield on') : t('Turn the snipe shield off');
+    // The site queues these for the Top 10 vote (top10/api.js finalize and thanks); a player never sends them.
+    case 'top10.payout': return t('Top 10 vote of {year}: your ballot and write-ups', { year: p.year });
+    case 'top10.thanks': return th('Top 10 vote of {year}: a thanks from {who}', {
+      year: p.year, who: html`<a href="/player/${p.subject}">${index?.get(p.subject)?.name ?? `#${p.subject}`}</a>`,
+    });
     default: return r.type;
   }
 }

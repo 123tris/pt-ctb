@@ -29,17 +29,17 @@ const nameOf = (core: CorePack, id: number) => { const r = rowOf(core.players, i
 
 /** A write-up's paragraph(s), its cited scores and its thanks. */
 export function writeupBlock(ctx: Ctx, d: Data, b: PublicBallot, subject: number, w: Writeup): Safe {
-  const { t, fmt } = ctx;
+  const { t } = ctx;
   const mine = ctx.me === subject;
   const thanks = w.thanks ?? 0;
   const paragraphs = w.body.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
   return html`<div class="t10-wu">
     ${paragraphs.map(p => html`<p>${p.split('\n').map((line, i) => html`${i ? html`<br>` : ''}${line}`)}</p>`)}
-    ${(w.cites ?? []).length ? html`<div class="t10-cites">${(w.cites ?? []).map(ref => scoreCard(ctx, b.scores?.[ref] ?? null, ref, '', { player: subject }))}</div>` : ''}
+    ${(w.cites ?? []).length ? html`<div class="t10-cites">${(w.cites ?? []).map(ref => scoreCard(ctx, b.scores?.[ref] ?? null, ref))}</div>` : ''}
     <div class="t10-wu-foot">
       ${mine && d.thanksOpen ? html`<button class="t10-thanks ${w.thanked ? 't10-thanks-on' : ''}" type="button" data-thank="${b.voter}" aria-pressed="${String(Boolean(w.thanked))}">
           ❤️ <span>${w.thanked ? t('Thanked') : t('Thank {name}', { name: nameOf(d.core, b.voter) })}</span></button>`
-        : thanks ? html`<span class="small faint" title="${t('Thanks from {name}', { name: nameOf(d.core, subject) })}">❤️ ${fmt.num(thanks)}</span>` : ''}
+        : thanks ? html`<span class="small faint">❤️ ${t('{name} thanked this', { name: nameOf(d.core, subject) })}</span>` : ''}
     </div>
   </div>`;
 }

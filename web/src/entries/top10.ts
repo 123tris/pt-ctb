@@ -49,7 +49,7 @@ const hub = top10Page<hubView.Data>({
     const asked = /^\d{4}$/.test(params.view ?? '') ? Number(params.view) : undefined;
     return { ...s, signInHere: signInHere(), results: asked };
   },
-  title: (ctx, d) => ctx.t('Top 10 of {year}', { year: d.results !== undefined ? editionLabel(d.results) : d.season.year }),
+  title: (ctx, d) => ctx.t('Top 10 of {year}', { year: d.results !== undefined ? editionLabel(d.results, d.hub?.editions) : d.season.year }),
   render: (ctx, d) => hubView.render(ctx, d),
   mount: root => startCountdowns(root),
 });
@@ -63,9 +63,12 @@ const ballot = top10Page<{ d: ballotView.Data; e: ballotView.Editor }>({
     const server = own?.ok ? (own.body?.ballot ?? null) as OwnBallot | null : null;
     const draft = server ? null : localDraft(s.season.year, ctx.me);
     const trouble = own && !own.ok ? troubleOf(own.status) : s.trouble;
+    // GET /ballot says whether you may vote, and why not ({ eligible, code, reason }); GET /api/top10's me says it too.
+    const said = own?.ok ? own.body : s.hub?.me;
     const d: ballotView.Data = {
-      core: c, history: h, season: s.season, phase: s.phase, trouble, eligible: s.hub?.me ? s.hub.me.eligible : true,
-      reason: s.hub?.me?.reason ?? null, ballot: server ?? draft, candidates: candidatesOf(c, h, s.season.year), signInHere: signInHere(),
+      core: c, history: h, season: s.season, phase: s.phase, trouble, eligible: said && typeof said.eligible === 'boolean' ? said.eligible : true,
+      code: said?.code ?? null, reason: said?.reason ?? null, log: own?.ok && Array.isArray(own.body?.log) ? own.body.log : [],
+      ballot: server ?? draft, candidates: candidatesOf(c, h, s.season.year), signInHere: signInHere(),
     };
     return { d, e: ballotView.editorOf(server ?? draft, query) };
   },

@@ -7,6 +7,7 @@
 // (?top10mock=0 turns it off). Production never loads it: the import below only runs when both hold.
 
 import { prefs, myId } from './ui.ts';
+import { text } from './i18n.ts';
 import { session, type Answer } from './bananas.ts';
 import { REPLAY_UPLOAD } from '../ui/top10.ts';
 
@@ -72,16 +73,57 @@ export async function showcaseBody(fields: Record<string, unknown>, file: File |
   return form;
 }
 
-/** The endpoints' messages that are ours (contract §13.3), so they show in Portuguese too. */
-const SERVER_TEXT = /* i18n */ ['add it with /addscore first, or attach a clip'];
-void SERVER_TEXT;
+/**
+ * The endpoints' refusals a player can meet, by code (top10/api.js), in words for each: the server's own message is
+ * English and often more exact (it names the year or the map), so English shows that, and Portuguese shows these.
+ */
+const CODES: Readonly<Record<string, string>> = /* i18n */ {
+  closed: 'Voting has closed.',
+  not_open: 'Voting isn’t open yet.',
+  data_unavailable: 'The site’s player data couldn’t be read just now. Try again in a minute.',
+  not_pt: 'That isn’t a PT player on the site.',
+  duplicate: 'That play is already in the showcase.',
+  limit: 'That’s 15 showcase entries this year: remove one to add another.',
+  own_limit: 'At most 5 of your own plays a year.',
+  mode: 'That isn’t an osu!catch play.',
+  not_found: 'osu! has no score with that id. For a play osu! doesn’t keep, attach its replay (.osr) or a clip.',
+  not_in_data: 'That score isn’t in the site’s data yet: add it with /addscore first, or attach its replay (.osr) or a clip.',
+  wrong_year: 'That play wasn’t set this year: the showcase is for this year’s.',
+  not_theirs: 'That play is another player’s.',
+  replay_mismatch: 'That replay isn’t this score’s: the player or the map is different.',
+  osr: 'That file isn’t an osu! replay (.osr).',
+  no_replays: 'Replay uploads aren’t set up on this copy of the site.',
+  bad_form: 'That upload couldn’t be read.',
+  too_big: 'That’s too big to send.',
+  too_long: 'That’s too long.',
+  clip: 'A clip has to be a YouTube, Twitch or Streamable link.',
+  score: 'Send a score link or one of the plays listed.',
+  cite: 'One of the cited plays couldn’t be found. Take it off and cite another.',
+  not_listed: 'Write-ups are only for players on your ballot.',
+  no_ballot: 'Save your list first.',
+  void: 'This ballot was voided.',
+  final: 'The results are final: that can’t change now.',
+  thanks_closed: 'Thanks have closed for this year.',
+  not_yours: 'Only whoever added an entry can remove it.',
+  no_play: 'That showcase entry isn’t there any more.',
+  no_writeup: 'That write-up isn’t there any more.',
+  not_public: 'That ballot isn’t public.',
+  self: 'That’s about you or yours: the other mod handles it.',
+  reason: 'Say why: the player sees the reason.',
+  not_closed: 'Voting is still open: finalize once it closes.',
+  already: 'This year was already finalized.',
+  turnout: 'Fewer than 5 ballots count: the results can’t be published.',
+};
 
 /** What went wrong with a call, in words. */
 export function problemText(t: (s: string, v?: Record<string, unknown>) => string, res: Answer): string {
   if (res.status === 401) return t('Your sign-in has run out. Sign in with osu! again.');
-  if (res.status === 503) return t('Top 10 voting isn’t set up on this copy of the site.');
-  if (res.status === 403) return t('You can’t do that.');
+  if (res.status === 503 && !res.body?.code) return t('Top 10 voting isn’t set up on this copy of the site.');
   if (res.status === 0) return t('The site couldn’t be reached. Check your connection and try again.');
-  const said = res.body?.error;
-  return typeof said === 'string' && said ? t(said) : t('That didn’t go through. Try again in a moment.');
+  const said = typeof res.body?.error === 'string' ? res.body.error : '';
+  const code = typeof res.body?.code === 'string' ? res.body.code : '';
+  if (text().lang !== 'en' && Object.hasOwn(CODES, code)) return t(CODES[code]);
+  if (said) return said;
+  if (Object.hasOwn(CODES, code)) return t(CODES[code]);
+  return res.status === 403 ? t('You can’t do that.') : t('That didn’t go through. Try again in a moment.');
 }

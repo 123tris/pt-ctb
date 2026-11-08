@@ -41,8 +41,10 @@ function callToAction(ctx: Ctx, d: Data): Safe {
 }
 
 /** The editions before this one (§13.10), each linking to its results. */
-function pastYears(ctx: Ctx, year: number, current?: number, { label = true } = {}): Safe | '' {
-  const past = PAST_EDITIONS.filter(([y]) => y < year);
+function pastYears(ctx: Ctx, d: Data, current?: number, { label = true } = {}): Safe | '' {
+  // The server's editions (the years whose results are out); the known list only when it can't be asked.
+  const all = d.hub ? (d.hub.editions ?? []).map(e => [e.year, e.label] as const) : PAST_EDITIONS;
+  const past = all.filter(([y]) => y < d.season.year).sort((a, b) => a[0] - b[0]);
   return past.length ? html`<nav class="chips t10-past" aria-label="${ctx.t('Past years')}">${label ? html`<span class="chips-label">${ctx.t('Past years')}</span>` : ''}
     ${past.map(([y, label]) => html`<a class="chip ${y === current ? 'active' : ''}" href="/top10/${y}" ${y === current ? html`aria-current="page"` : ''}>${label}</a>`)}</nav>` : '';
 }
@@ -58,7 +60,7 @@ export function render(ctx: Ctx, d: Data): Safe {
   const asked = d.results ?? (phase === 'revealed' ? year : undefined);
   if (asked !== undefined) {
     const past = asked < year;
-    const label = editionLabel(asked);
+    const label = editionLabel(asked, d.hub?.editions);
     return html`${top10Tabs(ctx, 'hub', year)}
       <header class="page-head"><span class="eyebrow">${t('Top 10 of {year}', { year: label })}</span><h1>${t('The results')}</h1></header>
       <div class="empty t10-soon"><p class="t10-done-big">🏆</p>
@@ -67,9 +69,10 @@ export function render(ctx: Ctx, d: Data): Safe {
             : phase === 'revealed' ? t('The results are out. The reveal, 10 to 1, comes to this page in January.') : t('The results come out {when}, Lisbon time.', { when: lisbon(ctx, reveal) })}</p>
         <div class="btn-row justify-center">${past ? html`<a class="btn" href="/top10">${t('Top 10 of {year}', { year })}</a>`
           : html`<a class="btn" href="/top10/ballots">${t('Read the ballots')}</a><a class="btn" href="/top10/plays">${t('Plays of {year}', { year })}</a>`}</div>
-        ${pastYears(ctx, year, asked)}</div>`;
+        ${pastYears(ctx, d, asked)}</div>`;
   }
 
+  const past = pastYears(ctx, d, undefined, { label: false });
   const when = phase === 'before' ? t('Voting opens {when}.', { when: lisbon(ctx, opens) })
     : phase === 'open' ? t('Voting closes {when}, Lisbon time.', { when: lisbon(ctx, closes) })
       : t('Voting closed {when}.', { when: lisbon(ctx, closes) });
@@ -111,11 +114,11 @@ export function render(ctx: Ctx, d: Data): Safe {
       </div>
     </section>
 
-    <section class="section" aria-labelledby="t10-past-h">
+    ${past ? html`<section class="section" aria-labelledby="t10-past-h">
       <h2 id="t10-past-h">${t('Past years')}</h2>
       <p class="muted">${t('The forum threads since 2020, combined the same way.')}</p>
-      ${pastYears(ctx, year, undefined, { label: false })}
-    </section>
+      ${past}
+    </section>` : ''}
 
     <section class="section small faint">
       <p>${t('Bananas: 20 🍌 for a ballot, and 1 🍌 per word of write-up (up to 40) for each player on your list, +30 when everyone on it has 40 words, and +5 each time a player thanks you. Paid after the mods’ review, once voting closes.')}</p>

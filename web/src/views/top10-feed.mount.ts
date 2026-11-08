@@ -15,7 +15,8 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const w = ballot?.writeups[ctx.me];
     if (!ballot || !w) return;
     button.disabled = true;
-    const res = await top10Api('/api/top10/thanks', { method: 'POST', body: { voter } });
+    // The state wanted, said outright (left out, it toggles): taking it back works until the results are final.
+    const res = await top10Api('/api/top10/thanks', { method: 'POST', body: { voter, thanked: !w.thanked } });
     if (!res.ok) { button.disabled = false; toast(problemText(t, res)); return; }
     // The answer says where it stands when it can; otherwise a thanks was given.
     w.thanked = typeof res.body?.thanked === 'boolean' ? res.body.thanked : true;

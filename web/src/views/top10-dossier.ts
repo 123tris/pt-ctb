@@ -16,7 +16,7 @@ import { stat } from '../ui/page.ts';
 import { summarise, type Recap, type YearPlay } from './recap.ts';
 import type { History } from './player.ts';
 import { ppAt, yearStart, type Candidate, rankLine } from '../ui/top10-players.ts';
-import { playRef, scoreCard, top10Tabs, type ShowPlay } from '../ui/top10.ts';
+import { playRef, scoreCard, scoreHref, top10Tabs, type ShowPlay } from '../ui/top10.ts';
 import type { CiteChoice } from './top10-ballot.ts';
 
 export interface Data {
@@ -88,7 +88,7 @@ export function dossierBody(ctx: Ctx, d: Data, { compact = false } = {}): Safe {
 
     <h3 class="t10-h3">${t('Showcased by the community')}</h3>
     ${d.plays === null ? html`<p class="muted small">${t('The showcase couldn’t be loaded.')}</p>`
-      : shown.length ? html`<ul class="t10-show-list">${shown.map(p => html`<li>${p.score_ref || p.score ? scoreCard(ctx, p.score, p.score_ref) : html`<div class="t10-score t10-score-bare"><a href="${p.clip}" target="_blank" rel="noopener">🎬 ${t('Clip')} ↗</a></div>`}
+      : shown.length ? html`<ul class="t10-show-list">${shown.map(p => html`<li>${p.score ? scoreCard(ctx, p.score, p.score_ref) : p.clip ? html`<div class="t10-score t10-score-bare"><a href="${p.clip}" target="_blank" rel="noopener">🎬 ${t('Clip')} ↗</a></div>` : ''}
           ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}<span class="small faint">🔥 ${fmt.num(p.endorsements ?? 0)}</span></li>`)}</ul>`
       : html`<p class="muted small">${t('Nobody has showcased a play of {name}’s yet.', { name })} <a href="/top10/plays?player=${d.id}">${t('Showcase one')}</a></p>`}
 
@@ -113,20 +113,26 @@ export function render(ctx: Ctx, d: Data): Safe {
 }
 
 /**
- * A player's plays of the year as citable scores, the most pp first. A play's reference is its osu! score id; most
- * stored plays have none (93% of 2026's in the export), and those are referred to as map:<beatmap id>, the player's
- * stored best on that map (ui/top10.ts playRef).
+ * A player's plays of the year as citable scores, the most pp first, one per map. Each goes by its canonical ref
+ * (ui/top10.ts playRef): osu:/legacy: when the data has the score's id, which 93% of 2026's stored plays don't, else
+ * map:<beatmap>:<player>, which the server reads as that player's best play on the map this year.
  */
-export function yearChoices(pack: PlayerPack | null, year: number): CiteChoice[] {
+export function yearChoices(pack: PlayerPack | null, year: number, player: number): CiteChoice[] {
   if (!pack) return [];
   const w = recapOf({ pack, year });
   if (!w) return [];
-  return [...w.plays].sort((a, b) => b.s[S.PP] - a.s[S.PP]).slice(0, 15).map(p => ({
-    ref: playRef(p.s[S.ID], p.s[S.MAP]),
-    label: '',
-    card: {
-      map: p.s[S.MAP], title: p.meta?.[M.TITLE], artist: p.meta?.[M.ARTIST], version: p.meta?.[M.VERSION], stars: p.meta?.[M.STARS], set: p.meta?.[M.SET],
-      pp: p.s[S.PP], acc: p.s[S.ACC], miss: p.s[S.MISS], mods: modString(p.s[S.MODS]), time: p.s[S.TIME],
-    },
-  }));
+  const seen = new Set<string>();
+  return [...w.plays].sort((a, b) => b.s[S.PP] - a.s[S.PP]).flatMap(p => {
+    const ref = playRef(p.s[S.ID], p.s[S.MAP], player);
+    if (seen.has(ref)) return [];
+    seen.add(ref);
+    return [{
+      ref, label: '',
+      card: {
+        ref, player, map: p.s[S.MAP], title: p.meta?.[M.TITLE], artist: p.meta?.[M.ARTIST], version: p.meta?.[M.VERSION], stars: p.meta?.[M.STARS],
+        set: p.meta?.[M.SET], pp: p.s[S.PP], acc: p.s[S.ACC], miss: p.s[S.MISS], combo: p.s[S.COMBO], mods: modString(p.s[S.MODS]), grade: p.s[S.GRADE],
+        time: p.s[S.TIME], url: scoreHref(ref),
+      },
+    }];
+  }).slice(0, 15);
 }

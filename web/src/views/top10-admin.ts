@@ -11,7 +11,7 @@ import { playerLinkId, rowOf } from '../ui/players.ts';
 import { signInButton } from '../ui/bananas.ts';
 import { chipGroup, col, dataTable, empty, pageHead } from '../ui/page.ts';
 import { adminTabs } from '../ui/admin-tabs.ts';
-import { bananasFor, flagList, scoreCard, toSec, troubleNote, type Phase, type ShowPlay, type Trouble } from '../ui/top10.ts';
+import { bananasFor, flagList, replayLink, scoreCard, toSec, troubleNote, type LogLine, type Phase, type ShowPlay, type Trouble } from '../ui/top10.ts';
 
 /** A write-up in the queue. */
 export interface QueueWriteup {
@@ -23,8 +23,13 @@ export interface QueueWriteup {
   mod: 'ok' | 'struck';
   mod_reason?: string | null;
   updated?: string | number | null;
-  /** On the voter's list (pays) rather than a mention or one to watch; true when not said. */
+  /** About a pick, so it pays (rather than a mention or one to watch). */
   ranked?: boolean;
+  cites?: string[];
+  ballot_status?: 'draft' | 'submitted' | 'void';
+  /** What an action names it by ("writeup:<voter>:<subject>"), and whether it's yours to leave (about you or by you). */
+  target?: string;
+  own?: boolean;
 }
 
 export interface QueueBallot {
@@ -33,9 +38,9 @@ export interface QueueBallot {
   picks?: number | unknown[];
   submitted_at?: string | number | null;
   void_reason?: string | null;
+  target?: string;
+  own?: boolean;
 }
-
-export interface LogLine { seq?: number; admin: number; action: string; target: string; reason?: string | null; at?: string | number }
 
 export interface Queue {
   year?: number;
@@ -73,8 +78,9 @@ export function writeupList(ctx: Ctx, d: Data, filter: WriteupFilter): Safe {
   if (!list.length) return empty(filter === 'flagged' ? t('Nothing flagged. Write-ups are approved unless struck.') : t('Nothing here.'));
   return html`<ul class="t10-queue">${list.map(w => {
     const flags = flagList(w.flags);
-    const self = w.subject === ctx.me;
-    const target = `${w.voter}:${w.subject}`;
+    // The server says what's yours to leave (about you or by you); without it, at least those about you.
+    const self = w.own ?? (w.subject === ctx.me || w.voter === ctx.me);
+    const target = w.target ?? `${w.voter}:${w.subject}`;
     return html`<li class="t10-q ${w.mod === 'struck' ? 't10-q-struck' : ''}" data-item="${target}">
       <div class="t10-q-head">${playerLinkId(ctx, d.core.players, w.voter, 'avatar-sm')} <span class="faint">→</span> ${playerLinkId(ctx, d.core.players, w.subject, 'avatar-sm')}
         <span class="small faint">${t('{n} words', { n: fmt.num(w.words) })}${w.ranked === false ? ` · ${t('mention, no bananas')}` : ` · 🍌 ${fmt.num(flags.length || w.mod === 'struck' ? 0 : bananasFor(w.words))}`}</span>
@@ -82,7 +88,7 @@ export function writeupList(ctx: Ctx, d: Data, filter: WriteupFilter): Safe {
         ${w.mod === 'struck' ? html`<span class="t10-pill t10-pill-warn">${t('struck')}</span>` : ''}</div>
       <p class="t10-q-body">${w.body}</p>
       ${w.mod === 'struck' && w.mod_reason ? html`<p class="small muted">${t('Reason: {reason}', { reason: w.mod_reason })}</p>` : ''}
-      <div class="btn-row">${self ? html`<span class="small faint">${t('About you: the other mod handles this one.')}</span>`
+      <div class="btn-row">${self ? html`<span class="small faint">${t('About you or by you: the other mod handles this one.')}</span>`
         : w.mod === 'struck' || flags.length ? html`<button class="btn btn-small" type="button" data-act="restore" data-target="${target}">${flags.length && w.mod !== 'struck' ? t('Clear the flags') : t('Restore')}</button>` : ''}
         ${!self && w.mod !== 'struck' ? html`<button class="btn btn-small" type="button" data-act="strike" data-target="${target}">${t('Strike')}</button>` : ''}</div>
       <div data-reason-slot></div>
@@ -97,10 +103,11 @@ function playsList(ctx: Ctx, d: Data): Safe {
   return html`<ul class="t10-queue">${plays.map(p => html`<li class="t10-q ${p.status === 'hidden' ? 't10-q-struck' : ''}" data-item="p${p.id}">
     <div class="t10-q-head">${playerLinkId(ctx, d.core.players, p.player, 'avatar-sm')} <span class="small faint">${t('shown by {name}', { name: nameOf(d.core, p.submitter) })} · 🔥 ${p.endorsements ?? 0}</span>
       ${p.clip ? html`<span class="t10-pill">🎬 ${t('clip')}</span>` : ''}${p.status === 'hidden' ? html`<span class="t10-pill t10-pill-warn">${t('hidden')}</span>` : ''}</div>
-    ${p.score_ref || p.score ? scoreCard(ctx, p.score, p.score_ref) : ''}${p.clip ? html`<a href="${p.clip}" target="_blank" rel="noopener">${p.clip}</a>` : ''}
+    ${p.score ? scoreCard(ctx, p.score, p.score_ref) : ''}${p.clip ? html`<a href="${p.clip}" target="_blank" rel="noopener">${p.clip}</a>` : ''}
+    ${replayLink(ctx, p.replay)}${p.status === 'hidden' && p.reason ? html`<p class="small muted">${t('Reason: {reason}', { reason: p.reason })}</p>` : ''}
     ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}
-    <div class="btn-row">${p.status === 'hidden' ? html`<button class="btn btn-small" type="button" data-act="show-play" data-target="${p.id}">${t('Show again')}</button>`
-      : html`<button class="btn btn-small" type="button" data-act="hide-play" data-target="${p.id}">${t('Hide')}</button>`}</div>
+    <div class="btn-row">${p.status === 'hidden' ? html`<button class="btn btn-small" type="button" data-act="show-play" data-target="${p.target ?? p.id}">${t('Show again')}</button>`
+      : html`<button class="btn btn-small" type="button" data-act="hide-play" data-target="${p.target ?? p.id}">${t('Hide')}</button>`}</div>
     <div data-reason-slot></div></li>`)}</ul>`;
 }
 
@@ -114,8 +121,9 @@ function ballotsTable(ctx: Ctx, d: Data): Safe {
       <td>${label(b.status)}${b.void_reason ? html`<div class="small faint">${b.void_reason}</div>` : ''}</td>
       <td class="num">${fmt.num(Array.isArray(b.picks) ? b.picks.length : b.picks ?? 0)}</td>
       <td>${toSec(b.submitted_at) ? fmt.date(toSec(b.submitted_at)) : '—'}</td>
-      <td>${b.status === 'void' ? html`<button class="btn btn-small" type="button" data-act="unvoid" data-target="${b.voter}">${t('Unvoid')}</button>`
-        : b.status === 'submitted' ? html`<button class="btn btn-small" type="button" data-act="void" data-target="${b.voter}">${t('Void')}</button>` : ''}<div data-reason-slot></div></td></tr>`));
+      <td>${b.own ? html`<span class="small faint">${t('Yours: the other mod handles it.')}</span>`
+        : b.status === 'void' ? html`<button class="btn btn-small" type="button" data-act="unvoid" data-target="${b.target ?? b.voter}">${t('Unvoid')}</button>`
+        : b.status === 'submitted' ? html`<button class="btn btn-small" type="button" data-act="void" data-target="${b.target ?? b.voter}">${t('Void')}</button>` : ''}<div data-reason-slot></div></td></tr>`));
 }
 
 function logList(ctx: Ctx, d: Data): Safe {
@@ -131,7 +139,8 @@ export function finalizePreview(ctx: Ctx, core: CorePack, out: any): Safe {
   const { t, fmt } = ctx;
   const r = out?.results ?? out;
   const ranking: { id: number; rank: number; score: number; points: number; lists: number; eligible: number; firsts: number; best: number; worst: number }[] = r?.ranking ?? [];
-  const pays: { osu_id: number; payload: { writeups: { subject: number; words: number }[]; allFull: boolean } }[] = out?.payouts ?? [];
+  // Each queued request is { osuId, type, payload } (requestId too on the real run).
+  const pays: { osuId: number; payload: { writeups: { subject: number; words: number }[]; allFull: boolean } }[] = out?.payouts ?? [];
   const thanks: unknown[] = out?.thanks ?? [];
   const bananas = (p: (typeof pays)[number]) => 20 + p.payload.writeups.reduce((n, w) => n + bananasFor(w.words), 0) + (p.payload.allFull ? 30 : 0);
   return html`<p>${out?.dryRun === false ? html`<b>${t('Finalized.')}</b> ` : html`<b>${t('Dry run: nothing was saved.')}</b> `}
@@ -142,7 +151,7 @@ export function finalizePreview(ctx: Ctx, core: CorePack, out: any): Safe {
     <h3 class="t10-h3">${t('Payouts the bot will get')}</h3>
     <p class="small muted">${t('The bot works the amounts out itself; these are what its default config pays: 20 a ballot, 1 per word a write-up (up to 40), +30 when all are 40+ words. Plus {n} thanks at 5 each.', { n: fmt.num(thanks.length) })}</p>
     ${dataTable(t('Payouts'), html`${col(t('Voter'))}${col(t('Paid write-ups'), 'num')}${col(t('All 40+'))}${col('🍌', 'num')}`,
-      pays.map(p => html`<tr><td>${playerLinkId(ctx, core.players, p.osu_id, 'avatar-sm')}</td><td class="num">${fmt.num(p.payload.writeups.length)}</td><td>${p.payload.allFull ? '✅' : ''}</td><td class="num">${fmt.num(bananas(p))}</td></tr>`))}`;
+      pays.map(p => html`<tr><td>${playerLinkId(ctx, core.players, p.osuId, 'avatar-sm')}</td><td class="num">${fmt.num(p.payload.writeups.length)}</td><td>${p.payload.allFull ? '✅' : ''}</td><td class="num">${fmt.num(bananas(p))}</td></tr>`))}`;
 }
 
 export function render(ctx: Ctx, d: Data, filter: WriteupFilter = 'flagged'): Safe {

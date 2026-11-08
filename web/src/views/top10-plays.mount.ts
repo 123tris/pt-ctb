@@ -32,7 +32,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     if (!id) { box.innerHTML = ''; return; }
     box.innerHTML = String(html`<p class="small muted">${t('Loading…')}</p>`);
     const pack = await store.pack(playerPack(id), readPlayer).catch(() => null);
-    const choices = yearChoices(pack, d.season.year);
+    const choices = yearChoices(pack, d.season.year, id);
     const taken = new Set(d.plays.map(p => p.score_ref).filter(Boolean));
     box.innerHTML = String(choices.length ? html`<fieldset class="t10-pick-plays"><legend class="small muted">${t('Their plays of {year}, the most pp first', { year: d.season.year })}</legend>
       <ul class="t10-cite-list">${choices.map((c, i) => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${taken.has(c.ref) ? raw('disabled') : i === 0 ? raw('checked') : ''}>
@@ -108,8 +108,8 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     } else {
       const score = String(kind === 'link' ? data.get('score') ?? '' : data.get('pick') ?? '').trim();
       if (!score) { msg.textContent = kind === 'link' ? t('Paste the score’s link from osu!.') : t('Choose a player, then one of their plays.'); return; }
-      // A stored play without an osu! score id goes by its map, with whose it is (ui/top10.ts playRef).
-      body = score.startsWith('map:') ? { score, player: Number(data.get('player')), caption } : { score, caption };
+      // A pick is a canonical ref (osu:, legacy: or map:<beatmap>:<player>: ui/top10.ts playRef); a link goes as pasted.
+      body = { score, caption };
     }
     const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     button.disabled = true;

@@ -106,6 +106,8 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
       const back = (res.body?.ballot ?? null) as OwnBallot | null;
       for (const [id, w] of Object.entries(back?.writeups ?? {})) e.server[id] = { flags: flagList(w.flags), mod: w.mod, mod_reason: w.mod_reason };
       if (back?.status) e.status = back.status;
+      // The server's cards for the cites, under the canonical refs it answers with.
+      Object.assign(e.scores, back?.scores ?? {});
     } else {
       dirty = true;
       problem = t('Not saved: {why}', { why: problemText(t, res) });
@@ -292,6 +294,8 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     const w = current();
     const ref = el.dataset.citeRef!;
     w.cites = el.checked ? [...new Set([...w.cites, ref])].slice(0, 5) : w.cites.filter(r => r !== ref);
+    const picked = choices?.find(c => c.ref === ref)?.card;
+    if (picked) e.scores[ref] = picked;
     const cites = $('[data-cites]');
     if (cites) {
       // Only the cards under the box; the list keeps its place and focus.
@@ -400,7 +404,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     ]);
     if (writeOrder(e)[e.writing]?.id !== id) return;
     const out: CiteChoice[] = shown.map(p => ({ ref: p.score_ref || `play:${p.id}`, card: p.score ?? null, label: `🔥 ${fmt.num(p.endorsements ?? 0)}` }));
-    for (const c of yearChoices(pack, year)) if (!out.some(o => o.ref === c.ref)) out.push(c);
+    for (const c of yearChoices(pack, year, id)) if (!out.some(o => o.ref === c.ref)) out.push(c);
     choices = out.slice(0, 25);
     if (citeOpen) redrawWriter();
   }

@@ -16,7 +16,7 @@ import { chipGroup } from '../ui/page.ts';
 import {
   ballotProblems, flagList, flagsOf, lisbon, modWarning, phaseName, publicNote, rules, scoreCard, spotsOf, toSec, top10Tabs, troubleNote,
   wordMeter, wordsOf, MAX_BODY, MAX_EXTRAS, MAX_NOTE, MAX_PICKS, MIN_PICKS, PEAK_WORDS,
-  type BallotStatus, type OwnBallot, type Phase, type Row, type ScoreCard, type Season, type Trouble,
+  type BallotStatus, type Card, type LogLine, type OwnBallot, type Phase, type Row, type Season, type Trouble,
 } from '../ui/top10.ts';
 import { candidateCard, type Candidate } from '../ui/top10-players.ts';
 import type { History } from './player.ts';
@@ -30,7 +30,11 @@ export interface Data {
   trouble: Trouble;
   /** Signed in and a PT player, as GET /api/top10 says (true when it can't be asked). */
   eligible: boolean;
+  /** Why not, as the server's code (not_pt, data_unavailable) and words. */
+  code: string | null;
   reason: string | null;
+  /** The mod actions on your ballot, write-ups and showcase entries (GET /ballot `log`). */
+  log: LogLine[];
   /** Your ballot as the server has it, or null (none yet, signed out, or not reachable). */
   ballot: OwnBallot | null;
   candidates: Candidate[];
@@ -49,6 +53,8 @@ export interface Editor {
   writeups: Record<string, { body: string; cites: string[] }>;
   /** The server's flags and mod status on each write-up, as of the last load or save. */
   server: Record<string, { flags: string[]; mod?: string; mod_reason?: string | null }>;
+  /** The cited plays' cards, by ref: the server's (GET /ballot `scores`), and the ones picked from the cite list. */
+  scores: Record<string, Card>;
   status: BallotStatus;
   voidReason: string | null;
   target: Target;
@@ -83,6 +89,7 @@ export function editorOf(b: OwnBallot | null, query: Record<string, string | und
   return {
     rows: sorted.map((p, i) => ({ id: p.id, tie: i > 0 && p.spot === sorted[i - 1].spot })),
     mentions: b?.mentions ?? [], watch: b?.watch ?? [], intro: b?.intro ?? '', outro: b?.outro ?? '', writeups, server,
+    scores: { ...(b?.scores ?? {}) },
     status: b?.status ?? 'draft', voidReason: b?.void_reason ?? null,
     target: 'list', filter: 'active', q: '',
     mode: query.write !== undefined && b?.picks?.length ? 'write' : 'list', writing: 0, fresh: false,
@@ -219,7 +226,7 @@ export const PROMPTS = (ctx: Ctx): [string, string][] => {
 /** Cards for a player's scores you can cite: their showcase entries and plays of the year. */
 export interface CiteChoice {
   ref: string;
-  card: ScoreCard | null;
+  card: Card | null;
   label: string;
 }
 
@@ -239,7 +246,7 @@ export function writerSection(ctx: Ctx, d: Data, e: Editor, access: Access, { pr
   const ranked = e.rows.filter(r => (e.writeups[r.id]?.body ?? '').trim());
   const full = e.rows.filter(r => wordsOf(e.writeups[r.id]?.body ?? '').length >= PEAK_WORDS);
   const spot = kind === 'list' ? placeOf(e, id) : kind === 'mentions' ? t('Honourable mention') : t('One to watch');
-  const cited = w.cites.map(ref => choices?.find(c => c.ref === ref) ?? { ref, card: null, label: '' });
+  const cited = w.cites.map(ref => ({ ref, card: e.scores[ref] ?? choices?.find(c => c.ref === ref)?.card ?? null }));
 
   return html`<section class="t10-writer" aria-labelledby="t10-w-h" data-writer>
     ${e.fresh ? html`<div class="t10-done"><p class="t10-done-big">${t('Your top 10 is in ✅')}</p><p class="m-0">${t('Now the good part: tell them why. One player at a time, and every word is optional.')}</p></div>` : ''}
@@ -307,6 +314,28 @@ export function actionBar(ctx: Ctx, d: Data, e: Editor, access: Access): Safe {
   </div>`;
 }
 
+/** What a mod did, in words: "Struck your write-up about Hiroto-: <reason>". */
+export function logLine(ctx: Ctx, core: CorePack, l: LogLine): string {
+  const { t } = ctx;
+  const [kind, a, b] = l.target.split(':');
+  const what = kind === 'writeup' || (/^\d+$/.test(kind) && a !== undefined)
+    ? t('your write-up about {name}', { name: nameOf(core, Number(kind === 'writeup' ? b : a)) })
+    : kind === 'play' ? t('your showcase entry') : t('your ballot');
+  const did = ({
+    strike: t('Struck {what}', { what }), restore: t('Restored {what}', { what }), 'hide-play': t('Hid {what}', { what }),
+    'show-play': t('Showed {what} again', { what }), void: t('Voided {what}', { what }), unvoid: t('Restored {what}', { what }),
+  } as Record<string, string>)[l.action] ?? `${l.action} ${what}`;
+  return l.reason ? `${did}: ${l.reason}` : did;
+}
+
+/** The mods' actions on your things (§8: every action is shown to the player it's about). */
+function modLog(ctx: Ctx, d: Data): Safe | '' {
+  const { t, fmt } = ctx;
+  if (!d.log.length) return '';
+  return html`<details class="t10-modlog notice"><summary>${t('What the mods did on your ballot ({n})', { n: fmt.num(d.log.length) })}</summary>
+    <ul>${d.log.map(l => html`<li>${logLine(ctx, d.core, l)}${toSec(l.at) ? html` <span class="small faint">${fmt.dateTime(toSec(l.at))}</span>` : ''}</li>`)}</ul></details>`;
+}
+
 export function render(ctx: Ctx, d: Data, e: Editor): Safe {
   const { t } = ctx;
   const access = accessOf(ctx, d);
@@ -319,7 +348,7 @@ export function render(ctx: Ctx, d: Data, e: Editor): Safe {
     return html`${head}${troubleNote(ctx, d.trouble === 'signin' ? null : d.trouble)}
       <div class="empty"><p>${t('Only PT players can vote: sign in with osu! to make your list.')}</p>${signInButton(ctx, d.signInHere)}</div>${rulesBox}`;
   }
-  if (access === 'ineligible') return html`${head}<div class="empty"><p>${d.reason ? t(d.reason) : t('Only PT players can vote.')}</p></div>${rulesBox}`;
+  if (access === 'ineligible') return html`${head}<div class="empty"><p>${d.code === 'data_unavailable' ? t('The site’s player data couldn’t be read just now. Try again in a minute.') : t('Only PT players on the site can vote, and your osu! account isn’t in its list of Portuguese players.')}</p></div>${rulesBox}`;
 
   const phaseNote = d.trouble ? troubleNote(ctx, d.trouble)
     : d.phase === 'before' ? html`<p class="notice">${t('Voting opens {when}. You can start your list now: it stays in this browser until then.', { when: lisbon(ctx, toSec(d.season.opens)) })}</p>`
@@ -327,7 +356,7 @@ export function render(ctx: Ctx, d: Data, e: Editor): Safe {
   const voidNote = e.status === 'void' ? html`<p class="notice t10-struck">${t('A mod voided this ballot: {reason}', { reason: e.voidReason || t('no reason given') })}</p>` : '';
   const body = e.mode === 'write' ? writerSection(ctx, d, e, access)
     : html`${listSection(ctx, d, e, access)}${extrasSection(ctx, d, e, access, false)}${access === 'read' ? '' : pickerSection(ctx, d, e, access)}`;
-  return html`${head}${phaseNote}${voidNote}
+  return html`${head}${phaseNote}${voidNote}${modLog(ctx, d)}
     <div data-main>${body}</div>
     ${publicNote(ctx)}
     ${modWarning(ctx)}
