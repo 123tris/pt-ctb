@@ -35,8 +35,14 @@ const ID_PARAMS = ${source.match(/const ID_PARAMS = (new Set\([^)]*\));/)[1]};
 return { LOADERS, match, SUB_VIEWS, pageOf, pageKey, pageObject };`)(matchPage, unmoved);
 
 test('the page table: every address the old app loads, with the same new entry and old page', () => {
-  assert.deepEqual(Object.keys(PAGE_MODULES), Object.keys(old.LOADERS));
+  // Pages of the new client's only (Top 10) have no old page and no loader in the old app.
+  const withOld = Object.keys(PAGE_MODULES).filter(pattern => PAGE_MODULES[pattern].old);
+  assert.deepEqual(withOld, Object.keys(old.LOADERS));
   assert.deepEqual(Object.keys(PAGE_MODULES), PAGES);
+  for (const [pattern, { entry, old: page }] of Object.entries(PAGE_MODULES)) {
+    if (page) continue;
+    assert.ok(fs.existsSync(path.join(repo, 'web', 'src', 'entries', `${entry}.ts`)), `${pattern}: web/src/entries/${entry}.ts`);
+  }
   for (const [pattern, load] of Object.entries(old.LOADERS)) {
     const [, entry] = String(load).match(/import\('\.\.\/web\/([\w-]+)\.js'\)/);
     const [, page] = String(load).match(/import\('\.\/pages\/([\w-]+)\.js'\)/);

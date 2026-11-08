@@ -8,7 +8,7 @@ import type { Ctx } from '../kernel/ctx.ts';
 import type { CorePack } from '../gen/packs.ts';
 import { playerLinkId, rowOf } from '../ui/players.ts';
 import { signInButton } from '../ui/bananas.ts';
-import { MAX_CAPTION, scoreCard, toSec, top10Tabs, troubleNote, type Phase, type Season, type ShowPlay, type Trouble } from '../ui/top10.ts';
+import { MAX_CAPTION, replayLink, scoreCard, toSec, top10Tabs, troubleNote, type Phase, type Season, type ShowPlay, type Trouble } from '../ui/top10.ts';
 import type { Candidate } from '../ui/top10-players.ts';
 
 export interface Data {
@@ -36,6 +36,7 @@ export function playItem(ctx: Ctx, d: Pick<Data, 'core' | 'phase'>, p: ShowPlay)
     <div class="t10-show-who">${playerLinkId(ctx, d.core.players, p.player, 'avatar-sm')}${p.clip ? html`<span class="t10-pill">🎬 ${t('clip')}</span>` : ''}</div>
     ${p.score_ref || p.score ? scoreCard(ctx, p.score, p.score_ref) : ''}
     ${p.clip ? html`<a class="t10-clip" href="${p.clip}" target="_blank" rel="noopener">▶ ${t('Watch the clip')} ↗</a>` : ''}
+    ${replayLink(ctx, p.replay)}
     ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}
     <div class="t10-show-foot">
       <button class="t10-endorse ${p.endorsed ? 't10-endorse-on' : ''}" type="button" data-endorse="${p.id}" aria-pressed="${String(Boolean(p.endorsed))}"
@@ -65,6 +66,7 @@ export function addForm(ctx: Ctx, d: Data): Safe {
     <div class="chips" role="group" aria-label="${t('What to add')}">
       <button class="chip active" type="button" data-kind="pick" aria-pressed="true">${t('Pick from their plays')}</button>
       <button class="chip" type="button" data-kind="link" aria-pressed="false">${t('Paste a score link')}</button>
+      <button class="chip" type="button" data-kind="replay" aria-pressed="false">${t('A replay file')}</button>
       <button class="chip" type="button" data-kind="clip" aria-pressed="false">${t('A clip')}</button>
     </div>
     <form class="t10-add-form" data-form novalidate>
@@ -73,6 +75,9 @@ export function addForm(ctx: Ctx, d: Data): Safe {
       <div data-for="pick" data-year-plays></div>
       <label class="t10-field" data-for="link" hidden><span>${t('osu! score link')}</span>
         <input class="input" name="score" type="url" inputmode="url" placeholder="https://osu.ppy.sh/scores/…" autocomplete="off"></label>
+      <div class="t10-field" data-for="link replay" hidden><label for="t10-osr"><span data-osr-label>${t('Replay file (optional)')}</span></label>
+        <input class="input t10-file" id="t10-osr" name="replay" type="file" accept=".osr" aria-describedby="t10-osr-hint">
+        <span class="small faint" id="t10-osr-hint">${t('For unranked or offline plays: attach your replay file (F2 on the results screen in stable, or export in lazer). At most 2 MB.')}</span></div>
       <label class="t10-field" data-for="clip" hidden><span>${t('Clip link (YouTube, Twitch or Streamable)')}</span>
         <input class="input" name="clip" type="url" inputmode="url" placeholder="https://youtu.be/…" autocomplete="off"></label>
       <label class="t10-field"><span>${t('Caption (optional)')}</span>

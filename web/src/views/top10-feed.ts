@@ -35,7 +35,7 @@ export function writeupBlock(ctx: Ctx, d: Data, b: PublicBallot, subject: number
   const paragraphs = w.body.split(/\n{2,}/).map(p => p.trim()).filter(Boolean);
   return html`<div class="t10-wu">
     ${paragraphs.map(p => html`<p>${p.split('\n').map((line, i) => html`${i ? html`<br>` : ''}${line}`)}</p>`)}
-    ${(w.cites ?? []).length ? html`<div class="t10-cites">${(w.cites ?? []).map(ref => scoreCard(ctx, b.scores?.[ref] ?? null, ref.startsWith('play:') ? null : ref))}</div>` : ''}
+    ${(w.cites ?? []).length ? html`<div class="t10-cites">${(w.cites ?? []).map(ref => scoreCard(ctx, b.scores?.[ref] ?? null, ref, '', { player: subject }))}</div>` : ''}
     <div class="t10-wu-foot">
       ${mine && d.thanksOpen ? html`<button class="t10-thanks ${w.thanked ? 't10-thanks-on' : ''}" type="button" data-thank="${b.voter}" aria-pressed="${String(Boolean(w.thanked))}">
           ❤️ <span>${w.thanked ? t('Thanked') : t('Thank {name}', { name: nameOf(d.core, b.voter) })}</span></button>`

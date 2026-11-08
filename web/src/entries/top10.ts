@@ -19,7 +19,7 @@ import { NotFound } from '../kernel/store.ts';
 import { readCore, readPlayer } from '../gen/packs.ts';
 import { CORE, playerPack } from '../routes.ts';
 import { rowOf } from '../ui/players.ts';
-import { DEFAULT_SEASON, phaseOf, troubleOf, type Hub, type OwnBallot, type PublicBallot, type ShowPlay } from '../ui/top10.ts';
+import { DEFAULT_SEASON, editionLabel, phaseOf, troubleOf, type Hub, type OwnBallot, type PublicBallot, type ShowPlay } from '../ui/top10.ts';
 import { candidatesOf } from '../ui/top10-players.ts';
 import type { History } from '../views/player.ts';
 import * as hubView from '../views/top10-hub.ts';
@@ -49,7 +49,7 @@ const hub = top10Page<hubView.Data>({
     const asked = /^\d{4}$/.test(params.view ?? '') ? Number(params.view) : undefined;
     return { ...s, signInHere: signInHere(), results: asked };
   },
-  title: (ctx, d) => (d.results !== undefined ? ctx.t('Top 10 of {year}', { year: d.results }) : ctx.t('Top 10 of {year}', { year: d.season.year })),
+  title: (ctx, d) => ctx.t('Top 10 of {year}', { year: d.results !== undefined ? editionLabel(d.results) : d.season.year }),
   render: (ctx, d) => hubView.render(ctx, d),
   mount: root => startCountdowns(root),
 });

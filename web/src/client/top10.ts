@@ -8,6 +8,7 @@
 
 import { prefs, myId } from './ui.ts';
 import { session, type Answer } from './bananas.ts';
+import { REPLAY_UPLOAD } from '../ui/top10.ts';
 
 export type { Answer };
 
@@ -29,7 +30,7 @@ let mock: Promise<Handler> | null = null;
 export async function top10Api(path: string, { method = 'GET', body }: { method?: string; body?: unknown } = {}): Promise<Answer> {
   if (mockOn()) {
     mock ??= import('./top10-mock.ts').then(m => m.handle);
-    return (await mock)(method, path, body === undefined ? undefined : JSON.parse(JSON.stringify(body)), myId());
+    return (await mock)(method, path, body === undefined || body instanceof FormData ? body : JSON.parse(JSON.stringify(body)), myId());
   }
   const s = session();
   if (method !== 'GET' && !s) return { ok: false, status: 401, body: {} };
@@ -37,8 +38,9 @@ export async function top10Api(path: string, { method = 'GET', body }: { method?
   try {
     res = await fetch(path, {
       method,
-      headers: { ...(s ? { Authorization: `Bearer ${s.token}` } : {}), ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}) },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      // Form data sets its own Content-Type (multipart, with the boundary).
+      headers: { ...(s ? { Authorization: `Bearer ${s.token}` } : {}), ...(body !== undefined && !(body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}) },
+      body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
       keepalive: method === 'PUT',
     });
   } catch {
@@ -49,6 +51,25 @@ export async function top10Api(path: string, { method = 'GET', body }: { method?
   const status = res.status === 404 && !(data && typeof data === 'object' && 'error' in data) && path.split('?')[0] !== '/api/top10/results' ? 503 : res.status;
   if (status === 401 && s) prefs.set('osuSession', null);
   return { ok: res.ok, status, body: data };
+}
+
+/**
+ * A showcase entry's body for POST /api/top10/plays: the fields as JSON, or with a replay file, as REPLAY_UPLOAD says
+ * (ui/top10.ts): multipart form data (the fields, and the file as `replay`), or JSON with
+ * `replay: { name, data: <base64> }`. The backend settles which (§13.9).
+ */
+export async function showcaseBody(fields: Record<string, unknown>, file: File | null): Promise<Record<string, unknown> | FormData> {
+  if (!file) return fields;
+  if (REPLAY_UPLOAD === 'base64') {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let text = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return { ...fields, replay: { name: file.name, data: btoa(text) } };
+  }
+  const form = new FormData();
+  for (const [key, value] of Object.entries(fields)) if (value !== undefined && value !== null && value !== '') form.append(key, String(value));
+  form.append('replay', file, file.name);
+  return form;
 }
 
 /** The endpoints' messages that are ours (contract §13.3), so they show in Portuguese too. */

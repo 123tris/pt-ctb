@@ -32,6 +32,8 @@ const CSS = String.raw`
 .t10-cd-box b { font-family: var(--display); font-size: var(--fs-3xl); line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--accent); }
 .t10-cd-box small { color: var(--text-faint); font-size: var(--fs-xs); }
 .t10-soon .t10-done-big { font-size: var(--fs-4xl); }
+.t10-past { justify-content: center; margin-top: var(--sp-4); }
+.section > .t10-past { justify-content: flex-start; }
 
 /* The list */
 .t10-list-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; }
@@ -207,6 +209,8 @@ body.t10-noscroll { overflow: hidden; }
 .t10-show-who { display: flex; align-items: center; gap: var(--sp-2); }
 .t10-caption { margin: 0; color: var(--text); font-style: italic; overflow-wrap: anywhere; }
 .t10-clip { font-weight: 600; }
+.t10-replay { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-2); font-weight: 600; }
+.t10-file { height: auto; padding: var(--sp-2); }
 .t10-show-foot { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
 .t10-endorse { display: inline-flex; align-items: center; gap: var(--sp-1); height: 32px; padding: 0 var(--sp-3); border-radius: 999px; border: 1px solid var(--border-strong); background: none; color: var(--text-dim); cursor: pointer; font-size: var(--fs-sm); }
 .t10-endorse:hover:not(:disabled) { border-color: var(--accent-line); color: var(--text); }

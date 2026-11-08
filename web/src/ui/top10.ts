@@ -121,7 +121,39 @@ export interface ShowPlay {
   endorsements?: number;
   endorsed?: boolean;
   score?: ScoreCard | null;
+  /** Its replay (§13.9): osu!'s own download (signed in on osu! only), a .osr the site keeps, or none. */
+  replay?: Replay | null;
 }
+
+export type Replay = { kind: 'osu'; url: string } | { kind: 'file'; url: string; name?: string | null };
+
+/** The largest .osr the showcase takes (§13.9). */
+export const MAX_REPLAY_BYTES = 2 * 1024 * 1024;
+
+/**
+ * How the showcase's form sends a replay file: as multipart form data, or as JSON with the file in base64. The backend
+ * settles which (§13.9); one switch here, read by client/top10.ts showcaseBody().
+ */
+export const REPLAY_UPLOAD: 'multipart' | 'base64' = 'multipart';
+
+/** A replay's download link (§13.9): osu!'s needs a sign-in there, which the link says. */
+export function replayLink(ctx: Ctx, replay: Replay | null | undefined): Safe | '' {
+  const { t } = ctx;
+  if (!replay?.url) return '';
+  if (replay.kind === 'osu') {
+    return html`<span class="t10-replay"><a href="${replay.url}" target="_blank" rel="noopener">⬇ ${t('Download replay')} ↗</a> <span class="small faint">${t('needs you signed in on osu!')}</span></span>`;
+  }
+  return html`<span class="t10-replay"><a href="${replay.url}" ${replay.name ? html`download="${replay.name}"` : raw('download')}>⬇ ${t('Download replay')}</a>${replay.name ? html` <span class="small faint">${replay.name}</span>` : ''}</span>`;
+}
+
+/**
+ * The past editions (§13.10): the year key GET /api/top10/results?year= takes, and the label. 2023–24 was one edition,
+ * keyed 2024. Their results pages come in December; until then the hub links each year's placeholder.
+ */
+export const PAST_EDITIONS: readonly (readonly [number, string])[] = [[2020, '2020'], [2021, '2021'], [2022, '2022'], [2024, '2023–24'], [2025, '2025']];
+
+/** An edition's label: "2023–24" for 2024, the year otherwise. */
+export const editionLabel = (year: number): string => PAST_EDITIONS.find(([y]) => y === year)?.[1] ?? String(year);
 
 // ---- The season ------------------------------------------------------------------------------------------------------
 
@@ -291,10 +323,10 @@ export function flagsOf(text: string, others: readonly string[] = []): Flag[] {
 export const flagList = (flags: Writeup['flags']): string[] =>
   (Array.isArray(flags) ? flags : String(flags ?? '').split(',')).map(f => f.trim()).filter(Boolean);
 
-/** Bananas a write-up on a ranked player earns: 1 per 4 words, at most 10 (§9). */
+/** Bananas a write-up on a ranked player earns: 1 per word, at most 40 (decision 4, §9; the bot's min(40, words)). */
 export const PEAK_WORDS = 40;
-export const PEAK_BANANAS = 10;
-export const bananasFor = (words: number): number => Math.min(PEAK_BANANAS, Math.floor(words / 4));
+export const PEAK_BANANAS = 40;
+export const bananasFor = (words: number): number => Math.min(PEAK_BANANAS, Math.max(0, Math.floor(words)));
 
 /** Why a flag doesn't count, for the writer. */
 export const flagText = ({ t }: Ctx, flag: string): string => ({
@@ -304,7 +336,7 @@ export const flagText = ({ t }: Ctx, flag: string): string => ({
 } as Record<string, string>)[flag] ?? flag;
 
 /**
- * The word counter under a write-up box: "18 words · 🍌 4 of 10", "🍌 10 of 10 (paid after the reveal)" from 40 words,
+ * The word counter under a write-up box: "18 words · 🍌 18 of 40", "🍌 40 of 40 (paid after the reveal)" from 40 words,
  * and a bar that fills as you write. `pays` is false for mentions and ones to watch, which earn nothing.
  */
 export function wordMeter(ctx: Ctx, words: number, flags: readonly string[], { pays = true } = {}): Safe {
@@ -388,11 +420,15 @@ export function clipOk(url: string): boolean {
 }
 
 /** A score as a small card: its map, and the figures when known; a plain link to osu! otherwise. */
-export function scoreCard(ctx: Ctx, card: ScoreCard | null | undefined, ref: string | null | undefined, extra: Value = ''): Safe {
+export function scoreCard(ctx: Ctx, card: ScoreCard | null | undefined, ref: string | null | undefined, extra: Value = '', { player = null as number | null } = {}): Safe {
   const { t, fmt } = ctx;
   const href = scoreHref(ref);
   if (!card) {
-    return html`<div class="t10-score t10-score-bare">${href ? html`<a href="${href}" target="_blank" rel="noopener">${t('This score on osu!')} ↗</a>` : t('A score')}${extra}</div>`;
+    // play:<id>: a showcase entry with no score the site knows (a clip or a replay file), shown with that player's.
+    const showcased = ref?.startsWith('play:');
+    const text = showcased ? html`🎬 ${player ? html`<a href="/top10/plays?player=${player}">${t('A play from the showcase')}</a>` : t('A play from the showcase')}`
+      : href ? html`<a href="${href}" target="_blank" rel="noopener">${t('This score on osu!')} ↗</a>` : t('A score');
+    return html`<div class="t10-score t10-score-bare">${text}${extra}</div>`;
   }
   const title = card.title ? `${card.artist ? `${card.artist} – ` : ''}${card.title}` : t('Map {id}', { id: card.map });
   const figures = [

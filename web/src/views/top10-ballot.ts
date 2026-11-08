@@ -119,7 +119,8 @@ export function listSection(ctx: Ctx, d: Data, e: Editor, access: Access): Safe 
   // The filled spots, then the next one, then one line for the rest (ten empty boxes would fill a phone's screen).
   const n = e.rows.length;
   const after = n + 1 < MIN_PICKS ? t('Spots {from}–{to} to go, {more}–10 optional', { from: n + 2, to: MIN_PICKS, more: MIN_PICKS + 1 })
-    : n + 1 < MAX_PICKS ? t('Spots {from}–10 optional', { from: Math.max(n + 2, MIN_PICKS + 1) }) : '';
+    : n + 2 < MAX_PICKS ? t('Spots {from}–10 optional', { from: Math.max(n + 2, MIN_PICKS + 1) })
+      : n + 2 === MAX_PICKS ? t('Spot 10 optional') : '';
   const slots = Array.from({ length: Math.min(MAX_PICKS, n + 1) }, (_, i) => {
     const r = e.rows[i];
     if (!r) {
@@ -275,7 +276,7 @@ export function writerSection(ctx: Ctx, d: Data, e: Editor, access: Access, { pr
       ${i < order.length - 1 ? html`<button class="btn btn-primary" type="button" data-next>${(w.body ?? '').trim() ? t('Next player') : t('Skip')} →</button>`
         : html`<button class="btn btn-primary" type="button" data-finish>${t('Done')}</button>`}
     </div>
-    <p class="small faint">${t('Write-ups pay 1 🍌 per 4 words, up to 10 at 40 words, for players on your list, after mods review them once voting closes.')}</p>
+    <p class="small faint">${t('Write-ups pay 1 🍌 per word, up to 40, for players on your list, after mods review them once voting closes.')}</p>
   </section>`;
 }
 

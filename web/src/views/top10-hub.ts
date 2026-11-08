@@ -7,7 +7,7 @@ import { html, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import { signInButton } from '../ui/bananas.ts';
 import {
-  countdown, lisbon, phaseName, publicNote, rules, toSec, top10Tabs, troubleNote,
+  PAST_EDITIONS, countdown, editionLabel, lisbon, phaseName, publicNote, rules, toSec, top10Tabs, troubleNote,
   type Hub, type Phase, type Season, type Trouble,
 } from '../ui/top10.ts';
 
@@ -40,6 +40,13 @@ function callToAction(ctx: Ctx, d: Data): Safe {
   return html`<div class="t10-cta t10-cta-go"><p class="m-0">${sub}</p><a class="btn btn-primary" href="/top10/vote">${label}</a></div>`;
 }
 
+/** The editions before this one (§13.10), each linking to its results. */
+function pastYears(ctx: Ctx, year: number, current?: number, { label = true } = {}): Safe | '' {
+  const past = PAST_EDITIONS.filter(([y]) => y < year);
+  return past.length ? html`<nav class="chips t10-past" aria-label="${ctx.t('Past years')}">${label ? html`<span class="chips-label">${ctx.t('Past years')}</span>` : ''}
+    ${past.map(([y, label]) => html`<a class="chip ${y === current ? 'active' : ''}" href="/top10/${y}" ${y === current ? html`aria-current="page"` : ''}>${label}</a>`)}</nav>` : '';
+}
+
 export function render(ctx: Ctx, d: Data): Safe {
   const { t, tn, fmt } = ctx;
   const { season, phase } = d;
@@ -47,12 +54,20 @@ export function render(ctx: Ctx, d: Data): Safe {
   const opens = toSec(season.opens), closes = toSec(season.closes), reveal = toSec(season.reveal);
   const turnout = d.hub?.turnout;
 
-  if (d.results !== undefined || phase === 'revealed') {
+  // A year's results (/top10/<year>): this season's, or a past edition's (§13.10). Their pages come in December.
+  const asked = d.results ?? (phase === 'revealed' ? year : undefined);
+  if (asked !== undefined) {
+    const past = asked < year;
+    const label = editionLabel(asked);
     return html`${top10Tabs(ctx, 'hub', year)}
-      <header class="page-head"><span class="eyebrow">${t('Top 10 of {year}', { year: d.results ?? year })}</span><h1>${t('The results')}</h1></header>
+      <header class="page-head"><span class="eyebrow">${t('Top 10 of {year}', { year: label })}</span><h1>${t('The results')}</h1></header>
       <div class="empty t10-soon"><p class="t10-done-big">🏆</p>
-        <p>${phase === 'revealed' ? t('The results are out. The reveal, 10 to 1, comes to this page in January.') : t('The results come out {when}, Lisbon time.', { when: lisbon(ctx, reveal) })}</p>
-        <div class="btn-row justify-center"><a class="btn" href="/top10/ballots">${t('Read the ballots')}</a><a class="btn" href="/top10/plays">${t('Plays of {year}', { year })}</a></div></div>`;
+        <p>${past ? t('The {year} results, combined from that year’s forum thread, get their page here soon.', { year: label })
+          : asked > year ? t('There’s no Top 10 of {year} yet.', { year: label })
+            : phase === 'revealed' ? t('The results are out. The reveal, 10 to 1, comes to this page in January.') : t('The results come out {when}, Lisbon time.', { when: lisbon(ctx, reveal) })}</p>
+        <div class="btn-row justify-center">${past ? html`<a class="btn" href="/top10">${t('Top 10 of {year}', { year })}</a>`
+          : html`<a class="btn" href="/top10/ballots">${t('Read the ballots')}</a><a class="btn" href="/top10/plays">${t('Plays of {year}', { year })}</a>`}</div>
+        ${pastYears(ctx, year, asked)}</div>`;
   }
 
   const when = phase === 'before' ? t('Voting opens {when}.', { when: lisbon(ctx, opens) })
@@ -96,7 +111,13 @@ export function render(ctx: Ctx, d: Data): Safe {
       </div>
     </section>
 
+    <section class="section" aria-labelledby="t10-past-h">
+      <h2 id="t10-past-h">${t('Past years')}</h2>
+      <p class="muted">${t('The forum threads since 2020, combined the same way.')}</p>
+      ${pastYears(ctx, year, undefined, { label: false })}
+    </section>
+
     <section class="section small faint">
-      <p>${t('Bananas: 20 🍌 for a ballot, and 1 🍌 per 4 words of write-up (up to 10 at 40 words) for each player on your list, +30 when everyone on it has 40 words, and +5 each time a player thanks you. Paid after the mods’ review, once voting closes.')}</p>
+      <p>${t('Bananas: 20 🍌 for a ballot, and 1 🍌 per word of write-up (up to 40) for each player on your list, +30 when everyone on it has 40 words, and +5 each time a player thanks you. Paid after the mods’ review, once voting closes.')}</p>
     </section>`;
 }

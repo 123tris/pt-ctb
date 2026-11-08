@@ -66,9 +66,26 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
   const drawStatus = () => { const el = $('[data-status]'); if (el) el.innerHTML = String(statusLine(ctx, e, access, saveText())); };
   const tick = setInterval(() => { if (!root.isConnected) { clearInterval(tick); return; } if (savedAt && !dirty && !saving) drawStatus(); }, 15_000);
 
-  async function save(): Promise<boolean> {
+  let inFlight: Promise<boolean> | null = null;
+  let again = false;
+
+  /**
+   * Saves now. A save asked for while one is on its way (a change, leaving the page, Submit) waits for it and then
+   * sends what changed meanwhile, so nothing typed during a save is dropped.
+   */
+  function save(): Promise<boolean> {
+    if (inFlight) { again = true; return inFlight; }
+    inFlight = (async () => {
+      let ok = await saveOnce();
+      while (again) { again = false; if (dirty) ok = await saveOnce(); }
+      return ok;
+    })().finally(() => { inFlight = null; });
+    return inFlight;
+  }
+
+  async function saveOnce(): Promise<boolean> {
     if (timer) { clearTimeout(timer); timer = null; }
-    if (!dirty || saving) return !dirty;
+    if (!dirty) return true;
     const body = inputOf(e);
     if (access === 'local') {
       prefs.set(draftKey(year, ctx.me), { ...body, at: Date.now() });

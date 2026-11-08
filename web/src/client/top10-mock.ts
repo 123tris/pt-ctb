@@ -29,6 +29,37 @@ interface MockBallot {
   writeups: Record<string, MockWriteup>;
 }
 interface MockPlay extends ShowPlay { endorsers: number[] }
+
+/** osu!'s own replay download for a score with an osu! id (§13.9: only when has_replay; the mock says yes). */
+const osuReplay = (ref: string): ShowPlay['replay'] => {
+  const n = Number(ref);
+  return Number.isSafeInteger(n) && n !== 0 ? { kind: 'osu', url: n > 0 ? `https://osu.ppy.sh/scores/${n}/download` : `https://osu.ppy.sh/scores/fruits/${-n}/download` } : null;
+};
+
+/** An .osr's header (§13.9): ruleset, game version, the map's MD5 and the player's name (osu!'s ULEB128 strings). */
+function osrHeader(bytes: Uint8Array): { mode: number; md5: string; player: string } | null {
+  let at = 0;
+  const str = (): string | null => {
+    if (bytes[at] === 0x00) { at++; return ''; }
+    if (bytes[at++] !== 0x0b) return null;
+    let len = 0, shift = 0, byte: number;
+    do { byte = bytes[at++]; len |= (byte & 0x7f) << shift; shift += 7; } while (byte & 0x80 && at < bytes.length);
+    const text = new TextDecoder().decode(bytes.subarray(at, at + len));
+    at += len;
+    return text;
+  };
+  if (bytes.length < 8) return null;
+  const mode = bytes[at];
+  at += 5;
+  const md5 = str(), player = str();
+  return md5 === null || player === null ? null : { mode, md5, player };
+}
+
+/** The file the site would keep (§13.9): replays/<sha256>.osr on data.ptcatch.com, under a friendly name. */
+async function storedReplay(file: File, player: string): Promise<ShowPlay['replay']> {
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()))].map(x => x.toString(16).padStart(2, '0')).join('');
+  return { kind: 'file', url: `https://data.ptcatch.com/replays/${hash}.osr`, name: `${player} - ${file.name.replace(/\.osr$/i, '')}.osr` };
+}
 interface State {
   v: number;
   ballots: Record<string, MockBallot>;
@@ -40,7 +71,7 @@ interface State {
 }
 
 const KEY = 'top10mockState';
-const VERSION = 4;
+const VERSION = 5;
 const now = () => new Date().toISOString();
 const ok = (body: unknown, status = 200): Answer => ({ ok: true, status, body });
 const no = (status: number, error: string): Answer => ({ ok: false, status, body: { error } });
@@ -141,7 +172,7 @@ async function seed(year: number): Promise<State> {
       state.plays.push({
         id: state.nextPlay++, year, submitter: voters[(i + j + 1) % voters.length], player: id, score_ref: ref, beatmap_id: card.map,
         caption: j === 0 ? 'Best play of the year in Portugal, easily.' : 'Pouca gente faz isto com HR.', clip: null, created: now(),
-        status: 'ok', endorsers: voters.filter((_, k) => rand(k + i * 3 + j) > 0.4), score: card,
+        status: 'ok', endorsers: voters.filter((_, k) => rand(k + i * 3 + j) > 0.4), score: card, replay: osuReplay(ref),
       });
     }
   }
@@ -253,7 +284,9 @@ export async function handle(method: string, path: string, body: unknown, me: nu
   const s = await load(DEFAULT_SEASON.year);
   const ph = phase();
   const route = `${method} ${url.pathname}`;
-  const b = (body ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  // A multipart body (a showcase entry with a replay file) as fields, with the file aside.
+  const file = body instanceof FormData && body.get('replay') instanceof File ? body.get('replay') as File : null;
+  const b = (body instanceof FormData ? Object.fromEntries([...body].filter(([, v]) => typeof v === 'string')) : body ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   const signed = () => me !== null;
   const own = () => s.ballots[me!];
 
@@ -342,12 +375,25 @@ export async function handle(method: string, path: string, body: unknown, me: nu
     if (mine.length >= 15) return no(429, 'You’ve showcased 15 plays this year, the most there can be.');
     const caption = String(b.caption ?? '').slice(0, MAX_CAPTION);
     let entry: MockPlay;
-    if (b.score !== undefined) {
+    // The replay file, when there's one: a catch replay by a PT player (§13.9), at most 2 MB.
+    let header: { mode: number; md5: string; player: string } | null = null;
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) return no(413, 'A replay can be at most 2 MB.');
+      header = osrHeader(new Uint8Array(await file.arrayBuffer()));
+      if (!header) return no(400, 'That isn’t a replay file osu! wrote.');
+      if (header.mode !== 2) return no(400, 'That replay isn’t osu!catch.');
+    }
+    const byName = header ? [...Array(core!.players.rows).keys()].find(r => core!.players.name.at(r).toLowerCase() === header!.player.toLowerCase()) : undefined;
+    if (header && byName === undefined) return no(400, 'The replay’s player isn’t a PT player.');
+    const replay = file && header ? await storedReplay(file, header.player) : null;
+    if (b.score === undefined && file) {
+      entry = { id: s.nextPlay++, year, submitter: me!, player: core!.players.id[byName!], score_ref: null, beatmap_id: null, caption, clip: null, created: now(), status: 'ok', endorsers: [], score: null, replay };
+    } else if (b.score !== undefined) {
       const ref = String(b.score).startsWith('map:') ? String(b.score) : String(b.score).match(/(-?\d{4,})\/?$/)?.[1] ?? '';
       const hit = await findScore(ref, Number(b.player) || null);
       if (!hit) return no(400, 'add it with /addscore first, or attach a clip');
       if (s.plays.some(p => p.score_ref === ref && p.player === hit.player && p.status === 'ok')) return no(409, 'That score is in the showcase already.');
-      entry = { id: s.nextPlay++, year, submitter: me!, player: hit.player, score_ref: ref, beatmap_id: hit.card.map, caption, clip: b.clip ?? null, created: now(), status: 'ok', endorsers: [], score: hit.card };
+      entry = { id: s.nextPlay++, year, submitter: me!, player: hit.player, score_ref: ref, beatmap_id: hit.card.map, caption, clip: b.clip ?? null, created: now(), status: 'ok', endorsers: [], score: hit.card, replay: replay ?? osuReplay(ref) };
     } else {
       if (!isPt(Number(b.player))) return no(400, 'Pick a PT player.');
       if (!clipOk(String(b.clip ?? ''))) return no(400, 'A clip has to be on YouTube, Twitch or Streamable.');

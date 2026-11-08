@@ -19,7 +19,7 @@ export interface Found {
  * and the old page that stands in where that can't load (assets/js/pages/<old>.js; the github.io copy, served from
  * the repo, has no assets/web). app.ts loads the entries; build-site.mjs preloads a page's from index.html.
  */
-export const PAGE_MODULES: Readonly<Record<string, { entry: string; old: string }>> = {
+export const PAGE_MODULES: Readonly<Record<string, { entry: string; old?: string }>> = {
   '': { entry: 'home', old: 'home' },
   'rankings/:board?': { entry: 'rankings', old: 'rankings' },
   'players': { entry: 'players', old: 'players' },
@@ -41,8 +41,9 @@ export const PAGE_MODULES: Readonly<Record<string, { entry: string; old: string 
   'team': { entry: 'team', old: 'team' },
   'glossary': { entry: 'glossary', old: 'glossary' },
   'privacy': { entry: 'privacy', old: 'privacy' },
-  // Top 10 of the year: no old page (the old app shows its error page there).
-  'top10/:view?/:id?/:year?': { entry: 'top10', old: 'top10' },
+  // Top 10 of the year: the new client's only, with no old page (the old app has no loader for it, and shows its error
+  // page there: the github.io copy it runs on has no endpoints anyway).
+  'top10/:view?/:id?/:year?': { entry: 'top10' },
 };
 
 // Every address routes.js knows has its modules here, and nothing else: a page added there and not here would match

@@ -7,10 +7,10 @@ import { store } from '../client/boot.ts';
 import { go, writeQuery } from '../client/ui.ts';
 import { toast } from '../client/fun.ts';
 import { setPressed } from '../client/dom.ts';
-import { top10Api, problemText } from '../client/top10.ts';
+import { top10Api, problemText, showcaseBody } from '../client/top10.ts';
 import { readPlayer } from '../gen/packs.ts';
 import { playerPack } from '../routes.ts';
-import { clipOk, scoreCard, type ShowPlay } from '../ui/top10.ts';
+import { MAX_REPLAY_BYTES, clipOk, scoreCard, type ShowPlay } from '../ui/top10.ts';
 import { playItem, usedLine, type Data } from './top10-plays.ts';
 import { yearChoices } from './top10-dossier.ts';
 
@@ -47,6 +47,9 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
       kind = el.dataset.kind;
       setPressed(root, 'kind', kind);
       root.querySelectorAll<HTMLElement>('[data-for]').forEach(f => { f.hidden = !f.dataset.for!.split(' ').includes(kind); });
+      // The .osr is the entry itself in "A replay file", and optional next to a score link.
+      const label = root.querySelector('[data-osr-label]');
+      if (label) label.textContent = kind === 'replay' ? t('Replay file') : t('Replay file (optional)');
       return;
     }
     if (el.dataset.endorse) {
@@ -89,8 +92,15 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const msg = form.querySelector<HTMLElement>('[data-msg]')!;
     const data = new FormData(form);
     const caption = String(data.get('caption') ?? '').trim();
+    const picked = data.get('replay');
+    const file = (kind === 'link' || kind === 'replay') && picked instanceof File && picked.size ? picked : null;
+    if (file && !/\.osr$/i.test(file.name)) { msg.textContent = t('A replay has to be an .osr file.'); return; }
+    if (file && file.size > MAX_REPLAY_BYTES) { msg.textContent = t('That replay is over 2 MB.'); return; }
     let body: Record<string, unknown>;
-    if (kind === 'clip') {
+    if (kind === 'replay') {
+      if (!file) { msg.textContent = t('Choose your .osr file.'); return; }
+      body = { caption };
+    } else if (kind === 'clip') {
       const clip = String(data.get('clip') ?? '').trim();
       if (!data.get('player')) { msg.textContent = t('Choose the player whose play it is.'); return; }
       if (!clipOk(clip)) { msg.textContent = t('A clip has to be a YouTube, Twitch or Streamable link.'); return; }
@@ -104,7 +114,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     button.disabled = true;
     msg.textContent = '';
-    const res = await top10Api('/api/top10/plays', { method: 'POST', body });
+    const res = await top10Api('/api/top10/plays', { method: 'POST', body: await showcaseBody(body, file) });
     button.disabled = false;
     if (!res.ok) { msg.textContent = problemText(t, res); return; }
     const added = (res.body?.play ?? res.body) as ShowPlay;

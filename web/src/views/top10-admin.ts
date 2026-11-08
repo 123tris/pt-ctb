@@ -140,7 +140,7 @@ export function finalizePreview(ctx: Ctx, core: CorePack, out: any): Safe {
       ranking.map(x => html`<tr><td class="num">${x.rank}</td><td>${playerLinkId(ctx, core.players, x.id, 'avatar-sm')}</td><td class="num"><b>${fmt.num(x.score, 2)}</b></td>
         <td class="num">${fmt.num(x.points, 1)}</td><td class="num">${t('{n} of {of}', { n: fmt.num(x.lists), of: fmt.num(x.eligible) })}</td><td class="num">${fmt.num(x.firsts)}</td><td>#${x.best}–#${x.worst}</td></tr>`))}
     <h3 class="t10-h3">${t('Payouts the bot will get')}</h3>
-    <p class="small muted">${t('The bot works the amounts out itself; these are what its default config pays: 20 a ballot, 1 per 4 words a write-up (up to 10), +30 when all are 40+ words. Plus {n} thanks at 5 each.', { n: fmt.num(thanks.length) })}</p>
+    <p class="small muted">${t('The bot works the amounts out itself; these are what its default config pays: 20 a ballot, 1 per word a write-up (up to 40), +30 when all are 40+ words. Plus {n} thanks at 5 each.', { n: fmt.num(thanks.length) })}</p>
     ${dataTable(t('Payouts'), html`${col(t('Voter'))}${col(t('Paid write-ups'), 'num')}${col(t('All 40+'))}${col('🍌', 'num')}`,
       pays.map(p => html`<tr><td>${playerLinkId(ctx, core.players, p.osu_id, 'avatar-sm')}</td><td class="num">${fmt.num(p.payload.writeups.length)}</td><td>${p.payload.allFull ? '✅' : ''}</td><td class="num">${fmt.num(bananas(p))}</td></tr>`))}`;
 }
