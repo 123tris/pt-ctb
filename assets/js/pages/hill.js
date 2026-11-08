@@ -191,7 +191,8 @@ function pastMonth(m, index) {
 /**
  * The tab's panel, which Challenges only shows when the export has hill.json. `now` is what else is running
  * (challenge-chips.js runningNow). ?season=2026-Q4 opens the crown table on that season; ?tier=challenger shows that
- * tier first on phones.
+ * tier first on phones; ?at=crowns (the link from Leaderboards) opens the tab scrolled to the crown table, once: the
+ * address drops it.
  */
 export function renderHill(root, { hill, index, me, query, now }) {
   const { current, months, seasons, players, maps } = hill;
@@ -202,7 +203,7 @@ export function renderHill(root, { hill, index, me, query, now }) {
 
   root.innerHTML = String(html`
     ${currentSection(current, maps, index, now, tier)}
-    <section class="section">
+    <section class="section" id="hill-crowns">
       <div class="section-head"><h2>${t('Crown table')}</h2></div>
       ${scopes.length > SCOPE_CHIPS ? html`<div class="toolbar"><label class="hill-scope-label" for="hill-scope">${t('Crowns from')}</label>
         <select class="select" id="hill-scope">${scopes.map(([id, label]) => html`<option value="${id}" ${id === scope ? raw('selected') : ''}>${label}</option>`)}</select></div>`
@@ -245,4 +246,5 @@ export function renderHill(root, { hill, index, me, query, now }) {
     save();
     announce(TIER_NAME[tier]);
   });
+  if (query.at === 'crowns') root.querySelector('#hill-crowns')?.scrollIntoView({ block: 'start', behavior: 'instant' });
 }

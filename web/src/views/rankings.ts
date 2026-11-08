@@ -8,6 +8,7 @@ import { html, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import type { CorePack } from '../gen/packs.ts';
 import { pageHead, tabs, empty, emptyFiltered, resultCount, dataTable, col } from '../ui/page.ts';
+import { CROWNS_HREF } from './hill.ts';
 import { playerLink, ppText, officialPp, isInactiveOnOsu, isInactive, isLegend, legendTag, inactiveTag, statusTag, type Players } from '../ui/players.ts';
 
 export type Cat = 'c' | 'u' | 'r';
@@ -45,7 +46,7 @@ export const title = (ctx: Ctx, slug: Tab) => labels(ctx)[slug].board;
 
 /** The page's heading and its tabs, the same on every board. */
 export const head = (ctx: Ctx, slug: Tab): Safe => html`
-    ${pageHead({ title: ctx.t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${ctx.t('All players')}</a><a href="/compare">${ctx.t('Compare two players')}</a></p>` })}
+    ${pageHead({ title: ctx.t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${ctx.t('All players')}</a><a href="/compare">${ctx.t('Compare two players')}</a><a href="${CROWNS_HREF}"><span aria-hidden="true">👑</span> ${ctx.t('King of the hill crowns')}</a></p>` })}
     ${tabs(SLUGS.map(s => ({ href: `/rankings/${s}`, label: labels(ctx)[s].label, active: s === slug })), ctx.t('Leaderboard type'))}`;
 
 /** The board's rows in players, best first. */

@@ -1,7 +1,8 @@
 // King of the hill, a tab of Challenges (/challenges/hill), as assets/js/pages/hill.js draws it: this month's pool and
 // who holds each crown, the crown table (all time or one season) and the past months. From hill.json
 // (tools/lib/hill.mjs), which Challenges only shows the tab for once the export has it, with players from the core
-// pack. ?season=2026-Q4 opens the crown table on that season; ?tier=challenger shows that tier first on phones.
+// pack. ?season=2026-Q4 opens the crown table on that season; ?tier=challenger shows that tier first on phones;
+// ?at=crowns brings the crown table into view (CROWNS_HREF, the link from Leaderboards).
 // hill.mount.ts handles the season and tier choices.
 
 import { html, raw, type Safe, type Value } from '../kernel/html.ts';
@@ -73,7 +74,12 @@ export interface State {
   scope: string;
   /** The tier phones show first. */
   tier: string;
+  /** The address points at the crown table (?at=crowns): the page opens scrolled to it. */
+  crowns: boolean;
 }
+
+/** The crown table's own address: the tab, scrolled to the table (Leaderboards links here). */
+export const CROWNS_HREF = '/challenges/hill?at=crowns';
 
 /** The season picker is chips up to this many choices (DESIGN.md §9), a select past that. */
 export const SCOPE_CHIPS = 5;
@@ -92,6 +98,7 @@ export function readState(ctx: Ctx, hill: Hill, query: Record<string, string | u
   return {
     scope: scopes(ctx, hill).some(([id]) => id === query.season) ? query.season! : 'all',
     tier: (HILL_TIERS as string[]).includes(query.tier ?? '') ? query.tier! : 'open',
+    crowns: query.at === 'crowns',
   };
 }
 
@@ -306,7 +313,7 @@ export function render(ctx: Ctx, hill: Hill, players: Players, running: Running,
   const rows = tableRows(hill, state.scope);
   return html`
     ${currentSection(ctx, current, maps, players, running, state.tier)}
-    <section class="section">
+    <section class="section" id="hill-crowns">
       <div class="section-head"><h2>${t('Crown table')}</h2></div>
       ${choices.length > SCOPE_CHIPS ? html`<div class="toolbar"><label class="hill-scope-label" for="hill-scope">${t('Crowns from')}</label>
         <select class="select" id="hill-scope">${choices.map(([id, label]) => html`<option value="${id}" ${id === state.scope ? raw('selected') : ''}>${label}</option>`)}</select></div>`

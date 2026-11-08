@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { readCore } from '../src/gen/packs.ts';
 import { makeText } from '../src/kernel/i18n.ts';
 import { makeFmt } from '../src/kernel/fmt.ts';
-import { render, readState } from '../src/views/rankings.ts';
+import { render, readState, head } from '../src/views/rankings.ts';
 import { inlineData } from '../edge/inline.ts';
 import { firstData } from '../src/routes.ts';
 import { PT } from '../../assets/js/core/pt.js';
@@ -30,6 +30,13 @@ test('which pages the new client draws, and their first data', () => {
   assert.deepEqual(firstData('/rankings/ranked/'), { packs: ['packs/core.ptcb'], json: [] });
   assert.deepEqual(firstData('/rankings/mods'), { packs: ['packs/core.ptcb'], json: ['modrankings.json'] });
   assert.equal(firstData('/nowhere/123'), null);
+});
+
+test('every board’s heading links to the King of the hill crown table, in both languages', () => {
+  for (const slug of ['converts', 'mods', 'kings']) {
+    assert.match(String(head(ctxFor('en', 0), slug)), /<p class="page-links">.*<a href="\/challenges\/hill\?at=crowns"><span aria-hidden="true">👑<\/span> King of the hill crowns<\/a><\/p>/s, slug);
+  }
+  assert.ok(String(head(ctxFor('pt', 0), 'converts')).includes(`👑</span> ${PT['King of the hill crowns']}</a>`));
 });
 
 test('the edge puts the page’s slice of the manifests and preloads in its <head>, and nothing elsewhere', () => {

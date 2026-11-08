@@ -2172,4 +2172,5 @@ export const PT = {
   'your all-time write-up about {name}': 'o teu texto de sempre sobre {name}',
   'your all-time ballot': 'o teu boletim de sempre',
   'Neither ballot has 5 counted lists: {year} yearly and {alltime} all-time. Nothing was saved.': 'Nenhum boletim tem 5 listas contadas: {year} do ano e {alltime} de sempre. Nada foi guardado.',
+  'King of the hill crowns': 'Coroas do Rei da colina',
 };

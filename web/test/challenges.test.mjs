@@ -20,7 +20,7 @@ import { inStars, parseStars } from '../src/ui/star-range.ts';
 import { render, readState, title } from '../src/views/challenges.ts';
 import { readState as completionState } from '../src/views/completion.ts';
 import { readState as duelsState, ladderTable, LADDER_PAGE, DUELS_PAGE } from '../src/views/duels.ts';
-import { readState as hillState, tableRows } from '../src/views/hill.ts';
+import { readState as hillState, tableRows, CROWNS_HREF } from '../src/views/hill.ts';
 import { PT } from '../../assets/js/core/pt.js';
 import { duelData, OFF } from './duel-data.mjs';
 
@@ -209,7 +209,7 @@ test('King of the hill: the pool, the crown table for each season, and the past 
   const hill = json('hill.json');
   const { page } = draw('hill');
   if (hill.current?.status === 'live') {
-    const pool = between(page, '<div class="hill-pool"', '<section class="section">');
+    const pool = between(page, '<div class="hill-pool"', '<section class="section" id="hill-crowns">');
     assert.deepEqual(mapsIn(pool), ['NM', 'HD', 'HR', 'DT', 'FM', 'CV'].flatMap(s => ['open', 'challenger'].map(t => hill.current.pool.find(p => p.slot === s && p.tier === t)?.map)).filter(Boolean));
     assert.deepEqual(playersIn(pool), ['NM', 'HD', 'HR', 'DT', 'FM', 'CV'].flatMap(s => ['open', 'challenger'].map(t => hill.current.pool.find(p => p.slot === s && p.tier === t)?.holder?.u)).filter(Boolean));
     assert.equal(count(pool, /<span class="hill-free">/g), hill.current.pool.filter(p => !p.holder).length);
@@ -242,6 +242,11 @@ test('King of the hill: the pool, the crown table for each season, and the past 
   assert.equal(count(past, /<div class="hill-month">/g), 2);
   assert.match(past, /No crowns given/);
   assert.match(past, /<th>Open<\/th><th>Challenger<\/th>/);
+  // ?at=crowns (Leaderboards' link, CROWNS_HREF) points at the crown table's section, which the mount scrolls to.
+  assert.equal(CROWNS_HREF, '/challenges/hill?at=crowns');
+  assert.equal(hillState(ctx, rich, { at: 'crowns' }).crowns, true);
+  assert.equal(hillState(ctx, rich, {}).crowns, false);
+  assert.match(draw('hill', { at: 'crowns' }, { hill: rich }).page, /<section class="section" id="hill-crowns">\s*<div class="section-head"><h2>Crown table<\/h2>/);
 });
 
 let made = null;
