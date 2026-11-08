@@ -1,0 +1,120 @@
+{
+  "edition": 2021,
+  "label": "2021",
+  "thread": "https://osu.ppy.sh/community/forums/topics/1467848",
+  "ballots": [
+    {
+      "voter": 3821475,
+      "post": "https://osu.ppy.sh/community/forums/posts/8400894",
+      "picks": [
+        { "id": 2788013, "spot": 1 },
+        { "id": 3006672, "spot": 2 },
+        { "id": 7385703, "spot": 3 },
+        { "id": 14917517, "spot": 4 },
+        { "id": 4427038, "spot": 5 },
+        { "id": 6205809, "spot": 6 },
+        { "id": 6502093, "spot": 7 },
+        { "id": 19423459, "spot": 8 },
+        { "id": 2600197, "spot": 9 },
+        { "id": 1267642, "spot": 10 }
+      ],
+      "mentions": [],
+      "watch": [],
+      "notes": "Written as uwu (Airdown), Hiroto- (now suzuhiro77) and Goncs (now _wb). #7 PTrollYO's write-up is just \"*playing FF14*\"."
+    },
+    {
+      "voter": 6205809,
+      "post": "https://osu.ppy.sh/community/forums/posts/8400925",
+      "picks": [
+        { "id": 3821475, "spot": 1 },
+        { "id": 2788013, "spot": 2 },
+        { "id": 4427038, "spot": 3 },
+        { "id": 3006672, "spot": 4 },
+        { "id": 7385703, "spot": 5 },
+        { "id": 14917517, "spot": 6 },
+        { "id": 2600197, "spot": 7 },
+        { "id": 6502093, "spot": 8 },
+        { "id": 1267642, "spot": 9 },
+        { "id": 19423459, "spot": 10 }
+      ],
+      "mentions": [],
+      "watch": []
+    },
+    {
+      "voter": 7385703,
+      "post": "https://osu.ppy.sh/community/forums/posts/8401010",
+      "picks": [
+        { "id": 3821475, "spot": 1 },
+        { "id": 2788013, "spot": 2 },
+        { "id": 4427038, "spot": 3 },
+        { "id": 3006672, "spot": 4 },
+        { "id": 14917517, "spot": 5 },
+        { "id": 6205809, "spot": 6 },
+        { "id": 6502093, "spot": 7 },
+        { "id": 19423459, "spot": 8 },
+        { "id": 1267642, "spot": 9 },
+        { "id": 16935754, "spot": 10 }
+      ],
+      "mentions": [],
+      "watch": [],
+      "notes": "Written as Air, Gold, Hiro, Yoxide, PEtroleo (PTrollYO), Goncs and Soul (SoulEater: \"the old geezer\")."
+    },
+    {
+      "voter": 5124924,
+      "post": "https://osu.ppy.sh/community/forums/posts/8423137",
+      "picks": [
+        { "id": 2788013, "spot": 1 },
+        { "id": 3821475, "spot": 2 },
+        { "id": 4427038, "spot": 3 },
+        { "id": 14917517, "spot": 4 },
+        { "id": 3006672, "spot": 5 },
+        { "id": 6205809, "spot": 6 },
+        { "id": 1267642, "spot": 7 },
+        { "id": 7385703, "spot": 8 },
+        { "id": 2600197, "spot": 9 },
+        { "id": 4756150, "spot": 10 }
+      ],
+      "mentions": [],
+      "watch": [],
+      "notes": "Not a PT player: Ritmo Brigido is from Chile. Kept, as the forum was the electorate then. Written as uwu, SSbell and Dementia ([Dementia])."
+    },
+    {
+      "voter": 9629190,
+      "post": "https://osu.ppy.sh/community/forums/posts/8424511",
+      "picks": [
+        { "id": 3821475, "spot": 1 },
+        { "id": 2788013, "spot": 2 },
+        { "id": 3006672, "spot": 3 },
+        { "id": 14917517, "spot": 4 },
+        { "id": 7385703, "spot": 5 },
+        { "id": 6205809, "spot": 6 },
+        { "id": 19423459, "spot": 7 },
+        { "id": 4427038, "spot": 8 },
+        { "id": 2600197, "spot": 9 },
+        { "id": 1267642, "spot": 10 }
+      ],
+      "mentions": [],
+      "watch": [],
+      "notes": "Not a PT player: biji is from Indonesia. Kept, as the forum was the electorate then."
+    },
+    {
+      "voter": 14917517,
+      "post": "https://osu.ppy.sh/community/forums/posts/8432673",
+      "picks": [
+        { "id": 2788013, "spot": 1 },
+        { "id": 3821475, "spot": 2 },
+        { "id": 3006672, "spot": 3 },
+        { "id": 4427038, "spot": 4 },
+        { "id": 7385703, "spot": 5 },
+        { "id": 6205809, "spot": 6 },
+        { "id": 2600197, "spot": 7 },
+        { "id": 6502093, "spot": 8 },
+        { "id": 16935754, "spot": 9 },
+        { "id": 1267642, "spot": 10 }
+      ],
+      "mentions": [4756150, 19423459, 23114439, 16841401],
+      "watch": [],
+      "notes": "suzuhiro77 is Hiroto-. Written as Air, Gold, Nitro (Rosa), Yoxide, Bell, Petroleo (PTrollYO, \"*playing FF14*\") and Soul (SoulEater). Mentions written as Dementia, GoncS, Zoey (iPPC, then IamZoeyyy) and quistyyy."
+    }
+  ]
+}

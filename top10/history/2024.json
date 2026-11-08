@@ -1,0 +1,85 @@
+{
+  "edition": 2024,
+  "label": "2023–24",
+  "thread": "https://osu.ppy.sh/community/forums/topics/2015344",
+  "ballots": [
+    {
+      "voter": 16935754,
+      "post": "https://osu.ppy.sh/community/forums/posts/9753864",
+      "picks": [
+        { "id": 14917517, "spot": 1 },
+        { "id": 19423459, "spot": 2 },
+        { "id": 7385703, "spot": 3 },
+        { "id": 6205809, "spot": 4 },
+        { "id": 4095868, "spot": 5 },
+        { "id": 24642612, "spot": 6 },
+        { "id": 20942650, "spot": 7 },
+        { "id": 13294871, "spot": 8 },
+        { "id": 4756150, "spot": 9 },
+        { "id": 17076179, "spot": 10 }
+      ],
+      "mentions": [3821475, 3006672, 4427038, 6502093, 2600197, 23114439],
+      "watch": [],
+      "notes": "The thread's opening post, as it reads now: osu! says it was edited twice, last at 2024-12-15 22:56 UTC, six minutes before ExPin's \"List updated\" reply to AlexFenom (post 9754317). The earlier version isn't recoverable. The list is unnumbered; spots follow the written order. Inactive players left out. #6 is lce Angel (now anomi); mention Zcey is iPPC. \"My Investments: All players below the top 10\" names nobody, so watch is empty."
+    },
+    {
+      "voter": 14917517,
+      "post": "https://osu.ppy.sh/community/forums/posts/9753954",
+      "picks": [
+        { "id": 16935754, "spot": 1 },
+        { "id": 19423459, "spot": 2 },
+        { "id": 7385703, "spot": 3 },
+        { "id": 6205809, "spot": 4 },
+        { "id": 4095868, "spot": 5 },
+        { "id": 24642612, "spot": 6 },
+        { "id": 20942650, "spot": 7 },
+        { "id": 4756150, "spot": 8 },
+        { "id": 13294871, "spot": 9 },
+        { "id": 10067533, "spot": 10 }
+      ],
+      "mentions": [],
+      "watch": [26323728],
+      "notes": "suzuhiro77 is Hiroto- (the replies quote this post as \"Hiroto- wrote\"). Written in Portuguese; osu! says it was edited twice, and ExPin's quote of it 25 minutes later already has this list. \"I'm investing in all of you from #6 down\" names his own picks 6–10, which can't also be ones to watch, so they're left out; \"Leo5h I see you...\" is read as one to watch."
+    },
+    {
+      "voter": 7385703,
+      "post": "https://osu.ppy.sh/community/forums/posts/9754007",
+      "picks": [
+        { "id": 14917517, "spot": 1 },
+        { "id": 16935754, "spot": 2 },
+        { "id": 19423459, "spot": 3 },
+        { "id": 4095868, "spot": 4 },
+        { "id": 20942650, "spot": 5 },
+        { "id": 6205809, "spot": 6 },
+        { "id": 13294871, "spot": 7 },
+        { "id": 24642612, "spot": 8 },
+        { "id": 4756150, "spot": 9 },
+        { "id": 17076179, "spot": 10 },
+        { "id": 10816573, "spot": 10 }
+      ],
+      "mentions": [26323728, 10067533, 34911317],
+      "watch": [],
+      "notes": "\"10. tartaruga57 and Godo_Plays\" is a tie at 10: it covers positions 10 and 11, so each gets (1 + 0) / 2 = 0.5 points."
+    },
+    {
+      "voter": 17076179,
+      "post": "https://osu.ppy.sh/community/forums/posts/9754370",
+      "picks": [
+        { "id": 14917517, "spot": 1 },
+        { "id": 16935754, "spot": 2 },
+        { "id": 19423459, "spot": 3 },
+        { "id": 7385703, "spot": 4 },
+        { "id": 6205809, "spot": 5 },
+        { "id": 4095868, "spot": 6 },
+        { "id": 24642612, "spot": 7 },
+        { "id": 20942650, "spot": 8 },
+        { "id": 13294871, "spot": 8 },
+        { "id": 4756150, "spot": 10 },
+        { "id": 10816573, "spot": 11 }
+      ],
+      "mentions": [13140949, 34911317, 10067533, 26323728],
+      "watch": [],
+      "notes": "Odd numbering: \"8. AlexFenom / AfonsoMPt\", then \"9. [Dementia]\" and \"10. Godo_Plays\": eleven names numbered to 10. Encoded by the 13.5 rule in the written order: the tie at 8 covers positions 8 and 9 (2.5 points each), so [Dementia] is 10th (1 point) and Godo_Plays 11th (0 points, but still on the list). Read as written (8, 8, 9, 10) they would get 2 and 1. Only active players, \"from the little I know about the community\"."
+    }
+  ]
+}
