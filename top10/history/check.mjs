@@ -1,8 +1,13 @@
-// Checks the past Top 10 editions (TOP10-DESIGN.md §13.10) and computes their results with the §13.5 formula, on its
-// own (no imports), so the data can be checked before the site's score.js reads it.
+// Checks the past Top 10 editions (TOP10-DESIGN.md §13.10) and the 2020 all-time thread (§13.11), and computes their
+// results with the §13.5 formula, on its own (no imports), so the data can be checked before the site's score.js reads
+// it.
 //
-//   node top10/history/check.mjs           every edition: checks, then the top 10 and the rest
-//   node top10/history/check.mjs 2025      one edition
+//   node top10/history/check.mjs                 every file: checks, then the top 10 and the rest
+//   node top10/history/check.mjs 2025            one yearly edition
+//   node top10/history/check.mjs alltime         the all-time files (alltime-2020 for one)
+//
+// A file's `kind` is 'year' or 'alltime'; missing means 'year' (§13.11). All-time files are named alltime-<year>.json
+// and have no ones to watch.
 //
 // The formula: a pick at position p gets 11 − p (0 below 10). A group tied at spot s with k members covers positions
 // s … s+k−1, and each member gets their average. A player's score is their points ÷ the ballots that could have listed
@@ -18,9 +23,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** Current osu! usernames (November 2026), for the printout only. ALIASES.md has the evidence. */
 const NAMES = {
-  1267642: 'SoulEater', 2600197: '[SS]Bell', 2788013: 'Airdown', 3006672: 'gold801', 3821475: 'Tris', 4095868: 'Nelson',
-  4427038: 'Buffow', 4756150: '[Dementia]', 5124924: 'Ritmo Brigido', 6205809: 'DemiGod Yoxide', 6502093: 'PTrollYO',
-  6748747: 'Diamond_Storm', 7385703: 'Rosa', 9629190: 'biji', 10067533: 'TRUE_PLAYER36', 10561635: 'Nicolexd13',
+  1267642: 'SoulEater', 1700805: 'Sp1ritGG', 2600197: '[SS]Bell', 2788013: 'Airdown', 3006672: 'gold801', 3821475: 'Tris',
+  4095868: 'Nelson', 4427038: 'Buffow', 4756150: '[Dementia]', 5124924: 'Ritmo Brigido', 6205809: 'DemiGod Yoxide',
+  6502093: 'PTrollYO', 6748747: 'Diamond_Storm', 7385703: 'Rosa', 7894203: 'Sakuragi FanBoy', 8724722: 'RockMitic',
+  9629190: 'biji', 10067533: 'TRUE_PLAYER36', 10561635: 'Nicolexd13',
   10816573: 'Godo_Plays', 11491079: 'sagiiT', 13140949: 'held', 13294871: 'AfonsoMPt', 14917517: 'suzuhiro77 (Hiroto-)',
   15009436: 'zDelightful', 16294034: 'Patatita', 16589307: '-Abstr4ct-', 16841401: 'quistyyy', 16935754: 'ExPin',
   17076179: 'tartaruga57', 17578266: '[ Ajia ]', 18649724: 'Warp', 19423459: '_wb (GoncS)', 19829882: 'DPkF',
@@ -48,6 +54,7 @@ const EXPECTED_AS_DESIGNED = [
 
 const POSITIONS = 10;
 const MIN_BALLOTS = 5;
+const kindOf = ed => ed.kind ?? 'year';
 const positionPoints = p => (p >= 1 && p <= POSITIONS ? POSITIONS + 1 - p : 0);
 
 /** The problems with one edition's file, as strings. */
@@ -55,7 +62,13 @@ function problems(file, ed) {
   const out = [];
   const say = msg => out.push(`${file}: ${msg}`);
   const isId = v => Number.isInteger(v) && v > 0;
+  const extraTop = Object.keys(ed).filter(k => !['kind', 'edition', 'label', 'thread', 'ballots'].includes(k));
+  if (extraTop.length) say(`unknown fields ${extraTop.join(', ')}`);
+  if ('kind' in ed && !['year', 'alltime'].includes(ed.kind)) say(`kind must be 'year' or 'alltime', not ${JSON.stringify(ed.kind)}`);
+  const alltime = kindOf(ed) === 'alltime';
+  if (alltime !== file.startsWith('alltime-')) say(`kind '${kindOf(ed)}' doesn't match the file name`);
   if (!Number.isInteger(ed.edition)) say('edition must be an integer');
+  else if (!file.endsWith(`${ed.edition}.json`)) say(`edition ${ed.edition} doesn't match the file name`);
   if (typeof ed.label !== 'string' || !ed.label) say('label missing');
   if (!/^https:\/\/osu\.ppy\.sh\/community\/forums\/topics\/\d+$/.test(ed.thread ?? '')) say(`thread isn't a topic URL: ${ed.thread}`);
   if (!Array.isArray(ed.ballots) || !ed.ballots.length) { say('no ballots'); return out; }
@@ -89,6 +102,7 @@ function problems(file, ed) {
         if (id === b.voter) say(`${who}: ${key} names the voter`);
       }
     }
+    if (alltime && b.watch?.length) say(`${who}: an all-time ballot has no ones to watch (§13.11)`);
     if ('notes' in b && typeof b.notes !== 'string') say(`${who}: notes must be text`);
     const extra = Object.keys(b).filter(k => !['voter', 'post', 'picks', 'mentions', 'watch', 'notes'].includes(k));
     if (extra.length) say(`${who}: unknown fields ${extra.join(', ')}`);
@@ -147,14 +161,17 @@ function compare(label, ranked, expected) {
 }
 
 const only = process.argv[2];
-const files = readdirSync(here).filter(f => /^\d{4}\.json$/.test(f) && (!only || f === `${only}.json`)).sort();
+const wanted = f => !only || f === `${only}.json` || (only === 'alltime' && f.startsWith('alltime-'));
+// Yearly editions first, then the all-time files, each in year order.
+const files = readdirSync(here).filter(f => /^(alltime-)?\d{4}\.json$/.test(f) && wanted(f))
+  .sort((a, b) => a.startsWith('alltime-') - b.startsWith('alltime-') || a.localeCompare(b));
 if (!files.length) { console.error(`No edition file${only ? ` for ${only}` : ''} in ${here}`); process.exit(1); }
 
 let ok = true;
 for (const file of files) {
   const ed = JSON.parse(readFileSync(join(here, file), 'utf8'));
   const issues = problems(file, ed);
-  console.log(`\n=== ${ed.label} (${file}): ${ed.ballots?.length ?? 0} ballots ===`);
+  console.log(`\n=== ${kindOf(ed) === 'alltime' ? 'All-time ballot: ' : ''}${ed.label} (${file}): ${ed.ballots?.length ?? 0} ballots ===`);
   if (issues.length) { ok = false; issues.forEach(m => console.log(`✗ ${m}`)); continue; }
   if (ed.ballots.length < MIN_BALLOTS) console.log(`! Only ${ed.ballots.length} ballots: below the live minimum of ${MIN_BALLOTS} (§5); computed anyway.`);
   const { ranked, unranked } = rank(ed.ballots);
@@ -174,7 +191,7 @@ for (const file of files) {
   const w = tally('watch');
   if (m) console.log(`  Honourable mentions: ${m}`);
   if (w) console.log(`  Ones to watch: ${w}`);
-  if (ed.edition === 2025) {
+  if (ed.edition === 2025 && kindOf(ed) === 'year') {
     ok = compare('2025 matches the expected ranking (GoncS as a voter)', ranked, EXPECTED_2025) && ok;
     ok = compare('2025 matches §13.10 exactly when GoncS is (wrongly) counted as a non-voter', rank(ed.ballots, { notVoters: [19423459] }).ranked, EXPECTED_AS_DESIGNED) && ok;
   }
