@@ -268,8 +268,10 @@ export async function queueRequest(db, osuId, { type, payload }, now = nowSec())
   const day = lisbonDay(now);
   const admin = isAdminType(type);
   const [pendingCap, dailyCap] = admin ? [ADMIN_PENDING_CAP, ADMIN_DAILY_CAP] : [PENDING_CAP, DAILY_REQUEST_CAP];
+  // The Top 10's payouts and thanks (top10.*) are the site's own, queued for the player, not by them: they never
+  // count against a player's caps (TOP10-DESIGN.md §13.6).
   const counts = await db.prepare(`SELECT SUM(status = 'pending') AS pending, SUM(day = ?2) AS today FROM requests
-    WHERE osu_id = ?1 AND (kind LIKE 'admin.%') = ?3`).bind(osuId, day, admin ? 1 : 0).first();
+    WHERE osu_id = ?1 AND (kind LIKE 'admin.%') = ?3 AND kind NOT LIKE 'top10.%'`).bind(osuId, day, admin ? 1 : 0).first();
   if ((counts?.pending ?? 0) >= pendingCap) return { status: 429, error: `You have ${pendingCap} requests waiting for the bot. It takes them every 15 minutes; try again after.` };
   if ((counts?.today ?? 0) >= dailyCap) return { status: 429, error: `That’s ${dailyCap} requests today. Try again tomorrow.` };
   const requestId = hex(crypto.getRandomValues(new Uint8Array(12)));
