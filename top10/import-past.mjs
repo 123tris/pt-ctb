@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Counts the past Top 10 editions (top10/history/*.json, TOP10-DESIGN.md §13.10) with the season's score.js, prints
-// each one's ranking to check by eye, and writes the SQL that serves them from GET /api/top10/results?year=.
+// Counts the past Top 10 editions (top10/history/<year>.json, and all-time lists as alltime-<year>.json with "kind":
+// "alltime", TOP10-DESIGN.md §13.10–13.11) with the season's score.js, prints each one's ranking to check by eye, and
+// writes the SQL that serves them from GET /api/top10/results?year=&kind=.
 //
 //   node top10/import-past.mjs                  check every edition and print its ranking
 //   node top10/import-past.mjs --sql [file]     the same, then write the SQL (default: top10-past.sql in the temp
@@ -18,7 +19,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkEdition, editionIds, namesFromAliases, pastResults, pastSql } from './past.js';
+import { checkEdition, editionIds, editionKind, namesFromAliases, pastResults, pastSql } from './past.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -29,7 +30,7 @@ const option = name => {
 const historyDir = path.resolve(option('--dir') ?? path.join(root, 'top10', 'history'));
 const sqlOut = option('--sql');
 
-const files = fs.existsSync(historyDir) ? fs.readdirSync(historyDir).filter(f => /^\d{4}.*\.json$/.test(f)).sort() : [];
+const files = fs.existsSync(historyDir) ? fs.readdirSync(historyDir).filter(f => /^(alltime-)?\d{4}.*\.json$/.test(f)).sort() : [];
 if (!files.length) {
   console.error(`No editions in ${historyDir} yet.`);
   process.exit(1);
@@ -48,6 +49,9 @@ let failed = false;
 for (const file of files) {
   const edition = JSON.parse(fs.readFileSync(path.join(historyDir, file), 'utf8'));
   const { errors, warnings } = checkEdition(edition);
+  // The file's name and its kind must agree: alltime-<year>.json says "kind": "alltime", and <year>.json doesn't.
+  const named = file.startsWith('alltime-') ? 'alltime' : 'year';
+  if (editionKind(edition) && editionKind(edition) !== named) errors.push(`the file name says ${named}, but its "kind" is ${editionKind(edition)}`);
   for (const w of warnings) console.warn(`${file}: warning: ${w}`);
   const unnamed = editionIds(edition).filter(id => !names.has(id));
   if (unnamed.length) console.warn(`${file}: warning: no name for ${unnamed.join(', ')} (shown as the number)`);
@@ -58,7 +62,12 @@ for (const file of files) {
   }
   const results = pastResults(edition, { names });
   editions.push(results);
-  console.log(`\n${results.label} (year ${results.year}): ${results.ballots} lists`);
+  console.log(`\n${results.label} (year ${results.year}, ${results.kind === 'alltime' ? 'all time' : 'the year'}): ${results.ballots} lists`);
+  // Two files for the same year and kind would replace each other in D1.
+  if (editions.filter(e => e.year === results.year && e.kind === results.kind).length > 1) {
+    console.error(`${file}: error: another file is also ${results.kind} ${results.year}`);
+    failed = true;
+  }
   for (const r of results.ranking) {
     console.log(`  ${String(r.rank).padStart(3)}. ${r.score.toFixed(2).padStart(5)}  ${nameOf(r.id)}  on ${r.lists} of ${r.eligible} lists, ${r.firsts} #1s`);
   }

@@ -138,9 +138,12 @@ export function tuplesOnMap(text, beatmap) {
 /** The UTC year a score was set in (Lisbon is UTC+0 around New Year, so it's Lisbon's year too). */
 export const yearOf = time => new Date(time * 1000).getUTCFullYear();
 
-/** A player's best play on a map set in `year` (the most pp, then the latest), from their file's text, or null. */
+/**
+ * A player's best play on a map (the most pp, then the latest) set in `year`, or in any year for null (an all-time
+ * ballot's cites and the Legendary plays, §13.11), from their file's text; or null.
+ */
 export function bestOnMap(text, beatmap, year) {
-  return tuplesOnMap(text, beatmap).filter(t => yearOf(t[S.TIME]) === year)
+  return tuplesOnMap(text, beatmap).filter(t => year === null || year === undefined || yearOf(t[S.TIME]) === year)
     .sort((a, b) => b[S.PP] - a[S.PP] || b[S.TIME] - a[S.TIME])[0] ?? null;
 }
 
@@ -166,8 +169,9 @@ export function cardFromTuple(tuple, map, { ref, player }) {
 
 /**
  * A player's play in the exported data, by its score ids (`sids`, S.ID form) or by map (`beatmap`: their best there
- * in `year`): { player, sid (or null), beatmap, time, refs (every ref it's known by), ref (the canonical one), card },
- * or null. A play found by id is also known as map:<beatmap>:<player> when it's that player's best there that year.
+ * in `year`, or ever for null): { player, sid (or null), beatmap, time, refs (every ref it's known by), ref (the
+ * canonical one), card }, or null. A play found by id is also known as map:<beatmap>:<player> when it's that player's
+ * best there in the same sense (that year's, or ever's).
  */
 export async function findPlay(env, player, { sids = null, beatmap = null, year }) {
   const text = await playerFile(env, player);
@@ -183,7 +187,7 @@ export async function findPlay(env, player, { sids = null, beatmap = null, year 
   }
   if (!tuple) return null;
   const sid = tuple.length > S.ID && Number.isSafeInteger(tuple[S.ID]) && tuple[S.ID] !== 0 ? tuple[S.ID] : null;
-  const best = bestOnMap(text, tuple[S.MAP], yearOf(tuple[S.TIME]));
+  const best = bestOnMap(text, tuple[S.MAP], year === null ? null : yearOf(tuple[S.TIME]));
   const isBest = best && best[S.TIME] === tuple[S.TIME] && best[S.SCORE] === tuple[S.SCORE];
   const refs = [sidRef(sid), isBest ? `map:${tuple[S.MAP]}:${player}` : null].filter(Boolean);
   const ref = refs[0] ?? `map:${tuple[S.MAP]}:${player}`;

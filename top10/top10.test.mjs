@@ -316,7 +316,7 @@ test('results: mentions, ones to watch and the writing stats', () => {
   assert.deepEqual(results.watch, [{ id: 13, count: 1 }]);
   assert.deepEqual(results.stats, { writeups: 3, words: 57, subjects: 2 });
   assert.equal(results.ranking.find(r => r.id === 6).mentions, 0);
-  assert.deepEqual(Object.keys(results), ['year', 'ballots', 'finalizedAt', 'ranking', 'mentions', 'watch', 'stats']);
+  assert.deepEqual(Object.keys(results), ['year', 'kind', 'ballots', 'finalizedAt', 'ranking', 'mentions', 'watch', 'stats']);
   assert.deepEqual(Object.keys(results.ranking[0]), ['id', 'rank', 'score', 'points', 'lists', 'eligible', 'firsts', 'positions', 'best', 'worst', 'mentions', 'watch']);
 });
 
@@ -330,11 +330,11 @@ test('payouts: approved unflagged write-ups on picks; a strike costs the ballot 
   ];
   const thanks = [{ subject: 5, voter: 1 }, { subject: 5, voter: 3 }, { subject: 9, voter: 3 }, { subject: 6, voter: 7 }];
   assert.deepEqual(payoutsFor({ year: 2026, ballots, writeups, thanks }), [
-    { osuId: 1, type: 'top10.payout', payload: { year: 2026, ballot: true, writeups: [{ subject: 5, words: 41 }, { subject: 6, words: 45 }], allFull: true } },
-    { osuId: 2, type: 'top10.payout', payload: { year: 2026, ballot: true, writeups: [{ subject: 5, words: 12 }], allFull: false } },
-    { osuId: 3, type: 'top10.payout', payload: { year: 2026, ballot: true, writeups: [], allFull: false } },
-    { osuId: 1, type: 'top10.thanks', payload: { year: 2026, subject: 5 } },
-    { osuId: 3, type: 'top10.thanks', payload: { year: 2026, subject: 5 } },
+    { osuId: 1, type: 'top10.payout', payload: { year: 2026, kind: 'year', ballot: true, writeups: [{ subject: 5, words: 41 }, { subject: 6, words: 45 }], allFull: true } },
+    { osuId: 2, type: 'top10.payout', payload: { year: 2026, kind: 'year', ballot: true, writeups: [{ subject: 5, words: 12 }], allFull: false } },
+    { osuId: 3, type: 'top10.payout', payload: { year: 2026, kind: 'year', ballot: true, writeups: [], allFull: false } },
+    { osuId: 1, type: 'top10.thanks', payload: { year: 2026, kind: 'year', subject: 5 } },
+    { osuId: 3, type: 'top10.thanks', payload: { year: 2026, kind: 'year', subject: 5 } },
   ]);
 });
 
@@ -343,10 +343,10 @@ test('payouts: approved unflagged write-ups on picks; a strike costs the ballot 
 test('the hub: season, turnout, and for a signed-in player whether they can vote', async () => {
   const env = envWith();
   const out = await call(api.hub, env, { now: OPEN });
-  assert.deepEqual(out.body, { season: { ...SEASON, phase: 'open' }, turnout: 0, finalized: false, editions: [] });
+  assert.deepEqual(out.body, { season: { ...SEASON, phase: 'open' }, turnout: 0, turnouts: { year: 0, alltime: 0 }, finalized: false, editions: [] });
   assert.ok(Number.isInteger(out.body.turnout), 'turnout is a plain whole number, for the bot');
   const pt = await call(api.hub, env, { as: 3, now: OPEN });
-  assert.deepEqual(pt.body.me, { osuId: 3, eligible: true, ballot: null });
+  assert.deepEqual(pt.body.me, { osuId: 3, eligible: true, ballot: null, ballots: { year: null, alltime: null } });
   const outsider = await call(api.hub, env, { as: 999, now: OPEN });
   assert.equal(outsider.body.me.eligible, false);
   assert.equal(outsider.body.me.code, 'not_pt');
@@ -519,7 +519,7 @@ test('the public feed: submitted ballots only, struck write-ups and void ballots
   assert.equal(fixed.body.ballot.writeups[10].mod, 'ok');
   assert.ok((await feed(env)).body.ballots[0].writeups[10]);
   assert.equal((await call(api.ballots, env, { path: '/api/top10/ballots?year=20x6' })).status, 400);
-  assert.deepEqual((await call(api.ballots, env, { path: '/api/top10/ballots?year=2025' })).body, { year: 2025, ballots: [] });
+  assert.deepEqual((await call(api.ballots, env, { path: '/api/top10/ballots?year=2025' })).body, { year: 2025, kind: 'year', ballots: [] });
 });
 
 test('the Functions answer for the ballot routes', async () => {
@@ -577,7 +577,7 @@ test('showcase: a PT player’s score set this year, checked against the exporte
   assert.equal(mineScore.status, 201);
   // osu! isn't set up in this env, so the exported data is checked (and gives the card), and there's no replay to link.
   assert.deepEqual({ ...mineScore.body.play, created: undefined }, {
-    id: 1, year: 2026, submitter: 2, player: 2, score_ref: 'osu:5000000001', beatmap_id: 111, caption: 'First PT FC on this one', clip: null,
+    id: 1, year: 2026, scope: 'year', submitter: 2, player: 2, score_ref: 'osu:5000000001', beatmap_id: 111, caption: 'First PT FC on this one', clip: null,
     created: undefined, played: '2026-03-01T10:00:00Z', endorsements: 0,
     score: {
       ref: 'osu:5000000001', player: 2, map: 111, set: 77, artist: 'Artist', title: 'Title', version: 'Hard', stars: 5.1, pp: 120.5, acc: 99.1,
@@ -669,7 +669,7 @@ test('showcase: the list, endorsements (one each, toggled) and removing your own
   assert.equal(await del(5, 1), 403);
   assert.equal(await del(2, 1), 200);
   assert.equal(await del(2, 1), 404);
-  assert.equal(env.ECONOMY.sqlite.prepare("SELECT COUNT(*) AS n FROM top10_marks WHERE kind = 'endorse' AND target = 1").get().n, 0);
+  assert.equal(env.ECONOMY.sqlite.prepare("SELECT COUNT(*) AS n FROM top10_marks WHERE mark = 'endorse' AND target = 1").get().n, 0);
 });
 
 test('the PT list and player files come from the Cache API when there is one', async () => {
@@ -743,7 +743,7 @@ test('moderation: flagged write-ups come first; restore clears the flags until t
   await save(env, 3, { mentions: [9], writeups: { 9: { body: 'A mention: worth a line, pays nothing.' } } }, OPEN + 60);
   const queue = (await call(api.adminQueue, env, { as: 1, path: '/api/top10/admin/queue' })).body;
   assert.deepEqual(queue.writeups.map(w => [w.subject, w.flags, w.ranked]), [[4, ['mash'], true], [9, [], false], [5, [], true]]);
-  assert.deepEqual(queue.ballots.find(b => b.voter === 6), { voter: 6, status: 'draft', updated: queue.ballots.find(b => b.voter === 6).updated, target: 'ballot:6', own: false });
+  assert.deepEqual(queue.ballots.find(b => b.voter === 6), { voter: 6, kind: 'year', status: 'draft', updated: queue.ballots.find(b => b.voter === 6).updated, target: 'ballot:6', own: false });
   assert.equal((await act(env, 1, { action: 'restore', target: { voter: 3, subject: 4 } }, OPEN)).body.changed, true);
   assert.deepEqual((await mine(env, 3)).body.ballot.writeups[4].flags, []);
   await save(env, 3, { picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'sdfghj zxcvbn hjklmn ok nice' } } });
@@ -783,19 +783,19 @@ test('finalize: admins once voting closed, a dry run first, then once only, with
   const dry = await finalize(env, 1, { year: 2026, dryRun: true });
   assert.equal(dry.status, 200);
   assert.equal(dry.body.dryRun, true);
-  assert.equal(dry.body.results.ballots, 5);
+  assert.equal(dry.body.results.year.ballots, 5);
   assert.equal(env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM top10_results').get().n, 0, 'a dry run saves nothing');
   assert.equal(env.ECONOMY.sqlite.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'requests'").get().n === 0
     || env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM requests').get().n === 0, true, 'and queues nothing');
-  const payload = (writeups, allFull) => ({ year: 2026, ballot: true, writeups, allFull });
+  const payload = (writeups, allFull) => ({ year: 2026, kind: 'year', ballot: true, writeups, allFull });
   const expected = [
     { osuId: 3, type: 'top10.payout', payload: payload([{ subject: 1, words: 44 }, { subject: 2, words: 12 }, { subject: 5, words: 40 }], false) },
     { osuId: 4, type: 'top10.payout', payload: payload([{ subject: 1, words: 40 }, { subject: 2, words: 41 }, { subject: 3, words: 42 }, { subject: 5, words: 43 }, { subject: 6, words: 44 }], true) },
     { osuId: 5, type: 'top10.payout', payload: payload([], false) },
     { osuId: 6, type: 'top10.payout', payload: payload([], false) },
     { osuId: 7, type: 'top10.payout', payload: payload([], false) },
-    { osuId: 3, type: 'top10.thanks', payload: { year: 2026, subject: 1 } },
-    { osuId: 3, type: 'top10.thanks', payload: { year: 2026, subject: 9 } },
+    { osuId: 3, type: 'top10.thanks', payload: { year: 2026, kind: 'year', subject: 1 } },
+    { osuId: 3, type: 'top10.thanks', payload: { year: 2026, kind: 'year', subject: 9 } },
   ];
   // The answer lists the payouts and the thanks apart; the bot gets them in this order.
   assert.deepEqual(dry.body.payouts, expected.slice(0, 5));
@@ -807,7 +807,7 @@ test('finalize: admins once voting closed, a dry run first, then once only, with
   assert.equal(real.status, 200);
   assert.deepEqual([...real.body.payouts, ...real.body.thanks].map(({ requestId, ...p }) => p), expected);
   assert.ok([...real.body.payouts, ...real.body.thanks].every(p => /^[0-9a-f]{24}$/.test(p.requestId)));
-  assert.deepEqual(real.body.results, { ...dry.body.results, finalizedAt: real.body.results.finalizedAt });
+  assert.deepEqual(real.body.results.year, { ...dry.body.results.year, finalizedAt: real.body.results.year.finalizedAt });
   const again = await finalize(env, 2, { year: 2026, dryRun: false });
   assert.deepEqual([again.status, again.body.code], [409, 'already']);
   assert.equal((await finalize(env, 2, { year: 2026, dryRun: true })).status, 409, 'not even a dry run');
@@ -826,8 +826,8 @@ test('finalize: admins once voting closed, a dry run first, then once only, with
   const { events, cursor } = await pull.json();
   assert.deepEqual(events.map(e => [e.kind, e.osuId, e.data.type, e.data.payload]), [
     ...expected.map(p => ['request', p.osuId, p.type, p.payload]),
-    ['request', 3, 'top10.thanks', { year: 2026, subject: 4 }],
-    ['request', 4, 'top10.thanks', { year: 2026, subject: 2 }],
+    ['request', 3, 'top10.thanks', { year: 2026, kind: 'year', subject: 4 }],
+    ['request', 4, 'top10.thanks', { year: 2026, kind: 'year', subject: 2 }],
   ]);
   assert.deepEqual(events[0].data.requestId, real.body.payouts[0].requestId);
   const ack = await ackRoute({ request: new Request(`${BASE}/api/economy/ack`, { method: 'POST', headers: { Authorization: `Bearer ${KEY}` }, body: JSON.stringify({ cursor, results: [{ requestId: events[0].data.requestId, status: 'accepted' }] }) }), env });
@@ -837,7 +837,7 @@ test('finalize: admins once voting closed, a dry run first, then once only, with
   const shown = await call(api.results, env, { now: REVEALED, path: '/api/top10/results?year=2026' });
   assert.equal(shown.status, 200);
   assert.match(shown.res.headers.get('Cache-Control'), /public/);
-  assert.deepEqual(shown.body, real.body.results);
+  assert.deepEqual(shown.body, real.body.results.year);
   assert.deepEqual(shown.body.ranking.slice(0, 2).map(r => [r.id, r.rank, r.lists]), [[1, 1, 5], [2, 2, 5]]);
   assert.equal((await call(api.results, env, { now: REVEALED, path: '/api/top10/results?year=2027' })).status, 404);
   assert.equal((await call(api.results, env, { now: REVEALED, path: '/api/top10/results?year=2024' })).status, 404, 'no results that year');
@@ -850,7 +850,7 @@ test('finalize refuses a turnout under 5, and leaves the year open for a later t
     await submit(env, voter);
   }
   const out = await finalize(env, 1, { year: 2026, dryRun: false });
-  assert.deepEqual([out.status, out.body.code, out.body.ballots], [409, 'turnout', 4]);
+  assert.deepEqual([out.status, out.body.code, out.body.ballots], [409, 'turnout', { year: 4, alltime: 0 }]);
   assert.equal(env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM top10_results').get().n, 0);
   assert.equal((await call(api.results, env, { now: REVEALED, path: '/api/top10/results' })).body.code, 'not_published');
 });
@@ -993,7 +993,7 @@ test('a score link is checked with the osu! API: one call per entry, the token k
   const first = await addPlay(env, 5, { score: 'https://osu.ppy.sh/scores/9001', caption: 'nobody FCs this' });
   assert.equal(first.status, 201);
   assert.deepEqual({ ...first.body.play, created: undefined }, {
-    id: 1, year: 2026, submitter: 5, player: 6, score_ref: 'osu:9001', beatmap_id: 777, caption: 'nobody FCs this', clip: null, created: undefined,
+    id: 1, year: 2026, scope: 'year', submitter: 5, player: 6, score_ref: 'osu:9001', beatmap_id: 777, caption: 'nobody FCs this', clip: null, created: undefined,
     played: '2026-04-02T18:00:00Z', endorsements: 0, score: apiCard('osu:9001'), replay: { kind: 'osu', url: 'https://osu.ppy.sh/scores/9001/download' },
   });
   const second = await addPlay(env, 5, { score: '9002' });
@@ -1060,7 +1060,7 @@ test('an .osr upload: parsed, checked, stored once by its SHA-256 in R2, and lin
   assert.match(sha, /^[0-9a-f]{64}$/);
   // The card comes from the replay's header (no pp in a replay) and osu!'s answer about its map.
   assert.deepEqual({ ...out.body.play, created: undefined }, {
-    id: 1, year: 2026, submitter: 5, player: 6, score_ref: null, beatmap_id: 777, caption: 'offline ScoreV2 run', clip: null, created: undefined,
+    id: 1, year: 2026, scope: 'year', submitter: 5, player: 6, score_ref: null, beatmap_id: 777, caption: 'offline ScoreV2 run', clip: null, created: undefined,
     played: '2026-06-01T20:30:00Z', endorsements: 0,
     score: {
       ref: null, player: 6, map: 777, set: 4242, artist: 'Camellia', title: 'Exit This Earth', version: 'Insane', stars: 8.12, pp: null, acc: 99.43,
@@ -1190,7 +1190,7 @@ test('past editions are served by GET /api/top10/results and listed on the hub',
   assert.equal(served.status, 200);
   assert.deepEqual([served.body.label, served.body.edition, served.body.past, served.body.ranking[0].id], ['2023–24', '2023-24', true, 1]);
   assert.equal((await call(api.results, env, { now: OPEN, path: '/api/top10/results?year=2021' })).body.code, 'not_published');
-  assert.deepEqual((await call(api.hub, env, { now: OPEN })).body.editions, [{ year: 2024, label: '2023–24' }, { year: 2020, label: '2020' }]);
+  assert.deepEqual((await call(api.hub, env, { now: OPEN })).body.editions, [{ year: 2024, kind: 'year', label: '2023–24' }, { year: 2020, kind: 'year', label: '2020' }]);
   assert.equal(env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM top10_results').get().n, 2);
 });
 
@@ -1230,4 +1230,275 @@ test('past editions: 2020–2024 come out as the history import’s check does',
   const y2024 = pastResults(edition('2024.json'));
   assert.deepEqual([y2024.year, y2024.label, y2024.ballots], [2024, '2023–24', 4]);
   assert.deepEqual(y2024.ranking.map(r => [r.rank, r.score]), [[1, 10], [2, 9.33], [3, 8.5], [4, 7.67], [5, 6.25], [6, 6], [7, 4.25], [8, 4.13], [9, 2.88], [10, 2], [11, 0.5], [12, 0.25], [13, 0.13]]);
+});
+
+// ---- The all-time ballot (§13.11) ---------------------------------------------------------------------------------
+
+const ALL = { kind: 'alltime' };
+const saveAll = (env, as, body, now = OPEN) => save(env, as, { ...ALL, ...body }, now);
+const submitAll = (env, as, now = OPEN) => call(api.submitBallot, env, { as, now, method: 'POST', path: '/api/top10/ballot/submit', body: ALL });
+const withdrawAll = (env, as, now = OPEN) => call(api.withdrawBallot, env, { as, now, method: 'POST', path: '/api/top10/ballot/withdraw', body: ALL });
+const mineAll = (env, as, now = OPEN) => call(api.myBallot, env, { as, now, path: '/api/top10/ballot?kind=alltime' });
+const feedAll = (env, now = OPEN) => call(api.ballots, env, { now, path: '/api/top10/ballots?kind=alltime' });
+const hubOf = async (env, as, now = OPEN) => (await call(api.hub, env, { as, now })).body;
+
+test('the all-time ballot: its own, beside the yearly one; mentions yes, ones to watch no', async () => {
+  const env = envWith();
+  assert.equal((await save(env, 3, { picks: picks(4, 5, 6, 7, 8), watch: [9] })).status, 200);
+  const all = await saveAll(env, 3, { picks: picks(1, 2, 4, 5, 6), mentions: [7], writeups: { 1: { body: 'The first legend of them all.' } } });
+  assert.equal(all.status, 200, all.body.error);
+  assert.deepEqual([all.body.ballot.kind, all.body.ballot.status, all.body.ballot.mentions, all.body.ballot.watch], ['alltime', 'draft', [7], []]);
+  const watch = await saveAll(env, 3, { watch: [9] });
+  assert.deepEqual([watch.status, watch.body.code], [400, 'no_watch']);
+  const bad = await save(env, 3, { kind: 'forever', picks: picks(4, 5, 6, 7, 8) });
+  assert.deepEqual([bad.status, bad.body.code], [400, 'kind']);
+  assert.deepEqual((await saveAll(env, 4, { picks: picks(4, 5, 6, 7, 8) })).body.code, 'self', 'never yourself, as on the yearly ballot');
+  assert.deepEqual((await saveAll(env, 4, { picks: picks(5, 6, 7, 8, 999) })).body.code, 'not_pt');
+  // ?kind= works on a write too.
+  const byQuery = await call(api.saveBallot, env, { as: 5, method: 'PUT', path: '/api/top10/ballot?kind=alltime', body: { picks: picks(1, 2) } });
+  assert.equal(byQuery.body.ballot.kind, 'alltime');
+
+  // Each ballot is read, submitted and withdrawn on its own.
+  assert.deepEqual((await mine(env, 3)).body.ballot.picks.map(p => p.id), [4, 5, 6, 7, 8]);
+  const mineAllTime = (await mineAll(env, 3)).body;
+  assert.deepEqual([mineAllTime.kind, mineAllTime.ballot.picks.map(p => p.id), mineAllTime.ballot.writeups[1].words], ['alltime', [1, 2, 4, 5, 6], 6]);
+  assert.equal((await call(api.myBallot, env, { as: 3, path: '/api/top10/ballot?kind=nope' })).status, 400);
+  assert.equal((await submitAll(env, 3)).body.ballot.status, 'submitted');
+  assert.equal((await mine(env, 3)).body.ballot.status, 'draft', 'the yearly ballot is still a draft');
+  assert.deepEqual((await submitAll(env, 6)).body.code, 'no_ballot');
+
+  let hub = await hubOf(env, 3);
+  assert.deepEqual([hub.turnout, hub.turnouts], [0, { year: 0, alltime: 1 }]);
+  assert.deepEqual([hub.me.ballot.kind, hub.me.ballot.status, hub.me.ballots.alltime.status], ['year', 'draft', 'submitted']);
+  assert.deepEqual(hub.me.ballot, hub.me.ballots.year, 'me.ballot stays the yearly one');
+  assert.deepEqual((await hubOf(env, 6)).me.ballots, { year: null, alltime: null });
+
+  const feedAllTime = (await feedAll(env)).body;
+  assert.deepEqual([feedAllTime.kind, feedAllTime.ballots.map(b => [b.voter, b.kind])], ['alltime', [[3, 'alltime']]]);
+  assert.deepEqual((await feed(env)).body.ballots, [], 'the yearly feed has none');
+  assert.equal((await call(api.ballots, env, { path: '/api/top10/ballots?kind=x' })).status, 400);
+
+  await submit(env, 3);
+  hub = await hubOf(env);
+  assert.deepEqual([hub.turnout, hub.turnouts], [1, { year: 1, alltime: 1 }]);
+  assert.equal((await withdrawAll(env, 3)).body.ballot.status, 'draft');
+  hub = await hubOf(env);
+  assert.deepEqual([hub.turnout, hub.turnouts], [1, { year: 1, alltime: 0 }]);
+});
+
+test('all-time cites may be any year’s play; the yearly ballot’s map refs stay in the season', async () => {
+  const env = envWith();
+  // Player 2's only play on map 113 was set on 31 Dec 2025.
+  const body = { picks: picks(2, 4, 5, 6, 7), writeups: { 2: { body: 'That last night of 2025.', cites: ['map:113'] } } };
+  const yearly = await save(env, 3, body);
+  assert.deepEqual([yearly.status, yearly.body.code, yearly.body.ref], [400, 'cite', 'map:113:2']);
+  const all = await saveAll(env, 3, body);
+  assert.equal(all.status, 200, all.body.error);
+  assert.deepEqual(all.body.ballot.writeups[2].cites, ['map:113:2']);
+  assert.deepEqual([all.body.ballot.scores['map:113:2'].map, all.body.ballot.scores['map:113:2'].time], [113, at('2025-12-31T23:00:00Z')]);
+});
+
+test('the same text on both your ballots is flagged as a copy on the later one, so it pays once', async () => {
+  const env = envWith();
+  const text = essay(40, 50);
+  await save(env, 3, { picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: text } } });
+  const all = await saveAll(env, 3, { picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: text } } });
+  assert.deepEqual(all.body.ballot.writeups[4].flags, ['copy']);
+  assert.deepEqual((await mine(env, 3)).body.ballot.writeups[4].flags, []);
+});
+
+test('Legendary plays: any year, 10 each with at most 5 of your own, apart from the yearly showcase', async () => {
+  const env = envWith();
+  const refused = await addPlay(env, 5, { score: '5000000002', player: 2 });
+  assert.deepEqual([refused.status, refused.body.code], [422, 'wrong_year']);
+  const legend = await addPlay(env, 5, { scope: 'alltime', score: '5000000002', player: 2, caption: 'the last FC of 2025' });
+  assert.equal(legend.status, 201, legend.body.error);
+  assert.deepEqual([legend.body.play.scope, legend.body.play.year, legend.body.play.played], ['alltime', 2026, '2025-12-31T23:00:00Z']);
+  assert.deepEqual((await addPlay(env, 7, { scope: 'alltime', score: 'map:113:2' })).body.code, 'duplicate', 'the same play by its map ref');
+  // The same play can be in both: they're separate lists.
+  assert.equal((await addPlay(env, 5, { score: '5000000001', player: 2 })).status, 201);
+  assert.equal((await addPlay(env, 5, { scope: 'alltime', score: '5000000001', player: 2 })).status, 201);
+  assert.deepEqual((await addPlay(env, 5, { scope: 'forever', player: 6, clip: 'https://youtu.be/x' })).body.code, 'scope');
+
+  const listed = async (path, as) => (await call(api.plays, env, { as, path })).body;
+  const legendary = await listed('/api/top10/plays?scope=alltime');
+  assert.deepEqual([legendary.scope, legendary.plays.map(p => [p.id, p.scope])], ['alltime', [[1, 'alltime'], [3, 'alltime']]]);
+  assert.deepEqual((await listed('/api/top10/plays')).plays.map(p => p.id), [2]);
+  assert.equal((await call(api.plays, env, { path: '/api/top10/plays?scope=x' })).status, 400);
+  // Endorsing a legendary play marks it with its scope.
+  const endorsed = await call(api.endorse, env, { as: 8, method: 'POST', path: '/api/top10/plays/1/endorse', id: '1' });
+  assert.deepEqual(endorsed.body, { endorsed: true, endorsements: 1 });
+  assert.equal(env.ECONOMY.sqlite.prepare("SELECT kind FROM top10_marks WHERE mark = 'endorse'").get().kind, 'alltime');
+  assert.deepEqual((await listed('/api/top10/plays?scope=alltime', 8)).plays.map(p => [p.id, p.endorsed]), [[1, true], [3, false]]);
+
+  // Limits: 5 of your own, 10 in all, counted apart from the yearly showcase's.
+  for (let i = 0; i < 5; i++) assert.equal((await addPlay(env, 4, { scope: 'alltime', score: String(4000000000 + i) })).status, 201);
+  assert.deepEqual((await addPlay(env, 4, { scope: 'alltime', score: String(4000000005) })).body.code, 'own_limit');
+  for (let i = 0; i < 5; i++) assert.equal((await addPlay(env, 4, { scope: 'alltime', player: 6, clip: `https://youtu.be/${i}` })).status, 201);
+  const over = await addPlay(env, 4, { scope: 'alltime', player: 6, clip: 'https://youtu.be/more' });
+  assert.deepEqual([over.status, over.body.code], [429, 'limit']);
+  assert.match(over.body.error, /10 entries in the Legendary plays/);
+  assert.equal((await addPlay(env, 4, { score: String(4000000005) })).status, 201, 'the yearly showcase counts on its own');
+});
+
+test('finalize does both kinds; one under 5 ballots stays unpublished, pays nothing, and doesn’t block the other', async () => {
+  const env = envWith();
+  for (const voter of [3, 4, 5, 6, 7]) {
+    await save(env, voter, { picks: picks(10, 11, 12, 13, 14) });
+    await submit(env, voter);
+  }
+  for (const voter of [3, 4]) {
+    await saveAll(env, voter, { picks: picks(10, 11, 12, 13, 14), writeups: { 10: { body: essay(40, voter) } } });
+    await submitAll(env, voter);
+  }
+  const dry = await finalize(env, 1, { year: 2026, dryRun: true });
+  assert.equal(dry.status, 200);
+  assert.deepEqual([dry.body.results.year.kind, dry.body.results.year.ballots, dry.body.results.alltime], ['year', 5, null]);
+  assert.deepEqual(dry.body.unpublished, [{ kind: 'alltime', ballots: 2 }]);
+  assert.deepEqual(dry.body.payouts.map(p => [p.osuId, p.payload.kind]), [[3, 'year'], [4, 'year'], [5, 'year'], [6, 'year'], [7, 'year']]);
+  assert.deepEqual(dry.body.thanks, []);
+  const real = await finalize(env, 1, { year: 2026, dryRun: false });
+  assert.equal(real.status, 200);
+  assert.deepEqual(real.body.unpublished, [{ kind: 'alltime', ballots: 2 }]);
+  assert.deepEqual(env.ECONOMY.sqlite.prepare('SELECT year, kind FROM top10_results').all().map(r => [r.year, r.kind]), [[2026, 'year']]);
+  assert.equal(env.ECONOMY.sqlite.prepare("SELECT COUNT(*) AS n FROM requests WHERE json_extract(payload, '$.kind') = 'alltime'").get().n, 0);
+  // Once only: the all-time results can't be published later.
+  assert.equal((await finalize(env, 1, { year: 2026, dryRun: false })).body.code, 'already');
+  const missing = await call(api.results, env, { now: REVEALED, path: '/api/top10/results?kind=alltime' });
+  assert.deepEqual([missing.status, missing.body.code], [404, 'not_published']);
+  assert.deepEqual((await hubOf(env, undefined, REVEALED)).editions, [{ year: 2026, kind: 'year', label: '2026' }]);
+  // The unpublished kind isn't final, so the mods can still act on it; the published one is.
+  assert.equal((await act(env, 1, { action: 'void', target: 'ballot:alltime:3', reason: 'test' })).body.changed, true);
+  assert.equal((await act(env, 1, { action: 'void', target: 'ballot:3', reason: 'test' })).body.code, 'final');
+
+  // Only the all-time ballot with 5: it's published alone. Neither: 409 turnout.
+  const other = envWith();
+  for (const voter of [3, 4, 5, 6, 7]) {
+    await saveAll(other, voter, { picks: picks(10, 11, 12, 13, 14) });
+    await submitAll(other, voter);
+  }
+  const alone = await finalize(other, 1, { year: 2026, dryRun: true });
+  assert.deepEqual([alone.body.results.year, alone.body.results.alltime.kind, alone.body.unpublished], [null, 'alltime', [{ kind: 'year', ballots: 0 }]]);
+  const none = await finalize(envWith(), 1, { year: 2026, dryRun: true });
+  assert.deepEqual([none.status, none.body.code, none.body.ballots], [409, 'turnout', { year: 0, alltime: 0 }]);
+});
+
+test('finalize does both kinds: the all-time results and payouts carry kind, and later thanks are paid per kind', async () => {
+  const env = envWith();
+  for (const voter of [3, 4, 5, 6, 7]) {
+    await save(env, voter, { picks: picks(11, 12, 13, 14, 15), writeups: voter === 3 ? { 11: { body: essay(41, 1) } } : {} });
+    await submit(env, voter);
+    const writeups = { 3: { 10: { body: essay(40, 2) } }, 5: { 11: { body: essay(45, 3) } } }[voter] ?? {};
+    await saveAll(env, voter, { picks: picks(10, 11, 12, 13, 14), writeups });
+    await submitAll(env, voter);
+  }
+  // 10 thanks 3's all-time write-up before finalize; 11 thanks 3's yearly one.
+  assert.deepEqual((await thank(env, 10, { ...ALL, voter: 3 })).body, { thanked: true, thanks: 1 });
+  assert.equal((await thank(env, 10, { voter: 3 })).status, 404, 'there’s no yearly write-up about 10');
+  await thank(env, 11, { voter: 3 });
+  const thanksOf = async kind => (await call(api.ballots, env, { as: 10, path: `/api/top10/ballots?kind=${kind}` })).body.ballots.find(b => b.voter === 3);
+  assert.deepEqual([(await thanksOf('alltime')).thanks, (await thanksOf('alltime')).writeups[10].thanked], [1, true]);
+
+  const real = await finalize(env, 1, { year: 2026, dryRun: false });
+  assert.equal(real.status, 200);
+  assert.deepEqual([real.body.results.year.kind, real.body.results.alltime.kind, real.body.unpublished], ['year', 'alltime', []]);
+  const payload = (kind, writeups) => ({ year: 2026, kind, ballot: true, writeups, allFull: false });
+  assert.deepEqual(real.body.payouts.map(({ requestId, ...p }) => p), [
+    { osuId: 3, type: 'top10.payout', payload: payload('year', [{ subject: 11, words: 41 }]) },
+    ...[4, 5, 6, 7].map(osuId => ({ osuId, type: 'top10.payout', payload: payload('year', []) })),
+    { osuId: 3, type: 'top10.payout', payload: payload('alltime', [{ subject: 10, words: 40 }]) },
+    { osuId: 4, type: 'top10.payout', payload: payload('alltime', []) },
+    { osuId: 5, type: 'top10.payout', payload: payload('alltime', [{ subject: 11, words: 45 }]) },
+    ...[6, 7].map(osuId => ({ osuId, type: 'top10.payout', payload: payload('alltime', []) })),
+  ]);
+  assert.deepEqual(real.body.thanks.map(({ requestId, ...p }) => p), [
+    { osuId: 3, type: 'top10.thanks', payload: { year: 2026, kind: 'year', subject: 11 } },
+    { osuId: 3, type: 'top10.thanks', payload: { year: 2026, kind: 'alltime', subject: 10 } },
+  ]);
+  assert.deepEqual(env.ECONOMY.sqlite.prepare('SELECT kind FROM top10_results ORDER BY kind').all().map(r => r.kind), ['alltime', 'year']);
+
+  // The results: each kind at its own address, from the reveal.
+  assert.equal((await call(api.results, env, { now: CLOSED, path: '/api/top10/results?kind=alltime' })).body.code, 'not_yet');
+  const shown = await call(api.results, env, { now: REVEALED, path: '/api/top10/results?year=2026&kind=alltime' });
+  assert.deepEqual([shown.status, shown.body.kind, shown.body.ranking[0].id], [200, 'alltime', 10]);
+  assert.deepEqual((await call(api.results, env, { now: REVEALED, path: '/api/top10/results?year=2026' })).body.ranking[0].id, 11);
+  assert.equal((await call(api.results, env, { now: REVEALED, path: '/api/top10/results?kind=x' })).status, 400);
+  assert.deepEqual((await hubOf(env, undefined, REVEALED)).editions, [{ year: 2026, kind: 'year', label: '2026' }, { year: 2026, kind: 'alltime', label: '2026' }]);
+
+  // A thanks after finalize is queued at once, with its kind; it can't be taken back.
+  assert.deepEqual((await thank(env, 11, { ...ALL, voter: 5 }, REVEALED)).body, { thanked: true, thanks: 1 });
+  assert.equal((await thank(env, 11, { ...ALL, voter: 5, thanked: false }, REVEALED)).body.code, 'final');
+  const late = env.ECONOMY.sqlite.prepare("SELECT osu_id, payload FROM requests WHERE kind = 'top10.thanks' ORDER BY created DESC, rowid DESC").get();
+  assert.deepEqual([late.osu_id, JSON.parse(late.payload)], [5, { year: 2026, kind: 'alltime', subject: 11 }]);
+  assert.deepEqual((await thank(env, 11, { ...ALL, voter: 5, thanked: true }, REVEALED)).body, { thanked: true, thanks: 1 });
+  assert.equal(env.ECONOMY.sqlite.prepare("SELECT COUNT(*) AS n FROM requests WHERE kind = 'top10.thanks'").get().n, 3, 'a second click queues nothing');
+});
+
+test('moderation tells the ballots apart: writeup:alltime:… and ballot:alltime:…', async () => {
+  const env = envWith();
+  await save(env, 3, { picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'Four, this year.' } } });
+  await submit(env, 3);
+  await saveAll(env, 3, { picks: picks(4, 5, 6, 7, 8), writeups: { 4: { body: 'Four, of all time.' } } });
+  await submitAll(env, 3);
+  const queue = async path => (await call(api.adminQueue, env, { as: 1, path })).body;
+  const both = await queue('/api/top10/admin/queue');
+  assert.deepEqual(both.writeups.map(w => [w.kind, w.target]).sort(), [['alltime', 'writeup:alltime:3:4'], ['year', 'writeup:3:4']]);
+  assert.deepEqual(both.ballots.map(b => [b.kind, b.target]).sort(), [['alltime', 'ballot:alltime:3'], ['year', 'ballot:3']]);
+  assert.deepEqual((await queue('/api/top10/admin/queue?kind=alltime')).writeups.map(w => w.target), ['writeup:alltime:3:4']);
+  assert.equal((await call(api.adminQueue, env, { as: 1, path: '/api/top10/admin/queue?kind=x' })).status, 400);
+
+  assert.equal((await act(env, 1, { action: 'strike', target: 'writeup:alltime:3:4', reason: 'off topic' }, OPEN)).body.changed, true);
+  assert.deepEqual([(await mineAll(env, 3)).body.ballot.writeups[4].mod, (await mine(env, 3)).body.ballot.writeups[4].mod], ['struck', 'ok']);
+  assert.equal((await act(env, 1, { action: 'restore', kind: 'alltime', target: { voter: 3, subject: 4 } }, OPEN)).body.changed, true);
+  assert.equal((await act(env, 1, { action: 'restore', kind: 'year', target: 'writeup:alltime:3:4' }, OPEN)).body.code, 'kind', 'they mustn’t disagree');
+  assert.equal((await act(env, 1, { action: 'void', target: 'ballot:alltime:3', reason: 'duplicate account' }, OPEN)).body.changed, true);
+  assert.deepEqual((await hubOf(env)).turnouts, { year: 1, alltime: 0 });
+  assert.deepEqual((await mine(env, 3)).body.log.map(l => [l.kind, l.action, l.target]), [
+    ['alltime', 'void', 'ballot:alltime:3'], ['alltime', 'restore', 'writeup:alltime:3:4'], ['alltime', 'strike', 'writeup:alltime:3:4'],
+  ]);
+  assert.equal((await saveAll(env, 3, { intro: 'hi' })).body.code, 'void');
+  assert.equal((await save(env, 3, { intro: 'hi' })).status, 200, 'the yearly ballot isn’t void');
+});
+
+/** An all-time list as top10/history/alltime-<year>.json has it. */
+const ALLTIME_EDITION = {
+  kind: 'alltime', edition: 2020, label: 'All time (2020)', thread: 'https://osu.ppy.sh/community/forums/topics/2',
+  ballots: [
+    { voter: 1, post: 'https://osu.ppy.sh/community/forums/posts/21', picks: picks(2, 3, 4, 5, 6), mentions: [7], watch: [] },
+    { voter: 2, post: 'https://osu.ppy.sh/community/forums/posts/22', picks: picks(1, 3, 4, 6, 5) },
+  ],
+};
+
+test('past all-time lists: kind alltime, no ones to watch, served at ?kind=alltime beside the year’s', async () => {
+  assert.deepEqual(checkEdition(ALLTIME_EDITION).errors, []);
+  const watching = { ...ALLTIME_EDITION, ballots: [{ ...ALLTIME_EDITION.ballots[0], watch: [8] }] };
+  assert.match(checkEdition(watching).errors.join(), /no ones to watch/);
+  assert.match(checkEdition({ ...ALLTIME_EDITION, kind: 'forever' }).errors.join(), /kind "forever"/);
+  const all = pastResults(ALLTIME_EDITION, { importedAt: '2026-11-08T00:00:00Z' });
+  assert.deepEqual([all.year, all.kind, all.label, all.past, all.ballots], [2020, 'alltime', 'All time (2020)', true, 2]);
+  const yearly = pastResults({ edition: '2020', label: '2020', ballots: [EDITION.ballots[0]] });
+  assert.equal(yearly.kind, 'year');
+
+  const env = envWith();
+  await hubOf(env); // the tables as the site makes them first: the import's SQL must fit them
+  env.ECONOMY.sqlite.exec(pastSql([yearly, all]));
+  env.ECONOMY.sqlite.exec(pastSql([all])); // again: it replaces, never doubles
+  assert.equal(env.ECONOMY.sqlite.prepare('SELECT COUNT(*) AS n FROM top10_results').get().n, 2);
+  const got = async path => (await call(api.results, env, { now: OPEN, path })).body;
+  assert.deepEqual([(await got('/api/top10/results?year=2020')).kind, (await got('/api/top10/results?year=2020')).label], ['year', '2020']);
+  const served = await got('/api/top10/results?year=2020&kind=alltime');
+  assert.deepEqual([served.kind, served.label, served.thread, served.ranking[0].id], ['alltime', 'All time (2020)', 'https://osu.ppy.sh/community/forums/topics/2', 1]);
+  assert.deepEqual((await hubOf(env)).editions, [{ year: 2020, kind: 'year', label: '2020' }, { year: 2020, kind: 'alltime', label: 'All time (2020)' }]);
+});
+
+const allTimeHere = fs.existsSync(new URL('alltime-2020.json', HISTORY)) ? false : 'top10/history/alltime-2020.json isn’t here yet';
+test('past editions: the 2020 all-time thread comes out as the history import found (§13.11)', { skip: allTimeHere }, () => {
+  const results = pastResults(edition('alltime-2020.json'));
+  assert.deepEqual([results.year, results.kind, results.ballots], [2020, 'alltime', 7]);
+  // Buffow 9.86, Tris 8.67, Airdown 8.17, gold801 7.57, PTrollYO 6.14, SoulEater 5.33, DemiGod Yoxide 4.67, Rosa 2.67,
+  // [SS]Bell 2.29, Sp1ritGG 1.57.
+  assert.deepEqual(results.ranking.slice(0, 10).map(r => [r.id, r.rank, r.score]), [
+    [4427038, 1, 9.86], [3821475, 2, 8.67], [2788013, 3, 8.17], [3006672, 4, 7.57], [6502093, 5, 6.14], [1267642, 6, 5.33],
+    [6205809, 7, 4.67], [7385703, 8, 2.67], [2600197, 9, 2.29], [1700805, 10, 1.57],
+  ]);
 });
