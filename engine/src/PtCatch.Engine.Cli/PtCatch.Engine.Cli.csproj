@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>ptcatch-engine</AssemblyName>
+    <RootNamespace>PtCatch.Engine.Cli</RootNamespace>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <ServerGarbageCollector>false</ServerGarbageCollector>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- A batch run: each method runs once over large loops, so it is compiled optimised from the start. -->
+    <TieredCompilation>false</TieredCompilation>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PtCatch.Engine\PtCatch.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,14 +1,21 @@
 #!/usr/bin/env node
-// Minimal static server for trying the site locally: node tools/serve.mjs [port] [--local-data] [--usage]
+// Minimal static server for trying the site locally: node tools/serve.mjs [port] [--local-data [folder]] [--usage]
 // The site reads its data from https://data.ptcatch.com; --local-data points it at this repo's data/ instead (after
-// npm run export or publish.ps1 -NoUpload), by serving config.js with that one setting changed, and answers the hashed
-// names the site asks for (data/players/1.<hash>.json) with the plain files (core/data-name.js).
+// npm run export or publish.ps1 -NoUpload), or at another export's folder (ptcatch-engine export --out <folder>
+// --packs), by serving config.js with that one setting changed, and answers the hashed names the site asks for
+// (data/players/1.<hash>.json) with the plain files (core/data-name.js).
+// The new web client (web/src: the app, which index.html loads, and its pages) is bundled in memory as assets/web/ is
+// asked for (tools/web-build.mjs), so an edit shows on the next reload; its pages get their slice of packs.json and
+// meta.json, as functions/[[path]].js sends them (web/edge/inline.ts).
 // --usage turns the usage counts on for this address and runs their Functions (POST /api/hit, GET /stats with the
 // password "local") over a SQLite file in the system's temp folder (tools/lib/d1-sqlite.mjs), to try them end to end.
 // --economy does the same for Bananas (the daily game, wallet and admin requests, the bot's inbox: economy/api.js) and
 // turns "Sign in with osu!" on, with a local stand-in for osu! that asks which player to be (the admins first). With
 // --local-data and no admin.json of its own, the data gets tools/admin-sample.json as admin.json, so #/admin has
-// settings and a log to show.
+// settings and a log to show. It runs the Top 10's endpoints too (/api/top10/*, top10/api.js), with uploaded replays
+// kept in a temp folder (served at /local-replays/) and no osu! API (a score is checked against the data). The season
+// is the built-in one unless TOP10_SEASON is set in the shell (top10/season.js), e.g. one that's open now:
+//   TOP10_SEASON='{"year":2026,"opens":"2026-11-01T00:00:00Z","closes":"2026-11-30T23:59:59Z","reveal":"2026-12-02T12:00:00Z","thanksUntil":"2026-12-31T23:59:59Z"}'
 //
 // Review aids, for requests to localhost only (tools/local-review.js, never deployed): a "Design: new / old" button
 // sits in the corner. "Old" sets a cookie, and then every site file this branch has changed since it last took in dev is served as dev had it, straight from git, so the old CSS,
@@ -23,10 +30,16 @@ import { execFileSync } from 'node:child_process';
 import { plainName } from '../assets/js/core/data-name.js';
 import { describe, pageFor } from '../embed/embed.js';
 import { CONFIG } from '../assets/js/config.js';
+import { inlineData, manifestsFor } from '../web/edge/inline.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.argv.slice(2).find(a => /^\d+$/.test(a))) || 8080;
 const localData = process.argv.includes('--local-data');
+/** The export --local-data serves at /data/: the folder named after it, or this repo's data/. */
+const dataArg = process.argv[process.argv.indexOf('--local-data') + 1];
+const dataDir = localData && dataArg && !dataArg.startsWith('--') && !/^\d+$/.test(dataArg) ? path.resolve(dataArg) : path.join(root, 'data');
+/** Where --economy keeps the Top 10's uploaded replays: a temp folder standing in for the REPLAYS R2 bucket. */
+const replaysDir = path.join(os.tmpdir(), 'ptctb-replays-local');
 const usage = process.argv.includes('--usage') ? await usageFunctions() : null;
 const economy = process.argv.includes('--economy') ? await economyFunctions() : null;
 
@@ -35,24 +48,43 @@ const economy = process.argv.includes('--economy') ? await economyFunctions() : 
  * which player to be instead of asking osu! (localhost only; it makes a real session token with the local secret).
  */
 async function economyFunctions() {
-  const [{ sqliteD1 }, api, { makeSession }, { makeProof }, { recordSignin }] = await Promise.all([
+  const [{ sqliteD1 }, api, { makeSession }, { makeProof }, { recordSignin }, top10] = await Promise.all([
     import('./lib/d1-sqlite.mjs'), import('../economy/api.js'), import('../signin/session.js'), import('../signin/proof.js'), import('../economy/store.js'),
+    import('../top10/api.js'),
   ]);
   const file = path.join(os.tmpdir(), 'ptctb-economy-local.sqlite');
   console.log(`Bananas Functions over ${file}: DAILY_SEED, ECONOMY_INBOX_KEY and the session secret are all "local".`);
-  const env = { ECONOMY: sqliteD1(file), OSU_CLIENT_SECRET: 'local', DAILY_SEED: 'local', ECONOMY_INBOX_KEY: 'local' };
+  const env = {
+    ECONOMY: sqliteD1(file), OSU_CLIENT_SECRET: 'local', DAILY_SEED: 'local', ECONOMY_INBOX_KEY: 'local',
+    REPLAYS: folderBucket(replaysDir), ...(process.env.TOP10_SEASON ? { TOP10_SEASON: process.env.TOP10_SEASON } : {}),
+    ...(process.env.ADMIN_OSU_IDS ? { ADMIN_OSU_IDS: process.env.ADMIN_OSU_IDS } : {}),
+  };
   const routes = {
     'GET /api/daily': api.daily, 'POST /api/daily/guess': api.dailyGuess, 'GET /api/daily/cover': api.dailyCover,
     'POST /api/wallet/request': api.walletRequest, 'GET /api/wallet/requests': api.walletRequests,
     'GET /api/economy/inbox': api.economyInbox, 'POST /api/economy/ack': api.economyAck,
     'POST /api/admin/request': api.adminRequest, 'GET /api/admin/requests': api.adminRequests,
+    'GET /api/top10': top10.hub, 'GET /api/top10/ballots': top10.ballots,
+    'GET /api/top10/ballot': top10.myBallot, 'PUT /api/top10/ballot': top10.saveBallot,
+    'POST /api/top10/ballot/submit': top10.submitBallot, 'POST /api/top10/ballot/withdraw': top10.withdrawBallot,
+    'GET /api/top10/plays': top10.plays, 'POST /api/top10/plays': top10.addPlay, 'POST /api/top10/thanks': top10.thank,
+    'GET /api/top10/results': top10.results, 'GET /api/top10/admin/queue': top10.adminQueue,
+    'POST /api/top10/admin/action': top10.adminAction, 'POST /api/top10/admin/finalize': top10.adminFinalize,
+  };
+  /** The routes with an :id in them (functions/api/top10/plays/[id]/…). */
+  const routeFor = (method, pathname) => {
+    if (routes[`${method} ${pathname}`]) return routes[`${method} ${pathname}`];
+    const play = /^\/api\/top10\/plays\/(\d+)(\/endorse)?$/.exec(pathname);
+    if (play && method === 'DELETE' && !play[2]) return (request, e) => top10.deletePlay(request, e, play[1]);
+    if (play && method === 'POST' && play[2]) return (request, e) => top10.endorse(request, e, play[1]);
+    return null;
   };
   /** /auth/login: a form picking the player; then back to the site the way /auth/callback sends it. */
   async function login(request) {
     const url = new URL(request.url);
     const state = url.searchParams.get('state') ?? '';
     const as = Number(url.searchParams.get('as'));
-    const all = JSON.parse(fs.readFileSync(path.join(root, 'data', 'players.json'), 'utf8'));
+    const all = JSON.parse(fs.readFileSync(path.join(dataDir, 'players.json'), 'utf8'));
     const admins = api.adminIds(env);
     const names = [...all.filter(x => admins.includes(x.id)), ...all.filter(x => !admins.includes(x.id))];
     const p = names.find(x => x.id === as);
@@ -67,7 +99,18 @@ async function economyFunctions() {
     const answer = new URLSearchParams({ id: String(p.id), name: p.name, state, proof: await makeProof('local', p.id), token: await makeSession('local', p.id) });
     return new Response(null, { status: 302, headers: { Location: `/#signin?${answer}` } });
   }
-  return { env, routes, login };
+  return { env, routeFor, login };
+}
+
+/** The REPLAYS binding's head, put and delete, over a folder. */
+function folderBucket(dir) {
+  fs.mkdirSync(dir, { recursive: true });
+  const at = key => path.join(dir, path.basename(key));
+  return {
+    head: async key => (fs.existsSync(at(key)) ? { key } : null),
+    put: async (key, bytes) => { fs.writeFileSync(at(key), bytes); return { key }; },
+    delete: async key => { fs.rmSync(at(key), { force: true }); },
+  };
 }
 
 async function usageFunctions() {
@@ -95,7 +138,7 @@ const serveUsage = (req, res, url, handler) => serveFunction(req, res, url, requ
 async function serveFunction(req, res, url, handler) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
-  const request = new Request(url, { method: req.method, headers: req.headers, body: req.method === 'POST' ? Buffer.concat(chunks) : undefined });
+  const request = new Request(url, { method: req.method, headers: req.headers, body: ['POST', 'PUT', 'DELETE'].includes(req.method) && chunks.length ? Buffer.concat(chunks) : undefined });
   const response = await handler(Object.assign(request, { cf: { country: 'PT' } })).catch(e => new Response(String(e?.stack ?? e), { status: 500 }));
   res.writeHead(response.status, Object.fromEntries(response.headers)).end(Buffer.from(await response.arrayBuffer()));
 }
@@ -136,16 +179,24 @@ http.createServer(async (req, res) => {
   if (usage && url.pathname === '/api/hit' && req.method === 'POST') return serveUsage(req, res, url, usage.recordHit);
   if (usage && url.pathname === '/stats') return serveUsage(req, res, url, usage.stats);
   if (economy && isLocal(req)) {
-    const route = economy.routes[`${req.method} ${url.pathname}`];
-    // The daily game's pool comes from this server's data (with --local-data) or R2's.
-    const env = { ...economy.env, DATA_URL: localData ? `${url.origin}/data/` : '' };
+    const route = economy.routeFor(req.method, url.pathname);
+    // The daily game's pool and the Top 10's players come from this server's data (with --local-data) or R2's.
+    const env = { ...economy.env, DATA_URL: localData ? `${url.origin}/data/` : '', REPLAYS_URL: `${url.origin}/local-replays/` };
     if (route) return serveFunction(req, res, url, request => route(request, env));
+    if (url.pathname.startsWith('/local-replays/')) {
+      const replay = path.join(replaysDir, path.basename(url.pathname));
+      if (!fs.existsSync(replay)) { res.writeHead(404).end(); return; }
+      res.writeHead(200, { 'Content-Type': 'application/octet-stream', 'Content-Disposition': 'attachment' }).end(fs.readFileSync(replay));
+      return;
+    }
     if (url.pathname === '/auth/login') return serveFunction(req, res, url, economy.login);
     // With `home` set the site sends its usage counts; without --usage there's nowhere to keep them.
     if (!usage && url.pathname === '/api/hit') { res.writeHead(204).end(); return; }
   }
-  let file = path.join(root, decodeURIComponent(url.pathname));
-  if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
+  if (url.pathname.startsWith('/assets/web/')) return serveWeb(res, path.basename(url.pathname));
+  const dataPath = localData && url.pathname.startsWith('/data/');
+  let file = dataPath ? path.join(dataDir, decodeURIComponent(url.pathname.slice('/data/'.length))) : path.join(root, decodeURIComponent(url.pathname));
+  if (!file.startsWith(dataPath ? dataDir : root)) { res.writeHead(403).end(); return; }
   const local = isLocal(req);
   // A page address (/player/123) gets index.html with its link preview, as functions/[[path]].js sends it.
   const isPage = url.pathname === '/' || (!path.extname(url.pathname) && describe(url.pathname) !== null);
@@ -158,6 +209,12 @@ http.createServer(async (req, res) => {
       const base = localData ? `${url.origin}/data/` : CONFIG.data;
       const fetchJson = u => fetch(u).then(r => (r.ok ? r.json() : Promise.reject(new Error(`${r.status} ${u}`))));
       text = await pageFor(text, url.href, { ua: req.headers['user-agent'], base, fetchJson });
+      const need = manifestsFor(url.pathname, url.search);
+      const manifest = name => (localData
+        ? Promise.resolve().then(() => JSON.parse(fs.readFileSync(path.join(dataDir, name), 'utf8')))
+        : fetchJson(`${base}${name}`)).catch(() => null);
+      const [packs, meta] = await Promise.all([need.packs ? manifest('packs.json') : null, need.meta ? manifest('meta.json') : null]);
+      text = inlineData(text, url.pathname, { packs, meta }, base, url.search);
       if (local) text = text.replace('</head>', '<script src="tools/local-review.js"></script>\n</head>');
     }
     res.writeHead(200, { 'Content-Type': TYPES[path.extname(page)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
@@ -166,8 +223,8 @@ http.createServer(async (req, res) => {
   }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
   if (economy && localData && url.pathname === '/data/meta.json') return serveMetaWithAdmin(res, file);
-  if (economy && localData && url.pathname === `/data/admin.${SAMPLE_HASH}.json` && !fs.existsSync(path.join(root, 'data', 'admin.json'))) file = path.join(root, 'tools', 'admin-sample.json');
-  if (localData && !fs.existsSync(file) && url.pathname.startsWith('/data/')) file = plainName(file);
+  if (economy && localData && url.pathname === `/data/admin.${SAMPLE_HASH}.json` && !fs.existsSync(path.join(dataDir, 'admin.json'))) file = path.join(root, 'tools', 'admin-sample.json');
+  if (dataPath && !fs.existsSync(file)) file = plainName(file);
   if (!fs.existsSync(file)) { res.writeHead(404).end('Not found'); return; }
   if ((localData || usage || economy) && url.pathname === '/assets/js/config.js') {
     const local = { ...(localData && { data: 'data/' }), ...((usage || economy) && { home: url.origin }), ...(economy && { signIn: true }) };
@@ -177,4 +234,28 @@ http.createServer(async (req, res) => {
   }
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
-}).listen(port, () => console.log(`PT-CTB at http://localhost:${port}/${localData ? ' (data from data/)' : ''}${usage ? ' (usage counts on)' : ''}`));
+}).listen(port, () => console.log(`PT-CTB at http://localhost:${port}/${localData ? ` (data from ${path.relative(root, dataDir) || '.'})` : ''}${usage ? ' (usage counts on)' : ''}`));
+
+/**
+ * The new web client's bundle, rebuilt in memory when asked for (esbuild only rebuilds what changed), and set up again
+ * when an entry is added or removed.
+ */
+let web = null;
+let webEntries = '';
+async function serveWeb(res, name) {
+  try {
+    const build = await import('./web-build.mjs');
+    const now = JSON.stringify(build.entries());
+    if (web && now !== webEntries) { (await web).dispose(); web = null; }
+    webEntries = now;
+    web ??= build.webContext({ outdir: path.join(root, 'assets', 'web') });
+    const { outputFiles } = await (await web).rebuild();
+    const out = outputFiles.find(f => path.basename(f.path) === name);
+    if (!out) { res.writeHead(404).end('Not found'); return; }
+    res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-cache' });
+    res.end(out.contents);
+  } catch (e) {
+    // No esbuild (npm install first) or a build error: index.html loads the old app instead (assets/js/app.js).
+    res.writeHead(500, { 'Content-Type': TYPES['.txt'] }).end(String(e?.message ?? e));
+  }
+}

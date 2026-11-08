@@ -31,8 +31,12 @@ addEventListener('load', () => {
   Promise.all(code.map(u => fetch(u, { cache: 'reload' }).catch(() => {}))).then(() => location.reload());
 });
 </script>
-<script type="module" src="assets/js/moved.js"></script>
-<script type="module" src="assets/js/app.js"></script>
+<script type="module" src="assets/web/app.js"></script>
+<script type="module">
+// The app is assets/web/app.js (web/src/app.ts, which tools/build-site.mjs bundles). Where it can't load, the old one:
+// the github.io copy is served from the repo as it is, without assets/web.
+if (!globalThis.ptctbApp) import('./assets/js/moved.js').then(() => import('./assets/js/app.js'));
+</script>
 </head>
 <body>
 <a class="skip" href="#content" data-t>Skip to content</a>
@@ -62,9 +66,10 @@ addEventListener('load', () => {
         <a class="nav-top" href="/challenges" data-section="challenges duel" data-t>Challenges</a>
       </div>
       <div class="nav-cat">
-        <a class="nav-top" href="/activity" data-section="activity records team shop" data-t>Community</a>
+        <a class="nav-top" href="/activity" data-section="activity records team shop top10" data-t>Community</a>
         <div class="nav-menu">
           <a href="/activity" data-t>Activity</a>
+          <a href="/top10" data-t>Top 10</a>
           <a href="/records" data-t>Records</a>
           <a href="/team" data-t>Team Portugal</a>
           <a href="/shop" data-t>Shop</a>

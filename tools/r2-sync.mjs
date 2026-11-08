@@ -17,6 +17,10 @@
 // "retired" with a timestamp in state/r2.json and deleted (deletes are free) once nothing has used them for a day, so
 // the bucket holds about one day of history. Every request is counted against hard caps first (tools/lib/r2-budget.mjs);
 // one that would pass a cap is never sent, and the run exits with code 3.
+//
+// The engine's binary packs (packs/*.ptcb, read by the new web client in web/) go the same way, with their own manifest,
+// packs.json, sent after meta.json. A packs.json from an older export than meta.json (publish.ps1 -Node writes none)
+// isn't sent: R2's stays, and the packs it names are kept, so the new client goes on reading slightly older data.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -36,8 +40,15 @@ const LEDGER = 'r2.json';
 /** How long a file the manifest stopped naming stays, for visitors who loaded the previous manifest (open tabs). */
 export const GRACE_MS = 24 * 60 * 60 * 1000;
 const JSON_TYPE = 'application/json; charset=utf-8';
-/** The data is JSON apart from the avatar thumbnails (tools/lib/avatars.mjs). */
-export const contentType = key => (key.endsWith('.webp') ? 'image/webp' : JSON_TYPE);
+/**
+ * The data is JSON apart from the avatar thumbnails (tools/lib/avatars.mjs) and the packs. The packs are sent as
+ * application/x-protobuf, a binary type Cloudflare compresses (application/octet-stream it sends as it is), which makes
+ * a pack about a third of its size on the wire.
+ */
+export const contentType = key => (key.endsWith('.webp') ? 'image/webp' : key.endsWith('.ptcb') ? 'application/x-protobuf' : JSON_TYPE);
+
+/** The manifests, the only names whose content changes. */
+const MANIFESTS = ['meta.json', 'packs.json'];
 
 /**
  * Files also kept under their plain name, for readers that don't go through meta.json: unlocks.json, which the bot
@@ -46,11 +57,18 @@ export const contentType = key => (key.endsWith('.webp') ? 'image/webp' : JSON_T
 export const PLAIN = ['unlocks.json'];
 
 /**
+ * Key prefixes the site itself writes into the data bucket, which no export names: the Top 10 showcase's uploaded
+ * replays (replays/<sha256>.osr, top10/api.js, through the REPLAYS binding). They're never retired or pruned.
+ */
+export const KEPT_PREFIXES = ['replays/'];
+const keptForever = key => KEPT_PREFIXES.some(prefix => key.startsWith(prefix));
+
+/**
  * meta.json: browsers always revalidate it (max-age=0); Cloudflare's edge keeps it a minute (s-maxage=60), so however
  * many visitors there are it costs R2 at most one read a minute per edge location. A PLAIN copy is kept five minutes at
  * the edge. Everything else never changes.
  */
-export const cacheControl = key => (key === 'meta.json' ? 'public, max-age=0, s-maxage=60'
+export const cacheControl = key => (MANIFESTS.includes(key) ?'public, max-age=0, s-maxage=60'
   : PLAIN.includes(key) ? 'public, max-age=0, s-maxage=300' : 'public, max-age=31536000, immutable');
 
 const md5 = buf => createHash('md5').update(buf).digest('hex');
@@ -80,21 +98,30 @@ async function pool(tasks, width = 8) {
 }
 
 /**
- * The local export as R2 objects: meta.json plus one { key: hashed name, file, size } per file meta.json names. Throws,
- * before anything is sent, when the export looks wrong: no meta.json, or a named file missing or not matching its hash.
+ * The local export as R2 objects: meta.json plus one { key: hashed name, file, size } per file meta.json names, and
+ * packs.json with its packs when it's from the same export (else `packs` is null). Throws, before anything is sent, when
+ * the export looks wrong: no meta.json, or a named file missing or not matching its hash.
  */
 export function localExport(dataDir) {
   const metaFile = path.join(dataDir, 'meta.json');
   if (!fs.existsSync(metaFile)) throw new Error('data/meta.json is missing: export first. Nothing was uploaded.');
   const metaBody = fs.readFileSync(metaFile);
-  const files = Object.entries(JSON.parse(metaBody).files ?? {}).map(([name, hash]) => {
+  const meta = JSON.parse(metaBody);
+  const listed = (manifest, from) => Object.entries(manifest.files ?? {}).map(([name, hash]) => {
     const file = path.join(dataDir, name);
-    if (!fs.existsSync(file)) throw new Error(`meta.json names ${name}, which isn't in data/. Nothing was uploaded.`);
+    if (!fs.existsSync(file)) throw new Error(`${from} names ${name}, which isn't in data/. Nothing was uploaded.`);
     const body = fs.readFileSync(file);
-    if (contentHash(body) !== hash) throw new Error(`data/${name} doesn't match its hash in meta.json. Nothing was uploaded.`);
+    if (contentHash(body) !== hash) throw new Error(`data/${name} doesn't match its hash in ${from}. Nothing was uploaded.`);
     return { name, key: hashedName(name, hash), file, size: body.length };
   });
-  return { meta: { key: 'meta.json', body: metaBody }, files };
+  const packsFile = path.join(dataDir, 'packs.json');
+  const packsBody = fs.existsSync(packsFile) ? fs.readFileSync(packsFile) : null;
+  const packs = packsBody && JSON.parse(packsBody);
+  return {
+    meta: { key: 'meta.json', body: metaBody },
+    files: listed(meta, 'meta.json'),
+    packs: packs?.generatedAt === meta.generatedAt ? { key: 'packs.json', body: packsBody, files: listed(packs, 'packs.json') } : null,
+  };
 }
 
 export async function check({ client }) {
@@ -143,29 +170,40 @@ export async function upload({ client, budget: b, ledger, now = Date.now() }, { 
   const remoteByKey = new Map(remote.map(o => [o.key, o]));
   const plain = local.files.filter(f => PLAIN.includes(f.name)).map(f => ({ ...f, key: f.name }))
     .filter(f => remoteByKey.get(f.key)?.etag !== md5(fs.readFileSync(f.file)));
-  const named = new Set([local.meta.key, ...local.files.map(f => f.key), ...local.files.filter(f => PLAIN.includes(f.name)).map(f => f.name)]);
+  // Without packs from this export, the packs R2's packs.json names stay (one read, when there is one).
+  let keptPacks = [];
+  if (!local.packs && remoteByKey.has('packs.json')) {
+    b.need(0, 1);
+    const body = await client.get(BUCKETS.data, 'packs.json');
+    keptPacks = body ? Object.entries(JSON.parse(body).files ?? {}).map(([name, hash]) => hashedName(name, hash)) : [];
+  }
+  const packFiles = local.packs?.files ?? [];
+  const named = new Set([local.meta.key, ...local.files.map(f => f.key), ...local.files.filter(f => PLAIN.includes(f.name)).map(f => f.name),
+    'packs.json', ...packFiles.map(f => f.key), ...keptPacks]);
 
   // Prune: files retired over a day ago that the new manifest doesn't bring back. Deletes are free.
-  const prune = remote.filter(o => !named.has(o.key) && ledger.retired[o.key] && now - ledger.retired[o.key] > GRACE_MS);
-  const uploads = local.files.filter(f => !remoteByKey.has(f.key));
+  const prune = remote.filter(o => !named.has(o.key) && !keptForever(o.key) && ledger.retired[o.key] && now - ledger.retired[o.key] > GRACE_MS);
+  const uploads = [...local.files, ...packFiles].filter(f => !remoteByKey.has(f.key));
   const metaChanged = remoteByKey.get('meta.json')?.etag !== md5(local.meta.body);
+  const packsChanged = Boolean(local.packs) && remoteByKey.get('packs.json')?.etag !== md5(local.packs.body);
 
-  // Check the whole run against the caps before sending anything: these uploads, meta.json, the state bucket's list,
-  // up to four state files and the ledger.
+  // Check the whole run against the caps before sending anything: these uploads, meta.json and packs.json, the state
+  // bucket's list, up to four state files and the ledger.
   b.uploads(uploads.length + plain.length);
-  b.need(uploads.length + plain.length + (metaChanged ? 1 : 0) + 6);
+  b.need(uploads.length + plain.length + (metaChanged ? 1 : 0) + (packsChanged ? 1 : 0) + 6);
   const bytes = remote.reduce((n, o) => n + o.size, 0) - prune.reduce((n, o) => n + o.size, 0) + [...uploads, ...plain].reduce((n, f) => n + f.size, 0);
   b.storage(bytes);
 
   await pool(uploads.map(f => () => client.put(BUCKETS.data, f.key, fs.readFileSync(f.file), { 'Content-Type': contentType(f.key), 'Cache-Control': cacheControl(f.key) })));
   await pool(plain.map(f => () => client.put(BUCKETS.data, f.key, fs.readFileSync(f.file), { 'Content-Type': contentType(f.key), 'Cache-Control': cacheControl(f.key) })));
   if (metaChanged) await client.put(BUCKETS.data, 'meta.json', local.meta.body, { 'Content-Type': JSON_TYPE, 'Cache-Control': cacheControl('meta.json') });
+  if (packsChanged) await client.put(BUCKETS.data, 'packs.json', local.packs.body, { 'Content-Type': JSON_TYPE, 'Cache-Control': cacheControl('packs.json') });
   await pool(prune.map(o => () => client.delete(BUCKETS.data, o.key)));
 
   // Bookkeeping for the next prunes: what's on R2 now and not named is retired from now (if it wasn't already).
   const retired = {};
   for (const o of remote) {
-    if (named.has(o.key) || prune.includes(o)) continue;
+    if (named.has(o.key) || keptForever(o.key) || prune.includes(o)) continue;
     retired[o.key] = ledger.retired[o.key] ?? now;
   }
   ledger.retired = retired;
@@ -176,8 +214,8 @@ export async function upload({ client, budget: b, ledger, now = Date.now() }, { 
     .filter(f => remoteState.get(f.name) !== md5(f.body));
   await pool(stateUploads.map(f => () => client.put(BUCKETS.state, f.name, f.body, { 'Content-Type': JSON_TYPE })));
 
-  console.log(uploads.length || plain.length || metaChanged || prune.length || stateUploads.length
-    ? `R2: ${uploads.length} new data file(s)${plain.length ? ` and ${plain.map(f => f.key).join(', ')}` : ''}${metaChanged ? ', then meta.json' : ''}; ${prune.length} pruned, ${Object.keys(retired).length} retired; `
+  console.log(uploads.length || plain.length || metaChanged || packsChanged || prune.length || stateUploads.length
+    ? `R2: ${uploads.length} new data file(s)${plain.length ? ` and ${plain.map(f => f.key).join(', ')}` : ''}${metaChanged ? ', then meta.json' : ''}${packsChanged ? ' and packs.json' : ''};${prune.length} pruned, ${Object.keys(retired).length} retired; `
       + `state: ${stateUploads.map(f => f.name).join(', ') || 'unchanged'}; bucket ${(bytes / 1024 ** 2).toFixed(1)} MiB.`
     : 'R2: nothing changed.');
   await saveLedger({ client, budget: b, ledger }, stateDir);

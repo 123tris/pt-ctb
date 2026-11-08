@@ -31,10 +31,10 @@ caps that keep publishing far inside it are in "Data on R2".
 | `tools/build-site.mjs` | The Pages build command. See below. |
 | `_headers` | Security headers (CSP, HSTS, no framing…; `connect-src` allows `https://data.ptcatch.com`) and caching: images for a week, JS/CSS revalidated. |
 | `publish.ps1`, `tools/r2-sync.mjs`, `tools/lib/r2*.mjs` | Export and upload the data to R2, within hard free-tier caps. See "Data on R2". |
-| `functions/[[path]].js`, `embed/embed.js` | Every page address (`/player/123`, `/rankings/plays`…) gets index.html with that page's link preview in its `<head>`, so links posted on Discord show what the page is. Crawlers get the player's or map's name and numbers from the data (a few cached fetches); visitors get the page's fixed text with no fetch. The build's `dist/_routes.json` keeps `/`, `/assets/*` and `/404.html` off Functions, so only page loads count against the free 100,000 Function requests a day. |
+| `functions/[[path]].js`, `embed/embed.js` | Every page address (`/player/123`, `/rankings/plays`…) gets index.html with that page's link preview in its `<head>`, so links posted on Discord show what the page is. Crawlers get the player's or map's name and numbers from the data (a few cached fetches); visitors get the page's fixed text with no fetch. It also puts the page's data hashes in the HTML (`web/edge/inline.ts`), so nothing waits for `meta.json`. The build's `dist/_routes.json` keeps `/assets/*` and `/404.html` off Functions, so only page loads (the front page included) count against the free 100,000 Function requests a day. |
 | `functions/auth/*.js`, `signin/oauth.js` | The sign-in endpoints. Both sites share one osu! app through the release site's callback, with a two-site allowlist. Stateless: no cookies, no database, no signing key. The osu! token is revoked straight away. |
 | `assets/js/config.js` | `production` and `development` (the two addresses), `data` (`https://data.ptcatch.com/`) and `leaveGithub` are edited by hand. `home`, `signIn` and `env` are filled in by the build, per branch. |
-| `assets/js/moved.js` | The forwarding from github.io to `production`. |
+| `assets/js/moved.js` | The forwarding from github.io to `production` (the github.io copy runs the old app; the new one has the same in `web/src/client/moved.ts`). |
 | `.node-version` | Pins Node 22 for the Pages build, so it doesn't depend on Cloudflare's default. |
 
 `tools/build-site.mjs` copies only `index.html`, `404.html`, `_headers` and `assets/` into `dist/` (about 45 files), so
@@ -253,7 +253,7 @@ me" on the old site, it's still picked on the new one.
 ## 4. Usage counts and your dashboard (/stats)
 
 The site counts how it's used, per visitor (a random id in the browser) and, when the visitor said who they are, per
-osu! player (`assets/js/core/track.js` → `functions/api/hit.js` → `usage/store.js`; `/privacy` explains it to
+osu! player (`web/src/client/track.ts` → `functions/api/hit.js` → `usage/store.js`; `/privacy` explains it to
 visitors), and `https://ptcatch.com/stats` shows it to you only: Overview, People, Health, and one page per player. Until the steps below are done, the site sends the counts but they
 are dropped (the endpoint answers "no-database"), and `/stats` says what's missing.
 
@@ -361,6 +361,71 @@ which the export makes from the bot's `Admin/panel.json` (`tools/lib/admin.mjs`;
 
 Locally, `--economy` lists the admins first in the sign-in stand-in, and with `--local-data` and no `data/admin.json`
 of its own serves `tools/admin-sample.json` (made-up values for all 86 settings and a short log) as `admin.json`.
+
+## 6. Top 10 of the year: tables, replays, a mock season and past editions
+
+The yearly Top 10 vote (`TOP10-DESIGN.md` in the bot's repo): ballots, write-ups, the score showcase, thanks and the
+results, in the same `ptctb-economy` database (`top10/`, `functions/api/top10/*`; every endpoint is listed at the top of
+`top10/api.js`). Payouts go to the bot through the same inbox, as `top10.payout` and `top10.thanks` requests. The
+season's dates are in `top10/season.js` (2026: voting 1–31 December, the reveal on 2 January at 12:00 Lisbon).
+
+1. **The tables**, once (the code also makes them on its first request if you skip it):
+   ```
+   npx wrangler d1 execute ptctb-economy --remote --file=economy/migrations/0003_top10.sql
+   ```
+2. **Replay uploads (Production).** The showcase stores uploaded `.osr` files in the data bucket, as
+   `replays/<sha256>.osr`, served from `https://data.ptcatch.com/replays/…`.
+   - **Workers & Pages → pt-ctb → Settings → Bindings → Add → R2 bucket:** variable name `REPLAYS`, bucket
+     `ptcatch-data`, **Production**.
+   - **Retry deployment** on the latest `main` build.
+   - Without it, only uploads answer 503.
+   - **Before the first upload, publish must run with `tools/r2-sync.mjs` from this change.** Older versions retire
+     every object the export doesn't name and delete it a day later. The new one never touches `replays/`
+     (`KEPT_PREFIXES`).
+3. **The osu! check** of a showcased score uses the sign-in app's `OSU_CLIENT_ID` and `OSU_CLIENT_SECRET` (§2): one
+   call per submission, never on a read. Nothing new to set up on Production. Without `OSU_CLIENT_ID` (dev), a score
+   is checked against the exported data instead.
+4. **A mock season on dev.ptcatch.com (Preview).** Preview has no database or session secret (§5), so:
+   - **Make a separate dev database.** Never bind `ptctb-economy` to Preview: the bot pays whatever is in its inbox.
+     ```
+     npx wrangler d1 create ptctb-economy-dev --location weur
+     npx wrangler d1 execute ptctb-economy-dev --remote --file=economy/migrations/0001_economy.sql
+     npx wrangler d1 execute ptctb-economy-dev --remote --file=economy/migrations/0002_admin.sql
+     npx wrangler d1 execute ptctb-economy-dev --remote --file=economy/migrations/0003_top10.sql
+     ```
+   - **Settings → Bindings, Preview:** D1 database, variable name `ECONOMY`, database `ptctb-economy-dev`.
+   - **Settings → Variables and Secrets, Preview:**
+     - `OSU_CLIENT_SECRET` (Secret), the **same value as Production**. dev's sign-ins get their token from ptcatch.com's
+       callback, so dev needs the same key to check it. The trade-off: the dev deployment can then make tokens that
+       production accepts too.
+     - `TOP10_SEASON` (Text), a season around now, for example
+       `{"year":2026,"opens":"2026-11-20T00:00:00Z","closes":"2026-11-26T23:59:59Z","reveal":"2026-11-28T12:00:00Z","thanksUntil":"2026-11-30T23:59:59Z"}`.
+       A value that doesn't parse, or has its dates out of order, is ignored.
+     - Optional: `OSU_CLIENT_ID` (dev then asks osu! about scores too), and `ADMIN_OSU_IDS`.
+   - **Leave `REPLAYS` off Preview** unless you need to test uploads. Uploads then answer 503 and everything else works.
+     If you bind `ptcatch-data` there, mock replays land in the real bucket's `replays/` until you delete them by hand.
+   - **Retry deployment** on the latest `dev` build.
+   - **Before the real season,** remove `TOP10_SEASON` from Preview, or leave it: Production never has it.
+5. **Past editions (2020–2025)**, once `top10/history/*.json` has landed and `ALIASES.md` is checked:
+   ```
+   node top10/import-past.mjs
+   node top10/import-past.mjs --sql
+   ```
+   - The first command checks the files and prints each edition's ranking.
+   - The second writes `top10-past.sql` to the temp folder and prints the `wrangler d1 execute … --remote` command that
+     loads it. Run that command. The editions are then served at `/api/top10/results?year=2020` … `2025` (2024 is
+     "2023–24").
+   - Run both again after correcting a file; it replaces those years. The edge keeps each year's results for up to a
+     day.
+6. **Check:**
+   - `curl -s https://ptcatch.com/api/top10` answers `{"season":{…,"phase":"before"},"turnout":0,…}`.
+   - `curl -s "https://ptcatch.com/api/top10/results?year=2025"` answers 2025's ranking once the past editions are
+     loaded.
+
+**Locally,** `npm run serve -- --local-data --economy` runs the Top 10's endpoints too.
+- Uploaded replays go to a temp folder.
+- There's no osu! API locally: scores are checked against the data.
+- Set `TOP10_SEASON` in the shell for a season that's open now; `tools/serve.mjs` has an example.
 
 ## Day to day
 

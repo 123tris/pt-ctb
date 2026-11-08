@@ -10,7 +10,8 @@
 //                 once the game is over, which is when it goes into the inbox.
 //   requests      what players asked to spend (post or fund a bounty, tip, buy, shield), and admins' `admin.*` requests
 //                 (contract §8), queued for the bot, with the status it acked and, for a refusal, its `code`. The bot
-//                 alone decides; this only checks the shape.
+//                 alone decides; this only checks the shape. The Top 10's payouts and thanks (kinds top10.*) are
+//                 rows here too, inserted by top10/store.js only.
 //   inbox_state   the cursor the bot last acked.
 //
 // No IP addresses, Discord ids or osu! tokens are stored. Free-plan cost: a sign-in writes 1–2 rows, a daily guess 1–2,
@@ -126,6 +127,8 @@ const changed = result => (result?.meta?.changes ?? 1) > 0;
 // ---- Spending requests ----------------------------------------------------------------------------------------------
 
 export const REQUEST_TYPES = ['bounty.create', 'bounty.fund', 'tip', 'shop.buy', 'shield'];
+/** The Top 10's request kinds (top10.*), which only the site's own code inserts. */
+export const isTop10Type = type => typeof type === 'string' && type.toLowerCase().startsWith('top10.');
 export const SHOP_ITEMS = ['title', 'signature', 'colour', 'motw', 'wildcard', 'role'];
 const GOALS = ['fc', 'pass', 'snipe'];
 const DAYS = [30, 60, 90];
@@ -155,6 +158,9 @@ function bountyMods(v) {
  */
 export function parseRequest(body, osuId) {
   const type = body?.type;
+  // Top 10 payouts and thanks (top10.payout, top10.thanks) are queued by the site's own code at finalize and on a
+  // thanks (top10/store.js), never by a player, whatever REQUEST_TYPES lists (TOP10-DESIGN.md §13.6).
+  if (isTop10Type(type)) return { error: 'Top 10 bananas are paid by the site itself once the results are final; they can’t be requested.' };
   const p = body?.payload && typeof body.payload === 'object' ? body.payload : null;
   if (!REQUEST_TYPES.includes(type) || !p) return { error: 'That isn’t a request the bot takes.' };
   if (type === 'bounty.create') {
@@ -262,8 +268,10 @@ export async function queueRequest(db, osuId, { type, payload }, now = nowSec())
   const day = lisbonDay(now);
   const admin = isAdminType(type);
   const [pendingCap, dailyCap] = admin ? [ADMIN_PENDING_CAP, ADMIN_DAILY_CAP] : [PENDING_CAP, DAILY_REQUEST_CAP];
+  // The Top 10's payouts and thanks (top10.*) are the site's own, queued for the player, not by them: they never
+  // count against a player's caps (TOP10-DESIGN.md §13.6).
   const counts = await db.prepare(`SELECT SUM(status = 'pending') AS pending, SUM(day = ?2) AS today FROM requests
-    WHERE osu_id = ?1 AND (kind LIKE 'admin.%') = ?3`).bind(osuId, day, admin ? 1 : 0).first();
+    WHERE osu_id = ?1 AND (kind LIKE 'admin.%') = ?3 AND kind NOT LIKE 'top10.%'`).bind(osuId, day, admin ? 1 : 0).first();
   if ((counts?.pending ?? 0) >= pendingCap) return { status: 429, error: `You have ${pendingCap} requests waiting for the bot. It takes them every 15 minutes; try again after.` };
   if ((counts?.today ?? 0) >= dailyCap) return { status: 429, error: `That’s ${dailyCap} requests today. Try again tomorrow.` };
   const requestId = hex(crypto.getRandomValues(new Uint8Array(12)));

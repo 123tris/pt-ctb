@@ -278,3 +278,55 @@ test('unlocks.json also goes up under its plain name, for the bot, only when it 
   assert.equal(String(again.buckets[BUCKETS.data].get('unlocks.json').body), next['unlocks.json']);
   assert.ok(!ctx2.ledger.retired['unlocks.json']);
 });
+
+test('the Top 10’s uploaded replays (replays/…) are never retired or pruned, however many exports go by', async () => {
+  const files = { 'players.json': '[1]' };
+  const dirs = folders({ files });
+  const replay = `replays/${'a'.repeat(64)}.osr`;
+  const ctx = context(dirs);
+  const r2 = fakeR2(ctx.budget, { [BUCKETS.data]: { [replay]: { body: 'osr bytes', modified: NOW - 30 * 24 * HOUR }, 'stale.json': 'old' } });
+  await upload({ ...ctx, client: r2 }, dirs);
+  assert.ok(!(replay in ctx.ledger.retired));
+  assert.ok('stale.json' in ctx.ledger.retired, 'anything else the export doesn’t name is retired as before');
+  const later = context(dirs, NOW + 3 * GRACE_MS);
+  later.ledger.retired = { ...ctx.ledger.retired, [replay]: NOW };
+  await upload({ ...later, client: fakeR2Wrap(r2, later.budget) }, dirs);
+  assert.ok(r2.buckets[BUCKETS.data].has(replay), 'kept, even if an older ledger had it retired');
+  assert.ok(!r2.buckets[BUCKETS.data].has('stale.json'));
+  assert.ok(!r2.log.includes(`delete ${BUCKETS.data}/${replay}`));
+});
+
+test('packs go up under hashed names as compressible binary, packs.json after meta.json; a stale packs.json keeps R2’s packs', async () => {
+  const files = { 'players.json': '[1]' };
+  const pack = Buffer.from([0x50, 0x54, 0x43, 0x42, 0xff, 0x00]);
+  const dirs = folders({ files: { ...files, 'packs/core.ptcb': pack } });
+  // folders() listed the pack in meta.json; the packs have their own manifest instead.
+  fs.writeFileSync(path.join(dirs.dataDir, 'meta.json'), metaFor(files));
+  const packsJson = generatedAt => JSON.stringify({ generatedAt, files: { 'packs/core.ptcb': hash(pack) } });
+  fs.writeFileSync(path.join(dirs.dataDir, 'packs.json'), packsJson(1));
+  const ctx = context(dirs);
+  const r2 = fakeR2(ctx.budget);
+  await upload({ ...ctx, client: r2 }, dirs);
+  const key = hashedName('packs/core.ptcb', hash(pack));
+  const data = r2.log.filter(l => l.includes(BUCKETS.data));
+  assert.deepEqual(data.slice(-2), [`put ${BUCKETS.data}/meta.json`, `put ${BUCKETS.data}/packs.json`]);
+  const object = r2.buckets[BUCKETS.data].get(key);
+  assert.equal(object.headers['Content-Type'], 'application/x-protobuf');
+  assert.equal(object.headers['Cache-Control'], 'public, max-age=31536000, immutable');
+  assert.equal(r2.buckets[BUCKETS.data].get('packs.json').headers['Cache-Control'], 'public, max-age=0, s-maxage=60');
+
+  // A newer meta.json with packs.json left from the export before (publish.ps1 -Node): packs.json isn't sent, and the
+  // packs R2's packs.json names are neither retired nor pruned, days later.
+  const next = { 'players.json': '[2]' };
+  const dirs2 = folders({ files: next });
+  fs.writeFileSync(path.join(dirs2.dataDir, 'meta.json'), JSON.stringify({ generatedAt: 2, files: { 'players.json': hash('[2]') } }));
+  fs.writeFileSync(path.join(dirs2.dataDir, 'packs.json'), packsJson(1));
+  const later = fakeR2(ctx.budget, { [BUCKETS.data]: Object.fromEntries([...r2.buckets[BUCKETS.data]].map(([k, o]) => [k, { body: o.body, modified: NOW - 2 * 24 * HOUR }])) });
+  const ctx2 = context(dirs2, NOW + 3 * 24 * HOUR);
+  ctx2.ledger.retired[key] = NOW;
+  await upload({ ...ctx2, client: later }, dirs2);
+  assert.ok(!later.log.includes(`put ${BUCKETS.data}/packs.json`));
+  assert.ok(later.buckets[BUCKETS.data].has(key));
+  assert.ok(!ctx2.ledger.retired[key]);
+  assert.ok(!ctx2.ledger.retired['packs.json']);
+});
