@@ -1,14 +1,14 @@
 // /top10: the season's page (§2, §3.3, §6, §13.11). Where the season is (opens soon, open, closed, results out), its
 // two ballots side by side (the year's top 10 and the top 10 of all time, each with its own state, turnout and way
-// in; voters do either or both), the countdown to the reveal at 12:00 Lisbon on 2 January, and the rules. Once the
-// results are out, a placeholder until the reveal pages come (December's work). /top10/<year> and
-// /top10/<year>/alltime (the results) show the same placeholder for now.
+// in; voters do either or both), the countdown to the reveal at 12:00 Lisbon on 2 January, and the rules. A year's
+// results (/top10/<year>, /top10/<year>/alltime), and this season's once they're out, are views/top10-results.ts's.
 
 import { html, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import { signInButton } from '../ui/bananas.ts';
+import * as resultsView from './top10-results.ts';
 import {
-  KINDS, PAST_EDITIONS, countdown, editionLabel, kindName, lisbon, myBallotOf, phaseName, publicNote, rules, toSec, top10Tabs,
+  KINDS, PAST_EDITIONS, countdown, kindName, lisbon, myBallotOf, phaseName, publicNote, rules, toSec, top10Tabs,
   troubleNote, turnoutOf, type Hub, type Kind, type Phase, type Season, type Trouble,
 } from '../ui/top10.ts';
 
@@ -18,10 +18,8 @@ export interface Data {
   hub: Hub | null;
   trouble: Trouble;
   signInHere: boolean;
-  /** /top10/<year>: the results page asked for. */
-  results?: number;
-  /** /top10/<year>/alltime: which results. */
-  kind?: Kind;
+  /** A year's results (/top10/<year>, or /top10 once they're out): the results view draws the page. */
+  shown?: resultsView.Data;
 }
 
 /** Signed out, or not a PT player: one line above both ballots. */
@@ -66,7 +64,7 @@ function pastYears(ctx: Ctx, d: Data, current?: number, { label = true, kind = '
   return past.length ? html`<nav class="chips t10-past" aria-label="${ctx.t('Past years')}">${label ? html`<span class="chips-label">${ctx.t('Past years')}</span>` : ''}
     ${past.map(([y, l, k]) => {
       const on = y === current && k === kind;
-      return html`<a class="chip ${on ? 'active' : ''}" href="/top10/${y}${k === 'alltime' ? '/alltime' : ''}" ${on ? html`aria-current="page"` : ''}>${k === 'alltime' ? ctx.t('{label}, all time', { label: l }) : l}</a>`;
+      return html`<a class="chip ${on ? 'active' : ''}" href="/top10/${y}${k === 'alltime' ? '/alltime' : ''}" ${on ? html`aria-current="page"` : ''}>${k === 'alltime' ? ctx.t('{label}, all time', { label: resultsView.yearLabel(y, d.hub) }) : l}</a>`;
     })}</nav>` : '';
 }
 
@@ -76,22 +74,8 @@ export function render(ctx: Ctx, d: Data): Safe {
   const year = season.year;
   const opens = toSec(season.opens), closes = toSec(season.closes), reveal = toSec(season.reveal);
 
-  // A year's results (/top10/<year>): this season's, or a past edition's (§13.10). Their pages come in December.
-  const asked = d.results ?? (phase === 'revealed' ? year : undefined);
-  if (asked !== undefined) {
-    const past = asked < year;
-    const kind = d.kind ?? 'year';
-    const label = editionLabel(asked, d.hub?.editions);
-    return html`${top10Tabs(ctx, 'hub', year)}
-      <header class="page-head"><span class="eyebrow">${kind === 'alltime' ? t('Top 10 of all time · {year}', { year: label }) : t('Top 10 of {year}', { year: label })}</span><h1>${t('The results')}</h1></header>
-      <div class="empty t10-soon"><p class="t10-done-big">🏆</p>
-        <p>${past ? t('The {year} results, combined from that year’s forum thread, get their page here soon.', { year: label })
-          : asked > year ? t('There’s no Top 10 of {year} yet.', { year: label })
-            : phase === 'revealed' ? t('The results are out. The reveal, 10 to 1, comes to this page in January.') : t('The results come out {when}, Lisbon time.', { when: lisbon(ctx, reveal) })}</p>
-        <div class="btn-row justify-center">${past ? html`<a class="btn" href="/top10">${t('Top 10 of {year}', { year })}</a>`
-          : html`<a class="btn" href="/top10/ballots${kind === 'alltime' ? '?kind=alltime' : ''}">${t('Read the ballots')}</a><a class="btn" href="/top10/plays${kind === 'alltime' ? '?scope=alltime' : ''}">${kind === 'alltime' ? t('Legendary plays') : t('Plays of {year}', { year })}</a>`}</div>
-        ${pastYears(ctx, d, asked, { kind })}</div>`;
-  }
+  // A year's results (/top10/<year>): this season's, or a past edition's (§13.10).
+  if (d.shown) return resultsView.render(ctx, d.shown);
 
   const past = pastYears(ctx, d, undefined, { label: false });
   const when = phase === 'before' ? t('Voting opens {when}.', { when: lisbon(ctx, opens) })
