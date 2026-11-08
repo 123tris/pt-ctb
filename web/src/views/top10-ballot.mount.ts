@@ -17,30 +17,32 @@ import { readPlayer } from '../gen/packs.ts';
 import { playerPack } from '../routes.ts';
 import { rowOf } from '../ui/players.ts';
 import {
-  flagList, flagsOf, picksOf, wordMeter, wordsOf, MAX_EXTRAS, MAX_PICKS, type BallotInput, type OwnBallot, type ShowPlay,
+  flagList, flagsOf, picksOf, wordMeter, type Kind, wordsOf, MAX_EXTRAS, MAX_PICKS, type BallotInput, type OwnBallot, type ShowPlay,
 } from '../ui/top10.ts';
 import {
   accessOf, actionBar, extrasSection, listSection, pickerCards, pickerSection, placeOf, statusLine, writeOrder, writerSection,
-  type CiteChoice, type Data, type Editor, type Target,
+  placeholderOf, type CiteChoice, type Data, type Editor, type Target,
 } from './top10-ballot.ts';
-import { dossierBody, yearChoices } from './top10-dossier.ts';
+import { careerChoices, dossierBody, yearChoices } from './top10-dossier.ts';
 
 /** The shortest time between two saves of a draft, in ms. */
 export const SAVE_GAP = 20_000;
 /** How long after the first change a save waits, when the last one was long enough ago. */
 const SETTLE = 3_000;
 
-const draftKey = (year: number, me: number | null) => `top10draft:${year}:${me ?? 0}`;
+/** Where a draft that can't go to the server yet is kept, per ballot (the yearly one's key is as it was). */
+const draftKey = (year: number, me: number | null, kind: Kind = 'year') => `top10draft:${year}:${kind === 'alltime' ? 'alltime:' : ''}${me ?? 0}`;
 
 /** What a save sends. */
-export const inputOf = (e: Editor): BallotInput => ({
-  picks: picksOf(e.rows), mentions: e.mentions, watch: e.watch, intro: e.intro, outro: e.outro,
+export const inputOf = (e: Editor, kind: Kind = 'year'): BallotInput & { kind: Kind } => ({
+  // `kind` goes with every write (§13.11); all time has no ones to watch.
+  kind, picks: picksOf(e.rows), mentions: e.mentions, watch: kind === 'alltime' ? [] : e.watch, intro: e.intro, outro: e.outro,
   writeups: Object.fromEntries(Object.entries(e.writeups).filter(([, w]) => w.body.trim() || w.cites.length)),
 });
 
 /** A draft kept in this browser, for when the server can't take it yet. */
-export function localDraft(year: number, me: number | null): OwnBallot | null {
-  const saved = prefs.get(draftKey(year, me), null) as (BallotInput & { at: number }) | null;
+export function localDraft(year: number, me: number | null, kind: Kind = 'year'): OwnBallot | null {
+  const saved = prefs.get(draftKey(year, me, kind), null) as (BallotInput & { at: number }) | null;
   if (!saved?.picks) return null;
   return { ...saved, status: 'draft', writeups: Object.fromEntries(Object.entries(saved.writeups ?? {}).map(([k, w]) => [k, { body: w.body, cites: w.cites }])) };
 }
@@ -48,6 +50,7 @@ export function localDraft(year: number, me: number | null): OwnBallot | null {
 export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
   const { t, fmt } = ctx;
   const year = d.season.year;
+  const kind = d.kind;
   const access = accessOf(ctx, d);
   if (access === 'signed-out' || access === 'ineligible') return;
   const can = access === 'edit' || access === 'local';
@@ -86,9 +89,9 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
   async function saveOnce(): Promise<boolean> {
     if (timer) { clearTimeout(timer); timer = null; }
     if (!dirty) return true;
-    const body = inputOf(e);
+    const body = inputOf(e, kind);
     if (access === 'local') {
-      prefs.set(draftKey(year, ctx.me), { ...body, at: Date.now() });
+      prefs.set(draftKey(year, ctx.me, kind), { ...body, at: Date.now() });
       dirty = false;
       drawStatus();
       return true;
@@ -102,7 +105,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     if (res.ok) {
       problem = '';
       savedAt = Date.now();
-      prefs.set(draftKey(year, ctx.me), null);
+      prefs.set(draftKey(year, ctx.me, kind), null);
       const back = (res.body?.ballot ?? null) as OwnBallot | null;
       for (const [id, w] of Object.entries(back?.writeups ?? {})) e.server[id] = { flags: flagList(w.flags), mod: w.mod, mod_reason: w.mod_reason };
       if (back?.status) e.status = back.status;
@@ -112,7 +115,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
       dirty = true;
       problem = t('Not saved: {why}', { why: problemText(t, res) });
       // Kept here, so nothing typed is lost; the next change tries again.
-      prefs.set(draftKey(year, ctx.me), { ...body, at: Date.now() });
+      prefs.set(draftKey(year, ctx.me, kind), { ...body, at: Date.now() });
     }
     drawStatus();
     return res.ok;
@@ -147,7 +150,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     window.removeEventListener('routechange', off);
   });
   // A draft kept here that the server hasn't got yet (saved before 1 December, or when a save failed): send it.
-  if (access === 'edit' && localDraft(year, ctx.me) && prefs.get(draftKey(year, ctx.me), null)) changed();
+  if (access === 'edit' && localDraft(year, ctx.me, kind) && prefs.get(draftKey(year, ctx.me, kind), null)) changed();
 
   // ---- Drawing -----------------------------------------------------------------------------------------------------
 
@@ -263,7 +266,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
       prompt = prompt === ds.prompt ? '' : ds.prompt;
       root.querySelectorAll<HTMLElement>('[data-prompt]').forEach(c => { const on = c.dataset.prompt === prompt; c.classList.toggle('active', on); c.setAttribute('aria-pressed', String(on)); });
       const box = $<HTMLTextAreaElement>('[data-body]');
-      if (box) { box.placeholder = prompt || t('What made {name}’s year? They’ll read this as soon as you submit.', { name: name(Number(box.dataset.body)) }); box.focus(); }
+      if (box) { box.placeholder = prompt || placeholderOf(ctx, kind, name(Number(box.dataset.body))); box.focus(); }
       return;
     }
     if (el.hasAttribute('data-cite')) { citeOpen = !citeOpen; if (citeOpen) loadChoices(); redrawWriter(); return; }
@@ -345,19 +348,19 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     button.disabled = true;
     dirty = true;
     if (!(await save())) { button.disabled = false; toast(problem || t('That didn’t go through. Try again in a moment.')); return; }
-    const res = await top10Api('/api/top10/ballot/submit', { method: 'POST' });
+    const res = await top10Api('/api/top10/ballot/submit', { method: 'POST', body: { kind } });
     if (!res.ok) { button.disabled = false; toast(problemText(t, res)); return; }
     e.status = 'submitted';
     e.fresh = true;
     toWrite(0);
-    announce(t('Your top 10 is in ✅'));
+    announce(kind === 'alltime' ? t('Your top 10 of all time is in ✅') : t('Your top 10 is in ✅'));
   }
 
   async function withdraw(button: HTMLButtonElement): Promise<void> {
     if (!confirm(t('Withdraw your ballot? It goes back to a draft: no longer public, and it won’t count unless you submit it again.'))) return;
     button.disabled = true;
     await save();
-    const res = await top10Api('/api/top10/ballot/withdraw', { method: 'POST' });
+    const res = await top10Api('/api/top10/ballot/withdraw', { method: 'POST', body: { kind } });
     if (!res.ok) { button.disabled = false; toast(problemText(t, res)); return; }
     e.status = 'draft';
     drawStatus();
@@ -399,12 +402,12 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     const id = writeOrder(e)[e.writing]?.id;
     if (!id) return;
     const [shown, pack] = await Promise.all([
-      top10Api(`/api/top10/plays?year=${year}&player=${id}`).then(r => (r.ok ? (r.body?.plays ?? []) as ShowPlay[] : [])),
+      top10Api(`/api/top10/plays?year=${year}&player=${id}${kind === 'alltime' ? '&scope=alltime' : ''}`).then(r => (r.ok ? (r.body?.plays ?? []) as ShowPlay[] : [])),
       store.pack(playerPack(id), readPlayer).catch(() => null),
     ]);
     if (writeOrder(e)[e.writing]?.id !== id) return;
     const out: CiteChoice[] = shown.map(p => ({ ref: p.score_ref || `play:${p.id}`, card: p.score ?? null, label: `🔥 ${fmt.num(p.endorsements ?? 0)}` }));
-    for (const c of yearChoices(pack, year, id)) if (!out.some(o => o.ref === c.ref)) out.push(c);
+    for (const c of kind === 'alltime' ? careerChoices(pack, id) : yearChoices(pack, year, id)) if (!out.some(o => o.ref === c.ref)) out.push(c);
     choices = out.slice(0, 25);
     if (citeOpen) redrawWriter();
   }
@@ -419,16 +422,18 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     opener = from;
     drawer.hidden = false;
     document.body.classList.add('t10-noscroll');
-    $('[data-drawer-title]')!.textContent = t('{name}’s {year}', { name: name(id), year });
+    $('[data-drawer-title]')!.textContent = kind === 'alltime' ? t('{name}’s career', { name: name(id) }) : t('{name}’s {year}', { name: name(id), year });
     const body = $('[data-drawer-body]')!;
     body.innerHTML = String(html`<p class="muted">${t('Loading…')}</p>`);
     $<HTMLElement>('.t10-drawer-panel')!.focus();
     const [pack, shown] = await Promise.all([
       store.pack(playerPack(id), readPlayer).catch(() => null),
-      top10Api(`/api/top10/plays?year=${year}&player=${id}`).then(r => (r.ok ? (r.body?.plays ?? []) as ShowPlay[] : null)),
+      top10Api(`/api/top10/plays?year=${year}&player=${id}${kind === 'alltime' ? '&scope=alltime' : ''}`).then(r => (r.ok ? (r.body?.plays ?? []) as ShowPlay[] : null)),
     ]);
     if (drawer.hidden) return;
-    body.innerHTML = String(dossierBody(ctx, { id, year, core: d.core, row, pack, history: d.history, plays: shown, candidate: d.candidates.find(c => c.id === id) ?? null }, { compact: true }));
+    body.innerHTML = String(dossierBody(ctx, {
+      id, year, core: d.core, row, pack, history: d.history, plays: shown, candidate: d.candidates.find(c => c.id === id) ?? null, career: kind === 'alltime', head: null, placements: null,
+    }, { compact: true }));
   }
   function closeDrawer(): void {
     if (drawer.hidden) return;

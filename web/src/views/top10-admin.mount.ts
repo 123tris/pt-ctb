@@ -18,7 +18,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
   let previewed = false;
 
   async function reload(): Promise<void> {
-    const res = await top10Api('/api/top10/admin/queue');
+    const res = await top10Api(`/api/top10/admin/queue?kind=${d.kind}`);
     if (!res.ok) { toast(problemText(t, res)); return; }
     d.queue = res.body as Queue;
     const keep = root.querySelector('[data-preview]')?.innerHTML ?? '';
@@ -52,7 +52,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
       el.disabled = false;
       const box = root.querySelector('[data-preview]')!;
       if (!res.ok) { box.innerHTML = String(html`<p class="notice">${problemText(t, res)}</p>`); return; }
-      box.innerHTML = String(finalizePreview(ctx, d.core, { dryRun, ...res.body }));
+      box.innerHTML = String(finalizePreview(ctx, d.core, { dryRun, year: d.queue!.year, ...res.body }));
       if (dryRun) { previewed = true; root.querySelector<HTMLButtonElement>('[data-final]')!.disabled = false; } else { toast(t('Finalized. The payouts are queued for the bot.')); reload(); }
     }
   });
@@ -67,7 +67,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const button = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
     button.disabled = true;
     const target = /^\d+$/.test(form.dataset.target!) ? Number(form.dataset.target) : form.dataset.target;
-    const res = await top10Api('/api/top10/admin/action', { method: 'POST', body: { action, target, reason } });
+    const res = await top10Api('/api/top10/admin/action', { method: 'POST', body: { action, target, reason, kind: d.kind } });
     if (!res.ok) { button.disabled = false; toast(problemText(t, res)); return; }
     toast(t('Done: {action}.', { action }));
     reload();

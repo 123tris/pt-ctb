@@ -12,7 +12,7 @@ import { readPlayer } from '../gen/packs.ts';
 import { playerPack } from '../routes.ts';
 import { MAX_REPLAY_BYTES, clipOk, scoreCard, type ShowPlay } from '../ui/top10.ts';
 import { playItem, usedLine, type Data } from './top10-plays.ts';
-import { yearChoices } from './top10-dossier.ts';
+import { careerChoices, yearChoices } from './top10-dossier.ts';
 
 export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
   const { t } = ctx;
@@ -32,12 +32,14 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     if (!id) { box.innerHTML = ''; return; }
     box.innerHTML = String(html`<p class="small muted">${t('Loading…')}</p>`);
     const pack = await store.pack(playerPack(id), readPlayer).catch(() => null);
-    const choices = yearChoices(pack, d.season.year, id);
+    // Legendary plays: any year (§13.11), the career's best; else the season's.
+    const choices = d.scope === 'alltime' ? careerChoices(pack, id) : yearChoices(pack, d.season.year, id);
     const taken = new Set(d.plays.map(p => p.score_ref).filter(Boolean));
-    box.innerHTML = String(choices.length ? html`<fieldset class="t10-pick-plays"><legend class="small muted">${t('Their plays of {year}, the most pp first', { year: d.season.year })}</legend>
+    box.innerHTML = String(choices.length ? html`<fieldset class="t10-pick-plays"><legend class="small muted">${d.scope === 'alltime' ? t('Their career best plays, the most pp first') : t('Their plays of {year}, the most pp first', { year: d.season.year })}</legend>
       <ul class="t10-cite-list">${choices.map((c, i) => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${taken.has(c.ref) ? raw('disabled') : i === 0 ? raw('checked') : ''}>
         ${scoreCard(ctx, c.card, c.ref, taken.has(c.ref) ? html`<span class="t10-pill">${t('already in')}</span>` : '')}</label></li>`)}</ul></fieldset>`
-      : html`<p class="small muted">${t('No plays of theirs stored in {year}. Paste a score link or add a clip instead.', { year: d.season.year })}</p>`);
+      : html`<p class="small muted">${d.scope === 'alltime' ? t('No plays of theirs stored. Paste a score link or add a clip instead.')
+        : t('No plays of theirs stored in {year}. Paste a score link or add a clip instead.', { year: d.season.year })}</p>`);
   }
 
   root.addEventListener('click', async ev => {
@@ -80,7 +82,8 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
 
   root.querySelector<HTMLSelectElement>('[data-filter-player]')?.addEventListener('change', ev => {
     const v = (ev.target as HTMLSelectElement).value;
-    go(v ? `/top10/plays?player=${v}` : '/top10/plays');
+    const scope = d.scope === 'alltime' ? 'scope=alltime' : '';
+    go(v ? `/top10/plays?${scope ? `${scope}&` : ''}player=${v}` : `/top10/plays${scope ? `?${scope}` : ''}`);
   });
 
   const select = root.querySelector<HTMLSelectElement>('[data-player-select]');
@@ -99,24 +102,24 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     let body: Record<string, unknown>;
     if (kind === 'replay') {
       if (!file) { msg.textContent = t('Choose your .osr file.'); return; }
-      body = { caption };
+      body = { scope: d.scope, caption };
     } else if (kind === 'clip') {
       const clip = String(data.get('clip') ?? '').trim();
       if (!data.get('player')) { msg.textContent = t('Choose the player whose play it is.'); return; }
       if (!clipOk(clip)) { msg.textContent = t('A clip has to be a YouTube, Twitch or Streamable link.'); return; }
-      body = { player: Number(data.get('player')), clip, caption };
+      body = { scope: d.scope, player: Number(data.get('player')), clip, caption };
     } else {
       const score = String(kind === 'link' ? data.get('score') ?? '' : data.get('pick') ?? '').trim();
       if (!score) { msg.textContent = kind === 'link' ? t('Paste the score’s link from osu!.') : t('Choose a player, then one of their plays.'); return; }
       // A pick is a canonical ref (osu:, legacy: or map:<beatmap>:<player>: ui/top10.ts playRef); a link goes as pasted.
-      body = { score, caption };
+      body = { scope: d.scope, score, caption };
     }
     const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     button.disabled = true;
     msg.textContent = '';
     const res = await top10Api('/api/top10/plays', { method: 'POST', body: await showcaseBody(body, file) });
     button.disabled = false;
-    if (!res.ok) { msg.textContent = problemText(t, res); return; }
+    if (!res.ok) { msg.textContent = problemText(t, res, { scope: d.scope }); return; }
     const added = (res.body?.play ?? res.body) as ShowPlay;
     if (added && typeof added.id === 'number') d.plays = [added, ...d.plays];
     form.reset();
@@ -124,6 +127,6 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     root.querySelector('[data-used]')!.textContent = usedLine(ctx, d);
     drawList();
     toast(t('Added to the showcase 🔥'));
-    writeQuery({ player: d.player ?? '' });
+    writeQuery({ scope: d.scope === 'alltime' ? 'alltime' : '', player: d.player ?? '' });
   });
 }

@@ -96,12 +96,42 @@ export interface LogLine {
 /** GET /api/top10. `me` only when signed in; `editions` are the years whose results are out. */
 export interface Hub {
   season: Season;
-  /** Submitted ballots so far. */
+  /** Submitted yearly ballots so far (the deployed bot reads this one). */
   turnout: number;
+  /** Submitted ballots of each kind (§13.11). */
+  turnouts?: Partial<Record<Kind, number>>;
   finalized?: boolean;
-  editions?: { year: number; label: string }[];
-  me?: { osuId?: number; eligible: boolean; code?: string | null; reason?: string | null; ballot: Partial<OwnBallot> | null } | null;
+  editions?: { year: number; label: string; kind?: Kind }[];
+  me?: {
+    osuId?: number; eligible: boolean; code?: string | null; reason?: string | null;
+    /** The yearly ballot, as before; `ballots` has both kinds. */
+    ballot: Partial<OwnBallot> | null;
+    ballots?: Partial<Record<Kind, Partial<OwnBallot> | null>>;
+  } | null;
 }
+
+/**
+ * Which ballot (§13.11): the year's top 10, or the top 10 of all time, in the same window with the same rules but its
+ * own candidates (anyone, legends included), no ones to watch, and cites from any year. Missing means 'year'.
+ */
+export type Kind = 'year' | 'alltime';
+export const KINDS: readonly Kind[] = ['year', 'alltime'];
+export const kindOf = (v: unknown): Kind => (v === 'alltime' ? 'alltime' : 'year');
+
+/** Which part of the showcase: the season's plays, or "Legendary plays" from any year (§13.11). */
+export type Scope = 'year' | 'alltime';
+
+/** A ballot's name: "Top 10 of 2026" or "Top 10 of all time". */
+export const kindName = ({ t }: Ctx, kind: Kind, year: number): string =>
+  (kind === 'alltime' ? t('Top 10 of all time') : t('Top 10 of {year}', { year }));
+
+/** A ballot of this kind from GET /api/top10's me: `ballots[kind]`, or the yearly `ballot` from before kinds. */
+export const myBallotOf = (hub: Hub | null | undefined, kind: Kind): Partial<OwnBallot> | null =>
+  hub?.me?.ballots?.[kind] ?? (kind === 'year' ? hub?.me?.ballot ?? null : null);
+
+/** Submitted ballots of a kind: `turnouts[kind]`, or the yearly `turnout`. */
+export const turnoutOf = (hub: Hub | null | undefined, kind: Kind): number | undefined =>
+  hub?.turnouts?.[kind] ?? (kind === 'year' ? hub?.turnout : undefined);
 
 /**
  * A play as a card (top10/api.js Card): resolved by the server when the play is showcased or cited, any field null when
@@ -143,6 +173,8 @@ export interface ShowPlay {
   created?: string | number | null;
   /** When the play was set. */
   played?: string | number | null;
+  /** The season's showcase, or "Legendary plays" (§13.11); missing means 'year'. */
+  scope?: Scope;
   status?: 'ok' | 'hidden';
   reason?: string | null;
   target?: string | null;
@@ -389,9 +421,10 @@ export function wordMeter(ctx: Ctx, words: number, flags: readonly string[], { p
 // ---- Shared markup -----------------------------------------------------------------------------------------------------
 
 /** The rules on the ballot page (§3.3). The fourth is the mods' warning, which stands out. */
-export function rules(ctx: Ctx, season: Season): Safe {
+export function rules(ctx: Ctx, season: Season, kind: Kind = 'year'): Safe {
   const { t } = ctx;
   return html`<ol class="t10-rules">
+    ${kind === 'alltime' ? html`<li>${t('All time means any PT player’s whole career, active or not: legends count.')}</li>` : ''}
     <li>${t('You can’t vote for yourself.')}</li>
     <li>${t('Lists must be serious: 5 to 10 players. Banter is welcome; being mean isn’t.')}</li>
     <li>${t('One ballot per person. Alts are voided.')}</li>
