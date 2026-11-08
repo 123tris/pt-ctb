@@ -35,6 +35,24 @@ test('sub-pages, moved addresses and unknown ones', () => {
   assert.equal(describe('/map/%E0%A4%A'), null);
 });
 
+test('the Top 10 of the year has its own previews (the bot’s announcement links /top10)', () => {
+  const hub = describe('/top10');
+  assert.equal(hub.title, 'Top 10 of the year · PT Catch');
+  assert.match(hub.description, /reveal on 2 January/);
+  assert.notEqual(hub.description, describe('/').description);
+  assert.match(describe('/top10/vote').title, /^Your ballot/);
+  assert.match(describe('/top10/ballots/').title, /^Ballots/);
+  assert.match(describe('/top10/plays').title, /^Plays of the year/);
+  assert.match(describe('/top10/dossier/19423459/2026').title, /^Dossier/);
+  assert.equal(describe('/top10/2025').title, 'Top 10 of 2025 · PT Catch');
+  assert.equal(describe('/top10/2024').title, 'Top 10 of 2023–24 · PT Catch');
+  assert.equal(describe('/top10/nope'), null);
+  assert.equal(describe('/top10/vote/1/2/3'), null);
+  assert.equal(describe('/top10s'), null);
+  const descriptions = ['/top10', '/top10/vote', '/top10/ballots', '/top10/plays', '/top10/dossier/1', '/top10/2025'].map(a => describe(a).description);
+  assert.equal(new Set(descriptions).size, descriptions.length);
+});
+
 test('a player, a map, a recap and a comparison name their subject', () => {
   const player = withData(describe('/player/19423459/best'), { players: PLAYERS });
   assert.equal(player.title, '_wb · PT Catch');
