@@ -204,7 +204,8 @@ export function render(ctx: Ctx, d: Data): Safe {
  * (ui/top10.ts playRef): osu:/legacy: when the data has the score's id, which 93% of 2026's stored plays don't, else
  * map:<beatmap>:<player>, which the server reads as that player's best play on the map this year.
  */
-export function yearChoices(pack: PlayerPack | null, year: number, player: number): CiteChoice[] {
+/** `limit`: how many (the ballot's cites take the best 15; the showcase's search takes them all). */
+export function yearChoices(pack: PlayerPack | null, year: number, player: number, limit = 15): CiteChoice[] {
   if (!pack) return [];
   const w = recapOf({ pack, year });
   if (!w) return [];
@@ -221,11 +222,11 @@ export function yearChoices(pack: PlayerPack | null, year: number, player: numbe
         time: p.s[S.TIME], url: scoreHref(ref),
       },
     }];
-  }).slice(0, 15);
+  }).slice(0, limit);
 }
 
 /** A player's career best plays as citable scores (all time, §13.11: any year), the most pp first, one per map. */
-export function careerChoices(pack: PlayerPack | null, player: number): CiteChoice[] {
+export function careerChoices(pack: PlayerPack | null, player: number, limit = 15): CiteChoice[] {
   if (!pack) return [];
   const seen = new Set<string>();
   return careerPlays(pack).flatMap(p => {
@@ -240,5 +241,5 @@ export function careerChoices(pack: PlayerPack | null, player: number): CiteChoi
         time: p.s[S.TIME], url: scoreHref(ref),
       },
     }];
-  }).slice(0, 15);
+  }).slice(0, limit);
 }

@@ -117,7 +117,7 @@ export function addForm(ctx: Ctx, d: Data): Safe {
     <summary><h2 class="card-h m-0">${d.scope === 'alltime' ? t('Add a legendary play') : t('Showcase a play')}</h2></summary>
     <p class="small muted" data-used>${usedLine(ctx, d)}</p>
     <div class="chips" role="group" aria-label="${t('What to add')}">
-      <button class="chip active" type="button" data-kind="pick" aria-pressed="true">${t('Pick from their plays')}</button>
+      <button class="chip active" type="button" data-kind="pick" aria-pressed="true">${t('Search their plays')}</button>
       <button class="chip" type="button" data-kind="link" aria-pressed="false">${t('Paste a score link')}</button>
       <button class="chip" type="button" data-kind="replay" aria-pressed="false">${t('A replay file')}</button>
       <button class="chip" type="button" data-kind="clip" aria-pressed="false">${t('A clip')}</button>

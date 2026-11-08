@@ -14,6 +14,7 @@ import { playerPack } from '../routes.ts';
 import { MAX_REPLAY_BYTES, clipOk, scoreCard, type ShowPlay } from '../ui/top10.ts';
 import { mineBox, playItem, usedLine, type Data } from './top10-plays.ts';
 import { careerChoices, yearChoices } from './top10-dossier.ts';
+import type { CiteChoice } from './top10-ballot.ts';
 
 export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
   const { t } = ctx;
@@ -30,33 +31,66 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     if (used) used.textContent = usedLine(ctx, d);
   };
 
-  // A player's plays of the year, to pick one: from their pack, the most pp first.
+  // A player's plays to pick one from, searchable: every play of the season's year (Legendary plays: of their whole
+  // career, §13.11) in their pack, the most pp first. PAGE at a time, "Show more" for the next.
+  const PAGE = 50;
+  let choices: CiteChoice[] = [];
+  let picked = '';
+  let shown = PAGE;
+  const taken = () => new Set(d.plays.map(p => p.score_ref).filter(Boolean));
+  const textOf = (c: CiteChoice) => [c.card?.title, c.card?.artist, c.card?.version, c.card?.mods].filter(Boolean).join(' ').toLocaleLowerCase();
+
+  function drawChoices(): void {
+    const list = root.querySelector<HTMLElement>('[data-pick-list]');
+    if (!list) return;
+    const q = (root.querySelector<HTMLInputElement>('[data-pick-q]')?.value ?? '').trim();
+    const words = q.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const hits = words.length ? choices.filter(c => { const s = textOf(c); return words.every(w => s.includes(w)); }) : choices;
+    const inAlready = taken();
+    const more = hits.length - shown;
+    list.innerHTML = String(hits.length ? html`<ul class="t10-cite-list">${hits.slice(0, shown).map(c => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${inAlready.has(c.ref) ? raw('disabled') : c.ref === picked ? raw('checked') : ''}>
+        ${scoreCard(ctx, c.card, c.ref, inAlready.has(c.ref) ? html`<span class="t10-pill">${t('already in')}</span>` : '')}</label></li>`)}</ul>
+      ${more > 0 ? html`<button class="btn btn-small" type="button" data-pick-more>${t('Show {n} more', { n: ctx.fmt.num(Math.min(PAGE, more)) })}</button>` : ''}`
+      : html`<p class="small muted">${t('No plays match “{q}”.', { q })}</p>`);
+  }
+
   async function yearPlays(id: number): Promise<void> {
     const box = root.querySelector<HTMLElement>('[data-year-plays]');
     if (!box) return;
+    choices = []; picked = ''; shown = PAGE;
     if (!id) { box.innerHTML = ''; return; }
     box.innerHTML = String(html`<p class="small muted">${t('Loading…')}</p>`);
     const pack = await store.pack(playerPack(id), readPlayer).catch(() => null);
-    // Legendary plays: any year (§13.11), the career's best; else the season's.
-    const choices = d.scope === 'alltime' ? careerChoices(pack, id) : yearChoices(pack, d.season.year, id);
-    const taken = new Set(d.plays.map(p => p.score_ref).filter(Boolean));
+    // Legendary plays: any year (§13.11), the whole career; else the season's. All of them.
+    choices = d.scope === 'alltime' ? careerChoices(pack, id, Infinity) : yearChoices(pack, d.season.year, id, Infinity);
     // The best one not in yet starts picked.
-    const first = choices.find(c => !taken.has(c.ref));
+    const inAlready = taken();
+    picked = choices.find(c => !inAlready.has(c.ref))?.ref ?? '';
     const mine = id === ctx.me;
     const legend = d.scope === 'alltime' ? (mine ? t('Your career best plays, the most pp first') : t('Their career best plays, the most pp first'))
       : mine ? t('Your plays of {year}, the most pp first', { year: d.season.year }) : t('Their plays of {year}, the most pp first', { year: d.season.year });
-    box.innerHTML = String(choices.length ? html`<fieldset class="t10-pick-plays"><legend class="small muted">${legend}</legend>
-      <ul class="t10-cite-list">${choices.map(c => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${taken.has(c.ref) ? raw('disabled') : c === first ? raw('checked') : ''}>
-        ${scoreCard(ctx, c.card, c.ref, taken.has(c.ref) ? html`<span class="t10-pill">${t('already in')}</span>` : '')}</label></li>`)}</ul></fieldset>`
+    box.innerHTML = String(choices.length ? html`<fieldset class="t10-pick-plays"><legend class="small muted">${legend} · ${t('{n} plays', { n: ctx.fmt.num(choices.length) })}</legend>
+      <input class="input" type="search" data-pick-q placeholder="${t('Search by map, artist, difficulty or mods')}" aria-label="${t('Search their plays')}" autocomplete="off">
+      <div data-pick-list></div></fieldset>`
       : html`<p class="small muted">${d.scope === 'alltime' ? t('No plays of theirs stored. Paste a score link or add a clip instead.')
         : t('No plays of theirs stored in {year}. Paste a score link or add a clip instead.', { year: d.season.year })}</p>`);
+    drawChoices();
   }
+
+  root.addEventListener('input', ev => {
+    if ((ev.target as Element).matches?.('[data-pick-q]')) { shown = PAGE; drawChoices(); }
+  });
+  root.addEventListener('change', ev => {
+    const el = ev.target as HTMLInputElement;
+    if (el.name === 'pick' && el.type === 'radio') picked = el.value;
+  });
 
   const select = root.querySelector<HTMLSelectElement>('[data-player-select]');
 
   root.addEventListener('click', async ev => {
     const el = (ev.target as Element).closest<HTMLButtonElement>('button');
     if (!el) return;
+    if (el.hasAttribute('data-pick-more')) { shown += PAGE; drawChoices(); return; }
     if (el.dataset.kind) {
       kind = el.dataset.kind;
       setPressed(root, 'kind', kind);
@@ -120,7 +154,8 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
       if (!clipOk(clip)) { msg.textContent = t('A clip has to be a YouTube, Twitch or Streamable link.'); return; }
       body = { scope: d.scope, player: Number(data.get('player')), clip, caption };
     } else {
-      const score = String(kind === 'link' ? data.get('score') ?? '' : data.get('pick') ?? '').trim();
+      // A pick may be filtered out of view: the one chosen is remembered.
+      const score = String(kind === 'link' ? data.get('score') ?? '' : picked).trim();
       if (!score) { msg.textContent = kind === 'link' ? t('Paste the score’s link from osu!.') : t('Choose a player, then one of their plays.'); return; }
       // A pick is a canonical ref (osu:, legacy: or map:<beatmap>:<player>: ui/top10.ts playRef); a link goes as pasted.
       body = { scope: d.scope, score, caption };

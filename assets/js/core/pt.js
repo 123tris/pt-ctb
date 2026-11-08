@@ -2211,5 +2211,10 @@ export const PT = {
   'You’ve already showcased a play by this player: one per player. Remove it to add another.': 'Já puseste na montra uma jogada deste jogador: uma por jogador. Remove-a para adicionar outra.',
   'You’ve already added a legendary play by this player: one per player. Remove it to add another.': 'Já adicionaste uma jogada lendária deste jogador: uma por jogador. Remove-a para adicionar outra.',
   'One play per other player.': 'Uma jogada por cada outro jogador.',
+  'Search their plays': 'Procurar nas jogadas',
+  'Search by map, artist, difficulty or mods': 'Procura por mapa, artista, dificuldade ou mods',
+  'Show {n} more': 'Mostrar mais {n}',
+  'No plays match “{q}”.': 'Nenhuma jogada corresponde a “{q}”.',
+  '{n} plays': '{n} jogadas',
   'The squares count the lists that put each player #1, #2 and so on, to #10.': 'Os quadrados contam as listas que puseram cada jogador em #1, #2 e assim por diante, até #10.',
 };
