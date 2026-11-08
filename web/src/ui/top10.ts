@@ -9,14 +9,20 @@ import type { Ctx } from '../kernel/ctx.ts';
 
 export type Phase = 'before' | 'open' | 'closed' | 'revealed';
 
-/** The season's dates (ISO, UTC: §13.1) and its phase, which the server derives. */
+/** The showcase's own window (§4.1): it opens before voting does (showcaseOpens) and closes with it. */
+export type Showcase = 'before' | 'open' | 'closed';
+
+/** The season's dates (ISO, UTC: §13.1), its phase and the showcase's window, which the server derives. */
 export interface Season {
   year: number;
+  /** When the showcase opens: before voting does; missing means with voting. */
+  showcaseOpens?: string;
   opens: string;
   closes: string;
   reveal: string;
   thanksUntil: string;
   phase?: Phase;
+  showcase?: Showcase;
 }
 
 /** A ranked player: `spot` repeats for a tie, and the next spot skips (1, 2, 3, 3, 5). */
@@ -225,6 +231,7 @@ export const editionLabel = (year: number, editions?: Hub['editions']): string =
 /** The 2026 edition (§13.1), shown when the endpoints can't be reached. The server's own always wins. */
 export const DEFAULT_SEASON: Season = {
   year: 2026,
+  showcaseOpens: '2026-11-08T00:00:00Z',
   opens: '2026-12-01T00:00:00Z',
   closes: '2026-12-31T23:59:59Z',
   reveal: '2027-01-02T12:00:00Z',
@@ -246,6 +253,13 @@ export function phaseOf(season: Season, now: number): Phase {
   if (now <= toSec(season.closes)) return 'open';
   if (now < toSec(season.reveal)) return 'closed';
   return 'revealed';
+}
+
+/** The showcase's window at `now` (unix seconds), as the server derives it: the server's own when it sent one. */
+export function showcaseOf(season: Season, now: number): Showcase {
+  if (season.showcase) return season.showcase;
+  if (now < toSec(season.showcaseOpens ?? season.opens)) return 'before';
+  return now <= toSec(season.closes) ? 'open' : 'closed';
 }
 
 /** A time in Lisbon, where the season's dates are set: "Sat 2 Jan, 12:00". */

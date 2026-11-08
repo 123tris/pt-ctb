@@ -21,7 +21,7 @@ import { readCore, readPlayer } from '../gen/packs.ts';
 import { CORE, playerPack } from '../routes.ts';
 import { rowOf } from '../ui/players.ts';
 import {
-  DEFAULT_SEASON, editionLabel, kindName, kindOf, myBallotOf, phaseOf, troubleOf,
+  DEFAULT_SEASON, editionLabel, kindName, kindOf, myBallotOf, phaseOf, showcaseOf, troubleOf,
   type Hub, type Kind, type OwnBallot, type PublicBallot, type Scope, type ShowPlay,
 } from '../ui/top10.ts';
 import { byCareer, candidatesOf } from '../ui/top10-players.ts';
@@ -39,12 +39,15 @@ import { startCountdowns } from '../views/top10-hub.mount.ts';
 const core = () => store.pack(CORE, readCore);
 const history = () => store.hasJson('history.json').then(has => (has ? store.json<History>('history.json') : null)).catch(() => null);
 
-/** GET /api/top10: the season (the default one when the endpoints aren't there), its phase, and what went wrong. */
+/**
+ * GET /api/top10: the season (the default one when the endpoints aren't there), its phase, the showcase's window, and
+ * what went wrong.
+ */
 async function season(ctx: Ctx) {
   const res = await top10Api('/api/top10');
   const hub = res.ok ? res.body as Hub : null;
   const s = hub?.season ?? DEFAULT_SEASON;
-  return { hub, season: s, phase: phaseOf(s, ctx.now()), trouble: troubleOf(res.status) };
+  return { hub, season: s, phase: phaseOf(s, ctx.now()), showcase: showcaseOf(s, ctx.now()), trouble: troubleOf(res.status) };
 }
 
 const hub = top10Page<hubView.Data>({
@@ -109,8 +112,10 @@ const plays = top10Page<playsView.Data>({
     const res = await top10Api(`/api/top10/plays?year=${s.season.year}&scope=${scope}`);
     const player = Number(query.player);
     return {
-      scope, core: c, season: s.season, phase: s.phase, plays: res.ok ? (res.body?.plays ?? []) as ShowPlay[] : [], trouble: troubleOf(res.status),
+      scope, core: c, season: s.season, phase: s.phase, showcase: s.showcase, plays: res.ok ? (res.body?.plays ?? []) as ShowPlay[] : [], trouble: troubleOf(res.status),
       player: Number.isSafeInteger(player) && player > 0 ? player : null,
+      // A PT player (GET /api/top10 says; the core pack when it can't be asked): their own scores come first.
+      eligible: ctx.me !== null && (s.hub?.me ? s.hub.me.eligible : rowOf(c.players, ctx.me) >= 0),
       candidates: candidatesOf(c, null, s.season.year, ctx.now()).sort((a, b) => a.name.localeCompare(b.name)), signInHere: signInHere(),
     };
   },
@@ -152,7 +157,7 @@ const dossier = top10Page<dossierView.Data>({
       career ? placementsOf(s.hub, id) : null,
     ]);
     return {
-      id, year, core: c, row, pack: await pack.catch(() => null), history: h, plays: shown.ok ? (shown.body?.plays ?? []) as ShowPlay[] : null,
+      id, year, core: c, row, pack: await pack.catch(() => null), history: h, plays: shown.ok ? (shown.body?.plays ?? []) as ShowPlay[] : null, showcase: s.showcase,
       candidate: candidatesOf(c, h, year, ctx.now()).find(x => x.id === id) ?? null, career, head, placements,
     };
   },
