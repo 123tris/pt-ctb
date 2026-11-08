@@ -232,6 +232,41 @@ body.t10-noscroll { overflow: hidden; }
 .t10-endorse:disabled { cursor: default; opacity: .7; }
 .t10-remove { margin-left: auto; }
 
+/* The results: spot, player, score; then the figures and the spots strip, beside them from tablet width. */
+.t10-res-key { margin: 0 0 var(--sp-2); }
+.t10-res { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.t10-res-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-1) var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); }
+.t10-res-row > .t10-spot { grid-row: span 2; }
+.t10-res-who { min-width: 0; }
+.t10-res-name { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; max-width: 100%; font-weight: 600; color: var(--text); }
+.t10-res-name > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.t10-res-score { justify-self: end; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.t10-res-score b { font-family: var(--display); font-size: var(--fs-xl); color: var(--text); }
+.t10-res-score small { color: var(--text-faint); margin-left: 1px; }
+.t10-res-figs { grid-column: 2 / -1; font-size: var(--fs-sm); color: var(--text-dim); }
+.t10-res-figs b { color: var(--accent); font-weight: 600; }
+.t10-res-row > .t10-pos { grid-column: 2 / -1; }
+.t10-res-tie { grid-column: 2 / -1; font-size: var(--fs-xs); color: var(--text-faint); }
+@media (min-width: 720px) {
+  .t10-res-row { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+  .t10-res-row > .t10-pos { grid-column: 3; grid-row: 1; }
+  .t10-res-score { grid-column: 4; grid-row: 1; min-width: 5.5em; text-align: right; }
+  .t10-res-figs, .t10-res-tie { grid-column: 2 / -1; }
+}
+.t10-res-p1 { border-color: var(--gold); }
+.t10-res-p1 .t10-spot { color: var(--gold); }
+.t10-res-p2 .t10-spot { color: var(--silver); }
+.t10-res-p3 .t10-spot { color: var(--bronze); }
+.t10-res-more .t10-res-row { padding-block: var(--sp-1); }
+.t10-res-more .t10-res-score b { font-size: var(--fs-md); }
+/* The spots strip: one cell per spot, #1 to #10, filled by how many lists put the player there. */
+.t10-pos { display: grid; grid-template-columns: repeat(10, minmax(18px, 1fr)); gap: 2px; max-width: 280px; }
+.t10-pos i { display: grid; place-items: center; height: 20px; border-radius: 3px; background: var(--surface-3); color: var(--text-faint); font-style: normal; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.t10-pos i.on { background: color-mix(in srgb, var(--accent) calc(var(--a) * 100%), var(--surface-3)); color: var(--text); }
+.t10-res-counts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
+.t10-res-counts li { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.t10-res-how p { color: var(--text-dim); max-width: 70ch; }
+
 /* The admin tab */
 .t10-queue { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
 .t10-q { display: grid; gap: var(--sp-2); padding: var(--sp-3); border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); }

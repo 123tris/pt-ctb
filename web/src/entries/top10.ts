@@ -5,7 +5,7 @@
 //   /top10/ballots                 every submitted ballot, by voter or (?player=<id>, ?by=player) by player; ?kind=alltime
 //   /top10/plays                   the score showcase (?player=<id>); ?scope=alltime is "Legendary plays"
 //   /top10/dossier/:id/:year?      a player's year, for voters; /alltime is their career
-//   /top10/<year>, /<year>/alltime the results: placeholders until the reveal pages come
+//   /top10/<year>, /<year>/alltime the results (views/top10-results.ts); /top10 shows this season's once they're out
 // Players from the core pack; the season, ballots and showcase from the site's endpoints (client/top10.ts), which
 // may not be on this copy (503) or need a sign-in (401): each page says so and shows what it can. There's no old page
 // for any of it: data without packs gets a notice instead.
@@ -21,12 +21,13 @@ import { readCore, readPlayer } from '../gen/packs.ts';
 import { CORE, playerPack } from '../routes.ts';
 import { rowOf } from '../ui/players.ts';
 import {
-  DEFAULT_SEASON, editionLabel, kindName, kindOf, myBallotOf, phaseOf, showcaseOf, troubleOf,
+  DEFAULT_SEASON, kindOf, myBallotOf, phaseOf, showcaseOf, troubleOf,
   type Hub, type Kind, type OwnBallot, type PublicBallot, type Scope, type ShowPlay,
 } from '../ui/top10.ts';
 import { byCareer, candidatesOf } from '../ui/top10-players.ts';
 import type { History } from '../views/player.ts';
 import * as hubView from '../views/top10-hub.ts';
+import * as resultsView from '../views/top10-results.ts';
 import * as ballotView from '../views/top10-ballot.ts';
 import * as feedView from '../views/top10-feed.ts';
 import * as playsView from '../views/top10-plays.ts';
@@ -35,6 +36,7 @@ import { mount as mountBallot, localDraft } from '../views/top10-ballot.mount.ts
 import { mount as mountFeed } from '../views/top10-feed.mount.ts';
 import { mount as mountPlays } from '../views/top10-plays.mount.ts';
 import { startCountdowns } from '../views/top10-hub.mount.ts';
+import { mount as mountResults } from '../views/top10-results.mount.ts';
 
 const core = () => store.pack(CORE, readCore);
 const history = () => store.hasJson('history.json').then(has => (has ? store.json<History>('history.json') : null)).catch(() => null);
@@ -50,16 +52,30 @@ async function season(ctx: Ctx) {
   return { hub, season: s, phase: phaseOf(s, ctx.now()), showcase: showcaseOf(s, ctx.now()), trouble: troubleOf(res.status) };
 }
 
+/**
+ * A year's results (views/top10-results.ts): GET /api/top10/results, cached, which says when they aren't out; and the
+ * players (the core pack) for avatars, today's names and profile links. Without the pack the edition's own names do.
+ */
+async function resultsOf(ctx: Ctx, s: Awaited<ReturnType<typeof season>>, year: number, kind: Kind): Promise<resultsView.Data> {
+  const [players, res] = await Promise.all([
+    core().then(c => c.players, () => null),
+    top10Api(`/api/top10/results?year=${year}&kind=${kind}`),
+  ]);
+  return { year, kind, season: s.season, phase: s.phase, hub: s.hub, players, ...resultsView.answerOf(res.status, res.body) };
+}
+
 const hub = top10Page<hubView.Data>({
   load: async (ctx, { params }) => {
     const s = await season(ctx);
     const asked = /^\d{4}$/.test(params.view ?? '') ? Number(params.view) : undefined;
-    return { ...s, signInHere: signInHere(), results: asked, kind: kindOf(params.id) };
+    // /top10/<year>, or /top10 once this season's results are out.
+    const year = asked ?? (s.phase === 'revealed' ? s.season.year : undefined);
+    const shown = year !== undefined ? await resultsOf(ctx, s, year, kindOf(params.id)) : undefined;
+    return { ...s, signInHere: signInHere(), shown };
   },
-  title: (ctx, d) => (d.results !== undefined && d.kind === 'alltime' ? `${kindName(ctx, 'alltime', d.results)} · ${editionLabel(d.results, d.hub?.editions)}`
-    : ctx.t('Top 10 of {year}', { year: d.results !== undefined ? editionLabel(d.results, d.hub?.editions) : d.season.year })),
+  title: (ctx, d) => (d.shown ? resultsView.title(ctx, d.shown) : ctx.t('Top 10 of {year}', { year: d.season.year })),
   render: (ctx, d) => hubView.render(ctx, d),
-  mount: root => startCountdowns(root),
+  mount: (root, ctx, d) => (d.shown ? mountResults(root, ctx, d.shown) : startCountdowns(root)),
 });
 
 const ballot = top10Page<{ d: ballotView.Data; e: ballotView.Editor }>({
