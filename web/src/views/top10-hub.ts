@@ -2,19 +2,23 @@
 // two ballots side by side (the year's top 10 and the top 10 of all time, each with its own state, turnout and way
 // in; voters do either or both), the countdown to the reveal at 12:00 Lisbon on 2 January, and the rules. Once the
 // results are out, a placeholder until the reveal pages come (December's work). /top10/<year> and
-// /top10/<year>/alltime (the results) show the same placeholder for now.
+// /top10/<year>/alltime (the results) show the same placeholder for now. While the showcase is open (from before voting
+// opens), a PT player is asked to make their case with their own best scores.
 
 import { html, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import { signInButton } from '../ui/bananas.ts';
 import {
   KINDS, PAST_EDITIONS, countdown, editionLabel, kindName, lisbon, myBallotOf, phaseName, publicNote, rules, toSec, top10Tabs,
-  troubleNote, turnoutOf, type Hub, type Kind, type Phase, type Season, type Trouble,
+  troubleNote, turnoutOf, type Hub, type Kind, type Phase, type Season, type Showcase, type Trouble,
 } from '../ui/top10.ts';
+import { caseLink } from './top10-plays.ts';
 
 export interface Data {
   season: Season;
   phase: Phase;
+  /** The showcase's window, which opens before voting does. */
+  showcase?: Showcase;
   hub: Hub | null;
   trouble: Trouble;
   signInHere: boolean;
@@ -31,6 +35,22 @@ function whoNote(ctx: Ctx, d: Data): Safe | '' {
   if (ctx.me === null) return html`<div class="t10-cta"><p class="m-0">${t('Only PT players can vote. Sign in with osu! to make your list.')}</p>${signInButton(ctx, d.signInHere)}</div>`;
   if (d.hub?.me && !d.hub.me.eligible) return html`<div class="t10-cta"><p class="m-0">${t('Only PT players on the site can vote, and your osu! account isn’t in its list of Portuguese players.')}</p></div>`;
   return '';
+}
+
+/**
+ * While the showcase is open: before voting, that it's open already; for a PT player, the way to make their case with
+ * their own best scores.
+ */
+function showcaseNote(ctx: Ctx, d: Data): Safe | '' {
+  const { t } = ctx;
+  if (d.showcase !== 'open') return '';
+  const player = ctx.me !== null && d.hub?.me?.eligible !== false;
+  const early = d.phase === 'before';
+  if (!early && !player) return '';
+  return html`<div class="t10-cta t10-cta-go">
+    ${early ? html`<p class="m-0">🔥 ${t('The showcase is open now: add your best scores before voting opens on {date}.', { date: lisbon(ctx, toSec(d.season.opens), { time: false }) })}</p>` : ''}
+    ${player ? caseLink(ctx) : html`<a class="btn" href="/top10/plays">${t('Plays of {year}', { year: d.season.year })}</a>`}
+  </div>`;
 }
 
 /** One ballot's card: what it is, how many are in, where yours is, and the way in. */
@@ -111,6 +131,7 @@ export function render(ctx: Ctx, d: Data): Safe {
     </div>
 
     ${whoNote(ctx, d)}
+    ${showcaseNote(ctx, d)}
     <div class="t10-ballot-cards">${KINDS.map(k => ballotCard(ctx, d, k))}</div>
 
     <section class="section" aria-labelledby="t10-cd-h">

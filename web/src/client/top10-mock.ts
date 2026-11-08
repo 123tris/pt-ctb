@@ -5,7 +5,8 @@
 // showcase entries from three players' plays of the year.
 //
 //   ?top10mock=1 / 0          turn it on / off in this browser
-//   ?top10phase=open          before | open | closed | revealed (default open), kept until changed
+//   ?top10phase=open          early | before | open | closed | revealed (default open), kept until changed: early is
+//                             before the showcase opens too; before is the showcase open and voting not yet
 //   ?top10reset=1             start again from the seed
 //
 // Everyone is an admin here. For the real thing end to end: tools/serve.mjs --economy on the backend's branch.
@@ -15,12 +16,13 @@ import { prefs } from './ui.ts';
 import { store } from './boot.ts';
 import { readCore, readPlayer, type CorePack, type PlayerPack } from '../gen/packs.ts';
 import { CORE, playerPack } from '../routes.ts';
+import { OWN_LIMIT, limitOf } from '../views/top10-plays.ts';
 import { rowOf } from '../ui/players.ts';
 import { mapDetails } from '../ui/playerpack.ts';
 import { M, modString } from '../kernel/model.ts';
 import {
   DEFAULT_SEASON, PAST_EDITIONS, flagsOf, overlap, spotsOf, wordsOf, MIN_PICKS, MAX_PICKS, MAX_EXTRAS, MAX_BODY, MAX_NOTE, MAX_CAPTION,
-  MAX_REPLAY_BYTES, clipOk, playRef, scoreHref, type Card, type Phase, type Pick, type ShowPlay,
+  MAX_REPLAY_BYTES, clipOk, playRef, scoreHref, type Card, type Phase, type Pick, type Scope, type Showcase, type ShowPlay,
 } from '../ui/top10.ts';
 
 interface MockWriteup { body: string; cites: string[]; words: number; flags: string[]; mod: 'ok' | 'struck'; mod_reason: string | null; updated: string }
@@ -50,11 +52,16 @@ const ok = (body: unknown, status = 200): Answer => ({ ok: true, status, body })
 /** A refusal as the backend sends one: { error, code, …details }. */
 const no = (status: number, code: string, error: string, extra: Record<string, unknown> = {}): Answer => ({ ok: false, status, body: { error, code, ...extra } });
 
-function phase(): Phase {
+type MockPhase = Phase | 'early';
+
+function phase(): MockPhase {
   const asked = new URLSearchParams(location.search).get('top10phase');
-  if (asked && ['before', 'open', 'closed', 'revealed'].includes(asked)) prefs.set('top10mockPhase', asked);
+  if (asked && ['early', 'before', 'open', 'closed', 'revealed'].includes(asked)) prefs.set('top10mockPhase', asked);
   return prefs.get('top10mockPhase', 'open');
 }
+
+/** The showcase's window in a mock phase: it opens before voting does, and closes with it. */
+const showcaseIn = (ph: MockPhase): Showcase => (ph === 'early' ? 'before' : ph === 'before' || ph === 'open' ? 'open' : 'closed');
 
 /** A number from 0 to 1 that's the same for the same seed. */
 const rand = (seed: number) => { const x = Math.sin(seed * 9301 + 49297) * 233280; return x - Math.floor(x); };
@@ -329,8 +336,10 @@ export async function handle(method: string, path: string, body: unknown, me: nu
   const url = new URL(path, location.origin);
   const year = Number(url.searchParams.get('year')) || YEAR;
   const s = await load();
-  const ph = phase();
-  const season = { ...DEFAULT_SEASON, phase: ph };
+  const mockPhase = phase();
+  const ph: Phase = mockPhase === 'early' ? 'before' : mockPhase;
+  const showcase = showcaseIn(mockPhase);
+  const season = { ...DEFAULT_SEASON, phase: ph, showcase };
   const route = `${method} ${url.pathname}`;
   // A multipart body (a showcase entry with a replay file) as its text fields, with the file aside.
   const file = body instanceof FormData && body.get('replay') instanceof File ? body.get('replay') as File : null;
@@ -339,6 +348,8 @@ export async function handle(method: string, path: string, body: unknown, me: nu
   const own = () => s.ballots[me!];
   const eligible = () => (isPt(me!) ? { eligible: true } : { eligible: false, code: 'not_pt', reason: 'Only PT players on the site can take part.' });
   const notOpen = () => (ph === 'before' ? no(409, 'not_open', 'Voting opens on 2026-12-01.', { phase: ph }) : no(409, 'closed', 'Voting has closed.', { phase: ph }));
+  const showcaseShut = () => (showcase === 'before' ? no(409, 'not_open', 'The showcase opens on 2026-11-08.', { phase: ph, showcase })
+    : no(409, 'closed', 'The showcase has closed.', { phase: ph, showcase }));
 
   if (route === 'GET /api/top10') {
     const turnout = Object.values(s.ballots).filter(x => x.status === 'submitted').length;
@@ -423,16 +434,18 @@ export async function handle(method: string, path: string, body: unknown, me: nu
   }
   if (route === 'GET /api/top10/plays') {
     const player = Number(url.searchParams.get('player')) || null;
-    const plays = s.plays.filter(p => p.status === 'ok' && (!player || p.player === player)).map(p => playView(p, me))
+    const scope: Scope = url.searchParams.get('scope') === 'alltime' ? 'alltime' : 'year';
+    const plays = s.plays.filter(p => p.status === 'ok' && (p.scope ?? 'year') === scope && (!player || p.player === player)).map(p => playView(p, me))
       .sort((a, c) => c.endorsements - a.endorsements || String(c.created).localeCompare(String(a.created)));
-    return ok({ year, plays });
+    return ok({ year, scope, plays });
   }
   if (route === 'POST /api/top10/plays') {
     if (!signed) return no(401, '', 'Sign in with osu! first.');
     if (!isPt(me!)) return no(403, 'not_pt', 'Only PT players on the site can take part.');
-    if (ph !== 'open') return notOpen();
-    const mine = s.plays.filter(p => p.submitter === me);
-    if (mine.length >= 15) return no(409, 'limit', 'That’s 15 showcase entries this year: remove one to add another.');
+    if (showcase !== 'open') return showcaseShut();
+    const scope: Scope = b.scope === 'alltime' ? 'alltime' : 'year';
+    const mine = s.plays.filter(p => p.submitter === me && (p.scope ?? 'year') === scope);
+    if (mine.length >= limitOf(scope)) return no(429, 'limit', `That’s ${limitOf(scope)} entries this season: remove one to add another.`);
     const caption = String(b.caption ?? '').slice(0, MAX_CAPTION);
     // The replay file, when there's one: a catch replay by a PT player (§13.9), at most 2 MB.
     let header: { mode: number; md5: string; player: string } | null = null;
@@ -443,7 +456,9 @@ export async function handle(method: string, path: string, body: unknown, me: nu
       if (header.mode !== 2) return no(400, 'mode', 'That replay isn’t osu!catch.');
       if (nameRow(header.player) === undefined) return no(400, 'not_pt', `The replay’s player, ${header.player}, isn’t a PT player on the site.`);
     }
-    const replay = file && header ? await storedReplay(file, header.player) : null;
+    // The file is stored only when osu! doesn't keep the score's replay (the mock says it does for every osu:/legacy: score).
+    const osuKeeps = file && b.score ? osuReplay(canonical(b.score, Number(b.player) || null) ?? '') : null;
+    const replay = file && header && !osuKeeps ? await storedReplay(file, header.player) : null;
     let entry: MockPlay;
     if (b.score !== undefined && b.score !== '') {
       if (String(b.score).startsWith('play:')) return no(400, 'score', 'score is an osu! score link, an osu: or legacy: ref, or a map: ref.');
@@ -455,7 +470,7 @@ export async function handle(method: string, path: string, body: unknown, me: nu
       if (dup) return no(409, 'duplicate', 'That play is already in the showcase.', { id: dup.id });
       s.cards[ref] = card;
       entry = { id: s.nextPlay++, year, submitter: me!, player: card.player!, score_ref: ref, beatmap_id: card.map ?? null, caption, clip: b.clip ?? null, created: now(),
-        played: card.time ? new Date(card.time * 1000).toISOString() : null, status: 'ok', endorsers: [], score: card, replay: replay ?? osuReplay(ref) };
+        played: card.time ? new Date(card.time * 1000).toISOString() : null, status: 'ok', endorsers: [], score: card, replay: osuReplay(ref) ?? replay };
     } else if (file && header) {
       const player = core!.players.id[nameRow(header.player)!];
       entry = { id: s.nextPlay++, year, submitter: me!, player, score_ref: null, beatmap_id: null, caption, clip: null, created: now(), played: null, status: 'ok',
@@ -466,11 +481,12 @@ export async function handle(method: string, path: string, body: unknown, me: nu
       entry = { id: s.nextPlay++, year, submitter: me!, player: Number(b.player), score_ref: null, beatmap_id: null, caption, clip: String(b.clip), created: now(),
         played: null, status: 'ok', endorsers: [], score: null, replay: null };
     }
-    if (entry.player === me && mine.filter(p => p.player === me).length >= 5) return no(409, 'own_limit', 'At most 5 of your own plays a year.');
+    if (entry.player === me && mine.filter(p => p.player === me).length >= OWN_LIMIT) return no(429, 'own_limit', `At most ${OWN_LIMIT} of your own plays a season.`);
+    entry.scope = scope;
     s.plays.push(entry);
     s.cards[`play:${entry.id}`] = { ...(entry.score ?? {}), ref: `play:${entry.id}`, player: entry.player, play: entry.id, clip: entry.clip };
     save(s);
-    return ok({ play: playView(entry, me) }, 201);
+    return ok({ play: playView(entry, me), ...(file ? { replay: osuKeeps ? 'osu' : 'kept' } : {}) }, 201);
   }
   const playMatch = url.pathname.match(/^\/api\/top10\/plays\/(\d+)(\/endorse)?$/);
   if (playMatch) {

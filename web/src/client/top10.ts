@@ -118,20 +118,26 @@ const CODES: Readonly<Record<string, string>> = /* i18n */ {
   scope: 'That isn’t one of the showcase’s two parts.',
 };
 
+/** The showcase has its own window (it opens before voting does): not_open and closed, said for it. */
+const SHOWCASE: Readonly<Record<string, string>> = /* i18n */ {
+  not_open: 'The showcase isn’t open yet.',
+  closed: 'The showcase has closed.',
+};
+
 /** "Legendary plays" has its own limits (§13.11): the same codes, said for it. */
 const LEGENDARY: Readonly<Record<string, string>> = /* i18n */ {
   limit: 'That’s 10 legendary plays this season: remove one to add another.',
   own_limit: 'At most 5 of your own plays among the legendary ones.',
 };
 
-/** What went wrong with a call, in words. */
-export function problemText(t: (s: string, v?: Record<string, unknown>) => string, res: Answer, { scope = 'year' }: { scope?: string } = {}): string {
+/** What went wrong with a call, in words; with `scope` for the showcase's calls (its window, and the legendary limits). */
+export function problemText(t: (s: string, v?: Record<string, unknown>) => string, res: Answer, { scope }: { scope?: string } = {}): string {
   if (res.status === 401) return t('Your sign-in has run out. Sign in with osu! again.');
   if (res.status === 503 && !res.body?.code) return t('Top 10 voting isn’t set up on this copy of the site.');
   if (res.status === 0) return t('The site couldn’t be reached. Check your connection and try again.');
   const said = typeof res.body?.error === 'string' ? res.body.error : '';
   const code = typeof res.body?.code === 'string' ? res.body.code : '';
-  const codes = scope === 'alltime' && Object.hasOwn(LEGENDARY, code) ? LEGENDARY : CODES;
+  const codes = scope !== undefined && Object.hasOwn(SHOWCASE, code) ? SHOWCASE : scope === 'alltime' && Object.hasOwn(LEGENDARY, code) ? LEGENDARY : CODES;
   if (text().lang !== 'en' && Object.hasOwn(codes, code)) return t(codes[code]);
   if (said) return said;
   if (Object.hasOwn(codes, code)) return t(codes[code]);

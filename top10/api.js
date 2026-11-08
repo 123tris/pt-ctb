@@ -10,7 +10,8 @@
 // it's 'year', so everything from before the all-time ballot works as it did. An all-time ballot has the same rules,
 // except that it has no ones to watch (watch is refused) and a cited map ref is the player's best play on the map in
 // any year. The showcase has a `scope` the same way: 'year' (plays set in the season's year, 15 per person, at most 5
-// of your own) and 'alltime' ("Legendary plays": any year, 10 per person, at most 5 of your own).
+// of your own) and 'alltime' ("Legendary plays": any year, 10 per person, at most 5 of your own). Both take entries in
+// the showcase's own window, which opens before voting does (top10/season.js showcaseOpens).
 //
 // Shapes (the endpoints below return these):
 //
@@ -35,7 +36,8 @@
 //                cites only). Score links, bare numbers, "map:<beatmap>" with the player given apart and "p<id>" are
 //                read too, and answered in this canonical form.
 //
-//   GET    /api/top10                    { season: { year, opens, closes, reveal, thanksUntil, phase }, turnout (the
+//   GET    /api/top10                    { season: { year, showcaseOpens, opens, closes, reveal, thanksUntil, phase,
+//                                        showcase: before|open|closed }, turnout (the
 //                                        yearly ballots submitted, a whole number: the deployed bot reads it),
 //                                        turnouts: { year, alltime }, finalized, editions: [{ year, kind, label }]
 //                                        (results that are out) }, plus me: { osuId, eligible, code?, reason?,
@@ -57,11 +59,17 @@
 //   POST   /api/top10/ballot/submit      PT, open. { kind? }. Checks the saved ballot and makes it public. → { ballot }
 //   POST   /api/top10/ballot/withdraw    open. { kind? }. Back to draft. → { ballot }
 //   GET    /api/top10/plays?year=&scope=&player=  { year, scope, plays: [Play] }: the `ok` entries, most endorsed first
-//   POST   /api/top10/plays              PT, open. JSON { scope?, score: ref or osu! score link, player?, caption?, clip? }
-//                                        or { player, clip, caption? }; or multipart/form-data with those fields as
-//                                        text and `replay`, an .osr file up to 2 MB, alone or with a score. osu: and
-//                                        legacy: refs are checked with the osu! API (one call; the exported data when
-//                                        osu! can't be asked); map: refs against the exported data. → 201 { play }
+//   POST   /api/top10/plays              PT, while the showcase is open (season.showcase: from showcaseOpens, before
+//                                        voting, to the close). JSON { scope?, score: ref or osu! score link, player?,
+//                                        caption?, clip? } or { player, clip, caption? }; or multipart/form-data with
+//                                        those fields as text and `replay`, an .osr file up to 2 MB, alone or with a
+//                                        score. osu: and legacy: refs are checked with the osu! API (one call; the
+//                                        exported data when osu! can't be asked); map: refs against the exported data.
+//                                        An .osr alone that names its score (lazer's score id, or stable's legacy one)
+//                                        is asked about the same way, and becomes that score's entry when osu! has it.
+//                                        The file is stored only when osu! doesn't keep the score's replay (§13.9).
+//                                        → 201 { play }, plus replay: 'kept' (the file is stored) or 'osu' (osu! keeps
+//                                        this score's replay, so the entry links to theirs) when a file was sent
 //   DELETE /api/top10/plays/:id          the submitter. → { ok }
 //   POST   /api/top10/plays/:id/endorse  PT. { endorsed? } (left out: toggles). → { endorsed, endorsements }
 //   POST   /api/top10/thanks             the subject of a write-up on a public ballot, until thanksUntil.
@@ -104,7 +112,8 @@
 // Needs the ECONOMY database binding and OSU_CLIENT_SECRET (sessions); without them these answer 503. Replay uploads
 // also need REPLAYS, an R2 binding to the data bucket (ptcatch-data, keys replays/<sha256>.osr, served from
 // data.ptcatch.com); without it only uploads answer 503. The showcase's score check uses the site's osu! app
-// (OSU_CLIENT_ID and OSU_CLIENT_SECRET, top10/osu.js), once per submission and never on a read. The season's dates are
+// (OSU_CLIENT_ID and OSU_CLIENT_SECRET, top10/osu.js), never on a read and at most twice per submission (once for a
+// score; for an .osr, its score and, when osu! has none, its map). The season's dates are
 // top10/season.js's, or TOP10_SEASON's. Admins are economy's (ADMIN_OSU_IDS). Who counts as a PT player, and the
 // plays the exported data knows, come from the site's data (top10/data.js).
 
@@ -113,7 +122,7 @@ import { adminIds, json, problem } from '../economy/api.js';
 import { iso } from '../economy/store.js';
 import { CONFIG } from '../assets/js/config.js';
 import { modString } from '../assets/js/core/model.js';
-import { seasonOf, seasonView, phaseOf } from './season.js';
+import { seasonOf, seasonView, phaseOf, showcaseOf } from './season.js';
 import { analyse, shingles } from './words.js';
 import { computeResults, payoutsFor, spotsValid, MIN_PICKS, MAX_PICKS } from './score.js';
 import { ptPlayers, findPlay, recentOwner, yearOf } from './data.js';
@@ -196,6 +205,16 @@ function unlessOpen(season, now) {
   return phase === 'before'
     ? refuse('not_open', `Voting opens on ${season.opens.slice(0, 10)}.`, 409, { phase })
     : refuse('closed', 'Voting has closed.', 409, { phase });
+}
+
+/** null while the showcase takes entries (showcaseOpens to closes, top10/season.js); otherwise the refusal. */
+function unlessShowcaseOpen(season, now) {
+  const showcase = showcaseOf(season, now);
+  if (showcase === 'open') return null;
+  const extra = { phase: phaseOf(season, now), showcase };
+  return showcase === 'before'
+    ? refuse('not_open', `The showcase opens on ${season.showcaseOpens.slice(0, 10)}.`, 409, extra)
+    : refuse('closed', 'The showcase has closed.', 409, extra);
 }
 
 // ---- Reading what was sent ------------------------------------------------------------------------------------------
@@ -615,11 +634,37 @@ const osrCard = (osr, map, player) => ({
 });
 
 /**
+ * An osu: or legacy: ref asked of the osu! API (one call) and checked: the catch ruleset, a PT player, the player
+ * named, the season's year (any year for the Legendary plays). Returns { found } (resolvePlay's shape), { response },
+ * { missing: true } when osu! has no such score, or { down: true } when osu! can't be asked just now.
+ */
+async function osuPlay(env, parsed, named, players, year, now, scope) {
+  let s;
+  try {
+    s = await fetchScore(env, parsed.kind === 'osu' ? { id: parsed.id } : { id: parsed.id, legacy: true }, now);
+  } catch (e) {
+    if (!(e instanceof OsuUnavailable)) throw e;
+    return { down: true };
+  }
+  if (!s) return { missing: true };
+  if (s.ruleset !== 2) return { response: refuse('mode', 'That score wasn’t set in osu!catch.', 422) };
+  if (!s.userId || !players.has(s.userId)) return { response: refuse('not_pt', 'That score isn’t a PT player’s.', 422) };
+  if (named && named !== s.userId) return { response: refuse('not_theirs', 'That score is another player’s.', 422, { player: s.userId }) };
+  if (scope !== 'alltime' && (!s.time || yearOf(s.time) !== year)) {
+    const set = s.time ? yearOf(s.time) : null;
+    return { response: refuse('wrong_year', `That score was set in ${set ?? 'another year'}; the showcase is for ${year}’s.`, 422, { year: set }) };
+  }
+  const refs = [s.solo ? `osu:${s.solo}` : null, s.legacy ? `legacy:${s.legacy}` : null].filter(Boolean);
+  if (!refs.length) return { response: refuse('not_found', 'osu! answered without the score’s id.', 422) };
+  return { found: { player: s.userId, ref: refs[0], refs, beatmap: s.beatmapId, time: s.time, hasReplay: s.hasReplay, card: apiCard(s, refs[0]), username: s.username, checksum: s.checksum } };
+}
+
+/**
  * The showcased play, checked (§13.9). A map ref against the exported data. An osu: or legacy: ref with the osu! API
- * when the site's osu! app is set up here (one call: the catch ruleset, a PT player, the season's year, has_replay);
- * otherwise, or when osu! can't be reached, against the exported data. Returns { found: { player, ref, refs, beatmap,
- * time, hasReplay, card, username, checksum } } or { response }. The Legendary plays (scope 'alltime') take any year:
- * no year check, and a map ref is the player's best play on the map ever.
+ * when the site's osu! app is set up here (osuPlay: one call, which also says has_replay); otherwise, or when osu!
+ * can't be reached, against the exported data. Returns { found: { player, ref, refs, beatmap, time, hasReplay, card,
+ * username, checksum } } or { response }. The Legendary plays (scope 'alltime') take any year: no year check, and a
+ * map ref is the player's best play on the map ever.
  */
 async function resolvePlay(env, osuId, parsed, named, players, year, now, scope = 'year') {
   if (named && !players.has(named)) return { response: refuse('not_pt', 'That player isn’t a PT player on the site.', 422) };
@@ -637,23 +682,10 @@ async function resolvePlay(env, osuId, parsed, named, players, year, now, scope 
     if (!found) return { response: refuse('not_in_data', `The site’s data has no play by that player on map ${parsed.beatmap}${anyYear ? '' : ` set in ${year}`}. ${NOT_IN_DATA}`, 422) };
   } else {
     if (osuConfigured(env)) {
-      try {
-        const s = await fetchScore(env, parsed.kind === 'osu' ? { id: parsed.id } : { id: parsed.id, legacy: true }, now);
-        if (!s) return { response: refuse('not_found', 'osu! has no score with that id. For a play osu! doesn’t keep, attach its replay (.osr) or a clip.', 422) };
-        if (s.ruleset !== 2) return { response: refuse('mode', 'That score wasn’t set in osu!catch.', 422) };
-        if (!s.userId || !players.has(s.userId)) return { response: refuse('not_pt', 'That score isn’t a PT player’s.', 422) };
-        if (named && named !== s.userId) return { response: refuse('not_theirs', 'That score is another player’s.', 422, { player: s.userId }) };
-        if (wrongYear(s.time)) {
-          const set = s.time ? yearOf(s.time) : null;
-          return { response: refuse('wrong_year', `That score was set in ${set ?? 'another year'}; the showcase is for ${year}’s.`, 422, { year: set }) };
-        }
-        const refs = [s.solo ? `osu:${s.solo}` : null, s.legacy ? `legacy:${s.legacy}` : null].filter(Boolean);
-        if (!refs.length) return { response: refuse('not_found', 'osu! answered without the score’s id.', 422) };
-        return { found: { player: s.userId, ref: refs[0], refs, beatmap: s.beatmapId, time: s.time, hasReplay: s.hasReplay, card: apiCard(s, refs[0]), username: s.username, checksum: s.checksum } };
-      } catch (e) {
-        if (!(e instanceof OsuUnavailable)) throw e;
-        // osu! can't be asked just now: the exported data still knows every score the bot imported.
-      }
+      const asked = await osuPlay(env, parsed, named, players, year, now, scope);
+      if (asked.missing) return { response: refuse('not_found', 'osu! has no score with that id. For a play osu! doesn’t keep, attach its replay (.osr) or a clip.', 422) };
+      // osu! can't be asked just now: the exported data still knows every score the bot imported.
+      if (!asked.down) return asked;
     }
     found = await fromData(named ?? osuId);
     if (found === 'down') return { response: refuse('data_unavailable', DATA_DOWN, 503) };
@@ -670,6 +702,12 @@ async function resolvePlay(env, osuId, parsed, named, players, year, now, scope 
   if (wrongYear(found.time)) return { response: refuse('wrong_year', `That score was set in ${yearOf(found.time)}; the showcase is for ${year}’s.`, 422, { year: yearOf(found.time) }) };
   return { found: { ...found, hasReplay: null, username: null, checksum: null } };
 }
+
+/** The scores an .osr names (top10/osr.js), as parsed refs to ask osu! about: lazer's score id first, then stable's. */
+const osrScores = osr => [
+  osr.soloId ? { kind: 'osu', id: osr.soloId, ref: `osu:${osr.soloId}` } : null,
+  osr.onlineId ? { kind: 'legacy', id: osr.onlineId, ref: `legacy:${osr.onlineId}` } : null,
+].filter(Boolean);
 
 /** A PT player's id from a name as an .osr has it (case-insensitive), or null. */
 function playerNamed(players, name) {
@@ -724,7 +762,8 @@ export async function addPlay(request, env, now = nowSec()) {
   if (who.response) return who.response;
   const { osuId, db, season } = who;
   const year = season.year;
-  const shut = unlessOpen(season, now);
+  // The showcase's own window (from showcaseOpens, before voting opens, to the close: top10/season.js).
+  const shut = unlessShowcaseOpen(season, now);
   if (shut) return shut;
   const read = await readPlayRequest(request);
   if (read.response) return read.response;
@@ -759,8 +798,15 @@ export async function addPlay(request, env, now = nowSec()) {
   // The cheap refusals first, so osu! isn't asked about an entry that can't be added anyway.
   const counts = await store.playCounts(db, year, osuId, scope);
   if (counts.all >= limits.all) return refuse('limit', `That’s ${limits.all} entries in the ${showcase} this season: remove one to add another.`, 429);
-  const twinOf = async (refs, sha) => (refs?.length ? await store.playByRefs(db, year, refs, scope) : null) ?? (sha ? await store.playBySha(db, year, sha, scope) : null);
-  const asked = parsed ? (parsed.bare ? [parsed.ref, `legacy:${parsed.id}`] : [parsed.ref]) : null;
+  // A twin by its refs, or by the file: one stored (replay_sha), or one sent with a score osu! keeps the replay of
+  // (no copy, so it's among the entry's refs as osr:<sha>).
+  const twinOf = async (refs, sha) => {
+    const known = [...(refs ?? []), ...(sha ? [`osr:${sha}`] : [])];
+    return (known.length ? await store.playByRefs(db, year, known, scope) : null) ?? (sha ? await store.playBySha(db, year, sha, scope) : null);
+  };
+  // An .osr on its own may name its score (§13.9): lazer's score id, else stable's legacy one.
+  const fileScores = replay && !parsed ? osrScores(replay.osr) : [];
+  const asked = parsed ? (parsed.bare ? [parsed.ref, `legacy:${parsed.id}`] : [parsed.ref]) : fileScores.map(r => r.ref);
   const early = await twinOf(asked, replay?.sha);
   if (early) return refuse('duplicate', `That play is already in the ${showcase}.`, 409, { id: early.id });
   const { players, response } = await playersOr503(env);
@@ -772,20 +818,34 @@ export async function addPlay(request, env, now = nowSec()) {
     const resolved = await resolvePlay(env, osuId, parsed, named, players, year, now, scope);
     if (resolved.response) return resolved.response;
     found = resolved.found;
+  } else if (fileScores.length && osuConfigured(env)) {
+    // The score the file names, when osu! has it: the entry is that score's, as if from its link (osu!'s card, with pp,
+    // and its date). When osu! has no such score or can't be asked, the file stands on its own, as below.
+    const lookup = await osuPlay(env, fileScores[0], named, players, year, now, scope);
+    if (lookup.response) return lookup.response;
+    found = lookup.found ?? null;
+  }
+  if (found) {
     const twin = await twinOf(found.refs);
     if (twin) return refuse('duplicate', `That play is already in the ${showcase}.`, 409, { id: twin.id });
     entry = { player: found.player, ref: found.ref, refs: found.refs, beatmap: found.beatmap, playedAt: found.time, hasReplay: found.hasReplay, card: found.card };
   }
+  // Whether the file goes to R2: not when osu! keeps this score's replay, since the entry links to theirs (§13.9).
+  let keep = Boolean(replay);
   if (replay) {
     const { osr } = replay;
     const owner = playerNamed(players, osr.player);
     let map = null;
     if (entry) {
       // With a score, the file has to be that score's replay: the same player and the same map.
-      const samePlayer = owner === entry.player || (found.username && found.username.toLowerCase() === osr.player.toLowerCase());
+      const samePlayer = owner === entry.player || (found.username && found.username.toLowerCase() === osr.player.toLowerCase()) || osr.userId === entry.player;
       if (!samePlayer || (found.checksum && found.checksum !== osr.beatmapMd5)) {
-        return refuse('replay_mismatch', 'That replay isn’t this score’s: the player or the map is different.', 422);
+        return refuse('replay_mismatch', parsed ? 'That replay isn’t this score’s: the player or the map is different.'
+          : 'That replay names a score on osu! that isn’t its own: the player or the map is different.', 422);
       }
+      keep = found.hasReplay !== true;
+      // No copy, and no replay_sha, but the same file mustn't come back as another entry.
+      if (!keep) entry.refs = [...entry.refs, `osr:${replay.sha}`];
     } else {
       if (!owner) return refuse('not_pt', `The replay’s player, ${osr.player}, isn’t a PT player on the site.`, 422, { name: osr.player });
       if (named && named !== owner) return refuse('not_theirs', 'That replay is another player’s.', 422, { player: owner });
@@ -805,10 +865,11 @@ export async function addPlay(request, env, now = nowSec()) {
     entry = { player: named };
   }
   if (entry.player === osuId && counts.own >= limits.own) return refuse('own_limit', `At most ${limits.own} of your own plays in the ${showcase} a season.`, 429);
-  if (replay) await keepReplay(env.REPLAYS, replay);
+  if (keep) await keepReplay(env.REPLAYS, replay);
   try {
-    const play = await store.addPlay(db, { year, scope, submitter: osuId, ...entry, caption, clip, replaySha: replay?.sha ?? null, replayName: replay?.name ?? null }, now);
-    return json({ play: playView(play, env) }, 201);
+    const play = await store.addPlay(db, { year, scope, submitter: osuId, ...entry, caption, clip, replaySha: keep ? replay.sha : null, replayName: keep ? replay.name : null }, now);
+    // With a file: 'kept' when the site stores it, 'osu' when osu! keeps this score's replay and the entry links to it.
+    return json({ play: playView(play, env), ...(replay ? { replay: keep ? 'kept' : 'osu' } : {}) }, 201);
   } catch (e) {
     if (/UNIQUE/i.test(String(e?.message))) return refuse('duplicate', `That play is already in the ${showcase}.`, 409);
     throw e;

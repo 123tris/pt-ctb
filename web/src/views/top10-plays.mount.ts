@@ -1,5 +1,6 @@
 // /top10/plays in the browser: the add form (a player's plays of the year from their pack, a pasted score link, or a
-// clip), 🔥 endorse, removing your own entry, and the player filter, which keeps itself in the address.
+// clip), 🔥 endorse, removing your own entry, and the player filter, which keeps itself in the address. "Your best
+// scores" follows what you add and remove.
 
 import type { Ctx } from '../kernel/ctx.ts';
 import { html, raw } from '../kernel/html.ts';
@@ -11,7 +12,7 @@ import { top10Api, problemText, showcaseBody } from '../client/top10.ts';
 import { readPlayer } from '../gen/packs.ts';
 import { playerPack } from '../routes.ts';
 import { MAX_REPLAY_BYTES, clipOk, scoreCard, type ShowPlay } from '../ui/top10.ts';
-import { playItem, usedLine, type Data } from './top10-plays.ts';
+import { mineBox, playItem, usedLine, type Data } from './top10-plays.ts';
 import { careerChoices, yearChoices } from './top10-dossier.ts';
 
 export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
@@ -23,6 +24,10 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const list = d.player === null ? d.plays : d.plays.filter(p => p.player === d.player);
     const el = root.querySelector('[data-plays]');
     if (el) el.outerHTML = String(list.length ? html`<ul class="t10-show-grid" data-plays>${list.map(p => playItem(ctx, d, p))}</ul>` : html`<p class="empty" data-plays>${t('Nothing showcased yet.')}</p>`);
+    const mine = root.querySelector('[data-mine]');
+    if (mine) mine.outerHTML = String(mineBox(ctx, d));
+    const used = root.querySelector('[data-used]');
+    if (used) used.textContent = usedLine(ctx, d);
   };
 
   // A player's plays of the year, to pick one: from their pack, the most pp first.
@@ -35,12 +40,19 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     // Legendary plays: any year (§13.11), the career's best; else the season's.
     const choices = d.scope === 'alltime' ? careerChoices(pack, id) : yearChoices(pack, d.season.year, id);
     const taken = new Set(d.plays.map(p => p.score_ref).filter(Boolean));
-    box.innerHTML = String(choices.length ? html`<fieldset class="t10-pick-plays"><legend class="small muted">${d.scope === 'alltime' ? t('Their career best plays, the most pp first') : t('Their plays of {year}, the most pp first', { year: d.season.year })}</legend>
-      <ul class="t10-cite-list">${choices.map((c, i) => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${taken.has(c.ref) ? raw('disabled') : i === 0 ? raw('checked') : ''}>
+    // The best one not in yet starts picked.
+    const first = choices.find(c => !taken.has(c.ref));
+    const mine = id === ctx.me;
+    const legend = d.scope === 'alltime' ? (mine ? t('Your career best plays, the most pp first') : t('Their career best plays, the most pp first'))
+      : mine ? t('Your plays of {year}, the most pp first', { year: d.season.year }) : t('Their plays of {year}, the most pp first', { year: d.season.year });
+    box.innerHTML = String(choices.length ? html`<fieldset class="t10-pick-plays"><legend class="small muted">${legend}</legend>
+      <ul class="t10-cite-list">${choices.map(c => html`<li><label><input type="radio" name="pick" value="${c.ref}" ${taken.has(c.ref) ? raw('disabled') : c === first ? raw('checked') : ''}>
         ${scoreCard(ctx, c.card, c.ref, taken.has(c.ref) ? html`<span class="t10-pill">${t('already in')}</span>` : '')}</label></li>`)}</ul></fieldset>`
       : html`<p class="small muted">${d.scope === 'alltime' ? t('No plays of theirs stored. Paste a score link or add a clip instead.')
         : t('No plays of theirs stored in {year}. Paste a score link or add a clip instead.', { year: d.season.year })}</p>`);
   }
+
+  const select = root.querySelector<HTMLSelectElement>('[data-player-select]');
 
   root.addEventListener('click', async ev => {
     const el = (ev.target as Element).closest<HTMLButtonElement>('button');
@@ -60,7 +72,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
       el.disabled = true;
       const res = await top10Api(`/api/top10/plays/${p.id}/endorse`, { method: 'POST' });
       el.disabled = false;
-      if (!res.ok) { toast(problemText(t, res)); return; }
+      if (!res.ok) { toast(problemText(t, res, { scope: d.scope })); return; }
       p.endorsed = typeof res.body?.endorsed === 'boolean' ? res.body.endorsed : !p.endorsed;
       p.endorsements = typeof res.body?.endorsements === 'number' ? res.body.endorsements : (p.endorsements ?? 0) + (p.endorsed ? 1 : -1);
       el.closest('[data-play]')!.outerHTML = String(playItem(ctx, d, p));
@@ -71,11 +83,11 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
       if (!confirm(t('Remove this play from the showcase?'))) return;
       const id = Number(el.dataset.delete);
       const res = await top10Api(`/api/top10/plays/${id}`, { method: 'DELETE' });
-      if (!res.ok) { toast(problemText(t, res)); return; }
+      if (!res.ok) { toast(problemText(t, res, { scope: d.scope })); return; }
       d.plays = d.plays.filter(p => p.id !== id);
-      const used = root.querySelector('[data-used]');
-      if (used) used.textContent = usedLine(ctx, d);
       drawList();
+      // The play can be picked again.
+      if (select?.value) yearPlays(Number(select.value));
       toast(t('Removed.'));
     }
   });
@@ -86,7 +98,6 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     go(v ? `/top10/plays?${scope ? `${scope}&` : ''}player=${v}` : `/top10/plays${scope ? `?${scope}` : ''}`);
   });
 
-  const select = root.querySelector<HTMLSelectElement>('[data-player-select]');
   select?.addEventListener('change', () => yearPlays(Number(select.value)));
   if (select?.value) yearPlays(Number(select.value));
 
@@ -122,11 +133,13 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     if (!res.ok) { msg.textContent = problemText(t, res, { scope: d.scope }); return; }
     const added = (res.body?.play ?? res.body) as ShowPlay;
     if (added && typeof added.id === 'number') d.plays = [added, ...d.plays];
+    // Back to the player the form started on (you, on your own page), with the play just added marked as in.
     form.reset();
-    root.querySelector('[data-year-plays]')!.innerHTML = '';
-    root.querySelector('[data-used]')!.textContent = usedLine(ctx, d);
+    if (select?.value) yearPlays(Number(select.value));
+    else root.querySelector('[data-year-plays]')!.innerHTML = '';
     drawList();
-    toast(t('Added to the showcase 🔥'));
+    // With a replay file: osu! may keep this score's replay, and then the site links to theirs rather than storing it.
+    toast(res.body?.replay === 'osu' ? t('Added to the showcase. osu! keeps this score’s replay, so the site links to theirs.') : t('Added to the showcase 🔥'));
     writeQuery({ scope: d.scope === 'alltime' ? 'alltime' : '', player: d.player ?? '' });
   });
 }

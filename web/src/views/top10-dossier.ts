@@ -2,7 +2,8 @@
 // The year summed up by the recap's summarise() (views/recap.ts) over the player's pack, the official pp and PT rank in
 // January against now (history.json and the core pack), the top plays, #1s taken, Dan passes, the mod split and
 // converts against catch-specific maps; then the community's showcase of the player, the most endorsed first. Never a
-// vote count. The ballot's ⓘ opens the same body in a drawer (compact).
+// vote count. The ballot's ⓘ opens the same body in a drawer (compact). On your own, while the showcase is open, the
+// way to showcase your best scores.
 
 import { html, raw, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
@@ -17,8 +18,9 @@ import { stat } from '../ui/page.ts';
 import { summarise, yearsOf, type Recap, type YearPlay } from './recap.ts';
 import type { History } from './player.ts';
 import { careerLine, ppAt, yearStart, type Candidate, rankLine } from '../ui/top10-players.ts';
-import { playRef, scoreCard, scoreHref, top10Tabs, type Kind, type ShowPlay } from '../ui/top10.ts';
+import { playRef, scoreCard, scoreHref, top10Tabs, type Kind, type Showcase, type ShowPlay } from '../ui/top10.ts';
 import type { CiteChoice } from './top10-ballot.ts';
+import { caseLink } from './top10-plays.ts';
 
 export interface Data {
   id: number;
@@ -38,6 +40,8 @@ export interface Data {
   head?: { crowns?: { total?: number } | null } | null;
   /** Their places in past Top 10 results (both kinds), or null while they can't be read. */
   placements?: Placement[] | null;
+  /** The showcase's window: on your own dossier, while it's open, the way to add your best scores. */
+  showcase?: Showcase;
 }
 
 /** A place in a published Top 10: the edition, which ballot, the rank and score, and on how many lists. */
@@ -191,6 +195,7 @@ export function render(ctx: Ctx, d: Data): Safe {
           <a class="btn btn-small" href="/top10/ballots?player=${d.id}${d.career ? '&kind=alltime' : ''}">${t('What voters wrote about {name}', { name })}</a></div></div>
     </header>
     ${views}
+    ${ctx.me === d.id && d.showcase === 'open' ? html`<div class="t10-cta t10-cta-go">${caseLink(ctx, d.career ? 'alltime' : 'year')}</div>` : ''}
     ${dossierBody(ctx, d)}`;
 }
 
