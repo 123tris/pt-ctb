@@ -16,12 +16,14 @@ import { chipGroup } from '../ui/page.ts';
 import {
   ballotProblems, flagList, flagsOf, lisbon, modWarning, phaseName, publicNote, rules, scoreCard, spotsOf, toSec, top10Tabs, troubleNote,
   wordMeter, wordsOf, MAX_BODY, MAX_EXTRAS, MAX_NOTE, MAX_PICKS, MIN_PICKS, PEAK_WORDS,
-  type BallotStatus, type Card, type LogLine, type OwnBallot, type Phase, type Row, type Season, type Trouble,
+  KINDS, kindName, type BallotStatus, type Card, type Kind, type LogLine, type OwnBallot, type Phase, type Row, type Season, type Trouble,
 } from '../ui/top10.ts';
 import { candidateCard, type Candidate } from '../ui/top10-players.ts';
 import type { History } from './player.ts';
 
 export interface Data {
+  /** Which ballot (§13.11): the year's, or all time's (no ones to watch, candidates by career, cites from any year). */
+  kind: Kind;
   core: CorePack;
   history: History | null;
   season: Season;
@@ -58,7 +60,8 @@ export interface Editor {
   status: BallotStatus;
   voidReason: string | null;
   target: Target;
-  filter: 'active' | 'all';
+  /** The picker's filter: all-time adds legends, and starts on everyone. */
+  filter: 'active' | 'all' | 'legends';
   q: string;
   /** 'list' builds the list; 'write' is the write-ups, one player at a time (`writing` is the index). */
   mode: 'list' | 'write';
@@ -78,7 +81,7 @@ export function accessOf(ctx: Ctx, d: Data): Access {
   return d.phase === 'open' && !d.trouble ? 'edit' : 'read';
 }
 
-export function editorOf(b: OwnBallot | null, query: Record<string, string | undefined>): Editor {
+export function editorOf(b: OwnBallot | null, query: Record<string, string | undefined>, kind: Kind = 'year'): Editor {
   const sorted = [...(b?.picks ?? [])].sort((x, y) => x.spot - y.spot);
   const writeups: Editor['writeups'] = {};
   const server: Editor['server'] = {};
@@ -88,10 +91,10 @@ export function editorOf(b: OwnBallot | null, query: Record<string, string | und
   }
   return {
     rows: sorted.map((p, i) => ({ id: p.id, tie: i > 0 && p.spot === sorted[i - 1].spot })),
-    mentions: b?.mentions ?? [], watch: b?.watch ?? [], intro: b?.intro ?? '', outro: b?.outro ?? '', writeups, server,
+    mentions: b?.mentions ?? [], watch: kind === 'alltime' ? [] : b?.watch ?? [], intro: b?.intro ?? '', outro: b?.outro ?? '', writeups, server,
     scores: { ...(b?.scores ?? {}) },
     status: b?.status ?? 'draft', voidReason: b?.void_reason ?? null,
-    target: 'list', filter: 'active', q: '',
+    target: 'list', filter: kind === 'alltime' ? 'all' : 'active', q: '',
     mode: query.write !== undefined && b?.picks?.length ? 'write' : 'list', writing: 0, fresh: false,
   };
 }
@@ -171,10 +174,10 @@ export function extrasSection(ctx: Ctx, d: Data, e: Editor, access: Access, open
   const can = access === 'edit' || access === 'local';
   const filled = e.mentions.length + e.watch.length + (e.intro ? 1 : 0) + (e.outro ? 1 : 0);
   return html`<details class="t10-extras" data-extras ${open ? raw('open') : ''}>
-    <summary>${t('Extras, all optional')}${filled ? html` <span class="t10-pill">${fmt.num(filled)}</span>` : ''}<span class="small faint t10-extras-sub">${t('Honourable mentions, ones to watch, an intro and a closing message')}</span></summary>
+    <summary>${t('Extras, all optional')}${filled ? html` <span class="t10-pill">${fmt.num(filled)}</span>` : ''}<span class="small faint t10-extras-sub">${d.kind === 'alltime' ? t('Honourable mentions, an intro and a closing message') : t('Honourable mentions, ones to watch, an intro and a closing message')}</span></summary>
     <div class="t10-extras-body">
       <div><h3 class="t10-h3">${t('Honourable mentions')} <span class="faint small">${t('up to {n}', { n: MAX_EXTRAS })}</span></h3><div data-mentions>${extraChips(ctx, d, e.mentions, 'mentions', can)}</div></div>
-      <div><h3 class="t10-h3">${t('Ones to watch')} <span class="faint small">${t('up to {n}: who you think is next', { n: MAX_EXTRAS })}</span></h3><div data-watch>${extraChips(ctx, d, e.watch, 'watch', can)}</div></div>
+      ${d.kind === 'alltime' ? '' : html`<div><h3 class="t10-h3">${t('Ones to watch')} <span class="faint small">${t('up to {n}: who you think is next', { n: MAX_EXTRAS })}</span></h3><div data-watch>${extraChips(ctx, d, e.watch, 'watch', can)}</div></div>`}
       <label class="t10-field"><span>${t('Intro')}</span>
         <textarea class="input t10-note" data-note="intro" maxlength="${MAX_NOTE}" rows="3" ${can ? '' : raw('readonly')} placeholder="${t('How you made your list, what you weighed…')}">${e.intro}</textarea></label>
       <label class="t10-field"><span>${t('Closing message')}</span>
@@ -186,13 +189,16 @@ export function extrasSection(ctx: Ctx, d: Data, e: Editor, access: Access, open
 /** The candidates the filters let through. */
 export function shownCandidates(d: Data, e: Editor): Candidate[] {
   const q = e.q.trim().toLocaleLowerCase();
-  return d.candidates.filter(c => (q ? c.name.toLocaleLowerCase().includes(q) : e.filter === 'all' || c.active || placeOf(e, c.id)));
+  if (q) return d.candidates.filter(c => c.name.toLocaleLowerCase().includes(q));
+  // All time: everyone (the default), the active (not inactive now) or the legends; a year: active this year or everyone.
+  const keep = (c: Candidate) => (e.filter === 'all' ? true : e.filter === 'legends' ? c.legend : d.kind === 'alltime' ? !c.inactive : c.active);
+  return d.candidates.filter(c => keep(c) || placeOf(e, c.id));
 }
 
 export function pickerCards(ctx: Ctx, d: Data, e: Editor): Safe {
   const { t } = ctx;
   const list = shownCandidates(d, e);
-  return list.length ? html`${list.map(c => candidateCard(ctx, d.core, c, d.season.year, { me: ctx.me, placed: placeOf(e, c.id) }))}`
+  return list.length ? html`${list.map(c => candidateCard(ctx, d.core, c, d.season.year, { me: ctx.me, placed: placeOf(e, c.id), alltime: d.kind === 'alltime' }))}`
     : html`<li class="t10-none">${e.q ? t('No PT player matches “{q}”.', { q: e.q }) : t('Nobody here yet.')}</li>`;
 }
 
@@ -202,19 +208,39 @@ export function pickerSection(ctx: Ctx, d: Data, e: Editor, access: Access): Saf
   const can = access === 'edit' || access === 'local';
   return html`<section class="t10-picker" aria-labelledby="t10-pick-h">
     <h2 id="t10-pick-h">${t('Pick players')}</h2>
-    <p class="small muted m-0">${t('The most active this year come first: pp gained since January, then the latest play. ⓘ shows a player’s year.')}</p>
-    ${can ? chipGroup(t('Tapping adds to'), 'target', [['list', t('Your list')], ['mentions', t('Honourable mentions')], ['watch', t('Ones to watch')]], e.target) : ''}
+    <p class="small muted m-0">${d.kind === 'alltime'
+      ? t('By career: the best PT rank they ever reached, then their peak pp, legends included. ⓘ shows a player’s career.')
+      : t('The most active this year come first: pp gained since January, then the latest play. ⓘ shows a player’s year.')}</p>
+    ${can ? chipGroup(t('Tapping adds to'), 'target', [['list', t('Your list')], ['mentions', t('Honourable mentions')],
+      ...(d.kind === 'alltime' ? [] : [['watch', t('Ones to watch')] as [string, string]])], e.target) : ''}
     <div class="t10-filters">
-      ${chipGroup(t('Show'), 'filter', [['active', t('Active this year')], ['all', t('Everyone')]], e.filter)}
+      ${d.kind === 'alltime' ? chipGroup(t('Show'), 'filter', [['all', t('Everyone')], ['active', t('Active')], ['legends', t('Legends')]], e.filter)
+        : chipGroup(t('Show'), 'filter', [['active', t('Active this year')], ['all', t('Everyone')]], e.filter)}
       <input class="input t10-search" type="search" data-q value="${e.q}" placeholder="${t('Search players')}" aria-label="${t('Search players')}" autocomplete="off">
     </div>
     <ul class="t10-cards" data-cards>${pickerCards(ctx, d, e)}</ul>
   </section>`;
 }
 
+/** The write-up box's prompt before a hint is picked. */
+export const placeholderOf = ({ t }: Ctx, kind: Kind, name: string): string => (kind === 'alltime'
+  ? t('Why is {name} one of PT’s greatest? They’ll read this as soon as you submit.', { name })
+  : t('What made {name}’s year? They’ll read this as soon as you submit.', { name }));
+
+/** The two ballots' switch (§13.11): the year's and all time's, each its own page. */
+export const kindSwitch = (ctx: Ctx, kind: Kind, year: number): Safe => html`<nav class="chips t10-kinds" aria-label="${ctx.t('Which ballot')}">
+  ${KINDS.map(k => html`<a class="chip ${k === kind ? 'active' : ''}" href="${k === 'alltime' ? '/top10/vote/alltime' : '/top10/vote'}" ${k === kind ? raw('aria-current="page"') : ''}>${kindName(ctx, k, year)}</a>`)}</nav>`;
+
 /** Hints for a write-up (§3.4): they don't insert text, they only change the box's prompt. */
-export const PROMPTS = (ctx: Ctx): [string, string][] => {
+export const PROMPTS = (ctx: Ctx, kind: Kind = 'year'): [string, string][] => {
   const { t } = ctx;
+  if (kind === 'alltime') {
+    return [
+      [t('A play that defined them'), t('Which play sums up their career, and why that one?')],
+      [t('What they meant to PT catch'), t('What did they bring to the community, and who did they inspire?')],
+      [t('Their era'), t('When were they at their best, and who were they up against?')],
+    ];
+  }
   return [
     [t('A score you won’t forget'), t('Which score of theirs stuck with you this year, and why?')],
     [t('How they changed this year'), t('What’s different about how they play now, compared to January?')],
@@ -249,7 +275,7 @@ export function writerSection(ctx: Ctx, d: Data, e: Editor, access: Access, { pr
   const cited = w.cites.map(ref => ({ ref, card: e.scores[ref] ?? choices?.find(c => c.ref === ref)?.card ?? null }));
 
   return html`<section class="t10-writer" aria-labelledby="t10-w-h" data-writer>
-    ${e.fresh ? html`<div class="t10-done"><p class="t10-done-big">${t('Your top 10 is in ✅')}</p><p class="m-0">${t('Now the good part: tell them why. One player at a time, and every word is optional.')}</p></div>` : ''}
+    ${e.fresh ? html`<div class="t10-done"><p class="t10-done-big">${d.kind === 'alltime' ? t('Your top 10 of all time is in ✅') : t('Your top 10 is in ✅')}</p><p class="m-0">${t('Now the good part: tell them why. One player at a time, and every word is optional.')}</p></div>` : ''}
     <div class="t10-writer-top">
       <span class="t10-count">${t('{n} of {max} written', { n: fmt.num(ranked.length), max: fmt.num(e.rows.length) })}</span>
       <span class="small faint">${full.length === e.rows.length && e.rows.length ? t('Everyone at 40+ words: +30 🍌') : t('+30 🍌 when everyone on your list has 40+ words')}</span>
@@ -264,17 +290,18 @@ export function writerSection(ctx: Ctx, d: Data, e: Editor, access: Access, { pr
     </div>
     ${struck ? html`<p class="notice t10-struck">${t('A mod removed this write-up: {reason}. You can rewrite it until voting closes.', { reason: e.server[id]?.mod_reason || t('no reason given') })}</p>` : ''}
 
-    <div class="chips t10-prompts" role="group" aria-label="${t('Ideas')}">${PROMPTS(ctx).map(([label, hint]) =>
+    <div class="chips t10-prompts" role="group" aria-label="${t('Ideas')}">${PROMPTS(ctx, d.kind).map(([label, hint]) =>
       html`<button class="chip ${prompt === hint ? 'active' : ''}" type="button" data-prompt="${hint}" aria-pressed="${String(prompt === hint)}">${label}</button>`)}</div>
     <label class="sr-only" for="t10-body">${t('Your write-up about {name}', { name })}</label>
     <textarea id="t10-body" class="input t10-body" data-body="${id}" rows="7" maxlength="${MAX_BODY}" ${can ? '' : raw('readonly')}
-      placeholder="${prompt || t('What made {name}’s year? They’ll read this as soon as you submit.', { name })}">${w.body}</textarea>
+      placeholder="${prompt || placeholderOf(ctx, d.kind, name)}">${w.body}</textarea>
     <div data-meter>${wordMeter(ctx, wordsOf(w.body).length, flags, { pays: kind === 'list' })}</div>
 
     <div class="t10-cites" data-cites>${cited.map(c => scoreCard(ctx, c.card, c.ref, can ? html`<button class="t10-icon t10-x" type="button" data-uncite="${c.ref}" aria-label="${t('Remove this score')}">✕</button>` : ''))}</div>
     ${can ? html`<button class="btn btn-small" type="button" data-cite aria-expanded="${String(citeOpen)}">📎 ${t('Cite a score')}</button>` : ''}
     ${citeOpen ? html`<div class="t10-cite-pick" data-cite-pick>${choices === null ? html`<p class="small muted">${t('Loading…')}</p>`
-      : choices.length ? html`<p class="small muted m-0">${t('Their showcased scores and plays of {year}. A cited score shows as a card under your write-up.', { year: d.season.year })}</p>
+      : choices.length ? html`<p class="small muted m-0">${d.kind === 'alltime' ? t('Their legendary plays and career best plays, any year. A cited score shows as a card under your write-up.')
+        : t('Their showcased scores and plays of {year}. A cited score shows as a card under your write-up.', { year: d.season.year })}</p>
         <ul class="t10-cite-list">${choices.map(c => html`<li><label><input type="checkbox" data-cite-ref="${c.ref}" ${w.cites.includes(c.ref) ? raw('checked') : ''}> ${scoreCard(ctx, c.card, c.ref, c.label ? html`<span class="t10-pill">${c.label}</span>` : '')}</label></li>`)}</ul>`
         : html`<p class="small muted">${t('No scores of theirs to cite yet.')}</p>`}</div>` : ''}
 
@@ -317,10 +344,14 @@ export function actionBar(ctx: Ctx, d: Data, e: Editor, access: Access): Safe {
 /** What a mod did, in words: "Struck your write-up about Hiroto-: <reason>". */
 export function logLine(ctx: Ctx, core: CorePack, l: LogLine): string {
   const { t } = ctx;
-  const [kind, a, b] = l.target.split(':');
+  // An all-time target has "alltime:" after its type ("writeup:alltime:<voter>:<subject>", §13.11).
+  const parts = l.target.split(':');
+  const alltime = l.kind === 'alltime' || parts.includes('alltime');
+  const [kind, a, b] = parts.filter(p => p !== 'alltime');
   const what = kind === 'writeup' || (/^\d+$/.test(kind) && a !== undefined)
-    ? t('your write-up about {name}', { name: nameOf(core, Number(kind === 'writeup' ? b : a)) })
-    : kind === 'play' ? t('your showcase entry') : t('your ballot');
+    ? (alltime ? t('your all-time write-up about {name}', { name: nameOf(core, Number(kind === 'writeup' ? b : a)) })
+      : t('your write-up about {name}', { name: nameOf(core, Number(kind === 'writeup' ? b : a)) }))
+    : kind === 'play' ? t('your showcase entry') : alltime ? t('your all-time ballot') : t('your ballot');
   const did = ({
     strike: t('Struck {what}', { what }), restore: t('Restored {what}', { what }), 'hide-play': t('Hid {what}', { what }),
     'show-play': t('Showed {what} again', { what }), void: t('Voided {what}', { what }), unvoid: t('Restored {what}', { what }),
@@ -340,10 +371,10 @@ export function render(ctx: Ctx, d: Data, e: Editor): Safe {
   const { t } = ctx;
   const access = accessOf(ctx, d);
   const year = d.season.year;
-  const head = html`${top10Tabs(ctx, 'vote', year)}
-    <header class="page-head t10-head"><h1>${t('Your top 10 of {year}', { year })}</h1>
+  const head = html`${top10Tabs(ctx, 'vote', year)}${kindSwitch(ctx, d.kind, year)}
+    <header class="page-head t10-head"><h1>${d.kind === 'alltime' ? t('Your top 10 of all time') : t('Your top 10 of {year}', { year })}</h1>
       <p class="t10-status" data-status>${access === 'signed-out' || access === 'ineligible' ? phaseName(ctx, d.phase) : statusLine(ctx, e, access, '')}</p></header>`;
-  const rulesBox = html`<details class="t10-rules-box"><summary>${t('The rules')}</summary>${rules(ctx, d.season)}</details>`;
+  const rulesBox = html`<details class="t10-rules-box"><summary>${t('The rules')}</summary>${rules(ctx, d.season, d.kind)}</details>`;
   if (access === 'signed-out') {
     return html`${head}${troubleNote(ctx, d.trouble === 'signin' ? null : d.trouble)}
       <div class="empty"><p>${t('Only PT players can vote: sign in with osu! to make your list.')}</p>${signInButton(ctx, d.signInHere)}</div>${rulesBox}`;

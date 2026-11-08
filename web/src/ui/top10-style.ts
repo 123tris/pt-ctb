@@ -11,6 +11,7 @@ const CSS = String.raw`
 .t10-state-void { border-color: var(--red); color: var(--red); background: var(--red-bg); }
 .t10-pill { display: inline-block; padding: 0 var(--sp-2); border-radius: 999px; background: var(--surface-3); color: var(--text-dim); font-size: var(--fs-xs); font-weight: 600; line-height: 1.6; white-space: nowrap; }
 .t10-pill-warn { background: var(--red-bg); color: var(--red); }
+.t10-pill-legend { background: none; border: 1px solid var(--gold); color: var(--text-dim); }
 .t10-h3 { font-size: var(--fs-md); margin: var(--sp-6) 0 var(--sp-2); }
 .t10-public { margin: var(--sp-6) 0 var(--sp-2); padding: var(--sp-3); border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); color: var(--text-dim); font-size: var(--fs-sm); }
 .t10-modwarn { margin: 0 0 var(--sp-4); padding: var(--sp-3); border-radius: var(--r); border: 1px solid var(--accent-line); background: var(--accent-bg); color: var(--text); font-size: var(--fs-sm); }
@@ -34,6 +35,16 @@ const CSS = String.raw`
 .t10-soon .t10-done-big { font-size: var(--fs-4xl); }
 .t10-past { justify-content: center; margin-top: var(--sp-4); }
 .section > .t10-past { justify-content: flex-start; }
+/* The two ballots (§13.11): side by side from tablet width, each with its own state and way in. */
+.t10-ballot-cards { display: grid; gap: var(--sp-3); margin: var(--sp-4) 0; }
+@media (min-width: 720px) { .t10-ballot-cards { grid-template-columns: 1fr 1fr; } }
+.t10-ballot-card { display: grid; gap: var(--sp-2); align-content: start; justify-items: start; padding: var(--sp-4); border-radius: var(--r); border: 1px solid var(--accent-line); background: var(--surface); }
+.t10-ballot-card h2 { font-size: var(--fs-lg); }
+.t10-ballot-card-alltime { border-color: var(--gold); }
+.t10-ballot-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.t10-ballot-meta b { color: var(--text); }
+/* Which ballot, scope or view: the chips above a page's body. */
+.t10-kinds { margin: 0 0 var(--sp-4); }
 
 /* The list */
 .t10-list-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; }
@@ -99,6 +110,7 @@ textarea.input { height: auto; min-height: 5.5em; padding: var(--sp-2) var(--sp-
 .t10-card-self { opacity: .5; }
 .t10-card-self .t10-card-main { cursor: not-allowed; }
 .t10-card-quiet .t10-card-name { color: var(--text-dim); }
+.t10-card-legend:not(.t10-card-on) { border-color: var(--gold); }
 .t10-info { flex: none; width: 44px; border: 0; border-left: 1px solid var(--border); background: none; color: var(--text-dim); font-size: var(--fs-lg); cursor: pointer; border-radius: 0 var(--r) var(--r) 0; }
 .t10-info:hover { background: var(--surface-2); color: var(--text); }
 .t10-none { color: var(--text-dim); padding: var(--sp-4) 0; }
@@ -165,6 +177,8 @@ body.t10-noscroll { overflow: hidden; }
 .t10-plays > li { display: grid; gap: var(--sp-1); min-width: 0; }
 .t10-plays-short { gap: var(--sp-1); }
 .t10-show-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); }
+.t10-placements { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.t10-placements > li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
 
 /* The ballots */
 .t10-post { padding: var(--sp-4); margin-bottom: var(--sp-4); border-radius: var(--r); background: var(--surface); border: 1px solid var(--border); }

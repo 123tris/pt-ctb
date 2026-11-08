@@ -11,7 +11,7 @@ import { playerLinkId, rowOf } from '../ui/players.ts';
 import { signInButton } from '../ui/bananas.ts';
 import { chipGroup, col, dataTable, empty, pageHead } from '../ui/page.ts';
 import { adminTabs } from '../ui/admin-tabs.ts';
-import { bananasFor, flagList, replayLink, scoreCard, toSec, troubleNote, type LogLine, type Phase, type ShowPlay, type Trouble } from '../ui/top10.ts';
+import { KINDS, bananasFor, flagList, kindName, replayLink, scoreCard, toSec, troubleNote, type Kind, type LogLine, type Phase, type ShowPlay, type Trouble } from '../ui/top10.ts';
 
 /** A write-up in the queue. */
 export interface QueueWriteup {
@@ -53,6 +53,8 @@ export interface Queue {
 }
 
 export interface Data {
+  /** Which ballot's queue (§13.11): write-ups and ballots are per kind; the showcase lists both scopes. */
+  kind: Kind;
   core: CorePack;
   signInHere: boolean;
   status: number;
@@ -102,7 +104,7 @@ function playsList(ctx: Ctx, d: Data): Safe {
   if (!plays.length) return empty(t('Nothing showcased yet.'));
   return html`<ul class="t10-queue">${plays.map(p => html`<li class="t10-q ${p.status === 'hidden' ? 't10-q-struck' : ''}" data-item="p${p.id}">
     <div class="t10-q-head">${playerLinkId(ctx, d.core.players, p.player, 'avatar-sm')} <span class="small faint">${t('shown by {name}', { name: nameOf(d.core, p.submitter) })} · 🔥 ${p.endorsements ?? 0}</span>
-      ${p.clip ? html`<span class="t10-pill">🎬 ${t('clip')}</span>` : ''}${p.status === 'hidden' ? html`<span class="t10-pill t10-pill-warn">${t('hidden')}</span>` : ''}</div>
+      ${p.clip ? html`<span class="t10-pill">🎬 ${t('clip')}</span>` : ''}${p.scope === 'alltime' ? html`<span class="t10-pill t10-pill-legend">👑 ${t('legendary')}</span>` : ''}${p.status === 'hidden' ? html`<span class="t10-pill t10-pill-warn">${t('hidden')}</span>` : ''}</div>
     ${p.score ? scoreCard(ctx, p.score, p.score_ref) : ''}${p.clip ? html`<a href="${p.clip}" target="_blank" rel="noopener">${p.clip}</a>` : ''}
     ${replayLink(ctx, p.replay)}${p.status === 'hidden' && p.reason ? html`<p class="small muted">${t('Reason: {reason}', { reason: p.reason })}</p>` : ''}
     ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}
@@ -129,22 +131,39 @@ function ballotsTable(ctx: Ctx, d: Data): Safe {
 function logList(ctx: Ctx, d: Data): Safe {
   const { t, fmt } = ctx;
   const log = d.queue?.log ?? [];
-  return log.length ? html`<ul class="admin-log">${log.slice(0, 100).map(l => html`<li><b>${nameOf(d.core, l.admin)}</b> ${l.action} <code>${l.target}</code>${l.reason ? html` · ${l.reason}` : ''}
+  return log.length ? html`<ul class="admin-log">${log.slice(0, 100).map(l => html`<li><b>${nameOf(d.core, l.admin)}</b> ${l.action} <code>${l.target}</code>${l.kind === 'alltime' || l.target.includes(':alltime:') ? html` <span class="t10-pill t10-pill-legend">👑</span>` : ''}${l.reason ? html` · ${l.reason}` : ''}
       ${toSec(l.at) ? html` <span class="faint small">${fmt.dateTime(toSec(l.at))}</span>` : ''}</li>`)}</ul>` : html`<p class="small faint">${t('Nothing yet.')}</p>`;
 }
 
 /** What a finalize (or its dry run) answered: the results table and the payouts. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function finalizePreview(ctx: Ctx, core: CorePack, out: any): Safe {
+  const { t } = ctx;
+  const res = out?.results ?? out;
+  // Finalize does both kinds in one action (§13.11): { results: { year, alltime } }, each null when that kind had fewer
+  // than 5 ballots and stays unpublished ({ unpublished: [{ kind, ballots }] }); a server from before kinds sends one.
+  const both = res && typeof res === 'object' && !Array.isArray(res.ranking) && ('year' in res || 'alltime' in res);
+  const byKind: [Kind, unknown][] = both ? KINDS.map(k => [k, res[k] ?? null]) : [['year', res]];
+  const year = Number(out?.year ?? (both ? res.year?.year ?? res.alltime?.year : res?.year)) || 0;
+  const left = (k: Kind) => (Array.isArray(out?.unpublished) ? out.unpublished : []).find((u: { kind?: string }) => (u.kind ?? 'year') === k);
+  const payouts = (k: Kind) => (out?.payouts ?? []).filter((p: { payload?: { kind?: string } }) => (p.payload?.kind ?? 'year') === k);
+  const thanks = (k: Kind) => (out?.thanks ?? []).filter((p: { payload?: { kind?: string } }) => (p.payload?.kind ?? 'year') === k);
+  return html`<p>${out?.dryRun === false ? html`<b>${t('Finalized.')}</b>` : html`<b>${t('Dry run: nothing was saved.')}</b>`}</p>
+    ${byKind.map(([k, r]) => html`${both ? html`<h3 class="t10-h3">${kindName(ctx, k, year)}</h3>` : ''}
+      ${r ? kindPreview(ctx, core, r, payouts(k), thanks(k))
+        : html`<p class="notice">${t('Unpublished: {n} counted ballots, and the results need at least 5. Nothing is paid for this ballot.', { n: ctx.fmt.num(Number(left(k)?.ballots ?? 0)) })}</p>`}`)}`;
+}
+
+/** One kind's results table and payouts. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function kindPreview(ctx: Ctx, core: CorePack, r: any, payouts: any[], thankRows: unknown[]): Safe {
   const { t, fmt } = ctx;
-  const r = out?.results ?? out;
   const ranking: { id: number; rank: number; score: number; points: number; lists: number; eligible: number; firsts: number; best: number; worst: number }[] = r?.ranking ?? [];
   // Each queued request is { osuId, type, payload } (requestId too on the real run).
-  const pays: { osuId: number; payload: { writeups: { subject: number; words: number }[]; allFull: boolean } }[] = out?.payouts ?? [];
-  const thanks: unknown[] = out?.thanks ?? [];
+  const pays: { osuId: number; payload: { writeups: { subject: number; words: number }[]; allFull: boolean } }[] = payouts;
+  const thanks: unknown[] = thankRows;
   const bananas = (p: (typeof pays)[number]) => 20 + p.payload.writeups.reduce((n, w) => n + bananasFor(w.words), 0) + (p.payload.allFull ? 30 : 0);
-  return html`<p>${out?.dryRun === false ? html`<b>${t('Finalized.')}</b> ` : html`<b>${t('Dry run: nothing was saved.')}</b> `}
-    ${t('{ballots} counted ballots · {writeups} write-ups · {words} words about {subjects} players.', { ballots: fmt.num(r?.ballots ?? 0), writeups: fmt.num(r?.stats?.writeups ?? 0), words: fmt.num(r?.stats?.words ?? 0), subjects: fmt.num(r?.stats?.subjects ?? 0) })}</p>
+  return html`<p>${t('{ballots} counted ballots · {writeups} write-ups · {words} words about {subjects} players.', { ballots: fmt.num(r?.ballots ?? 0), writeups: fmt.num(r?.stats?.writeups ?? 0), words: fmt.num(r?.stats?.words ?? 0), subjects: fmt.num(r?.stats?.subjects ?? 0) })}</p>
     ${dataTable(t('Results'), html`${col('#', 'num')}${col(t('Player'))}${col(t('Score'), 'num')}${col(t('Points'), 'num')}${col(t('Lists'), 'num')}${col(t('#1s'), 'num')}${col(t('Best–worst'))}`,
       ranking.map(x => html`<tr><td class="num">${x.rank}</td><td>${playerLinkId(ctx, core.players, x.id, 'avatar-sm')}</td><td class="num"><b>${fmt.num(x.score, 2)}</b></td>
         <td class="num">${fmt.num(x.points, 1)}</td><td class="num">${t('{n} of {of}', { n: fmt.num(x.lists), of: fmt.num(x.eligible) })}</td><td class="num">${fmt.num(x.firsts)}</td><td>#${x.best}–#${x.worst}</td></tr>`))}
@@ -156,7 +175,9 @@ export function finalizePreview(ctx: Ctx, core: CorePack, out: any): Safe {
 
 export function render(ctx: Ctx, d: Data, filter: WriteupFilter = 'flagged'): Safe {
   const { t, fmt } = ctx;
-  const head = html`${pageHead({ title: t('Admin'), intro: t('Top 10: write-ups, the showcase and ballots. Every action is logged and shown to the player it’s about.') })}${adminTabs(ctx, 'top10')}`;
+  const kinds = html`<nav class="chips t10-kinds" aria-label="${t('Which ballot')}">${KINDS.map(k => html`<a class="chip ${k === d.kind ? 'active' : ''}"
+    href="/admin?tab=top10${k === 'alltime' ? '&kind=alltime' : ''}" ${k === d.kind ? raw('aria-current="page"') : ''}>${kindName(ctx, k, d.queue?.year ?? 0)}</a>`)}</nav>`;
+  const head = html`${pageHead({ title: t('Admin'), intro: t('Top 10: write-ups, the showcase and ballots. Every action is logged and shown to the player it’s about.') })}${adminTabs(ctx, 'top10')}${d.queue ? kinds : ''}`;
   if (ctx.me === null) return html`${head}${empty(html`<p>${t('Admins only.')}</p>${signInButton(ctx, d.signInHere)}`)}`;
   if (d.status === 403) return html`${head}${empty(t('Admins only.'))}`;
   if (!d.queue) return html`${head}${troubleNote(ctx, d.trouble ?? 'error')}`;
@@ -166,6 +187,7 @@ export function render(ctx: Ctx, d: Data, filter: WriteupFilter = 'flagged'): Sa
   return html`${head}
     <section class="section card" aria-labelledby="t10a-fin-h">
       <h2 class="card-h" id="t10a-fin-h">${t('Finalize and pay')}</h2>
+      <p class="small muted">${t('Both ballots at once: a ballot with fewer than 5 counted lists is left unpublished without holding the other back.')}</p>
       <p class="small muted">${t('Computes the results and queues the payouts for the bot. Preview it first: the real run happens once, after voting closes.')}
         ${q.phase ? html` ${t('Phase: {phase}.', { phase: q.phase })}` : ''}${q.finalized ? html` <b>${t('Already finalized.')}</b>` : ''}</p>
       <div class="btn-row"><button class="btn btn-small" type="button" data-dry>${t('Preview (dry run)')}</button>

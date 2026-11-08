@@ -5,14 +5,16 @@
 // thank its writer (§3.5). Your own ballot comes first, and if you haven't made one there's a nudge to do that before
 // reading everyone else's (§12, herding).
 
-import { html, type Safe } from '../kernel/html.ts';
+import { html, raw, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
 import type { CorePack } from '../gen/packs.ts';
 import { avatar, playerLinkId, rowOf } from '../ui/players.ts';
 import { tabs } from '../ui/page.ts';
-import { scoreCard, spotLabel, toSec, top10Tabs, troubleNote, type PublicBallot, type Season, type Trouble, type Writeup } from '../ui/top10.ts';
+import { KINDS, kindName, scoreCard, spotLabel, toSec, top10Tabs, troubleNote, type Kind, type PublicBallot, type Season, type Trouble, type Writeup } from '../ui/top10.ts';
 
 export interface Data {
+  /** Which ballots (§13.11): the year's or all time's. */
+  kind: Kind;
   core: CorePack;
   season: Season;
   ballots: PublicBallot[];
@@ -61,7 +63,7 @@ export function ballotPost(ctx: Ctx, d: Data, b: PublicBallot): Safe {
     ${b.intro ? html`<p class="t10-note-text">${b.intro}</p>` : ''}
     <ol class="t10-post-list">${sorted.map((p, i) => html`<li>
       <div class="t10-post-pick"><span class="t10-spot">${spotLabel(sorted, i)}</span>${playerLinkId(ctx, d.core.players, p.id, 'avatar-sm')}
-        <a class="small dim-link" href="/top10/ballots?player=${p.id}">${t('all about them')}</a></div>
+        <a class="small dim-link" href="/top10/ballots?player=${p.id}${d.kind === 'alltime' ? '&kind=alltime' : ''}">${t('all about them')}</a></div>
       ${b.writeups[p.id] ? writeupBlock(ctx, d, b, p.id, b.writeups[p.id]) : ''}
     </li>`)}</ol>
     ${extra(b.mentions ?? [], t('Honourable mentions'))}
@@ -84,7 +86,7 @@ function aboutPlayer(ctx: Ctx, d: Data, id: number): Safe {
   const r = rowOf(d.core.players, id);
   return html`<header class="t10-about-head">${r >= 0 ? avatar(ctx, d.core.players, r, 'avatar-md') : ''}<div>
       <h2 class="m-0">${t('About {name}', { name: nameOf(d.core, id) })}</h2>
-      <a class="small" href="/top10/dossier/${id}/${d.season.year}">${t('{name}’s year', { name: nameOf(d.core, id) })} →</a></div></header>
+      <a class="small" href="/top10/dossier/${id}/${d.kind === 'alltime' ? 'alltime' : d.season.year}">${d.kind === 'alltime' ? t('{name}’s career', { name: nameOf(d.core, id) }) : t('{name}’s year', { name: nameOf(d.core, id) })} →</a></div></header>
     ${items.length ? html`<ul class="t10-about">${items.map(({ b, w, place }) => html`<li class="t10-post">
         <div class="t10-about-by"><b>${place}</b> ${t('by')} ${playerLinkId(ctx, d.core.players, b.voter, 'avatar-sm')}</div>
         ${writeupBlock(ctx, d, b, id, w)}</li>`)}</ul>`
@@ -97,7 +99,7 @@ function playerIndex(ctx: Ctx, d: Data): Safe {
   const count = new Map<number, number>();
   for (const b of d.ballots) for (const id of Object.keys(b.writeups)) count.set(Number(id), (count.get(Number(id)) ?? 0) + 1);
   const list = [...count].sort((a, b) => b[1] - a[1] || nameOf(d.core, a[0]).localeCompare(nameOf(d.core, b[0])));
-  return list.length ? html`<ul class="t10-index">${list.map(([id, n]) => html`<li><a href="/top10/ballots?player=${id}">
+  return list.length ? html`<ul class="t10-index">${list.map(([id, n]) => html`<li><a href="/top10/ballots?player=${id}${d.kind === 'alltime' ? '&kind=alltime' : ''}">
       ${(() => { const r = rowOf(d.core.players, id); return r < 0 ? '' : avatar(ctx, d.core.players, r, 'avatar-sm'); })()}<span>${nameOf(d.core, id)}</span>
       <span class="faint small">${tn(n, '{n} write-up', '{n} write-ups')}</span></a></li>`)}</ul>`
     : html`<p class="empty">${t('No write-ups yet.')}</p>`;
@@ -108,11 +110,15 @@ export function render(ctx: Ctx, d: Data): Safe {
   const year = d.season.year;
   const mine = d.ballots.filter(b => b.voter === ctx.me);
   const rest = d.ballots.filter(b => b.voter !== ctx.me);
+  const k = d.kind === 'alltime' ? 'kind=alltime' : '';
   const nudge = ctx.me !== null && !d.mineIn && d.by === 'voter' && !d.player
-    ? html`<div class="t10-cta"><p class="m-0">${t('Make your own list first? Reading everyone else’s first tends to make lists look alike.')}</p><a class="btn btn-primary" href="/top10/vote">${t('Your ballot')}</a></div>` : '';
+    ? html`<div class="t10-cta"><p class="m-0">${t('Make your own list first? Reading everyone else’s first tends to make lists look alike.')}</p><a class="btn btn-primary" href="${d.kind === 'alltime' ? '/top10/vote/alltime' : '/top10/vote'}">${t('Your ballot')}</a></div>` : '';
+  // Which ballots: the year's or all time's (§13.11), as chips above the voter / player tabs.
+  const kinds = html`<nav class="chips t10-kinds" aria-label="${t('Which ballot')}">${KINDS.map(kind => html`<a class="chip ${kind === d.kind ? 'active' : ''}"
+    href="/top10/ballots${kind === 'alltime' ? '?kind=alltime' : ''}" ${kind === d.kind ? raw('aria-current="page"') : ''}>${kindName(ctx, kind, year)}</a>`)}</nav>`;
   const sub = tabs([
-    { href: '/top10/ballots', label: t('By voter'), active: d.by === 'voter' && !d.player, count: fmt.num(d.ballots.length) },
-    { href: '/top10/ballots?by=player', label: t('By player'), active: d.by === 'player' || d.player !== null },
+    { href: `/top10/ballots${k ? `?${k}` : ''}`, label: t('By voter'), active: d.by === 'voter' && !d.player, count: fmt.num(d.ballots.length) },
+    { href: `/top10/ballots?by=player${k ? `&${k}` : ''}`, label: t('By player'), active: d.by === 'player' || d.player !== null },
   ], t('Read the ballots'));
   const body = d.player !== null ? aboutPlayer(ctx, d, d.player)
     : d.by === 'player' ? playerIndex(ctx, d)
@@ -123,6 +129,6 @@ export function render(ctx: Ctx, d: Data): Safe {
       <p>${t('Each ballot is public once it’s submitted, write-ups and all. The combined ranking stays hidden until the reveal.')}
         ${d.ballots.length ? html` <b>${tn(d.ballots.length, '{n} ballot in', '{n} ballots in')}</b>.` : ''}</p></header>
     ${troubleNote(ctx, d.trouble === 'signin' ? null : d.trouble)}
-    ${sub}${nudge}
+    ${kinds}${sub}${nudge}
     <div data-feed>${body}</div>`;
 }

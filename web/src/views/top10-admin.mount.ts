@@ -13,12 +13,12 @@ const NEEDS_REASON = new Set(['strike', 'hide-play', 'void']);
 
 export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
   if (!d.queue) return;
-  const { t } = ctx;
+  const { t, fmt } = ctx;
   let filter: WriteupFilter = 'flagged';
   let previewed = false;
 
   async function reload(): Promise<void> {
-    const res = await top10Api('/api/top10/admin/queue');
+    const res = await top10Api(`/api/top10/admin/queue?kind=${d.kind}`);
     if (!res.ok) { toast(problemText(t, res)); return; }
     d.queue = res.body as Queue;
     const keep = root.querySelector('[data-preview]')?.innerHTML ?? '';
@@ -51,8 +51,13 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
       const res = await top10Api('/api/top10/admin/finalize', { method: 'POST', body: { year: d.queue!.year, dryRun } });
       el.disabled = false;
       const box = root.querySelector('[data-preview]')!;
-      if (!res.ok) { box.innerHTML = String(html`<p class="notice">${problemText(t, res)}</p>`); return; }
-      box.innerHTML = String(finalizePreview(ctx, d.core, { dryRun, ...res.body }));
+      // 409 turnout: neither ballot has 5 counted lists; the answer says how many each has (§13.11).
+      const counts = res.body?.code === 'turnout' ? res.body?.ballots : null;
+      const why = counts && typeof counts === 'object'
+        ? t('Neither ballot has 5 counted lists: {year} yearly and {alltime} all-time. Nothing was saved.', { year: fmt.num(Number(counts.year ?? 0)), alltime: fmt.num(Number(counts.alltime ?? 0)) })
+        : problemText(t, res);
+      if (!res.ok) { box.innerHTML = String(html`<p class="notice">${why}</p>`); return; }
+      box.innerHTML = String(finalizePreview(ctx, d.core, { dryRun, year: d.queue!.year, ...res.body }));
       if (dryRun) { previewed = true; root.querySelector<HTMLButtonElement>('[data-final]')!.disabled = false; } else { toast(t('Finalized. The payouts are queued for the bot.')); reload(); }
     }
   });
@@ -67,7 +72,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     const button = form.querySelector<HTMLButtonElement>('[type="submit"]')!;
     button.disabled = true;
     const target = /^\d+$/.test(form.dataset.target!) ? Number(form.dataset.target) : form.dataset.target;
-    const res = await top10Api('/api/top10/admin/action', { method: 'POST', body: { action, target, reason } });
+    const res = await top10Api('/api/top10/admin/action', { method: 'POST', body: { action, target, reason, kind: d.kind } });
     if (!res.ok) { button.disabled = false; toast(problemText(t, res)); return; }
     toast(t('Done: {action}.', { action }));
     reload();

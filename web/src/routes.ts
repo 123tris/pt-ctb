@@ -91,11 +91,12 @@ const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchPa
   // The admin panel: the players, the bot's settings and log, the hill's month and the open bounties. admin.json and
   // hill.json exist only once the bot publishes them: the slice says so, and the page needn't ask meta.json.
   { pattern: /^admin$/, first: () => ({ packs: [CORE], json: ['admin.json', 'hill.json', 'bounties.json'] }) },
-  // Top 10 of the year (entries/top10.ts): the season's page reads only the endpoints; the ballot and a dossier add
-  // history.json (pp on 1 January), a dossier the player's pack; the ballots and the showcase draw players.
-  { pattern: /^top10(?:\/\d{4})?$/, first: () => ({ packs: [], json: [] }) },
-  { pattern: /^top10\/vote$/, first: () => ({ packs: [CORE], json: ['history.json'] }) },
-  { pattern: /^top10\/dossier\/(\d+)(?:\/\d{4})?$/, first: m => ({ packs: [CORE, playerPack(m[1])], json: ['history.json'] }) },
+  // Top 10 of the year and of all time (entries/top10.ts): the season's page and the results read only the endpoints;
+  // the ballots and a dossier add history.json (pp on 1 January, or the career), a dossier the player's pack; the
+  // ballots and the showcase draw players.
+  { pattern: /^top10(?:\/\d{4}(?:\/alltime)?)?$/, first: () => ({ packs: [], json: [] }) },
+  { pattern: /^top10\/vote(?:\/alltime)?$/, first: () => ({ packs: [CORE], json: ['history.json'] }) },
+  { pattern: /^top10\/dossier\/(\d+)(?:\/(?:\d{4}|alltime))?$/, first: m => ({ packs: [CORE, playerPack(m[1])], json: ['history.json'] }) },
   { pattern: /^top10\/(?:ballots|plays)$/, first: () => ({ packs: [CORE], json: [] }) },
 ];
 

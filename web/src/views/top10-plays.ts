@@ -8,10 +8,12 @@ import type { Ctx } from '../kernel/ctx.ts';
 import type { CorePack } from '../gen/packs.ts';
 import { playerLinkId, rowOf } from '../ui/players.ts';
 import { signInButton } from '../ui/bananas.ts';
-import { MAX_CAPTION, replayLink, scoreCard, toSec, top10Tabs, troubleNote, type Phase, type Season, type ShowPlay, type Trouble } from '../ui/top10.ts';
+import { MAX_CAPTION, replayLink, scoreCard, toSec, top10Tabs, troubleNote, type Phase, type Scope, type Season, type ShowPlay, type Trouble } from '../ui/top10.ts';
 import type { Candidate } from '../ui/top10-players.ts';
 
 export interface Data {
+  /** Which part (§13.11): the season's plays, or "Legendary plays" from any year. */
+  scope: Scope;
   core: CorePack;
   season: Season;
   phase: Phase;
@@ -22,9 +24,11 @@ export interface Data {
   signInHere: boolean;
 }
 
-/** The most entries one person can add in a year, and of their own scores (§4.1). */
+/** The most entries one person can add in a season, and of their own scores (§4.1); legendary plays: 10 and 5 (§13.11). */
 export const LIMIT = 15;
 export const OWN_LIMIT = 5;
+export const LEGENDARY_LIMIT = 10;
+export const limitOf = (scope: Scope): number => (scope === 'alltime' ? LEGENDARY_LIMIT : LIMIT);
 
 const nameOf = (core: CorePack, id: number) => { const r = rowOf(core.players, id); return r < 0 ? `#${id}` : core.players.name.at(r); };
 
@@ -48,20 +52,22 @@ export function playItem(ctx: Ctx, d: Pick<Data, 'core' | 'phase'>, p: ShowPlay)
 }
 
 /** How many entries you've added this year, of the limits (§4.1). */
-export function usedLine(ctx: Ctx, d: Pick<Data, 'plays' | 'season'>): string {
+export function usedLine(ctx: Ctx, d: Pick<Data, 'plays' | 'season' | 'scope'>): string {
   const { t, fmt } = ctx;
   const mine = d.plays.filter(p => p.submitter === ctx.me);
   const own = mine.filter(p => p.player === ctx.me).length;
-  return t('A score from {year} by a PT player that voters should see. Your own count too: it’s how you make your case. {used} of {limit} used ({own} of {ownLimit} your own).',
-    { year: d.season.year, used: fmt.num(mine.length), limit: LIMIT, own: fmt.num(own), ownLimit: OWN_LIMIT });
+  const vars = { year: d.season.year, used: fmt.num(mine.length), limit: limitOf(d.scope), own: fmt.num(own), ownLimit: OWN_LIMIT };
+  return d.scope === 'alltime'
+    ? t('A play from any year that made PT catch history, for the all-time ballot. {used} of {limit} used ({own} of {ownLimit} your own).', vars)
+    : t('A score from {year} by a PT player that voters should see. Your own count too: it’s how you make your case. {used} of {limit} used ({own} of {ownLimit} your own).', vars);
 }
 
 /** The form: a score link, a player's plays of the year, or a clip; and the caption. */
 export function addForm(ctx: Ctx, d: Data): Safe {
   const { t } = ctx;
-  const options = d.candidates.filter(c => c.active).map(c => html`<option value="${c.id}" ${c.id === d.player ? raw('selected') : ''}>${c.name}</option>`);
+  const options = d.candidates.filter(c => c.active || d.scope === 'alltime').map(c => html`<option value="${c.id}" ${c.id === d.player ? raw('selected') : ''}>${c.name}</option>`);
   return html`<details class="t10-add card" data-add ${d.player !== null ? '' : raw('open')}>
-    <summary><h2 class="card-h m-0">${t('Showcase a play')}</h2></summary>
+    <summary><h2 class="card-h m-0">${d.scope === 'alltime' ? t('Add a legendary play') : t('Showcase a play')}</h2></summary>
     <p class="small muted" data-used>${usedLine(ctx, d)}</p>
     <div class="chips" role="group" aria-label="${t('What to add')}">
       <button class="chip active" type="button" data-kind="pick" aria-pressed="true">${t('Pick from their plays')}</button>
@@ -93,17 +99,22 @@ export function render(ctx: Ctx, d: Data): Safe {
   const year = d.season.year;
   const list = d.player === null ? d.plays : d.plays.filter(p => p.player === d.player);
   const canAdd = ctx.me !== null && d.phase === 'open' && !d.trouble;
-  return html`${top10Tabs(ctx, 'plays', year)}
-    <header class="page-head"><h1>${t('Plays of {year}', { year })}</h1>
-      <p>${t('The year’s notable scores, picked by the community, for voters who don’t follow everyone. 🔥 the ones that deserve a look; the most endorsed rise to the top.')}</p></header>
+  const scopes = html`<nav class="chips t10-kinds" aria-label="${t('Which plays')}">
+    <a class="chip ${d.scope === 'year' ? 'active' : ''}" href="/top10/plays" ${d.scope === 'year' ? raw('aria-current="page"') : ''}>${t('Plays of {year}', { year })}</a>
+    <a class="chip ${d.scope === 'alltime' ? 'active' : ''}" href="/top10/plays?scope=alltime" ${d.scope === 'alltime' ? raw('aria-current="page"') : ''}>👑 ${t('Legendary plays')}</a></nav>`;
+  return html`${top10Tabs(ctx, 'plays', year)}${scopes}
+    <header class="page-head"><h1>${d.scope === 'alltime' ? t('Legendary plays') : t('Plays of {year}', { year })}</h1>
+      <p>${d.scope === 'alltime'
+        ? t('The plays that made PT catch history, from any year, for the all-time ballot. 🔥 the ones every voter should know; the most endorsed rise to the top.')
+        : t('The year’s notable scores, picked by the community, for voters who don’t follow everyone. 🔥 the ones that deserve a look; the most endorsed rise to the top.')}</p></header>
     ${troubleNote(ctx, d.trouble === 'signin' ? null : d.trouble)}
     ${canAdd ? addForm(ctx, d) : ctx.me === null ? html`<p class="notice">${t('Sign in with osu! to showcase plays and endorse them.')} ${signInButton(ctx, d.signInHere)}</p>`
       : d.phase === 'before' ? html`<p class="notice">${t('The showcase opens with voting on 1 December.')}</p>` : ''}
     <div class="t10-filters">
       <label class="t10-field t10-field-inline"><span>${t('Player')}</span>
         <select class="select" data-filter-player><option value="">${t('Everyone')}</option>
-          ${d.candidates.filter(c => c.active || c.id === d.player).map(c => html`<option value="${c.id}" ${c.id === d.player ? raw('selected') : ''}>${c.name}</option>`)}</select></label>
-      ${d.player !== null ? html`<a class="small" href="/top10/dossier/${d.player}/${year}">${t('{name}’s year', { name: nameOf(d.core, d.player) })} →</a>` : ''}
+          ${d.candidates.filter(c => c.active || d.scope === 'alltime' || c.id === d.player).map(c => html`<option value="${c.id}" ${c.id === d.player ? raw('selected') : ''}>${c.name}</option>`)}</select></label>
+      ${d.player !== null ? html`<a class="small" href="/top10/dossier/${d.player}/${d.scope === 'alltime' ? 'alltime' : year}">${d.scope === 'alltime' ? t('{name}’s career', { name: nameOf(d.core, d.player) }) : t('{name}’s year', { name: nameOf(d.core, d.player) })} →</a>` : ''}
     </div>
     ${list.length ? html`<ul class="t10-show-grid" data-plays>${list.map(p => playItem(ctx, d, p))}</ul>`
       : html`<p class="empty" data-plays>${d.player !== null ? t('Nothing showcased for {name} yet.', { name: nameOf(d.core, d.player) }) : t('Nothing showcased yet.')}</p>`}`;
