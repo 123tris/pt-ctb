@@ -13,10 +13,11 @@
 //   top10_plays     the score showcase, in two scopes: 'year' (plays set in the season's year) and 'alltime'
 //                   ("Legendary plays", any year). score_ref is the play's canonical ref (osu:<id>, legacy:<id> or
 //                   map:<beatmap>:<player>; null for a replay file or a clip), `refs` every ref it's known by (for
-//                   duplicates, within a scope), `card` its score as shown (resolved once, at submit), caption, clip
+//                   duplicates, within a scope; also osr:<sha256> for an .osr sent with a score whose replay osu!
+//                   keeps, which isn't stored), `card` its score as shown (resolved once, at submit), caption, clip
 //                   link, status 'ok' or 'hidden' (with the mod's reason). From the osu! API check (§13.9): has_replay
-//                   (null when osu! wasn't asked) and played_at. From an uploaded .osr: replay_sha (its SHA-256, the R2
-//                   key replays/<sha>.osr) and replay_name (the file name it downloads as).
+//                   (null when osu! wasn't asked) and played_at. From an uploaded .osr the site stores: replay_sha
+//                   (its SHA-256, the R2 key replays/<sha>.osr) and replay_name (the file name it downloads as).
 //   top10_marks     `mark` 'endorse' (osu_id endorses play `target`; kind is the play's scope) or 'thanks' (osu_id, the
 //                   subject, thanks the write-up on voter `target`'s ballot of that kind). The primary key is the "once
 //                   per person" rule.

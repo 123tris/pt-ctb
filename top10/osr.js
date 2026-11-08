@@ -5,11 +5,23 @@
 //   byte mode (2 = catch) · int version · string beatmap MD5 · string player · string replay MD5 ·
 //   short 300s, 100s, 50s, gekis, katus, misses · int score · short max combo · byte perfect · int mods ·
 //   string life bar · long timestamp (.NET ticks) · int length + that many bytes of LZMA data · long online score id
+//   (an int before version 20140721, none before 20121008) · from version 30000001 (lazer), int length + that many
+//   bytes: lazer's score info
 //
 // A "string" is 0x00 (empty) or 0x0b, a ULEB128 length, then that many UTF-8 bytes. In catch, 300s are fruits, 100s
 // drops, 50s droplets, katus missed droplets and misses missed fruits.
+//
+// The online score id is the legacy (stable) one: osu!stable writes it once the score is submitted (0 before), and
+// lazer writes its ScoreInfo.LegacyOnlineID there, which is -1 unless the score came from stable. Lazer's own score id
+// (the osu.ppy.sh/scores/<id> one) is in the score info it appends instead: LZMA-compressed JSON ("LZMA alone" framing,
+// top10/lzma.js) with online_id and user_id, among the mods and statistics. osu!'s servers write the replays they
+// serve for lazer scores the same way, with online_id set. Checked on 2026-11-08 against ppy/osu (LegacyScoreEncoder,
+// LegacyScoreDecoder, LegacyReplaySoloScoreInfo) and ppy/osu-server-spectator (ScoreUploader).
+
+import { lzmaDecode } from './lzma.js';
 
 export const MAX_REPLAY_BYTES = 2 * 1024 * 1024;
+const FIRST_LAZER_INFO = 30000001;
 const TICKS_AT_UNIX_EPOCH = 621355968000000000n;
 const MOD_BITS = [
   ['NF', 1], ['EZ', 2], ['TD', 4], ['HD', 8], ['HR', 16], ['SD', 32], ['DT', 64], ['RX', 128], ['HT', 256], ['NC', 512],
@@ -22,10 +34,24 @@ export function modNames(mods) {
   return names.filter(n => !(n === 'DT' && names.includes('NC')) && !(n === 'SD' && names.includes('PF')));
 }
 
+/** The JSON object in lazer's appended score info, or null when it can't be read. */
+function lazerInfo(block) {
+  const raw = lzmaDecode(block, { maxOut: 64 * 1024 });
+  if (!raw) return null;
+  try {
+    const info = JSON.parse(new TextDecoder('utf-8').decode(raw));
+    return info && typeof info === 'object' && !Array.isArray(info) ? info : null;
+  } catch {
+    return null;
+  }
+}
+const idOf = v => (Number.isSafeInteger(v) && v > 0 ? v : null);
+
 /**
  * The header of an .osr (an ArrayBuffer or Uint8Array): { mode, version, beatmapMd5, player, replayMd5, counts:
- * { n300, n100, n50, geki, katu, miss }, score, combo, perfect, mods, time (unix seconds), onlineId, accuracy (%) },
- * or null when it isn't a whole, sane replay header.
+ * { n300, n100, n50, geki, katu, miss }, score, combo, perfect, mods, time (unix seconds), onlineId (the legacy score
+ * id), soloId and userId (from lazer's score info: its score id and the player's osu! id), accuracy (%) }, each id null
+ * when the file has none; or null when it isn't a whole, sane replay header.
  */
 export function parseOsr(input) {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input ?? []);
@@ -74,7 +100,13 @@ export function parseOsr(input) {
     const dataLength = i32();
     need(dataLength);
     at += dataLength;
-    const onlineId = at + 8 <= bytes.length ? i64() : 0n;
+    const onlineId = version >= 20140721 ? (at + 8 <= bytes.length ? i64() : 0n) : version >= 20121008 && at + 4 <= bytes.length ? BigInt(i32()) : 0n;
+    // Lazer's score info, when it's there and reads; a replay is still a replay without it.
+    let info = null;
+    if (version >= FIRST_LAZER_INFO && at + 4 <= bytes.length) {
+      const length = i32();
+      if (length > 0 && at + length <= bytes.length) info = lazerInfo(bytes.subarray(at, at + length));
+    }
     const time = Number((ticks - TICKS_AT_UNIX_EPOCH) / 10000000n);
     if (mode > 3 || !/^[0-9a-f]{32}$/.test(beatmapMd5) || !player || player.length > 32 || /[\p{C}]/u.test(player)) return null;
     if (!(time > 946684800 && time < 4102444800)) return null; // 2000 to 2100
@@ -83,6 +115,7 @@ export function parseOsr(input) {
     return {
       mode, version, beatmapMd5, player, replayMd5, counts, score, combo, perfect, mods, time,
       onlineId: onlineId > 0n && onlineId <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(onlineId) : null,
+      soloId: idOf(info?.online_id), userId: idOf(info?.user_id),
       accuracy: total ? Math.round((hits / total) * 10000) / 100 : 0,
     };
   } catch {

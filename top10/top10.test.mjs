@@ -17,13 +17,14 @@ import { onRequestPost as submitRoute } from '../functions/api/top10/ballot/subm
 import { onRequestDelete as playDeleteRoute } from '../functions/api/top10/plays/[id]/index.js';
 import { onRequestPost as endorseRoute } from '../functions/api/top10/plays/[id]/endorse.js';
 import * as api from './api.js';
-import { SEASON, seasonOf, phaseOf, normalizeSeason } from './season.js';
+import { SEASON, seasonOf, phaseOf, showcaseOf, normalizeSeason } from './season.js';
 import { tokens, countWords, analyse, shingles, overlap, bananasFor } from './words.js';
 import { spotPoints, spotsValid, listPoints, computeResults, payoutsFor } from './score.js';
 import { forgetData, tuplesWithId, tuplesOnMap, bestOnMap, mapTuple, ptPlayers } from './data.js';
 import { parseRef, refSid, scoreUrl, sidRef } from './refs.js';
 import { forgetOsuToken, scoreFromApi } from './osu.js';
 import { MAX_REPLAY_BYTES, attachment, modNames, parseOsr, replayFileName } from './osr.js';
+import { lzmaDecode } from './lzma.js';
 import { checkEdition, editionYear, namesFromAliases, pastResults, pastSql } from './past.js';
 import fs from 'node:fs';
 
@@ -343,7 +344,7 @@ test('payouts: approved unflagged write-ups on picks; a strike costs the ballot 
 test('the hub: season, turnout, and for a signed-in player whether they can vote', async () => {
   const env = envWith();
   const out = await call(api.hub, env, { now: OPEN });
-  assert.deepEqual(out.body, { season: { ...SEASON, phase: 'open' }, turnout: 0, turnouts: { year: 0, alltime: 0 }, finalized: false, editions: [] });
+  assert.deepEqual(out.body, { season: { ...SEASON, phase: 'open', showcase: 'open' }, turnout: 0, turnouts: { year: 0, alltime: 0 }, finalized: false, editions: [] });
   assert.ok(Number.isInteger(out.body.turnout), 'turnout is a plain whole number, for the bot');
   const pt = await call(api.hub, env, { as: 3, now: OPEN });
   assert.deepEqual(pt.body.me, { osuId: 3, eligible: true, ballot: null, ballots: { year: null, alltime: null } });
@@ -372,7 +373,8 @@ test('only signed-in PT players save ballots, and only while voting is open', as
     assert.deepEqual([out.status, out.body.code], [409, code], code);
     assert.equal((await submit(env, 3, now)).status, 409);
     assert.equal((await withdraw(env, 3, now)).status, 409);
-    assert.equal((await addPlay(env, 3, { player: 4, clip: 'https://youtu.be/abc' }, now)).status, 409);
+    // The showcase has its own window, which is open before voting is (see the showcase window's test).
+    assert.equal((await addPlay(env, 3, { player: 4, clip: `https://youtu.be/${now}` }, now)).status, now === BEFORE ? 201 : 409);
   }
   assert.equal((await save(env, 3, body, LAST_SECOND)).status, 200, 'the last second still saves');
   assert.equal((await mine(env, 3)).body.ballot.status, 'draft');
@@ -672,6 +674,60 @@ test('showcase: the list, endorsements (one each, toggled) and removing your own
   assert.equal(env.ECONOMY.sqlite.prepare("SELECT COUNT(*) AS n FROM top10_marks WHERE mark = 'endorse' AND target = 1").get().n, 0);
 });
 
+test('the showcase has its own window: from showcaseOpens, before voting, to the close; ballots keep voting’s', async () => {
+  const season = seasonOf({});
+  assert.equal(season.showcaseOpens, '2026-11-08T00:00:00Z');
+  assert.deepEqual([at('2026-11-07T23:59:59Z'), at('2026-11-08T00:00:00Z'), BEFORE, OPEN, LAST_SECOND, LAST_SECOND + 1, REVEALED].map(t => showcaseOf(season, t)),
+    ['before', 'open', 'open', 'open', 'open', 'closed', 'closed']);
+  const env = envWith();
+  const hub = (await call(api.hub, env, { now: BEFORE })).body;
+  assert.deepEqual([hub.season.phase, hub.season.showcase, hub.season.showcaseOpens], ['before', 'open', '2026-11-08T00:00:00Z']);
+
+  // In the window, before voting: adding (both scopes), endorsing, removing and the mods' actions work…
+  const added = await addPlay(env, 2, { score: 'https://osu.ppy.sh/scores/5000000001' }, BEFORE);
+  assert.equal(added.status, 201, added.body.error);
+  assert.equal((await addPlay(env, 5, { player: 6, clip: 'https://youtu.be/early' }, BEFORE)).status, 201);
+  assert.equal((await addPlay(env, 5, { scope: 'alltime', score: '5000000002', player: 2 }, BEFORE)).status, 201, 'Legendary plays too');
+  const endorsed = await call(api.endorse, env, { as: 7, now: BEFORE, method: 'POST', path: '/api/top10/plays/1/endorse', id: '1' });
+  assert.deepEqual(endorsed.body, { endorsed: true, endorsements: 1 });
+  assert.deepEqual((await act(env, 1, { action: 'hide-play', target: 'play:2', reason: 'not a play' }, BEFORE)).body, { ok: true, changed: true });
+  assert.deepEqual((await act(env, 1, { action: 'show-play', target: 'play:2' }, BEFORE)).body, { ok: true, changed: true });
+  assert.equal((await call(api.deletePlay, env, { as: 5, now: BEFORE, method: 'DELETE', path: '/api/top10/plays/2', id: '2' })).status, 200);
+  // …while ballots still wait for voting.
+  const ballot = await save(env, 3, { picks: picks(4, 5, 6, 7, 8) }, BEFORE);
+  assert.deepEqual([ballot.status, ballot.body.code], [409, 'not_open']);
+
+  // Before the showcase opens, and after the close: no adding.
+  const early = await addPlay(env, 5, { player: 6, clip: 'https://youtu.be/too-early' }, at('2026-11-07T12:00:00Z'));
+  assert.deepEqual([early.status, early.body.code, early.body.showcase], [409, 'not_open', 'before']);
+  assert.match(early.body.error, /The showcase opens on 2026-11-08/);
+  for (const now of [LAST_SECOND + 1, CLOSED, REVEALED]) {
+    const late = await addPlay(env, 5, { player: 6, clip: `https://youtu.be/late${now}` }, now);
+    assert.deepEqual([late.status, late.body.code, late.body.showcase], [409, 'closed', 'closed'], String(now));
+  }
+  assert.equal((await addPlay(env, 5, { player: 6, clip: 'https://youtu.be/last' }, LAST_SECOND)).status, 201, 'the last second still adds');
+});
+
+test('a season without showcaseOpens opens the showcase with voting, as before; one after opens is refused', async () => {
+  const mock = { year: 2026, opens: '2026-11-20T00:00:00Z', closes: '2026-11-26T23:59:59Z', reveal: '2026-11-28T12:00:00Z', thanksUntil: '2026-11-30T23:59:59Z' };
+  const season = seasonOf({ TOP10_SEASON: JSON.stringify(mock) });
+  assert.equal(season.showcaseOpens, mock.opens);
+  const env = envWith({ TOP10_SEASON: JSON.stringify(mock) });
+  const before = await addPlay(env, 5, { player: 6, clip: 'https://youtu.be/a' }, at('2026-11-19T23:59:59Z'));
+  assert.deepEqual([before.status, before.body.code], [409, 'not_open']);
+  assert.equal((await addPlay(env, 5, { player: 6, clip: 'https://youtu.be/a' }, at('2026-11-20T00:00:00Z'))).status, 201);
+  assert.equal((await addPlay(env, 5, { player: 6, clip: 'https://youtu.be/b' }, at('2026-11-27T00:00:00Z'))).body.code, 'closed');
+  // showcaseOpens may be earlier than opens, never later, and must be a time.
+  assert.equal(seasonOf({ TOP10_SEASON: JSON.stringify({ ...mock, showcaseOpens: '2026-11-10T00:00:00Z' }) }).showcaseOpens, '2026-11-10T00:00:00Z');
+  assert.equal(normalizeSeason({ ...mock, showcaseOpens: '2026-11-21T00:00:00Z' }), null);
+  assert.equal(normalizeSeason({ ...mock, showcaseOpens: 'soon' }), null);
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    assert.equal(seasonOf({ TOP10_SEASON: JSON.stringify({ ...mock, showcaseOpens: '2026-11-21T00:00:00Z' }) }).opens, SEASON.opens, 'out of order: the built-in season');
+  } finally { console.warn = warn; }
+});
+
 test('the PT list and player files come from the Cache API when there is one', async () => {
   const kept = new Map();
   globalThis.caches = { default: { match: async url => (kept.has(url) ? new Response(kept.get(url)) : undefined), put: async (url, res) => { kept.set(url, await res.text()); } } };
@@ -886,7 +942,7 @@ test('the site’s top10.* requests don’t count against a player’s own reque
  * real one in the repo; this one exercises the same layout, multi-byte ULEB128 lengths and UTF-8 names included.
  */
 function osrFile({ mode = 2, md5 = 'c'.repeat(32), player = 'Player6', counts = [900, 20, 300, 0, 5, 2], score = 5000000, combo = 850, perfect = 0,
-  mods = 24, lifeBar = '0|1,100|1,'.repeat(40), time = '2026-06-01T20:30:00Z', data = 120, onlineId = 0, truncate = 0 } = {}) {
+  mods = 24, lifeBar = '0|1,100|1,'.repeat(40), time = '2026-06-01T20:30:00Z', data = 120, onlineId = 0, version = 20240501, lazer = null, truncate = 0 } = {}) {
   const parts = [];
   const enc = new TextEncoder();
   const u8 = v => parts.push(Uint8Array.of(v));
@@ -902,10 +958,11 @@ function osrFile({ mode = 2, md5 = 'c'.repeat(32), player = 'Player6', counts = 
     do { let byte = n & 0x7f; n >>>= 7; if (n) byte |= 0x80; u8(byte); } while (n);
     parts.push(b);
   };
-  u8(mode); i32(20240501); str(md5); str(player); str('d'.repeat(32));
+  u8(mode); i32(version); str(md5); str(player); str('d'.repeat(32));
   counts.forEach(u16); i32(score); u16(combo); u8(perfect); i32(mods); str(lifeBar);
   i64(BigInt(Date.parse(time)) * 10000n + 621355968000000000n);
   i32(data); parts.push(new Uint8Array(data).fill(0x5d)); i64(onlineId);
+  if (lazer) { i32(lazer.length); parts.push(lazer); }
   const all = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let at = 0;
   for (const p of parts) { all.set(p, at); at += p.length; }
@@ -956,7 +1013,7 @@ test('the .osr header: every field, a UTF-8 name, long strings, and junk refused
   assert.deepEqual({ ...replay, version: undefined }, {
     mode: 2, version: undefined, beatmapMd5: 'c'.repeat(32), player: 'João Ç', replayMd5: 'd'.repeat(32),
     counts: { n300: 900, n100: 20, n50: 300, geki: 0, katu: 5, miss: 2 }, score: 5000000, combo: 850, perfect: false, mods: 600,
-    time: at('2026-06-01T20:30:00Z'), onlineId: 4567890123, accuracy: 99.43,
+    time: at('2026-06-01T20:30:00Z'), onlineId: 4567890123, soloId: null, userId: null, accuracy: 99.43,
   });
   assert.deepEqual(modNames(replay.mods), ['HD', 'HR', 'NC']);
   assert.equal(parseOsr(osrFile({ mode: 0 })).mode, 0, 'other rulesets parse; the API refuses them');
@@ -1122,6 +1179,104 @@ test('an .osr with a score link must be that score’s; osu!’s own replay is l
   const wrongMap = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9102', replay: osrFile({ player: 'Player6', md5: 'f'.repeat(32) }) });
   assert.deepEqual([wrongMap.status, wrongMap.body.code], [422, 'replay_mismatch']);
   assert.equal(osuCalls.filter(c => c.path.startsWith('/api/v2/beatmaps')).length, 0, 'the score call gives the map: no lookup');
+});
+
+/**
+ * The score info lazer appends to its replays, for score 9300 by player 6 (online_id, user_id, mods, statistics…),
+ * framed as lazer writes it: "LZMA alone" with the real size in the header. Made with Python's lzma module
+ * (FORMAT_ALONE, lc 3, lp 0, pb 2, a 2 MiB dictionary, as lazer's encoder sets).
+ */
+const LAZER_INFO_9300 = Uint8Array.from(Buffer.from('XQAAIABXAQAAAAAAAAA9iInnI/ZsWfQmC3pS+6ZC8OWj+IIQ88PMUZNzZvQYRAbw+uo+e/4ZmsT/uhtFzxyvE/fh1aJZbFi2rFuBuYL50WUmUm6PdbvyY1gZ3ivej9eI0zpiJ8PSotCS4PLAHS0slvku7sP1yJkcXY1gTquXx21VertY/u6YR0W81WWMXpCwzBtVmLfjGD8HClsAK/O9JGNuaijSvHA3k13GBcP4IgeBr9owW//YT0S7iNVbhZsnyEQYD3fZbOrx/z15UJ858wobBCm4tJXzAppvaBG2yd/+6eTm', 'base64'));
+/** A replay as lazer writes it: its own version, -1 in the legacy id field, then the score info. */
+const lazerOsr = (extra = {}) => osrFile({ version: 30000016, onlineId: -1, lazer: LAZER_INFO_9300, ...extra });
+
+test('lazer replays: the score id is in the score info they append (LZMA), not in the legacy id field', () => {
+  const info = JSON.parse(new TextDecoder().decode(lzmaDecode(LAZER_INFO_9300)));
+  assert.deepEqual([info.online_id, info.user_id, info.client_version], [9300, 6, '2026.1101.0-lazer']);
+  const osr = parseOsr(lazerOsr());
+  assert.deepEqual([osr.mode, osr.player, osr.onlineId, osr.soloId, osr.userId], [2, 'Player6', null, 9300, 6]);
+  const stable = parseOsr(osrFile({ onlineId: 555 }));
+  assert.deepEqual([stable.onlineId, stable.soloId, stable.userId], [555, null, null]);
+  // Score info that doesn't read leaves a replay with no ids; it's only read from lazer's versions.
+  const cut = parseOsr(lazerOsr({ lazer: LAZER_INFO_9300.slice(0, 40) }));
+  assert.deepEqual([cut?.mode, cut?.soloId, cut?.onlineId], [2, null, null]);
+  assert.equal(parseOsr(osrFile({ lazer: LAZER_INFO_9300 })).soloId, null);
+  // The decoder refuses junk, a cut stream and more than it may give.
+  assert.equal(lzmaDecode(new Uint8Array(40).fill(7)), null);
+  assert.equal(lzmaDecode(LAZER_INFO_9300.subarray(0, 60)), null);
+  assert.equal(lzmaDecode(LAZER_INFO_9300, { maxOut: 100 }), null);
+});
+
+test('a replay osu! keeps isn’t stored: a link with its .osr, or an .osr whose score osu! has; otherwise the file is kept', async () => {
+  const bucket = fakeBucket();
+  const env = osuEnv({ REPLAYS: bucket });
+  const row = id => env.ECONOMY.sqlite.prepare('SELECT replay_sha, replay_name, refs, has_replay FROM top10_plays WHERE id = ?').get(id);
+
+  // A link with its .osr, and osu! keeps the replay: the file is checked, then the entry links to osu!'s, no copy.
+  osuRoutes['/api/v2/scores/9200'] = apiScore(9200, { replay: true });
+  const file = osrFile({ player: 'Player6', time: '2026-04-02T18:00:00Z' });
+  const linked = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9200', replay: file });
+  assert.equal(linked.status, 201, linked.body.error);
+  assert.deepEqual([linked.body.replay, linked.body.play.replay], ['osu', { kind: 'osu', url: 'https://osu.ppy.sh/scores/9200/download' }]);
+  assert.deepEqual(bucket.log, []);
+  assert.deepEqual([row(1).replay_sha, row(1).replay_name, row(1).has_replay], [null, null, 1]);
+  osuRoutes['/api/v2/scores/9201'] = apiScore(9201, { replay: true });
+  assert.equal((await upload(env, 5, { score: '9201', replay: osrFile({ player: 'Player7' }) })).body.code, 'replay_mismatch', 'still checked');
+  // The same file alone (no score id in it, and no copy) is still the same play: known by its SHA-256.
+  const again = await upload(env, 8, { replay: file });
+  assert.deepEqual([again.status, again.body.code, again.body.id], [409, 'duplicate', 1]);
+
+  // A lazer .osr alone, naming score 9300, which osu! has with its replay: that score's entry, pp and all; no copy.
+  osuRoutes['/api/v2/scores/9300'] = apiScore(9300, { replay: true, ended: '2026-05-05T12:00:00Z' });
+  let calls = osuCalls.length;
+  const lazer = await upload(env, 5, { replay: lazerOsr({ time: '2026-05-05T12:00:00Z' }), caption: 'from lazer' });
+  assert.equal(lazer.status, 201, lazer.body.error);
+  assert.deepEqual({ ...lazer.body.play, id: undefined, created: undefined }, {
+    id: undefined, year: 2026, scope: 'year', submitter: 5, player: 6, score_ref: 'osu:9300', beatmap_id: 777, caption: 'from lazer', clip: null, created: undefined,
+    played: '2026-05-05T12:00:00Z', endorsements: 0, score: apiCard('osu:9300', { time: '2026-05-05T12:00:00Z' }),
+    replay: { kind: 'osu', url: 'https://osu.ppy.sh/scores/9300/download' },
+  });
+  assert.equal(lazer.body.replay, 'osu');
+  assert.deepEqual(osuCalls.slice(calls).map(c => c.path), ['/api/v2/scores/9300'], 'one call: the score gives the map');
+  assert.deepEqual(bucket.log, []);
+  // The same score again, by its file or its link: refused before osu! is asked.
+  calls = osuCalls.length;
+  assert.equal((await upload(env, 8, { replay: lazerOsr({ time: '2026-05-05T12:00:00Z' }) })).body.code, 'duplicate');
+  assert.equal((await addPlay(env, 8, { score: 'https://osu.ppy.sh/scores/9300' })).body.code, 'duplicate');
+  assert.equal(osuCalls.length, calls);
+
+  // A stable .osr alone with its legacy id, and osu! has the score but no replay: the score's entry, and the file kept.
+  osuRoutes['/api/v2/scores/fruits/555'] = apiScore(9400, { legacy: 555, replay: false });
+  const stable = await upload(env, 5, { replay: osrFile({ player: 'Player6', onlineId: 555, time: '2026-04-02T18:00:00Z' }) });
+  assert.equal(stable.status, 201, stable.body.error);
+  assert.deepEqual([stable.body.replay, stable.body.play.score_ref, stable.body.play.score.pp, stable.body.play.replay.kind], ['kept', 'osu:9400', 812.4, 'file']);
+  const kept = row(stable.body.play.id);
+  assert.deepEqual([JSON.parse(kept.refs), kept.has_replay], [['osu:9400', 'legacy:555'], 0]);
+  assert.deepEqual(bucket.log, [`put replays/${kept.replay_sha}.osr`]);
+  assert.equal((await addPlay(env, 8, { score: 'https://osu.ppy.sh/scores/fruits/555' })).body.code, 'duplicate');
+
+  // An id naming another player's score, or one on another map, is refused; and osu!'s date decides the year.
+  osuRoutes['/api/v2/scores/fruits/556'] = apiScore(9401, { legacy: 556, user: 7 });
+  osuRoutes['/api/v2/scores/fruits/557'] = apiScore(9402, { legacy: 557, checksum: 'e'.repeat(32) });
+  osuRoutes['/api/v2/scores/fruits/558'] = apiScore(9403, { legacy: 558, ended: '2025-12-30T10:00:00Z' });
+  assert.equal((await upload(env, 5, { replay: osrFile({ player: 'Player6', onlineId: 556 }) })).body.code, 'replay_mismatch');
+  assert.equal((await upload(env, 5, { replay: osrFile({ player: 'Player6', onlineId: 557 }) })).body.code, 'replay_mismatch');
+  assert.equal((await upload(env, 5, { replay: osrFile({ player: 'Player6', onlineId: 558 }) })).body.code, 'wrong_year');
+
+  // No id, no such score on osu!, or osu! down: the file is the entry and is stored, as before, in two calls at most.
+  const md5 = 'a'.repeat(32);
+  osuRoutes[`/api/v2/beatmaps/lookup?checksum=${md5}`] = { id: 780, version: 'Hard', difficulty_rating: 5, beatmapset: { id: 4243, artist: 'A', title: 'T' } };
+  osuRoutes['/api/v2/scores/fruits/600'] = 503;
+  for (const [onlineId, why] of [[0, 'no id'], [601, 'no such score on osu!'], [600, 'osu! down']]) {
+    calls = osuCalls.length;
+    const put = bucket.log.length;
+    const res = await upload(env, 7, { replay: osrFile({ player: 'Player9', md5, onlineId }) });
+    assert.equal(res.status, 201, `${why}: ${res.body.error}`);
+    assert.deepEqual([res.body.replay, res.body.play.replay.kind, res.body.play.score_ref, res.body.play.score.pp, res.body.play.beatmap_id], ['kept', 'file', null, null, 780], why);
+    assert.equal(bucket.log.length, put + 1, why);
+    assert.ok(osuCalls.length - calls <= 2, `${why}: ${osuCalls.length - calls} calls`);
+    assert.equal((await upload(env, 8, { replay: osrFile({ player: 'Player9', md5, onlineId }) })).body.code, 'duplicate', `${why}: by its SHA-256`);
+  }
 });
 
 // ---- Past editions (§13.10) ---------------------------------------------------------------------------------------
