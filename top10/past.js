@@ -2,8 +2,10 @@
 // by hand, counted with the same score.js as a season, and kept in top10_results like a finalized year, so
 // GET /api/top10/results?year= serves them like any other (top10/import-past.mjs writes the SQL that puts them there).
 //
-// An edition file is { edition, label, thread, ballots: [{ voter, post, picks: [{ id, spot }], mentions: [id],
+// An edition file is { kind?, edition, label, thread, ballots: [{ voter, post, picks: [{ id, spot }], mentions: [id],
 // watch: [id], notes? }] }, with osu! user ids. "2023-24" is one edition; its year key is 2024 and its label "2023–24".
+// `kind` is 'year' (left out) or 'alltime' (§13.11): an all-time list, like the 2020 thread's (alltime-2020.json), which
+// has no ones to watch and is served at results?year=<edition>&kind=alltime.
 //
 // What's different from a season (the live limits stay as they are):
 // - a past edition is published whatever its turnout (2020 had one list, 2023–24 four);
@@ -25,15 +27,20 @@ export function editionYear(edition) {
 
 const isId = v => Number.isSafeInteger(v) && v > 0;
 
+/** An edition file's kind: 'year' when it doesn't say, or null when it says something else. */
+export const editionKind = file => (file?.kind === undefined || file?.kind === null ? 'year' : ['year', 'alltime'].includes(file.kind) ? file.kind : null);
+
 /**
- * What's wrong with an edition file: { errors, warnings } (lists of text). An error stops its import (an unknown year,
- * a list without a voter, an id that isn't an osu! id, a player twice on one list, a voter on their own list); a
- * warning doesn't (numbering that skips oddly, a voter with two lists).
+ * What's wrong with an edition file: { errors, warnings } (lists of text). An error stops its import (an unknown year
+ * or kind, a list without a voter, an id that isn't an osu! id, a player twice on one list, a voter on their own list,
+ * ones to watch on an all-time list); a warning doesn't (numbering that skips oddly, a voter with two lists).
  */
 export function checkEdition(file) {
   const errors = [];
   const warnings = [];
   if (!editionYear(file?.edition)) errors.push(`edition "${file?.edition}" isn't a year like 2025 or 2023-24`);
+  const kind = editionKind(file);
+  if (!kind) errors.push(`kind "${file?.kind}" isn't 'year' or 'alltime'`);
   if (!Array.isArray(file?.ballots) || !file.ballots.length) errors.push('no ballots');
   const seen = new Set();
   for (const [i, b] of (file?.ballots ?? []).entries()) {
@@ -51,6 +58,7 @@ export function checkEdition(file) {
     for (const key of ['mentions', 'watch']) {
       if (b?.[key] !== undefined && (!Array.isArray(b[key]) || !b[key].every(isId))) errors.push(`${who}: ${key} isn't a list of osu! ids`);
     }
+    if (kind === 'alltime' && Array.isArray(b?.watch) && b.watch.length) errors.push(`${who}: an all-time list has no ones to watch`);
   }
   return { errors, warnings };
 }
@@ -83,7 +91,7 @@ export function namesFromAliases(markdown) {
 }
 
 /**
- * An edition's results: score.js's JSON (§13.5) for its year key, plus edition, label, thread, past: true, names
+ * An edition's results: score.js's JSON (§13.5) for its year key and kind, plus edition, label, thread, past: true, names
  * ({ [id]: name } for every id the edition names, from `names`: a Map, the live player index first; an id with none
  * gets its number) and lists (the forum posts: [{ voter, post, picks, mentions, watch, notes? }]). Throws when
  * checkEdition finds an error.
@@ -92,8 +100,9 @@ export function pastResults(file, { importedAt = new Date().toISOString(), names
   const { errors } = checkEdition(file);
   if (errors.length) throw new Error(`${file?.edition}: ${errors.join('; ')}`);
   const year = editionYear(file.edition);
+  const kind = editionKind(file);
   const ballots = file.ballots.map(b => ({ voter: b.voter, picks: b.picks.map(p => ({ id: p.id, spot: p.spot })), mentions: b.mentions ?? [], watch: b.watch ?? [] }));
-  const { results } = computeResults({ year, ballots, finalizedAt: importedAt, minBallots: 1 });
+  const { results } = computeResults({ year, kind, ballots, finalizedAt: importedAt, minBallots: 1 });
   const lists = file.ballots.map((b, i) => ({ voter: b.voter, post: b.post ?? null, ...ballots[i], ...(b.notes ? { notes: String(b.notes) } : {}) }));
   return {
     ...results, edition: String(file.edition), label: file.label ? String(file.label) : String(file.edition), thread: file.thread ?? null, past: true,
@@ -105,14 +114,15 @@ export function pastResults(file, { importedAt = new Date().toISOString(), names
 const sqlText = s => `'${String(s).replace(/'/g, "''")}'`;
 
 /**
- * SQL that saves past editions' results in top10_results (made if missing), replacing what an earlier import saved
- * for those years. `by` is 0: no admin finalized them. For `wrangler d1 execute … --file`.
+ * SQL that saves past editions' results in top10_results (made if missing, as top10/store.js makes it), replacing what
+ * an earlier import saved for those years and kinds. `by` is 0: no admin finalized them. For
+ * `wrangler d1 execute … --file`.
  */
 export function pastSql(editions, { importedAt = Math.floor(Date.now() / 1000) } = {}) {
   return [
-    '-- Past Top 10 editions (top10/import-past.mjs). Safe to run again: it replaces those years.',
-    'CREATE TABLE IF NOT EXISTS top10_results (year INTEGER PRIMARY KEY, json TEXT NOT NULL, finalized_at INTEGER NOT NULL, "by" INTEGER NOT NULL);',
-    ...editions.map(r => `INSERT OR REPLACE INTO top10_results (year, json, finalized_at, "by") VALUES (${r.year}, ${sqlText(JSON.stringify(r))}, ${importedAt}, 0);`),
+    '-- Past Top 10 editions (top10/import-past.mjs). Safe to run again: it replaces those years and kinds.',
+    `CREATE TABLE IF NOT EXISTS top10_results (year INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'year', json TEXT NOT NULL, finalized_at INTEGER NOT NULL, "by" INTEGER NOT NULL, PRIMARY KEY (year, kind)) WITHOUT ROWID;`,
+    ...editions.map(r => `INSERT OR REPLACE INTO top10_results (year, kind, json, finalized_at, "by") VALUES (${r.year}, ${sqlText(r.kind ?? 'year')}, ${sqlText(JSON.stringify(r))}, ${importedAt}, 0);`),
     '',
   ].join('\n');
 }

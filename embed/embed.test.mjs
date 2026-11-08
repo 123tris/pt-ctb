@@ -53,6 +53,19 @@ test('the Top 10 of the year has its own previews (the bot’s announcement link
   assert.equal(new Set(descriptions).size, descriptions.length);
 });
 
+test('the all-time ballot’s pages have their own previews (§13.11)', () => {
+  assert.equal(describe('/top10/vote/alltime').title, 'Your all-time ballot · Top 10 of all time · PT Catch');
+  assert.match(describe('/top10/vote/alltime').description, /of all time, legends included/);
+  assert.equal(describe('/top10/2026/alltime').title, 'Top 10 of all time, 2026 · PT Catch');
+  assert.equal(describe('/top10/2020/alltime/').title, 'Top 10 of all time, 2020 · PT Catch');
+  assert.match(describe('/top10/plays/alltime').title, /^Legendary plays/);
+  assert.match(describe('/top10/ballots/alltime').title, /^All-time ballots/);
+  assert.equal(describe('/top10/dossier/alltime'), null);
+  assert.equal(describe('/top10/2026/nope'), null);
+  const descriptions = ['/top10/vote/alltime', '/top10/2026/alltime', '/top10/plays/alltime', '/top10/ballots/alltime', '/top10/vote', '/top10/2026'].map(a => describe(a).description);
+  assert.equal(new Set(descriptions).size, descriptions.length);
+});
+
 test('a player, a map, a recap and a comparison name their subject', () => {
   const player = withData(describe('/player/19423459/best'), { players: PLAYERS });
   assert.equal(player.title, '_wb · PT Catch');

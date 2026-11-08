@@ -5,9 +5,16 @@
 // code mean "sign in" and "not set up on this copy"). Field names are the contract's columns (§13.2); times are ISO
 // strings, except a card's `time` (unix seconds).
 //
+// Two ballots share each December (§13.11): `kind` 'year' (the top 10 of the year) and 'alltime' (of all time). Every
+// endpoint about ballots, write-ups, thanks or results takes it: ?kind= on a GET, a `kind` field on a write. Left out,
+// it's 'year', so everything from before the all-time ballot works as it did. An all-time ballot has the same rules,
+// except that it has no ones to watch (watch is refused) and a cited map ref is the player's best play on the map in
+// any year. The showcase has a `scope` the same way: 'year' (plays set in the season's year, 15 per person, at most 5
+// of your own) and 'alltime' ("Legendary plays": any year, 10 per person, at most 5 of your own).
+//
 // Shapes (the endpoints below return these):
 //
-//   Ballot     { year, voter, status: draft|submitted|void, picks: [{ id, spot }], mentions: [id], watch: [id],
+//   Ballot     { year, kind, voter, status: draft|submitted|void, picks: [{ id, spot }], mentions: [id], watch: [id],
 //                skills: null, intro, outro, submitted_at, updated, void_reason, writeups: { [subject]: Writeup },
 //                scores: { [ref]: Card } }                      (your own: GET /ballot, PUT, submit, withdraw, me.ballot)
 //   Writeup    yours: { body, words, cites: [ref], flags: [repetitive|copy|mash], mod: ok|struck, mod_reason, thanks,
@@ -17,36 +24,40 @@
 //                ("HDHR", "NM"), grade, time (unix seconds), url (its osu! page, or null) }, any of them null when not
 //                known; a cited showcase entry's also has play (its id) and clip. Resolved once, when the play is
 //                submitted or cited (from osu!'s answer, the exported data or the .osr), and stored.
-//   Play       a showcase entry: { id, year, submitter, player, score_ref, beatmap_id, caption, clip, created, played,
+//   Play       a showcase entry: { id, year, scope, submitter, player, score_ref, beatmap_id, caption, clip, created, played,
 //                endorsements, endorsed? (signed in), score: Card | null, replay }, plus status, reason and target in the
 //                admin queue. replay: { kind: 'osu', url } (osu!'s own download, which needs the visitor signed in on
 //                osu!; only when osu! keeps it), { kind: 'file', url, name } (an uploaded .osr on data.ptcatch.com,
 //                served as an attachment named `name`), or null.
 //   Refs       how a play is named (top10/refs.js): osu:<id> (a lazer score id), legacy:<id> (a stable one),
 //                map:<beatmap>:<player> (that player's best play on that map set in the season's year, in the exported
-//                data), play:<id> (a showcase entry; cites only). Score links, bare numbers, "map:<beatmap>" with the
-//                player given apart and "p<id>" are read too, and answered in this canonical form.
+//                data; in any year on an all-time ballot or among the Legendary plays), play:<id> (a showcase entry;
+//                cites only). Score links, bare numbers, "map:<beatmap>" with the player given apart and "p<id>" are
+//                read too, and answered in this canonical form.
 //
-//   GET    /api/top10                    { season: { year, opens, closes, reveal, thanksUntil, phase }, turnout (a whole
-//                                        number: submitted ballots), finalized, editions: [{ year, label }] (years
-//                                        whose results are out) }, plus me: { osuId, eligible, code?, reason?,
-//                                        ballot: Ballot | null } signed in
-//   GET    /api/top10/ballots?year=      { year, ballots: [{ voter, picks, mentions, watch, skills, intro, outro,
+//   GET    /api/top10                    { season: { year, opens, closes, reveal, thanksUntil, phase }, turnout (the
+//                                        yearly ballots submitted, a whole number: the deployed bot reads it),
+//                                        turnouts: { year, alltime }, finalized, editions: [{ year, kind, label }]
+//                                        (results that are out) }, plus me: { osuId, eligible, code?, reason?,
+//                                        ballot (the yearly one), ballots: { year, alltime } } signed in (each a
+//                                        Ballot or null)
+//   GET    /api/top10/ballots?year=&kind=  { year, kind, ballots: [{ voter, kind, picks, mentions, watch, skills, intro, outro,
 //                                        submitted_at, updated, thanks (total), writeups: { [subject]: Writeup },
 //                                        scores: { [ref]: Card } }] }: every submitted ballot, first submitted first;
 //                                        struck write-ups and void ballots left out
-//   GET    /api/top10/ballot             { season, eligible, code?, reason?, ballot: Ballot | null, log } (log: the mod
-//                                        actions on your ballot, write-ups and showcase entries)
-//   PUT    /api/top10/ballot             PT, open. { picks, mentions, watch, intro, outro, writeups: { [subject]:
+//   GET    /api/top10/ballot?kind=       { season, kind, eligible, code?, reason?, ballot: Ballot | null, log } (log: the
+//                                        mod actions on both your ballots, your write-ups and showcase entries, each
+//                                        with its kind)
+//   PUT    /api/top10/ballot             PT, open. { kind?, picks, mentions, watch, intro, outro, writeups: { [subject]:
 //                                        { body, cites: [ref] } } }. A field left out keeps its saved value;
 //                                        `writeups` merges (an empty body or null deletes that one); a write-up on
 //                                        anyone no longer listed goes. Up to 5 cites a write-up; a map ref without a
 //                                        player is the subject's; each is checked and its card stored. A submitted
 //                                        ballot stays submitted, so it must stay valid. → { ballot }
-//   POST   /api/top10/ballot/submit      PT, open. Checks the saved ballot and makes it public. → { ballot }
-//   POST   /api/top10/ballot/withdraw    open. Back to draft. → { ballot }
-//   GET    /api/top10/plays?year=&player=  { year, plays: [Play] }: the `ok` entries, most endorsed first
-//   POST   /api/top10/plays              PT, open. JSON { score: ref or osu! score link, player?, caption?, clip? }
+//   POST   /api/top10/ballot/submit      PT, open. { kind? }. Checks the saved ballot and makes it public. → { ballot }
+//   POST   /api/top10/ballot/withdraw    open. { kind? }. Back to draft. → { ballot }
+//   GET    /api/top10/plays?year=&scope=&player=  { year, scope, plays: [Play] }: the `ok` entries, most endorsed first
+//   POST   /api/top10/plays              PT, open. JSON { scope?, score: ref or osu! score link, player?, caption?, clip? }
 //                                        or { player, clip, caption? }; or multipart/form-data with those fields as
 //                                        text and `replay`, an .osr file up to 2 MB, alone or with a score. osu: and
 //                                        legacy: refs are checked with the osu! API (one call; the exported data when
@@ -54,32 +65,41 @@
 //   DELETE /api/top10/plays/:id          the submitter. → { ok }
 //   POST   /api/top10/plays/:id/endorse  PT. { endorsed? } (left out: toggles). → { endorsed, endorsements }
 //   POST   /api/top10/thanks             the subject of a write-up on a public ballot, until thanksUntil.
-//                                        { voter, thanked? } (left out: toggles). Before finalize it can be taken
-//                                        back; after, only given (taking back is 409 final), and a new one is paid
-//                                        at once. → { thanked, thanks }
-//   GET    /api/top10/results?year=      404 before the reveal (or if the year has no results); then the results JSON
-//                                        (top10/score.js), cached. Past editions (2020–2025, top10/import-past.mjs)
+//                                        { kind?, voter, thanked? } (left out: toggles). Before that kind is finalized
+//                                        it can be taken back; after, only given (taking back is 409 final), and a
+//                                        new one is paid at once. → { thanked, thanks }
+//   GET    /api/top10/results?year=&kind=  404 before the reveal (or if that year and kind have no results); then the
+//                                        results JSON (top10/score.js, with its kind), cached. Past editions (2020–2025,
+//                                        and an all-time list if one is found; top10/import-past.mjs)
 //                                        add edition, label ("2023–24" for the year key 2024), thread, past: true,
 //                                        names ({ [id]: name } for every id in them) and lists (the forum posts:
 //                                        [{ voter, post, picks, mentions, watch, notes? }])
-//   GET    /api/top10/admin/queue?year=  admins. { season, phase, year, finalized, writeups: [{ voter, subject, body,
+//   GET    /api/top10/admin/queue?year=&kind=  admins; both kinds unless ?kind= says one, each item with its kind.
+//                                        { season, phase, year, finalized, writeups: [{ kind, voter, subject, body,
 //                                        words, cites, flags, mod, mod_reason, updated, ranked (about a pick, so it
 //                                        pays), ballot_status, target, own }] (flagged first), plays: [Play with
 //                                        status, reason, target] (hidden too), ballots: [Ballot without write-ups,
 //                                        with target, own] (a draft is only { voter, status, updated, target, own }),
-//                                        log: [{ seq, year, admin, action, target, reason, at }] }. `own`: you can't
-//                                        act on it
-//   POST   /api/top10/admin/action       admins. { action, target, reason, year? }:
-//                                          strike, restore   target { voter, subject }, "<voter>:<subject>" or
-//                                                            "writeup:<voter>:<subject>"
+//                                        log: [{ seq, year, kind, admin, action, target, reason, at }] }. `own`: you
+//                                        can't act on it
+//   POST   /api/top10/admin/action       admins. { action, target, reason, kind?, year? }:
+//                                          strike, restore   target { voter, subject }, "<voter>:<subject>" or the
+//                                                            queue's "writeup:<voter>:<subject>" /
+//                                                            "writeup:alltime:<voter>:<subject>"
 //                                          hide-play, show-play  target a play id, or "play:<id>"
-//                                          void, unvoid      target a voter's osu! id, or "ballot:<voter>"
+//                                          void, unvoid      target a voter's osu! id, "ballot:<voter>" or
+//                                                            "ballot:alltime:<voter>"
+//                                        The kind is the body's, or the target's ("alltime:" in it), or 'year'.
 //                                        strike, hide-play and void need a reason. No mod acts on a write-up about
 //                                        themselves or by them, or on their own ballot. → { ok, changed }
-//   POST   /api/top10/admin/finalize     admins, once voting has closed. { year, dryRun: true | false }. → { dryRun,
-//                                        results, payouts: [top10.payout], thanks: [top10.thanks] } (each { osuId,
-//                                        type, payload }, with requestId on the real run). A dry run saves nothing;
-//                                        the real one, once only, saves the results and queues both for the bot
+//   POST   /api/top10/admin/finalize     admins, once voting has closed. { year, dryRun: true | false }. Both kinds at
+//                                        once: → { dryRun, results: { year, alltime } (each the results JSON, or null
+//                                        when it had under 5 ballots and stays unpublished), unpublished: [{ kind,
+//                                        ballots }], payouts: [top10.payout], thanks: [top10.thanks] } (each { osuId,
+//                                        type, payload } with payload.kind, and requestId on the real run). A dry run
+//                                        saves nothing; the real one, once only, saves the published results and
+//                                        queues their payouts and thanks for the bot. A kind left unpublished pays
+//                                        nothing. When neither kind has 5 ballots, it's 409 turnout and nothing's saved
 //
 // Needs the ECONOMY database binding and OSU_CLIENT_SECRET (sessions); without them these answer 503. Replay uploads
 // also need REPLAYS, an R2 binding to the data bucket (ptcatch-data, keys replays/<sha256>.osr, served from
@@ -107,6 +127,14 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 export const LIMITS = {
   body: 64 * 1024, writeup: 4000, intro: 2000, lists: 5, cites: 5, caption: 280, clip: 300, reason: 200, plays: 15, ownPlays: 5,
 };
+/** A person's showcase entries per season and scope: { all, own } (§4.1, §13.11). */
+export const PLAY_LIMITS = { year: { all: 15, own: 5 }, alltime: { all: 10, own: 5 } };
+const { KINDS, SCOPES } = store;
+const KIND_NAMES = { year: 'yearly', alltime: 'all-time' };
+/** A kind or scope as sent: 'year' when it's left out, null when it's neither. */
+const kindOf = v => (v === undefined || v === null || v === '' ? 'year' : KINDS.includes(v) ? v : null);
+const kindParam = (request, name = 'kind') => kindOf(new URL(request.url).searchParams.get(name));
+const badKind = (name = 'kind') => json({ error: `${name} is 'year' or 'alltime'.`, code: name }, 400);
 export const CLIP_HOSTS = ['youtube.com', 'youtu.be', 'twitch.tv', 'streamable.com'];
 const WRITEUP_ACTIONS = ['strike', 'restore'];
 const PLAY_ACTIONS = ['hide-play', 'show-play'];
@@ -287,7 +315,7 @@ function playView(play, env, { admin = false } = {}) {
     : play.replay_sha ? { kind: 'file', url: new URL(`${env.REPLAYS_URL ? '' : 'replays/'}${play.replay_sha}.osr`, env.REPLAYS_URL || env.DATA_URL || CONFIG.data).href, name: play.replay_name }
     : null;
   return {
-    id: play.id, year: play.year, submitter: play.submitter, player: play.player, score_ref: play.score_ref, beatmap_id: play.beatmap_id,
+    id: play.id, year: play.year, scope: play.scope, submitter: play.submitter, player: play.player, score_ref: play.score_ref, beatmap_id: play.beatmap_id,
     caption: play.caption, clip: play.clip, created: play.created, played: play.played_at ? iso(play.played_at) : null,
     endorsements: play.endorsements ?? 0, ...(play.endorsed !== undefined ? { endorsed: play.endorsed } : {}),
     score: play.card ?? null, replay,
@@ -314,14 +342,15 @@ export async function hub(request, env, now = nowSec()) {
   if (!env.ECONOMY) return problem(NOT_HERE, 503);
   const db = env.ECONOMY;
   const season = seasonOf(env);
-  const [turnout, finalized, years] = await Promise.all([store.turnout(db, season.year), store.finalizedAt(db, season.year), store.resultYears(db)]);
+  const [turnouts, finalized, years] = await Promise.all([store.turnouts(db, season.year), store.finalizedAt(db, season.year), store.resultYears(db)]);
   // The editions whose results anyone can read: past ones, and this season's from the reveal on.
   const editions = years.filter(e => e.year < season.year || (e.year === season.year && now >= season.at.reveal));
-  const body = { season: seasonView(season, now), turnout, finalized: Boolean(finalized), editions };
+  // `turnout` stays the yearly count, a plain number: the deployed bot reads it.
+  const body = { season: seasonView(season, now), turnout: turnouts.year, turnouts, finalized: Boolean(finalized), editions };
   const osuId = await viewerOf(request, env, now);
   if (osuId) {
-    const [e, ballot] = await Promise.all([eligibility(env, osuId), store.readBallot(db, season.year, osuId)]);
-    body.me = { osuId, ...eligibleView(e), ballot: ownView(ballot) };
+    const [e, year, alltime] = await Promise.all([eligibility(env, osuId), store.readBallot(db, season.year, osuId, 'year'), store.readBallot(db, season.year, osuId, 'alltime')]);
+    body.me = { osuId, ...eligibleView(e), ballot: ownView(year), ballots: { year: ownView(year), alltime: ownView(alltime) } };
   }
   return json(body);
 }
@@ -330,11 +359,13 @@ export async function ballots(request, env, now = nowSec()) {
   if (!env.ECONOMY) return problem(NOT_HERE, 503);
   const year = yearParam(request, seasonOf(env));
   if (!year) return refuse('year', 'year must be a year, like 2026.', 400);
-  const body = await cachedBody(request, `ballots/${year}`, 15, async () => ({ year, ballots: await store.publicBallots(env.ECONOMY, year) }));
+  const kind = kindParam(request);
+  if (!kind) return badKind();
+  const body = await cachedBody(request, `ballots/${year}/${kind}`, 15, async () => ({ year, kind, ballots: await store.publicBallots(env.ECONOMY, year, kind) }));
   // Who's looking isn't in the cached part: their own thanks go on top.
   const viewer = await viewerOf(request, env, now);
   if (viewer) {
-    const thanked = await store.thankedBy(env.ECONOMY, year, viewer);
+    const thanked = await store.thankedBy(env.ECONOMY, year, viewer, kind);
     for (const b of body.ballots) {
       for (const [subject, w] of Object.entries(b.writeups)) w.thanked = Number(subject) === viewer && thanked.has(b.voter);
     }
@@ -346,19 +377,25 @@ export async function myBallot(request, env, now = nowSec()) {
   const who = await signedIn(request, env, now);
   if (who.response) return who.response;
   const { osuId, db, season } = who;
-  const [e, ballot, log] = await Promise.all([eligibility(env, osuId), store.readBallot(db, season.year, osuId), store.modlogAbout(db, season.year, osuId)]);
-  return json({ season: seasonView(season, now), ...eligibleView(e), ballot: ownView(ballot), log });
+  const kind = kindParam(request);
+  if (!kind) return badKind();
+  const [e, ballot, log] = await Promise.all([eligibility(env, osuId), store.readBallot(db, season.year, osuId, kind), store.modlogAbout(db, season.year, osuId)]);
+  return json({ season: seasonView(season, now), kind, ...eligibleView(e), ballot: ownView(ballot), log });
 }
+
+/** The ballot kind a write names: its body's `kind`, else ?kind=, else 'year'; null when it's neither kind. */
+const writeKind = (request, body) => kindOf(body?.kind ?? new URL(request.url).searchParams.get('kind'));
 
 const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
  * The cards for a write-up's cites, resolved when they're saved (`known`: the cards it had, kept for refs it still
  * cites): a showcase entry's own card for play:<id>; for a score, a showcased play's card, else the play in the
- * exported data (osu:/legacy: in the subject's file, any year; map: that player's best on the map this season).
- * Returns { cards } or { response } for a cite that can't be found.
+ * exported data (osu:/legacy: in the subject's file, any year; map: that player's best on the map this season, or in
+ * any year on an all-time ballot). Returns { cards } or { response } for a cite that can't be found.
  */
-async function citeCards(env, db, year, subject, cites, known = {}) {
+async function citeCards(env, db, year, subject, cites, known = {}, { kind = 'year' } = {}) {
+  const mapYear = kind === 'alltime' ? null : year;
   const cards = {};
   for (const ref of cites) {
     if (known[ref]) { cards[ref] = known[ref]; continue; }
@@ -369,18 +406,20 @@ async function citeCards(env, db, year, subject, cites, known = {}) {
       cards[ref] = { ...(play.card ?? { map: play.beatmap_id }), ref, player: play.player, play: play.id, clip: play.clip };
       continue;
     }
-    const shown = await store.playByRefs(db, year, [ref]);
+    // A showcased play of the same sense: a map ref means this year's best on the yearly showcase, ever's on the
+    // Legendary plays.
+    const shown = await store.playByRefs(db, year, [ref], cite.kind === 'map' ? kind : null);
     if (shown?.card) { cards[ref] = { ...shown.card, ref }; continue; }
     let found;
     try {
       found = cite.kind === 'map'
-        ? await findPlay(env, cite.player, { beatmap: cite.beatmap, year })
-        : await findPlay(env, subject, { sids: sidsOf(cite), year });
+        ? await findPlay(env, cite.player, { beatmap: cite.beatmap, year: mapYear })
+        : await findPlay(env, subject, { sids: sidsOf(cite), year: mapYear });
     } catch {
       return { response: refuse('data_unavailable', DATA_DOWN, 503) };
     }
     if (!found) {
-      const where = cite.kind === 'map' ? `a play by ${cite.player} on map ${cite.beatmap} set in ${year}` : 'that score';
+      const where = cite.kind === 'map' ? `a play by ${cite.player} on map ${cite.beatmap}${mapYear ? ` set in ${year}` : ''}` : 'that score';
       return { response: refuse('cite', `The site’s data has no ${where} to cite.`, 400, { ref }) };
     }
     cards[ref] = { ...found.card, ref };
@@ -398,7 +437,9 @@ export async function saveBallot(request, env, now = nowSec()) {
   const read = await readJson(request);
   if (!read.body) return badBody(read);
   const body = read.body;
-  const saved = await store.readBallot(db, year, osuId);
+  const kind = writeKind(request, body);
+  if (!kind) return badKind();
+  const saved = await store.readBallot(db, year, osuId, kind);
   if (saved?.status === 'void') return refuse('void', `This ballot was voided: ${saved.void_reason}`, 403, { reason: saved.void_reason });
 
   const lists = {
@@ -407,6 +448,8 @@ export async function saveBallot(request, env, now = nowSec()) {
     watch: 'watch' in body ? readIds(body.watch) : saved?.watch ?? [],
   };
   if (!lists.picks || !lists.mentions || !lists.watch) return refuse('shape', 'picks is a list of { id, spot }; mentions and watch are lists of osu! ids.', 400);
+  // Ones to watch make no sense for all time (§13.11).
+  if (kind === 'alltime' && lists.watch.length) return refuse('no_watch', 'The all-time ballot has no ones to watch.', 400);
   const texts = {
     intro: 'intro' in body ? cleanText(body.intro ?? '') : saved?.intro ?? '',
     outro: 'outro' in body ? cleanText(body.outro ?? '') : saved?.outro ?? '',
@@ -446,13 +489,13 @@ export async function saveBallot(request, env, now = nowSec()) {
     const next = final.get(subject);
     const before = current.get(subject);
     if (!next || (before && before.body === next.body && sameJson(before.cites, next.cites))) continue;
-    const resolved = await citeCards(env, db, year, subject, next.cites, before?.cards);
+    const resolved = await citeCards(env, db, year, subject, next.cites, before?.cards, { kind });
     if (resolved.response) return resolved.response;
     if (before && before.body === next.body) {
       upserts.push({ ...before, cites: next.cites, cards: resolved.cards });
       continue;
     }
-    others ??= (await store.otherBodies(db, year, osuId)).map(o => shingles(o.body));
+    others ??= (await store.otherBodies(db, year, osuId, kind)).map(o => shingles(o.body));
     const earlier = order.slice(0, order.indexOf(subject)).map(s => final.get(s)?.body).filter(Boolean);
     const { words, flags } = analyse(next.body, [...others, ...earlier]);
     upserts.push({ subject, body: next.body, words, flags, cites: next.cites, cards: resolved.cards, mod: 'ok', mod_reason: null });
@@ -460,10 +503,10 @@ export async function saveBallot(request, env, now = nowSec()) {
   const removed = [...current.keys()].some(subject => !final.has(subject));
   const same = saved && !upserts.length && !removed && sameJson([saved.picks, saved.mentions, saved.watch, saved.intro, saved.outro], [lists.picks, lists.mentions, lists.watch, texts.intro, texts.outro]);
   if (!same) {
-    const ok = await store.saveBallot(db, { year, voter: osuId, ...lists, ...texts }, { upserts, keep: [...final.keys()] }, now);
+    const ok = await store.saveBallot(db, { year, kind, voter: osuId, ...lists, ...texts }, { upserts, keep: [...final.keys()] }, now);
     if (!ok) return refuse('void', 'This ballot was voided.', 403);
   }
-  return json({ ballot: ownView(await store.readBallot(db, year, osuId)) });
+  return json({ ballot: ownView(await store.readBallot(db, year, osuId, kind)) });
 }
 
 export async function submitBallot(request, env, now = nowSec()) {
@@ -472,17 +515,21 @@ export async function submitBallot(request, env, now = nowSec()) {
   const { osuId, db, season } = who;
   const shut = unlessOpen(season, now);
   if (shut) return shut;
-  const saved = await store.readBallot(db, season.year, osuId);
-  if (!saved) return refuse('no_ballot', 'Save your list first.', 400);
+  const read = await readJson(request);
+  if (!read.body) return badBody(read);
+  const kind = writeKind(request, read.body);
+  if (!kind) return badKind();
+  const saved = await store.readBallot(db, season.year, osuId, kind);
+  if (!saved) return refuse('no_ballot', `Save your ${KIND_NAMES[kind]} list first.`, 400);
   if (saved.status === 'void') return refuse('void', `This ballot was voided: ${saved.void_reason}`, 403, { reason: saved.void_reason });
   if (saved.status === 'draft') {
     const { players, response } = await playersOr503(env);
     if (response) return response;
     const listed = listProblem(saved, osuId, players, { full: true });
     if (listed) return refuse(listed[0], listed[1], 400, listed[2]);
-    await store.submitBallot(db, season.year, osuId, now);
+    await store.submitBallot(db, season.year, osuId, now, kind);
   }
-  return json({ ballot: ownView(await store.readBallot(db, season.year, osuId)) });
+  return json({ ballot: ownView(await store.readBallot(db, season.year, osuId, kind)) });
 }
 
 export async function withdrawBallot(request, env, now = nowSec()) {
@@ -491,11 +538,15 @@ export async function withdrawBallot(request, env, now = nowSec()) {
   const { osuId, db, season } = who;
   const shut = unlessOpen(season, now);
   if (shut) return shut;
-  const saved = await store.readBallot(db, season.year, osuId);
+  const read = await readJson(request);
+  if (!read.body) return badBody(read);
+  const kind = writeKind(request, read.body);
+  if (!kind) return badKind();
+  const saved = await store.readBallot(db, season.year, osuId, kind);
   if (!saved) return refuse('no_ballot', 'You have no ballot to withdraw.', 404);
   if (saved.status === 'void') return refuse('void', `This ballot was voided: ${saved.void_reason}`, 403, { reason: saved.void_reason });
-  if (saved.status === 'submitted') await store.withdrawBallot(db, season.year, osuId, now);
-  return json({ ballot: ownView(await store.readBallot(db, season.year, osuId)) });
+  if (saved.status === 'submitted') await store.withdrawBallot(db, season.year, osuId, now, kind);
+  return json({ ballot: ownView(await store.readBallot(db, season.year, osuId, kind)) });
 }
 
 // ---- Thanks ---------------------------------------------------------------------------------------------------------
@@ -509,23 +560,26 @@ export async function thank(request, env, now = nowSec()) {
   if (!read.body) return badBody(read);
   const voter = toId(read.body.voter);
   if (!voter) return refuse('shape', 'Say whose write-up: { voter: their osu! id }.', 400);
+  const kind = writeKind(request, read.body);
+  if (!kind) return badKind();
   if (read.body.thanked !== undefined && typeof read.body.thanked !== 'boolean') return refuse('shape', 'thanked is true or false.', 400);
   if (now > season.at.thanksUntil) return refuse('thanks_closed', `Thanks closed on ${season.thanksUntil.slice(0, 10)}.`, 409);
-  const ballot = await store.ballotStatus(db, year, voter);
+  const ballot = await store.ballotStatus(db, year, voter, kind);
   if (ballot?.status !== 'submitted') return refuse('not_public', 'That ballot isn’t public.', 404);
-  const writeup = await store.readWriteup(db, year, voter, osuId);
+  const writeup = await store.readWriteup(db, year, voter, osuId, kind);
   if (writeup?.mod !== 'ok') return refuse('no_writeup', 'There’s no write-up about you on that ballot.', 404);
-  const [already, finalized] = await Promise.all([store.hasMark(db, year, 'thanks', osuId, voter), store.finalizedAt(db, year)]);
+  // Each kind is finalized (and paid) on its own: a kind left unpublished never is.
+  const [already, finalized] = await Promise.all([store.hasMark(db, year, 'thanks', osuId, voter, kind), store.finalizedAt(db, year, kind)]);
   const want = read.body.thanked ?? !already;
   const answer = thanked => json({ thanked, thanks: thanked ? 1 : 0 });
   if (finalized) {
     if (!want) return already ? refuse('final', 'Thanks can’t be taken back once the results are final.', 409, { thanked: true, thanks: 1 }) : answer(false);
     // The bananas follow at once, if the ballot counted in the results.
-    if (ballot.updated <= season.at.closes) await store.thankAfterFinalize(db, year, osuId, voter, now);
-    else await store.setMark(db, year, 'thanks', osuId, voter, true, now);
+    if (ballot.updated <= season.at.closes) await store.thankAfterFinalize(db, year, osuId, voter, now, kind);
+    else await store.setMark(db, year, 'thanks', osuId, voter, true, now, kind);
     return answer(true);
   }
-  if (want !== already) await store.setMark(db, year, 'thanks', osuId, voter, want, now);
+  if (want !== already) await store.setMark(db, year, 'thanks', osuId, voter, want, now, kind);
   return answer(want);
 }
 
@@ -536,12 +590,14 @@ export async function plays(request, env, now = nowSec()) {
   const season = seasonOf(env);
   const year = yearParam(request, season);
   if (!year) return refuse('year', 'year must be a year, like 2026.', 400);
+  const scope = kindParam(request, 'scope');
+  if (!scope) return badKind('scope');
   const raw = new URL(request.url).searchParams.get('player');
   const player = raw ? toId(raw) : null;
   if (raw && !player) return refuse('shape', 'player is an osu! id.', 400);
   const viewer = await viewerOf(request, env, now);
-  const list = async () => ({ year, plays: (await store.listPlays(env.ECONOMY, year, { player, viewer })).map(p => playView(p, env)) });
-  return json(viewer ? await list() : await cachedBody(request, `plays/${year}/${player ?? 'all'}`, 15, list));
+  const list = async () => ({ year, scope, plays: (await store.listPlays(env.ECONOMY, year, { scope, player, viewer })).map(p => playView(p, env)) });
+  return json(viewer ? await list() : await cachedBody(request, `plays/${year}/${scope}/${player ?? 'all'}`, 15, list));
 }
 
 /** A card from osu!'s answer (osu.js scoreFromApi). */
@@ -562,19 +618,23 @@ const osrCard = (osr, map, player) => ({
  * The showcased play, checked (§13.9). A map ref against the exported data. An osu: or legacy: ref with the osu! API
  * when the site's osu! app is set up here (one call: the catch ruleset, a PT player, the season's year, has_replay);
  * otherwise, or when osu! can't be reached, against the exported data. Returns { found: { player, ref, refs, beatmap,
- * time, hasReplay, card, username, checksum } } or { response }.
+ * time, hasReplay, card, username, checksum } } or { response }. The Legendary plays (scope 'alltime') take any year:
+ * no year check, and a map ref is the player's best play on the map ever.
  */
-async function resolvePlay(env, osuId, parsed, named, players, year, now) {
+async function resolvePlay(env, osuId, parsed, named, players, year, now, scope = 'year') {
   if (named && !players.has(named)) return { response: refuse('not_pt', 'That player isn’t a PT player on the site.', 422) };
+  const anyYear = scope === 'alltime';
+  const wrongYear = time => !anyYear && (!time || yearOf(time) !== year);
   const fromData = async player => {
-    try { return await findPlay(env, player, parsed.kind === 'map' ? { beatmap: parsed.beatmap, year } : { sids: sidsOf(parsed), year }); } catch { return 'down'; }
+    const when = anyYear ? null : year;
+    try { return await findPlay(env, player, parsed.kind === 'map' ? { beatmap: parsed.beatmap, year: when } : { sids: sidsOf(parsed), year: when }); } catch { return 'down'; }
   };
   let found = null;
   if (parsed.kind === 'map') {
     if (!players.has(parsed.player)) return { response: refuse('not_pt', 'That player isn’t a PT player on the site.', 422) };
     found = await fromData(parsed.player);
     if (found === 'down') return { response: refuse('data_unavailable', DATA_DOWN, 503) };
-    if (!found) return { response: refuse('not_in_data', `The site’s data has no play by that player on map ${parsed.beatmap} set in ${year}. ${NOT_IN_DATA}`, 422) };
+    if (!found) return { response: refuse('not_in_data', `The site’s data has no play by that player on map ${parsed.beatmap}${anyYear ? '' : ` set in ${year}`}. ${NOT_IN_DATA}`, 422) };
   } else {
     if (osuConfigured(env)) {
       try {
@@ -583,7 +643,7 @@ async function resolvePlay(env, osuId, parsed, named, players, year, now) {
         if (s.ruleset !== 2) return { response: refuse('mode', 'That score wasn’t set in osu!catch.', 422) };
         if (!s.userId || !players.has(s.userId)) return { response: refuse('not_pt', 'That score isn’t a PT player’s.', 422) };
         if (named && named !== s.userId) return { response: refuse('not_theirs', 'That score is another player’s.', 422, { player: s.userId }) };
-        if (!s.time || yearOf(s.time) !== year) {
+        if (wrongYear(s.time)) {
           const set = s.time ? yearOf(s.time) : null;
           return { response: refuse('wrong_year', `That score was set in ${set ?? 'another year'}; the showcase is for ${year}’s.`, 422, { year: set }) };
         }
@@ -607,7 +667,7 @@ async function resolvePlay(env, osuId, parsed, named, players, year, now) {
     if (!found) return { response: refuse('not_in_data', named ? NOT_IN_DATA : `${NOT_IN_DATA} If it’s someone else’s score, say whose (player).`, 422) };
   }
   if (!players.has(found.player)) return { response: refuse('not_pt', 'That score isn’t a PT player’s.', 422) };
-  if (yearOf(found.time) !== year) return { response: refuse('wrong_year', `That score was set in ${yearOf(found.time)}; the showcase is for ${year}’s.`, 422, { year: yearOf(found.time) }) };
+  if (wrongYear(found.time)) return { response: refuse('wrong_year', `That score was set in ${yearOf(found.time)}; the showcase is for ${year}’s.`, 422, { year: yearOf(found.time) }) };
   return { found: { ...found, hasReplay: null, username: null, checksum: null } };
 }
 
@@ -677,6 +737,11 @@ export async function addPlay(request, env, now = nowSec()) {
   if (clip === undefined) return refuse('clip', `A clip must be a link on ${CLIP_HOSTS.join(', ')}.`, 400);
   const named = given(body.player) ? toId(body.player) : null;
   if (given(body.player) && !named) return refuse('shape', 'player is an osu! id.', 400);
+  // The yearly showcase, or the Legendary plays (§13.11): any year, their own limits.
+  const scope = kindOf(body.scope ?? new URL(request.url).searchParams.get('scope'));
+  if (!scope) return badKind('scope');
+  const limits = PLAY_LIMITS[scope];
+  const showcase = scope === 'alltime' ? 'Legendary plays' : 'showcase';
   const parsed = given(body.score) ? parseRef(body.score, { player: named }) : null;
   if (given(body.score) && (!parsed || parsed.kind === 'play')) return refuse('score', 'score is an osu! score link, or a ref: osu:<id>, legacy:<id> or map:<beatmap>:<player>.', 400);
   if (parsed?.error) return refuse('mode', 'That score wasn’t set in osu!catch.', 400);
@@ -692,23 +757,23 @@ export async function addPlay(request, env, now = nowSec()) {
   if (!parsed && !replay && (!named || !clip)) return refuse('shape', 'Send a score (a link or a ref), a replay (.osr), or a player and a clip.', 400);
 
   // The cheap refusals first, so osu! isn't asked about an entry that can't be added anyway.
-  const counts = await store.playCounts(db, year, osuId);
-  if (counts.all >= LIMITS.plays) return refuse('limit', `That’s ${LIMITS.plays} showcase entries this year: remove one to add another.`, 429);
-  const twinOf = async (refs, sha) => (refs?.length ? await store.playByRefs(db, year, refs) : null) ?? (sha ? await store.playBySha(db, year, sha) : null);
+  const counts = await store.playCounts(db, year, osuId, scope);
+  if (counts.all >= limits.all) return refuse('limit', `That’s ${limits.all} entries in the ${showcase} this season: remove one to add another.`, 429);
+  const twinOf = async (refs, sha) => (refs?.length ? await store.playByRefs(db, year, refs, scope) : null) ?? (sha ? await store.playBySha(db, year, sha, scope) : null);
   const asked = parsed ? (parsed.bare ? [parsed.ref, `legacy:${parsed.id}`] : [parsed.ref]) : null;
   const early = await twinOf(asked, replay?.sha);
-  if (early) return refuse('duplicate', 'That play is already in the showcase.', 409, { id: early.id });
+  if (early) return refuse('duplicate', `That play is already in the ${showcase}.`, 409, { id: early.id });
   const { players, response } = await playersOr503(env);
   if (response) return response;
 
   let entry = null;
   let found = null;
   if (parsed) {
-    const resolved = await resolvePlay(env, osuId, parsed, named, players, year, now);
+    const resolved = await resolvePlay(env, osuId, parsed, named, players, year, now, scope);
     if (resolved.response) return resolved.response;
     found = resolved.found;
     const twin = await twinOf(found.refs);
-    if (twin) return refuse('duplicate', 'That play is already in the showcase.', 409, { id: twin.id });
+    if (twin) return refuse('duplicate', `That play is already in the ${showcase}.`, 409, { id: twin.id });
     entry = { player: found.player, ref: found.ref, refs: found.refs, beatmap: found.beatmap, playedAt: found.time, hasReplay: found.hasReplay, card: found.card };
   }
   if (replay) {
@@ -724,7 +789,7 @@ export async function addPlay(request, env, now = nowSec()) {
     } else {
       if (!owner) return refuse('not_pt', `The replay’s player, ${osr.player}, isn’t a PT player on the site.`, 422, { name: osr.player });
       if (named && named !== owner) return refuse('not_theirs', 'That replay is another player’s.', 422, { player: owner });
-      if (yearOf(osr.time) !== year) return refuse('wrong_year', `That replay was set in ${yearOf(osr.time)}; the showcase is for ${year}’s.`, 422, { year: yearOf(osr.time) });
+      if (scope === 'year' && yearOf(osr.time) !== year) return refuse('wrong_year', `That replay was set in ${yearOf(osr.time)}; the showcase is for ${year}’s.`, 422, { year: yearOf(osr.time) });
       // The map, for the card and the file's name: one osu! call, and none when osu! can't be asked.
       if (osuConfigured(env)) {
         try { map = await lookupBeatmap(env, osr.beatmapMd5, now); } catch (e) { if (!(e instanceof OsuUnavailable)) throw e; }
@@ -739,13 +804,13 @@ export async function addPlay(request, env, now = nowSec()) {
     if (!players.has(named)) return refuse('not_pt', 'That player isn’t a PT player on the site.', 422);
     entry = { player: named };
   }
-  if (entry.player === osuId && counts.own >= LIMITS.ownPlays) return refuse('own_limit', `At most ${LIMITS.ownPlays} of your own plays a year.`, 429);
+  if (entry.player === osuId && counts.own >= limits.own) return refuse('own_limit', `At most ${limits.own} of your own plays in the ${showcase} a season.`, 429);
   if (replay) await keepReplay(env.REPLAYS, replay);
   try {
-    const play = await store.addPlay(db, { year, submitter: osuId, ...entry, caption, clip, replaySha: replay?.sha ?? null, replayName: replay?.name ?? null }, now);
+    const play = await store.addPlay(db, { year, scope, submitter: osuId, ...entry, caption, clip, replaySha: replay?.sha ?? null, replayName: replay?.name ?? null }, now);
     return json({ play: playView(play, env) }, 201);
   } catch (e) {
-    if (/UNIQUE/i.test(String(e?.message))) return refuse('duplicate', 'That play is already in the showcase.', 409);
+    if (/UNIQUE/i.test(String(e?.message))) return refuse('duplicate', `That play is already in the ${showcase}.`, 409);
     throw e;
   }
 }
@@ -771,9 +836,9 @@ export async function endorse(request, env, id, now = nowSec()) {
   if (read.body.endorsed !== undefined && typeof read.body.endorsed !== 'boolean') return refuse('shape', 'endorsed is true or false.', 400);
   const play = toId(id) ? await store.readPlay(db, toId(id)) : null;
   if (play?.status !== 'ok') return refuse('no_play', 'No such showcase entry.', 404);
-  const already = await store.hasMark(db, play.year, 'endorse', osuId, play.id);
+  const already = await store.hasMark(db, play.year, 'endorse', osuId, play.id, play.scope);
   const want = read.body.endorsed ?? !already;
-  if (want !== already) await store.setMark(db, play.year, 'endorse', osuId, play.id, want, now);
+  if (want !== already) await store.setMark(db, play.year, 'endorse', osuId, play.id, want, now, play.scope);
   return json({ endorsed: want, endorsements: await store.endorsements(db, play.year, play.id) });
 }
 
@@ -784,17 +849,19 @@ export async function results(request, env, now = nowSec()) {
   const season = seasonOf(env);
   const year = yearParam(request, season);
   if (!year) return refuse('year', 'year must be a year, like 2026.', 400);
+  const kind = kindParam(request);
+  if (!kind) return badKind();
   const shown = year < season.year || (year === season.year && now >= season.at.reveal);
   if (!shown) return refuse('not_yet', 'The results aren’t out yet.', 404, year === season.year ? { reveal: season.reveal } : {});
   const cache = globalThis.caches?.default;
-  const key = new URL(`/api/top10/cache/results/${year}`, request.url).href;
+  const key = new URL(`/api/top10/cache/results/${year}/${kind}`, request.url).href;
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'X-Content-Type-Options': 'nosniff' };
   // Final once saved, so the browser may keep it a while and the edge a day.
   const answer = text => new Response(text, { headers: { ...headers, 'Cache-Control': 'public, max-age=600' } });
   const hit = cache ? await cache.match(key).catch(() => null) : null;
   if (hit) return answer(await hit.text());
-  const saved = await store.readResults(env.ECONOMY, year);
-  if (!saved?.results) return refuse('not_published', 'There are no results for that year.', 404);
+  const saved = await store.readResults(env.ECONOMY, year, kind);
+  if (!saved?.results) return refuse('not_published', `There are no ${KIND_NAMES[kind]} results for that year.`, 404);
   const text = JSON.stringify(saved.results);
   if (cache) await cache.put(key, new Response(text, { headers: { ...headers, 'Cache-Control': 'public, max-age=86400' } })).catch(() => {});
   return answer(text);
@@ -808,7 +875,11 @@ export async function adminQueue(request, env, now = nowSec()) {
   const { osuId, db, season } = who;
   const year = yearParam(request, season);
   if (!year) return refuse('year', 'year must be a year, like 2026.', 400);
-  const [queue, finalized] = await Promise.all([store.adminQueue(db, year), store.finalizedAt(db, year)]);
+  // Both kinds unless ?kind= asks for one; every item says its kind.
+  const raw = new URL(request.url).searchParams.get('kind');
+  const kind = raw ? kindOf(raw) : null;
+  if (raw && !kind) return badKind();
+  const [queue, finalized] = await Promise.all([store.adminQueue(db, year, kind), store.finalizedAt(db, year)]);
   return json({
     season: seasonView(season, now), phase: phaseOf(season, now), year, finalized: Boolean(finalized),
     writeups: queue.writeups.map(w => ({ ...w, own: w.voter === osuId || w.subject === osuId })),
@@ -818,21 +889,28 @@ export async function adminQueue(request, env, now = nowSec()) {
   });
 }
 
-/** An action's target from the body, or null. */
+/** An action's target from the body, or null; `kind` is 'alltime' when a target string says so ("…:alltime:…"). */
 function targetOf(action, t) {
   if (WRITEUP_ACTIONS.includes(action)) {
     if (typeof t === 'string') {
-      const m = /^(?:writeup:)?(\d{1,10}):(\d{1,10})$/.exec(t);
-      return m ? { voter: Number(m[1]), subject: Number(m[2]) } : null;
+      const m = /^(?:writeup:)?(?:(alltime):)?(\d{1,10}):(\d{1,10})$/.exec(t);
+      return m ? { voter: Number(m[2]), subject: Number(m[3]), ...(m[1] ? { kind: 'alltime' } : {}) } : null;
     }
     const voter = toId(t?.voter);
     const subject = toId(t?.subject);
     return voter && subject ? { voter, subject } : null;
   }
-  const prefix = PLAY_ACTIONS.includes(action) ? 'play' : 'ballot';
-  const raw = typeof t === 'string' ? t.replace(new RegExp(`^${prefix}:`), '') : t && typeof t === 'object' ? t[prefix === 'play' ? 'play' : 'voter'] ?? t.id : t;
-  const id = toId(raw);
-  return id ? (prefix === 'play' ? { play: id } : { voter: id }) : null;
+  if (PLAY_ACTIONS.includes(action)) {
+    const raw = typeof t === 'string' ? t.replace(/^play:/, '') : t && typeof t === 'object' ? t.play ?? t.id : t;
+    const id = toId(raw);
+    return id ? { play: id } : null;
+  }
+  if (typeof t === 'string') {
+    const m = /^(?:ballot:)?(?:(alltime):)?(\d{1,10})$/.exec(t);
+    return m ? { voter: Number(m[2]), ...(m[1] ? { kind: 'alltime' } : {}) } : null;
+  }
+  const id = toId(t && typeof t === 'object' ? t.voter ?? t.id : t);
+  return id ? { voter: id } : null;
 }
 
 export async function adminAction(request, env, now = nowSec()) {
@@ -847,6 +925,9 @@ export async function adminAction(request, env, now = nowSec()) {
   if (!Number.isSafeInteger(year)) return refuse('year', 'year must be a year, like 2026.', 400);
   const target = targetOf(action, read.body.target);
   if (!target) return refuse('target', 'target is { voter, subject } or "<voter>:<subject>" for a write-up, a play id, or a voter’s osu! id.', 400);
+  // The ballot's kind: the body's, or the target's, or 'year'. They mustn't disagree.
+  const kind = kindOf(read.body.kind ?? target.kind);
+  if (!kind || (target.kind && read.body.kind && target.kind !== read.body.kind)) return badKind();
   const reason = read.body.reason === undefined || read.body.reason === null ? '' : cleanLine(read.body.reason);
   if (reason === null || reason.length > LIMITS.reason) return refuse('reason', `The reason is text, up to ${LIMITS.reason} characters.`, 400);
   if (NEEDS_REASON.includes(action) && !reason) return refuse('reason', 'Say why: the player sees the reason.', 400);
@@ -859,14 +940,15 @@ export async function adminAction(request, env, now = nowSec()) {
     // No self-moderation (§8, §12): a mod's own write-ups, write-ups about them and their own ballot go to the other mod.
     if (WRITEUP_ACTIONS.includes(action)) {
       if (target.subject === osuId || target.voter === osuId) return refuse('self', 'That write-up is about you (or yours): the other mod handles it.', 403);
-      if (!(await store.readWriteup(db, year, target.voter, target.subject))) return refuse('no_writeup', 'No such write-up.', 404);
+      if (!(await store.readWriteup(db, year, target.voter, target.subject, kind))) return refuse('no_writeup', 'No such write-up.', 404);
     } else {
       if (target.voter === osuId) return refuse('self', 'That’s your own ballot: the other mod handles it.', 403);
-      if (!(await store.ballotStatus(db, year, target.voter))) return refuse('no_ballot', 'No such ballot.', 404);
+      if (!(await store.ballotStatus(db, year, target.voter, kind))) return refuse('no_ballot', 'No such ballot.', 404);
     }
-    if (await store.finalizedAt(db, year)) return refuse('final', 'The results are final and the payouts queued, so write-ups and ballots can’t change now.', 409);
+    // Each kind is final on its own: an all-time ballot left unpublished can still be moderated.
+    if (await store.finalizedAt(db, year, kind)) return refuse('final', 'The results are final and the payouts queued, so write-ups and ballots can’t change now.', 409);
   }
-  const changed = await store.moderate(db, { year, admin: osuId, action, target, reason: reason || null }, now);
+  const changed = await store.moderate(db, { year, kind, admin: osuId, action, target, reason: reason || null }, now);
   return json({ ok: true, changed });
 }
 
@@ -885,13 +967,32 @@ export async function adminFinalize(request, env, now = nowSec()) {
   const already = await store.finalizedAt(db, year);
   if (already) return refuse('already', `${year} was finalized on ${already}.`, 409, { finalizedAt: already });
 
-  const inputs = await store.finalizeInputs(db, year, season.at.closes);
-  const computed = computeResults({ year, ballots: inputs.ballots, writeups: inputs.writeups.filter(w => w.mod === 'ok'), finalizedAt: iso(now) });
-  if (computed.error) return refuse('turnout', `Only ${computed.ballots} ballots count; the results need at least 5.`, 409, { ballots: computed.ballots });
-  const requests = payoutsFor({ year, ballots: inputs.ballots, writeups: inputs.writeups, thanks: inputs.thanks });
+  // Both kinds in one go (§13.11). A kind under 5 counted ballots is left unpublished and pays nothing; it doesn't
+  // stop the other.
+  const results = {};
+  const unpublished = [];
+  const published = [];
+  let requests = [];
+  for (const kind of KINDS) {
+    const inputs = await store.finalizeInputs(db, year, season.at.closes, kind);
+    const computed = computeResults({ year, kind, ballots: inputs.ballots, writeups: inputs.writeups.filter(w => w.mod === 'ok'), finalizedAt: iso(now) });
+    results[kind] = computed.results ?? null;
+    if (computed.error) {
+      unpublished.push({ kind, ballots: computed.ballots });
+      continue;
+    }
+    published.push({ kind, results: computed.results });
+    requests = [...requests, ...payoutsFor({ year, kind, ballots: inputs.ballots, writeups: inputs.writeups, thanks: inputs.thanks })];
+  }
+  if (!published.length) {
+    const ballots = Object.fromEntries(unpublished.map(u => [u.kind, u.ballots]));
+    return refuse('turnout', `Only ${ballots.year} yearly and ${ballots.alltime} all-time ballots count; results need at least 5.`, 409, { ballots });
+  }
+  // The payouts of both kinds first, then the thanks, as the bot has always read them.
+  const order = list => [...list.filter(r => r.type === 'top10.payout'), ...list.filter(r => r.type === 'top10.thanks')];
   const split = list => ({ payouts: list.filter(r => r.type === 'top10.payout'), thanks: list.filter(r => r.type === 'top10.thanks') });
-  if (dryRun) return json({ dryRun: true, results: computed.results, ...split(requests) });
-  const queued = await store.saveFinal(db, { year, results: computed.results, payouts: requests, admin: osuId }, now);
+  if (dryRun) return json({ dryRun: true, results, unpublished, ...split(order(requests)) });
+  const queued = await store.saveFinal(db, { year, published, payouts: order(requests), admin: osuId }, now);
   if (!queued) return refuse('already', `${year} was already finalized.`, 409);
-  return json({ dryRun: false, results: computed.results, ...split(queued) });
+  return json({ dryRun: false, results, unpublished, ...split(queued) });
 }

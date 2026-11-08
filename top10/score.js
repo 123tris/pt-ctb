@@ -47,7 +47,7 @@ const median = sorted => (sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : 
  * Returns { results } or { error: 'turnout', ballots } below `minBallots` counted ballots (MIN_BALLOTS for a season;
  * past editions imported from the forum threads pass 1, since 2020 had a single list, top10/past.js).
  */
-export function computeResults({ year, ballots, writeups = [], finalizedAt, minBallots = MIN_BALLOTS }) {
+export function computeResults({ year, kind = 'year', ballots, writeups = [], finalizedAt, minBallots = MIN_BALLOTS }) {
   if (ballots.length < Math.max(1, minBallots)) return { error: 'turnout', ballots: ballots.length };
   const voters = new Set(ballots.map(b => b.voter));
   const players = new Map();
@@ -99,6 +99,7 @@ export function computeResults({ year, ballots, writeups = [], finalizedAt, minB
   return {
     results: {
       year,
+      kind,
       ballots: ballots.length,
       finalizedAt,
       ranking,
@@ -120,9 +121,10 @@ export function computeResults({ year, ballots, writeups = [], finalizedAt, minB
  * A payout lists the approved, unflagged write-ups on picks (in list order). A struck write-up anywhere on the ballot
  * costs the ballot all its write-up bananas (§3.3 rule 4, §8): its payout then lists none, and allFull is false; the
  * ballot's own 20 stays. allFull: every pick has an approved, unflagged write-up of FULL_WORDS or more.
- * Returns [{ osuId, type, payload }].
+ * Every payload carries the ballots' `kind` ('year' or 'alltime', §13.11): { year, kind, ballot, writeups, allFull }
+ * and { year, kind, subject }. Returns [{ osuId, type, payload }].
  */
-export function payoutsFor({ year, ballots, writeups, thanks = [] }) {
+export function payoutsFor({ year, kind = 'year', ballots, writeups, thanks = [] }) {
   const byVoter = new Map();
   for (const w of writeups) {
     if (!byVoter.has(w.voter)) byVoter.set(w.voter, new Map());
@@ -135,10 +137,10 @@ export function payoutsFor({ year, ballots, writeups, thanks = [] }) {
     const paid = struck ? [] : b.picks.map(p => mine.get(p.id)).filter(w => w && w.mod === 'ok' && !w.flags.length && w.words > 0)
       .map(w => ({ subject: w.subject, words: w.words }));
     const allFull = !struck && b.picks.length > 0 && b.picks.every(p => paid.some(w => w.subject === p.id && w.words >= FULL_WORDS));
-    return { osuId: b.voter, type: 'top10.payout', payload: { year, ballot: true, writeups: paid, allFull } };
+    return { osuId: b.voter, type: 'top10.payout', payload: { year, kind, ballot: true, writeups: paid, allFull } };
   });
   const thanked = thanks.filter(t => counted.has(t.voter) && byVoter.get(t.voter)?.get(t.subject)?.mod === 'ok')
     .sort((a, b) => a.voter - b.voter || a.subject - b.subject)
-    .map(t => ({ osuId: t.voter, type: 'top10.thanks', payload: { year, subject: t.subject } }));
+    .map(t => ({ osuId: t.voter, type: 'top10.thanks', payload: { year, kind, subject: t.subject } }));
   return [...payouts, ...thanked];
 }

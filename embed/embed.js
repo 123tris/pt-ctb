@@ -59,14 +59,20 @@ const PAGES = {
   duel: ['Duel', 'A rated 1v1 osu!catch duel between two Portuguese players, round by round.'],
 };
 
-// The Top 10 of the year (/top10, /top10/<view>, /top10/<year>, the new web client's pages): the bot's announcement
-// links /top10, so it gets its own preview rather than the home page's.
+// The Top 10 (/top10, /top10/<view>, /top10/<year>, the new web client's pages): the bot's announcement links /top10,
+// so it gets its own preview rather than the home page's. Each December has two ballots (§13.11): the top 10 of the
+// year and of all time, whose pages end in /alltime (/top10/vote/alltime, /top10/<year>/alltime).
 const TOP10 = {
-  '': ['Top 10 of the year', 'Portugal’s osu!catch community ranks the year’s 10 best players: lists and write-ups all December, the reveal on 2 January.'],
+  '': ['Top 10 of the year', 'Portugal’s osu!catch community ranks the year’s 10 best players, and the 10 best of all time: lists and write-ups all December, the reveal on 2 January.'],
   vote: ['Your ballot · Top 10 of the year', 'Rank your top 10 Portuguese osu!catch players of the year, and say why each one made your list.'],
   ballots: ['Ballots · Top 10 of the year', 'Every Top 10 list sent in so far, with what each voter wrote about the players on it.'],
   plays: ['Plays of the year · Top 10', 'The year’s standout osu!catch plays by Portuguese players, picked by the community, with replays and clips.'],
   dossier: ['Dossier · Top 10 of the year', 'A Portuguese osu!catch player’s year in numbers, for the Top 10 vote: plays, #1s, Dan passes and more.'],
+};
+const TOP10_ALLTIME = {
+  vote: ['Your all-time ballot · Top 10 of all time', 'Rank the 10 best Portuguese osu!catch players of all time, legends included, and say why each one made your list.'],
+  ballots: ['All-time ballots · Top 10 of all time', 'Every all-time Top 10 list sent in so far, with what each voter wrote about the legends on it.'],
+  plays: ['Legendary plays · Top 10', 'The greatest osu!catch plays Portuguese players have ever set, from any year, picked by the community.'],
 };
 /** An edition's name from its year key: 2024 is the one "2023–24" edition (§13.10). */
 const top10Label = year => (year === 2024 ? '2023–24' : String(year));
@@ -75,10 +81,17 @@ const top10Label = year => (year === 2024 ? '2023–24' : String(year));
 function top10Page(path, pair) {
   const [section, view = '', ...rest] = path.split('/');
   if (section !== 'top10' || rest.length > 2) return null;
+  const alltime = rest[0] === 'alltime' && rest.length === 1;
+  // Only the dossier takes more segments (/top10/dossier/<id>/<year>); anywhere else, the one more allowed is /alltime.
+  if (view !== 'dossier' && rest.length && !alltime) return null;
   if (/^\d{4}$/.test(view)) {
     const label = top10Label(Number(view));
+    if (alltime) {
+      return pair([`Top 10 of all time, ${label}`, `Portugal’s osu!catch top 10 players of all time, as the community voted in ${label}: the ranking, the scores, and what the voters wrote.`]);
+    }
     return pair([`Top 10 of ${label}`, `Portugal’s osu!catch Top 10 of ${label}: who the community ranked, the scores, and what the voters wrote.`]);
   }
+  if (alltime) return TOP10_ALLTIME[view] ? pair(TOP10_ALLTIME[view]) : null;
   return TOP10[view] ? pair(TOP10[view]) : null;
 }
 
