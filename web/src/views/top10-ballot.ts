@@ -22,7 +22,7 @@ import { candidateCard, type Candidate } from '../ui/top10-players.ts';
 import type { History } from './player.ts';
 
 export interface Data {
-  /** Which ballot (§13.11): the year's, or all time's (no ones to watch, candidates by career, cites from any year). */
+  /** Which ballot (§13.11): the year's, or all time's (no ones to watch, career cards, cites from any year); both list the candidates by official pp. */
   kind: Kind;
   core: CorePack;
   history: History | null;

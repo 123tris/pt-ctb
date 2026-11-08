@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { makeText } from '../src/kernel/i18n.ts';
 import { makeFmt } from '../src/kernel/fmt.ts';
 import { kindOf, myBallotOf, turnoutOf } from '../src/ui/top10.ts';
-import { byCareer, careerOf } from '../src/ui/top10-players.ts';
+import { byPp, careerOf } from '../src/ui/top10-players.ts';
 import { editorOf, shownCandidates } from '../src/views/top10-ballot.ts';
 import { render as hub } from '../src/views/top10-hub.ts';
 import { finalizePreview } from '../src/views/top10-admin.ts';
@@ -61,8 +61,8 @@ test('careers from history.json: the peak pp, the best rank at any point, the fi
   assert.equal(careerOf(null).size, 0);
 });
 
-test('the all-time picker: by best rank (unknown last), then peak pp; everyone, the active or the legends', () => {
-  const list = byCareer([cand(1, { best: 0, peak: 9000 }), cand(2, { best: 3, peak: 4000 }), cand(3, { best: 1, peak: 5000, legend: true, inactive: true }), cand(4, { best: 3, peak: 4500 })]);
+test('the pickers: by official pp now (ties by name); all time: everyone, the active or the legends', () => {
+  const list = byPp([cand(1, { pp: 1000, best: 1, peak: 9000 }), cand(2, { pp: 4000 }), cand(3, { pp: 5000, legend: true, inactive: true }), cand(4, { pp: 4000, name: 'a4' })]);
   assert.deepEqual(list.map(c => c.id), [3, 4, 2, 1]);
   const d = { kind: 'alltime', candidates: list };
   const e = editorOf(null, {}, 'alltime');
@@ -73,7 +73,7 @@ test('the all-time picker: by best rank (unknown last), then peak pp; everyone, 
   assert.deepEqual(shownCandidates(d, { ...e, filter: 'active' }).map(c => c.id), [4, 2, 1]);
   // Someone on your list stays in view whatever the filter.
   assert.deepEqual(shownCandidates(d, { ...e, filter: 'legends', rows: [{ id: 2, tie: false }] }).map(c => c.id), [3, 2]);
-  assert.deepEqual(shownCandidates(d, { ...e, q: 'P4' }).map(c => c.id), [4]);
+  assert.deepEqual(shownCandidates(d, { ...e, q: 'A4' }).map(c => c.id), [4]);
   // An old ballot's ones to watch don't come into an all-time editor.
   assert.deepEqual(editorOf({ picks: [], watch: [5], status: 'draft' }, {}, 'alltime').watch, []);
   assert.deepEqual(editorOf({ picks: [], watch: [5], status: 'draft' }, {}, 'year').watch, [5]);

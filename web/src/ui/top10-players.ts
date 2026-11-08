@@ -132,9 +132,9 @@ export function candidatesOf(core: CorePack, history: History | null, year: numb
   return list.sort((a, b) => Number(b.active) - Number(a.active) || gain(b) - gain(a) || b.last - a.last);
 }
 
-/** The all-time order (§13.11): best PT rank ever first (unknown last), then peak pp, then pp now. */
-export const byCareer = (list: readonly Candidate[]): Candidate[] =>
-  [...list].sort((a, b) => (a.best || 1e9) - (b.best || 1e9) || b.peak - a.peak || b.pp - a.pp);
+/** The ballots' order (both kinds, the maintainer's choice, 2026-11-08): official pp now, highest first, then name. */
+export const byPp = (list: readonly Candidate[]): Candidate[] =>
+  [...list].sort((a, b) => b.pp - a.pp || a.name.localeCompare(b.name));
 
 /** "Best: PT #1 · peak 9,862 pp", for an all-time card. */
 export function careerLine(ctx: Ctx, c: Candidate): string {

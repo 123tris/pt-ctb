@@ -24,7 +24,7 @@ import {
   DEFAULT_SEASON, kindOf, myBallotOf, phaseOf, showcaseOf, troubleOf,
   type Hub, type Kind, type OwnBallot, type PublicBallot, type Scope, type ShowPlay,
 } from '../ui/top10.ts';
-import { byCareer, candidatesOf } from '../ui/top10-players.ts';
+import { byPp, candidatesOf } from '../ui/top10-players.ts';
 import type { History } from '../views/player.ts';
 import * as hubView from '../views/top10-hub.ts';
 import * as resultsView from '../views/top10-results.ts';
@@ -94,7 +94,7 @@ const ballot = top10Page<{ d: ballotView.Data; e: ballotView.Editor }>({
     const d: ballotView.Data = {
       kind, core: c, history: h, season: s.season, phase: s.phase, trouble, eligible: said && typeof said.eligible === 'boolean' ? said.eligible : true,
       code: said?.code ?? null, reason: said?.reason ?? null, log: own?.ok && Array.isArray(own.body?.log) ? own.body.log : [],
-      ballot: server ?? draft, candidates: kind === 'alltime' ? byCareer(candidates) : candidates, signInHere: signInHere(),
+      ballot: server ?? draft, candidates: byPp(candidates), signInHere: signInHere(),
     };
     return { d, e: ballotView.editorOf(server ?? draft, query, kind) };
   },
