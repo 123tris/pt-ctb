@@ -76,6 +76,7 @@ async function economyFunctions() {
     if (routes[`${method} ${pathname}`]) return routes[`${method} ${pathname}`];
     const play = /^\/api\/top10\/plays\/(\d+)(\/endorse)?$/.exec(pathname);
     if (play && method === 'DELETE' && !play[2]) return (request, e) => top10.deletePlay(request, e, play[1]);
+    if (play && method === 'PATCH' && !play[2]) return (request, e) => top10.editPlay(request, e, play[1]);
     if (play && method === 'POST' && play[2]) return (request, e) => top10.endorse(request, e, play[1]);
     return null;
   };
@@ -138,7 +139,7 @@ const serveUsage = (req, res, url, handler) => serveFunction(req, res, url, requ
 async function serveFunction(req, res, url, handler) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
-  const request = new Request(url, { method: req.method, headers: req.headers, body: ['POST', 'PUT', 'DELETE'].includes(req.method) && chunks.length ? Buffer.concat(chunks) : undefined });
+  const request = new Request(url, { method: req.method, headers: req.headers, body: ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) && chunks.length ? Buffer.concat(chunks) : undefined });
   const response = await handler(Object.assign(request, { cf: { country: 'PT' } })).catch(e => new Response(String(e?.stack ?? e), { status: 500 }));
   res.writeHead(response.status, Object.fromEntries(response.headers)).end(Buffer.from(await response.arrayBuffer()));
 }
