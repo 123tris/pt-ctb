@@ -5,9 +5,14 @@
 // An edition file is { edition, label, thread, ballots: [{ voter, post, picks: [{ id, spot }], mentions: [id],
 // watch: [id], notes? }] }, with osu! user ids. "2023-24" is one edition; its year key is 2024 and its label "2023–24".
 //
-// What's different from a season: a past edition is published whatever its turnout (2020 had one list), and a list
-// keeps its numbering as written, even where it skips oddly (checkEdition only warns). The forum was the electorate,
-// so voters from outside PT count too.
+// What's different from a season (the live limits stay as they are):
+// - a past edition is published whatever its turnout (2020 had one list, 2023–24 four);
+// - a list may have more than 10 picks (tartaruga57's 2023–24 list has 11: spots 8, 8, 10, 11), and positions past 10
+//   score 0, as §13.5 says;
+// - a list keeps its numbering as written, even where it skips oddly (checkEdition only warns);
+// - the forum was the electorate, so voters from outside PT count too;
+// - the results carry `names` (id → name), since some of these players aren't in the site's player index (anomi,
+//   24642612, whose profile is gone), and `lists`, the forum posts themselves.
 
 import { computeResults, spotsValid } from './score.js';
 
@@ -50,17 +55,51 @@ export function checkEdition(file) {
   return { errors, warnings };
 }
 
+/** Every osu! id an edition file names: voters, picks, mentions and ones to watch. */
+export const editionIds = file => [...new Set((file?.ballots ?? []).flatMap(b => [b.voter, ...(b.picks ?? []).map(p => p.id), ...(b.mentions ?? []), ...(b.watch ?? [])]))];
+
 /**
- * An edition's results: score.js's JSON (§13.5) for its year key, plus edition, label, thread and past: true. Throws
- * when checkEdition finds an error.
+ * Current names from top10/history/ALIASES.md's tables: Map id → name. A table with an "osu! id" column gives the
+ * "Today" column's name, or the first column's where there's no "Today" (the voters from outside Portugal). An id
+ * keeps the first name found; "—" and empty cells are skipped.
  */
-export function pastResults(file, { importedAt = new Date().toISOString() } = {}) {
+export function namesFromAliases(markdown) {
+  const names = new Map();
+  const cells = line => line.trim().replace(/^\||\|$/g, '').split('|').map(c => c.replace(/\*\*|`/g, '').trim());
+  let header = null;
+  for (const line of String(markdown ?? '').split(/\r?\n/)) {
+    if (!line.trim().startsWith('|')) { header = null; continue; }
+    const row = cells(line);
+    if (row.every(c => /^:?-+:?$/.test(c))) continue;
+    if (!header) { header = row.map(c => c.toLowerCase()); continue; }
+    const idAt = header.indexOf('osu! id');
+    if (idAt === -1) continue;
+    const id = Number(row[idAt]);
+    const today = header.indexOf('today');
+    const name = row[today === -1 ? 0 : today];
+    if (Number.isSafeInteger(id) && id > 0 && name && name !== '—' && !names.has(id)) names.set(id, name);
+  }
+  return names;
+}
+
+/**
+ * An edition's results: score.js's JSON (§13.5) for its year key, plus edition, label, thread, past: true, names
+ * ({ [id]: name } for every id the edition names, from `names`: a Map, the live player index first; an id with none
+ * gets its number) and lists (the forum posts: [{ voter, post, picks, mentions, watch, notes? }]). Throws when
+ * checkEdition finds an error.
+ */
+export function pastResults(file, { importedAt = new Date().toISOString(), names = new Map() } = {}) {
   const { errors } = checkEdition(file);
   if (errors.length) throw new Error(`${file?.edition}: ${errors.join('; ')}`);
   const year = editionYear(file.edition);
   const ballots = file.ballots.map(b => ({ voter: b.voter, picks: b.picks.map(p => ({ id: p.id, spot: p.spot })), mentions: b.mentions ?? [], watch: b.watch ?? [] }));
   const { results } = computeResults({ year, ballots, finalizedAt: importedAt, minBallots: 1 });
-  return { ...results, edition: String(file.edition), label: file.label ? String(file.label) : String(file.edition), thread: file.thread ?? null, past: true };
+  const lists = file.ballots.map((b, i) => ({ voter: b.voter, post: b.post ?? null, ...ballots[i], ...(b.notes ? { notes: String(b.notes) } : {}) }));
+  return {
+    ...results, edition: String(file.edition), label: file.label ? String(file.label) : String(file.edition), thread: file.thread ?? null, past: true,
+    names: Object.fromEntries(editionIds(file).sort((a, b) => a - b).map(id => [id, names.get(id) ?? String(id)])),
+    lists,
+  };
 }
 
 const sqlText = s => `'${String(s).replace(/'/g, "''")}'`;
