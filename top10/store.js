@@ -294,6 +294,13 @@ export async function playCounts(db, year, submitter, scope = 'year') {
   return { all: row?.n ?? 0, own: row?.own ?? 0 };
 }
 
+/** How many entries one submitter added for one player in a season's showcase (of a scope): one per other player. */
+export async function playsFor(db, year, submitter, player, scope = 'year') {
+  await ensureSchema(db);
+  const row = await db.prepare('SELECT COUNT(*) AS n FROM top10_plays WHERE year = ? AND scope = ? AND submitter = ? AND player = ?').bind(year, scope, submitter, player).first();
+  return row?.n ?? 0;
+}
+
 /** The entry in a year's showcase (of a scope; any scope for null) known by any of these refs (top10/refs.js), or null. */
 export async function playByRefs(db, year, refs, scope = 'year') {
   await ensureSchema(db);

@@ -74,9 +74,10 @@ export function usedLine(ctx: Ctx, d: Pick<Data, 'plays' | 'season' | 'scope'>):
   const mine = d.plays.filter(p => p.submitter === ctx.me);
   const own = mine.filter(p => p.player === ctx.me).length;
   const vars = { year: d.season.year, used: fmt.num(mine.length), limit: limitOf(d.scope), own: fmt.num(own), ownLimit: OWN_LIMIT };
-  return d.scope === 'alltime'
+  const line = d.scope === 'alltime'
     ? t('A play from any year that made PT catch history, for the all-time ballot. {used} of {limit} used ({own} of {ownLimit} your own).', vars)
     : t('A score from {year} by a PT player that voters should see. Your own count too: it’s how you make your case. {used} of {limit} used ({own} of {ownLimit} your own).', vars);
+  return `${line} ${t('One play per other player.')}`;
 }
 
 /**

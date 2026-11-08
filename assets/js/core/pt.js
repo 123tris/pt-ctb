@@ -2208,5 +2208,8 @@ export const PT = {
   '{n} #1 vote': ['{n} voto em #1', '{n} votos em #1'],
   'Combined from the one list posted in the osu! forum thread, with the same formula as today’s ballots.': ['Resultados combinados a partir da única lista publicada no tópico do fórum do osu!, com a mesma fórmula dos boletins de hoje.', 'Resultados combinados a partir das {n} listas publicadas no tópico do fórum do osu!, com a mesma fórmula dos boletins de hoje.'],
   '{n} ballot counted.': ['{n} boletim contado.', '{n} boletins contados.'],
+  'You’ve already showcased a play by this player: one per player. Remove it to add another.': 'Já puseste na montra uma jogada deste jogador: uma por jogador. Remove-a para adicionar outra.',
+  'You’ve already added a legendary play by this player: one per player. Remove it to add another.': 'Já adicionaste uma jogada lendária deste jogador: uma por jogador. Remove-a para adicionar outra.',
+  'One play per other player.': 'Uma jogada por cada outro jogador.',
   'The squares count the lists that put each player #1, #2 and so on, to #10.': 'Os quadrados contam as listas que puseram cada jogador em #1, #2 e assim por diante, até #10.',
 };

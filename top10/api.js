@@ -10,7 +10,7 @@
 // it's 'year', so everything from before the all-time ballot works as it did. An all-time ballot has the same rules,
 // except that it has no ones to watch (watch is refused) and a cited map ref is the player's best play on the map in
 // any year. The showcase has a `scope` the same way: 'year' (plays set in the season's year, 15 per person, at most 5
-// of your own) and 'alltime' ("Legendary plays": any year, 10 per person, at most 5 of your own). Both take entries in
+// of your own and one for each other player) and 'alltime' ("Legendary plays": any year, 10 per person, at most 5 of your own). Both take entries in
 // the showcase's own window, which opens before voting does (top10/season.js showcaseOpens).
 //
 // Shapes (the endpoints below return these):
@@ -136,8 +136,11 @@ const nowSec = () => Math.floor(Date.now() / 1000);
 export const LIMITS = {
   body: 64 * 1024, writeup: 4000, intro: 2000, lists: 5, cites: 5, caption: 280, clip: 300, reason: 200, plays: 15, ownPlays: 5,
 };
-/** A person's showcase entries per season and scope: { all, own } (§4.1, §13.11). */
-export const PLAY_LIMITS = { year: { all: 15, own: 5 }, alltime: { all: 10, own: 5 } };
+/**
+ * A person's showcase entries per season and scope (§4.1, §13.11): { all, own, perOther }. perOther: at most one entry
+ * for each other player, so one fan can't fill the showcase with someone's plays (the maintainer, 2026-11-08).
+ */
+export const PLAY_LIMITS = { year: { all: 15, own: 5, perOther: 1 }, alltime: { all: 10, own: 5, perOther: 1 } };
 const { KINDS, SCOPES } = store;
 const KIND_NAMES = { year: 'yearly', alltime: 'all-time' };
 /** A kind or scope as sent: 'year' when it's left out, null when it's neither. */
@@ -865,6 +868,9 @@ export async function addPlay(request, env, now = nowSec()) {
     entry = { player: named };
   }
   if (entry.player === osuId && counts.own >= limits.own) return refuse('own_limit', `At most ${limits.own} of your own plays in the ${showcase} a season.`, 429);
+  if (entry.player !== osuId && (await store.playsFor(db, year, osuId, entry.player, scope)) >= limits.perOther) {
+    return refuse('other_limit', `You’ve already added a play by that player to the ${showcase}: one per player. Remove it to add another.`, 429, { player: entry.player });
+  }
   if (keep) await keepReplay(env.REPLAYS, replay);
   try {
     const play = await store.addPlay(db, { year, scope, submitter: osuId, ...entry, caption, clip, replaySha: keep ? replay.sha : null, replayName: keep ? replay.name : null }, now);

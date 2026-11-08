@@ -593,7 +593,7 @@ test('showcase: a PT player’s score set this year, checked against the exporte
   const named = await addPlay(env, 5, { score: '77', player: 2 });
   assert.deepEqual([named.status, named.body.play.score_ref], [201, 'legacy:77'], 'a bare id matches the legacy one');
   // A map ref: that player's best play on the map this season, for plays the export has no score id for.
-  const byMap = await addPlay(env, 5, { score: 'map:110', player: 2 });
+  const byMap = await addPlay(env, 9, { score: 'map:110', player: 2 });
   assert.deepEqual([byMap.status, byMap.body.play.score_ref, byMap.body.play.score.ref, byMap.body.play.score.url, byMap.body.play.beatmap_id], [201, 'map:110:2', 'map:110:2', null, 110]);
   assert.equal((await addPlay(env, 5, { score: 'map:112:2' })).body.code, 'duplicate', 'map:112:2 is the play already in as legacy:77');
 
@@ -618,7 +618,7 @@ test('showcase: a PT player’s score set this year, checked against the exporte
   // A clip instead: allowed sites only, for a PT player.
   const clip = await addPlay(env, 5, { player: 6, clip: 'http://www.youtube.com/watch?v=abc', caption: 'offline ScoreV2 run' });
   assert.deepEqual([clip.status, clip.body.play.clip, clip.body.play.score_ref, clip.body.play.score], [201, 'https://www.youtube.com/watch?v=abc', null, null]);
-  for (const ok of ['https://youtu.be/x', 'https://clips.twitch.tv/x', 'https://streamable.com/x']) assert.equal((await addPlay(env, 7, { player: 6, clip: ok })).status, 201, ok);
+  for (const [i, ok] of ['https://youtu.be/x', 'https://clips.twitch.tv/x', 'https://streamable.com/x'].entries()) assert.equal((await addPlay(env, [7, 8, 10][i], { player: 6, clip: ok })).status, 201, ok);
   await refused({ player: 6, clip: 'https://evil.example/youtube.com' }, 400, 'clip');
   await refused({ player: 6, clip: 'javascript:alert(1)//youtube.com' }, 400, 'clip');
   await refused({ player: 999, clip: 'https://youtu.be/x' }, 422, 'not_pt');
@@ -632,9 +632,16 @@ test('showcase: 15 entries a year each, at most 5 of your own', async () => {
   for (let i = 0; i < 5; i++) assert.equal((await addPlay(env, 4, { score: String(4000000000 + i) })).status, 201);
   const sixth = await addPlay(env, 4, { score: String(4000000005) });
   assert.deepEqual([sixth.status, sixth.body.code], [429, 'own_limit']);
-  for (let i = 0; i < 10; i++) assert.equal((await addPlay(env, 4, { player: 6 + (i % 5), clip: `https://youtu.be/${i}` })).status, 201);
-  const over = await addPlay(env, 4, { player: 6, clip: 'https://youtu.be/more' });
+  // One entry for each other player: a second of player 6's is refused, another player's isn't.
+  assert.equal((await addPlay(env, 4, { player: 6, clip: 'https://youtu.be/a' })).status, 201);
+  const again = await addPlay(env, 4, { player: 6, clip: 'https://youtu.be/b' });
+  assert.deepEqual([again.status, again.body.code, again.body.player], [429, 'other_limit', 6]);
+  for (let i = 1; i < 10; i++) assert.equal((await addPlay(env, 4, { player: 6 + i, clip: `https://youtu.be/${i}` })).status, 201);
+  const over = await addPlay(env, 4, { player: 16, clip: 'https://youtu.be/more' });
   assert.deepEqual([over.status, over.body.code], [429, 'limit']);
+  // The Legendary plays count apart: player 6 again there is fine, once.
+  assert.equal((await addPlay(env, 4, { scope: 'alltime', player: 6, clip: 'https://youtu.be/c' })).status, 201);
+  assert.equal((await addPlay(env, 4, { scope: 'alltime', player: 6, clip: 'https://youtu.be/d' })).body.code, 'other_limit');
   // Another player can still add player 4's other scores.
   assert.equal((await addPlay(env, 5, { score: String(4000000005), player: 4 })).status, 201);
 });
@@ -1174,7 +1181,7 @@ test('an .osr with a score link must be that score’s; osu!’s own replay is l
   const both = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9100', replay: osrFile({ player: 'Player6' }) });
   assert.equal(both.status, 201, both.body.error);
   assert.deepEqual([both.body.play.score_ref, both.body.play.score, both.body.play.replay.kind], ['osu:9100', apiCard('osu:9100'), 'file'], 'osu! keeps none, so the upload is the link');
-  const kept = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9101', replay: osrFile({ player: 'Player6', md5: 'e'.repeat(32), time: '2026-04-03T10:00:00Z' }) });
+  const kept = await upload(env, 8, { score: 'https://osu.ppy.sh/scores/9101', replay: osrFile({ player: 'Player6', md5: 'e'.repeat(32), time: '2026-04-03T10:00:00Z' }) });
   assert.deepEqual([kept.status, kept.body.play.replay], [201, { kind: 'osu', url: 'https://osu.ppy.sh/scores/9101/download' }]);
   const wrongMap = await upload(env, 5, { score: 'https://osu.ppy.sh/scores/9102', replay: osrFile({ player: 'Player6', md5: 'f'.repeat(32) }) });
   assert.deepEqual([wrongMap.status, wrongMap.body.code], [422, 'replay_mismatch']);
@@ -1229,10 +1236,10 @@ test('a replay osu! keeps isn’t stored: a link with its .osr, or an .osr whose
   // A lazer .osr alone, naming score 9300, which osu! has with its replay: that score's entry, pp and all; no copy.
   osuRoutes['/api/v2/scores/9300'] = apiScore(9300, { replay: true, ended: '2026-05-05T12:00:00Z' });
   let calls = osuCalls.length;
-  const lazer = await upload(env, 5, { replay: lazerOsr({ time: '2026-05-05T12:00:00Z' }), caption: 'from lazer' });
+  const lazer = await upload(env, 9, { replay: lazerOsr({ time: '2026-05-05T12:00:00Z' }), caption: 'from lazer' });
   assert.equal(lazer.status, 201, lazer.body.error);
   assert.deepEqual({ ...lazer.body.play, id: undefined, created: undefined }, {
-    id: undefined, year: 2026, scope: 'year', submitter: 5, player: 6, score_ref: 'osu:9300', beatmap_id: 777, caption: 'from lazer', clip: null, created: undefined,
+    id: undefined, year: 2026, scope: 'year', submitter: 9, player: 6, score_ref: 'osu:9300', beatmap_id: 777, caption: 'from lazer', clip: null, created: undefined,
     played: '2026-05-05T12:00:00Z', endorsements: 0, score: apiCard('osu:9300', { time: '2026-05-05T12:00:00Z' }),
     replay: { kind: 'osu', url: 'https://osu.ppy.sh/scores/9300/download' },
   });
@@ -1247,7 +1254,7 @@ test('a replay osu! keeps isn’t stored: a link with its .osr, or an .osr whose
 
   // A stable .osr alone with its legacy id, and osu! has the score but no replay: the score's entry, and the file kept.
   osuRoutes['/api/v2/scores/fruits/555'] = apiScore(9400, { legacy: 555, replay: false });
-  const stable = await upload(env, 5, { replay: osrFile({ player: 'Player6', onlineId: 555, time: '2026-04-02T18:00:00Z' }) });
+  const stable = await upload(env, 10, { replay: osrFile({ player: 'Player6', onlineId: 555, time: '2026-04-02T18:00:00Z' }) });
   assert.equal(stable.status, 201, stable.body.error);
   assert.deepEqual([stable.body.replay, stable.body.play.score_ref, stable.body.play.score.pp, stable.body.play.replay.kind], ['kept', 'osu:9400', 812.4, 'file']);
   const kept = row(stable.body.play.id);
@@ -1267,10 +1274,10 @@ test('a replay osu! keeps isn’t stored: a link with its .osr, or an .osr whose
   const md5 = 'a'.repeat(32);
   osuRoutes[`/api/v2/beatmaps/lookup?checksum=${md5}`] = { id: 780, version: 'Hard', difficulty_rating: 5, beatmapset: { id: 4243, artist: 'A', title: 'T' } };
   osuRoutes['/api/v2/scores/fruits/600'] = 503;
-  for (const [onlineId, why] of [[0, 'no id'], [601, 'no such score on osu!'], [600, 'osu! down']]) {
+  for (const [i, [onlineId, why]] of [[0, 'no id'], [601, 'no such score on osu!'], [600, 'osu! down']].entries()) {
     calls = osuCalls.length;
     const put = bucket.log.length;
-    const res = await upload(env, 7, { replay: osrFile({ player: 'Player9', md5, onlineId }) });
+    const res = await upload(env, [7, 11, 12][i], { replay: osrFile({ player: 'Player9', md5, onlineId }) });
     assert.equal(res.status, 201, `${why}: ${res.body.error}`);
     assert.deepEqual([res.body.replay, res.body.play.replay.kind, res.body.play.score_ref, res.body.play.score.pp, res.body.play.beatmap_id], ['kept', 'file', null, null, 780], why);
     assert.equal(bucket.log.length, put + 1, why);
@@ -1472,7 +1479,7 @@ test('Legendary plays: any year, 10 each with at most 5 of your own, apart from 
   assert.deepEqual((await addPlay(env, 7, { scope: 'alltime', score: 'map:113:2' })).body.code, 'duplicate', 'the same play by its map ref');
   // The same play can be in both: they're separate lists.
   assert.equal((await addPlay(env, 5, { score: '5000000001', player: 2 })).status, 201);
-  assert.equal((await addPlay(env, 5, { scope: 'alltime', score: '5000000001', player: 2 })).status, 201);
+  assert.equal((await addPlay(env, 9, { scope: 'alltime', score: '5000000001', player: 2 })).status, 201);
   assert.deepEqual((await addPlay(env, 5, { scope: 'forever', player: 6, clip: 'https://youtu.be/x' })).body.code, 'scope');
 
   const listed = async (path, as) => (await call(api.plays, env, { as, path })).body;
@@ -1489,8 +1496,8 @@ test('Legendary plays: any year, 10 each with at most 5 of your own, apart from 
   // Limits: 5 of your own, 10 in all, counted apart from the yearly showcase's.
   for (let i = 0; i < 5; i++) assert.equal((await addPlay(env, 4, { scope: 'alltime', score: String(4000000000 + i) })).status, 201);
   assert.deepEqual((await addPlay(env, 4, { scope: 'alltime', score: String(4000000005) })).body.code, 'own_limit');
-  for (let i = 0; i < 5; i++) assert.equal((await addPlay(env, 4, { scope: 'alltime', player: 6, clip: `https://youtu.be/${i}` })).status, 201);
-  const over = await addPlay(env, 4, { scope: 'alltime', player: 6, clip: 'https://youtu.be/more' });
+  for (let i = 0; i < 5; i++) assert.equal((await addPlay(env, 4, { scope: 'alltime', player: 6 + i, clip: `https://youtu.be/${i}` })).status, 201);
+  const over = await addPlay(env, 4, { scope: 'alltime', player: 11, clip: 'https://youtu.be/more' });
   assert.deepEqual([over.status, over.body.code], [429, 'limit']);
   assert.match(over.body.error, /10 entries in the Legendary plays/);
   assert.equal((await addPlay(env, 4, { score: String(4000000005) })).status, 201, 'the yearly showcase counts on its own');

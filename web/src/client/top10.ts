@@ -85,6 +85,7 @@ const CODES: Readonly<Record<string, string>> = /* i18n */ {
   duplicate: 'That play is already in the showcase.',
   limit: 'That’s 15 showcase entries this year: remove one to add another.',
   own_limit: 'At most 5 of your own plays a year.',
+  other_limit: 'You’ve already showcased a play by this player: one per player. Remove it to add another.',
   mode: 'That isn’t an osu!catch play.',
   not_found: 'osu! has no score with that id. For a play osu! doesn’t keep, attach its replay (.osr) or a clip.',
   not_in_data: 'That score isn’t in the site’s data yet: add it with /addscore first, or attach its replay (.osr) or a clip.',
@@ -128,6 +129,7 @@ const SHOWCASE: Readonly<Record<string, string>> = /* i18n */ {
 const LEGENDARY: Readonly<Record<string, string>> = /* i18n */ {
   limit: 'That’s 10 legendary plays this season: remove one to add another.',
   own_limit: 'At most 5 of your own plays among the legendary ones.',
+  other_limit: 'You’ve already added a legendary play by this player: one per player. Remove it to add another.',
 };
 
 /** What went wrong with a call, in words; with `scope` for the showcase's calls (its window, and the legendary limits). */

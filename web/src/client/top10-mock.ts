@@ -482,6 +482,7 @@ export async function handle(method: string, path: string, body: unknown, me: nu
         played: null, status: 'ok', endorsers: [], score: null, replay: null };
     }
     if (entry.player === me && mine.filter(p => p.player === me).length >= OWN_LIMIT) return no(429, 'own_limit', `At most ${OWN_LIMIT} of your own plays a season.`);
+    if (entry.player !== me && mine.some(p => p.player === entry.player)) return no(429, 'other_limit', 'You’ve already added a play by that player: one per player.');
     entry.scope = scope;
     s.plays.push(entry);
     s.cards[`play:${entry.id}`] = { ...(entry.score ?? {}), ref: `play:${entry.id}`, player: entry.player, play: entry.id, clip: entry.clip };
