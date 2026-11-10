@@ -6,11 +6,15 @@ How ptcatch.com looks, reads and behaves, written so changes stay consistent. It
 **How to use it:**
 - Read §1.
 - Use §2–§12 while building.
-- Run §13 before committing UI.
+- Run §13 before committing UI, and `node tools/design-check.mjs`: it reads the styles and the page markup and
+  lists what breaks the rules a program can check (sizes, radii, colours, glass, glows, pills, emoji). `npm test` runs
+  it, so those fail there. An exception is written in its `ALLOW` list with the reason, never switched off in place.
 - §14 lists where the code still breaks the guide; fix those when you're in the file anyway.
 
 Tokens and classes named here are the real ones, in `assets/css/site.css`, `assets/css/ambience.css` and
-`assets/js/core/ui.js`.
+`assets/js/core/ui.js` (`web/src/ui/page.ts` in the new client). A feature may keep its styles beside its code, as
+the Top 10 does (`web/src/ui/top10-style.ts`), but they are the same system: the same tokens, the same components
+(§9, "Use the piece that exists"), and the same check.
 
 **Already decided by the user.** The guide builds on these and never overrides them:
 - English, with European Portuguese (pt-PT) as the visitor's choice (EN / PT at the end of the nav).
@@ -44,6 +48,27 @@ Unity) and its visual rules (*Color Palette*, *Content Organization*, *Interacti
    slogans, gradients or glass. "Authentically Unity" becomes "authentically PT Catch".
 7. **Accessible by default.** Contrast, focus, keyboard access and target size are requirements, not polish.
 
+### What makes a page look generated
+
+A page reads as machine-made when it decorates instead of deciding. Each of these was on the site (most of them in
+the newest feature, written fastest) and was taken out on 2026-11-10. None comes back.
+
+| The tell | What we do instead |
+|---|---|
+| An emoji in front of a heading, button, tab or status (🏆 Top 10, 🔥 12, ✅ Submitted) | The word. A count says what it counts ("12 endorsements") (§6) |
+| Pills: fully round status chips, tags and toggles | Status in words; one outlined tag; toggles with `--r-sm` (§5, §9) |
+| A coloured border or tinted panel to make a box "special" (accent, gold) | `--border`. Colour on an edge is a state: selected, pressed, drop target (§5) |
+| Numbers in the accent (countdowns, ranks, counts) | Figures are `--text`. The accent is for acting and "current" (§2) |
+| A countdown as four boxes | One strip of figures in the stat type, split by hairlines (§9) |
+| Frosted glass, blur, sections that fade up as you scroll, things that lift on hover | Solid surfaces; nothing moves unless you did something (§5, §7) |
+| A landing-page home: a hero headline, a grid of big totals, "how it works" steps, a closing call to action | A front page: a normal page head, then the standings and what's happening (§9, Home page) |
+| Uppercase, letter-spaced small labels | Sentence case, `--fs-sm`, 500, dim: one label style everywhere (§3) |
+| "01 02 03" step numbers, dots on a timeline | 1, 2, 3; years along one rule (§9) |
+| ↗ after links, arrows as decoration | The text names where it goes (§6) |
+| Chips used as links, tabs or tags | Chips filter. Links are links (§9) |
+| A one-off size, radius or breakpoint "just here" | The scale, or a new token for everyone (§3–§5) |
+| The same thing drawn two ways on two pages | The piece that exists (§9) |
+
 ---
 
 ## 2. Colour
@@ -65,6 +90,7 @@ Depth comes from layers, dark to light, not from shadows.
 | `--surface` #282022 | Objects: tables, row lists, banners, menus, game options |
 | `--surface-2` #32282b | Hover on objects and rows, secondary buttons, popovers |
 | `--surface-3` #3e3336 | Button hover, image placeholders, tracks |
+| `--scrim` | Behind the one drawer (§9, Notices) |
 
 ### Lines
 
@@ -105,8 +131,10 @@ This mirrors Foundations' fixed semantic set (red for error, green for success, 
   text are underlined.
 - **Contrast** is at least 4.5:1 for text and 3:1 for control edges, icons, focus rings and chart marks. Check the hex
   values, not a picked pixel.
-- **Translucent layers:** text on the frosted `.topbar` or `.nav-menu` must pass against the worst background behind
-  it.
+- **Figures are `--text`.** A number is never in the accent to make it louder: size and weight do that. Gold, silver
+  and bronze only on a podium's first three.
+- **A border's colour** is `--border` or `--border-strong`. An accent or red edge is a state (selected, pressed, a drop
+  target, invalid), never a way to rank one box above its neighbours.
 
 ---
 
@@ -149,11 +177,14 @@ There are no in-between sizes.
   big result numbers. Don't bold a label just to group things (*Content Organization*).
 - **Alignment:** left everywhere. Button labels, empty states and the duel or scoreboard figures are centred. Number
   columns (`td.num`) are right-aligned.
-- **Case:** sentence case for every heading, label, button, tab and menu item. No uppercase or letter-spaced labels;
-  table headers (`th`) are the one existing exception. Acronyms stay as they are (PT, SS, HDDT, pp, FC). Foundations'
-  writing guide prefers title case for Editor labels, but its Button page asks for sentence case. The user chose
-  sentence case.
-- **Italics:** only the one-line event quip.
+- **Case:** sentence case for every heading, label, button, tab, menu item and table header. No uppercase and no
+  letter-spaced labels, anywhere. Acronyms stay as they are (PT, SS, HDDT, pp, FC). Foundations' writing guide prefers
+  title case for Editor labels, but its Button page asks for sentence case. The user chose sentence case.
+- **One label style:** the small text that names a figure, a field or a column (`.stat-label`, `.kv dt`, `.field
+  label`, `th`, a countdown's units) is `--fs-sm`, 500, `--text-dim`. Don't invent another.
+- **Headings:** H1 is the page (fluid, up to 40px; 48px on home only). H2 is always `--fs-xl` in the display face; a
+  title inside a card or column is `.card-h` (`--fs-md`, 600, Inter). No in-between heading sizes for one component.
+- **Italics:** only the one-line event quip and the quote in it. What people wrote (captions, notes) is set upright.
 - **Truncation:** end-truncate titles with an ellipsis, and keep the full string in the accessible name or `title`.
 - **Line length:** under about 75ch for running text.
 
@@ -195,7 +226,8 @@ They are tokens in `:root`, and every padding, margin and gap uses them.
   of the text.
 - **Grids:** reuse `.grid-2/3/4` (2 columns under 900px, 1 under 620px) and `.grid-auto` before writing a new one.
 - **Breakpoints:** 480 (small phone), 600 (tables fold, `.col-opt` hides), 760 (layouts stack) and 940 (the nav
-  becomes a menu). Don't add others.
+  becomes a menu). Don't add others. Written the other way, a breakpoint is `min-width` one pixel above it (761px).
+  The top bar has three of its own, where its contents stop fitting (420, 1060, 1180); nothing else uses them.
 - **No sideways page scroll on phones.** Only `.table-wrap` and the `.diffs` strip may scroll sideways, and never both
   ways at once.
 - **No box inside a box.**
@@ -209,13 +241,13 @@ signal interactivity).*
 
 ### Radii
 
-Never above 5px, and no pill-shaped buttons.
+Never above 5px, and no pills: nothing is fully rounded but a person's avatar.
 
 | Radius | Use for |
 |---|---|
 | `--r` 5px | Objects and controls: `.btn`, `.input`, `.table-wrap`, `.rows`, `.banner`, menus |
-| `--r-sm` 3px | Small controls: `.chip`, `.badge`, `.diff`, `.map-cover`, `.kbd` |
-| `--r-xs` 2px | Pills inside text: `.mod`, `.pos`, `.stars` |
+| `--r-sm` 3px | Small controls: `.chip`, `.fun-chip`, small toggles (thank, endorse), `.diff`, `.map-cover`, `.kbd` |
+| `--r-xs` 2px | Marks inside text: `.mod`, `.pos`, `.stars`, tags (`.legend-tag`), meters |
 | 50% | People (avatars) only. Maps are rectangles |
 | 0 | Open sections: `.card:not(.card-link)`, `.stat`, `.notice`, `.empty` |
 
@@ -224,7 +256,10 @@ Never above 5px, and no pill-shaped buttons.
 - **A full box** (fill, 1px border, radius) is for one object: a table, a row list, a banner, a game option, a Dan
   stage or a menu.
 - **Everything else is open:** a `--border` hairline above it or between its items.
-- **No coloured `border-left` callouts.** The 2px inset accent edge on `.me` rows stays, because it marks a state.
+- **No coloured `border-left` callouts**, and no tinted or accent-bordered panels for notes, warnings or "done"
+  messages: a note that must stand out sits between two hairlines (§9, Notices). The 2px inset accent edge on `.me`
+  rows stays, because it marks a state.
+- **No dashed borders**, an empty slot's included: an empty place is an unfilled outline.
 - **Inputs are inset:** a `--bg-2` fill and an `--input-border` edge. **Actions are outset:** a `--surface-2` fill and
   a `--border-strong` edge. These are Foundations' inset and outset borders.
 
@@ -233,7 +268,8 @@ Never above 5px, and no pill-shaped buttons.
 - **On the page:** no shadows.
 - **Floating layers** (popovers, toasts, the toggletip bubble) may have one neutral black shadow: `--shadow-float`.
 - **No glows:** no coloured shadows, `text-shadow` halos or gradient surfaces.
-- **Translucency:** the frosted top bar and its menus are the only translucent surfaces.
+- **Nothing is translucent or blurred.** The top bar, its menus and any sticky bar are solid (`--bg`, `--surface`).
+  The one see-through thing is `--scrim`, behind the drawer.
 
 ---
 
@@ -259,10 +295,14 @@ Tooltip (every icon has a name; avoid icons in buttons).*
 - **Characters** (★, ✕, ✓) are text beside a number or word.
 - **Icon-only controls** need an `aria-label` and a visible name. On phones prefer a word, as the "Search" toggle does.
 - **No icons inside text buttons** unless the action needs one.
-- **No emoji in the interface.** They belong in opt-in easter eggs and in text copied to Discord. The one exception is
-  🍌, the unit of Bananas (the user's choice): it follows an amount the way ★ follows stars ("240 🍌", `bananas()` in
-  `core/bananas.js`), and never stands alone as an icon or decoration.
-- **No arrows after link text.**
+- **No emoji in the interface:** not before a heading, button, tab or link, not as a status, not as a counter's
+  unit, not in a toast. Say it in words ("12 endorsements", "Submitted", "Thanked."). They belong in opt-in easter
+  eggs and in text copied to Discord. The one exception is 🍌, the unit of Bananas (the user's choice): it follows an
+  amount the way ★ follows stars ("240 🍌", `bananas()` in `core/bananas.js`), and never stands alone as an icon or
+  decoration.
+- **No arrows after link text**, the "opens elsewhere" ↗ included: the text names where it goes ("Open on osu!",
+  "Vote on Discord"). An arrow only points a direction on a control that steps (← Previous, Next →, ↑ Higher) or
+  between an old and a new value (1,500 → 1,662).
 
 ---
 
@@ -278,12 +318,12 @@ Foundations has no motion page, but its guidance is consistent: motion confirms 
 | State change (colour, border, fill) | 120ms, `ease` | Buttons, chips, `.card-link`, inputs |
 | Small movement (4px or less); a menu opening | 120–200ms | `.nav-menu`, `.peek-pop` |
 | Hover intent before a menu opens | 80–100ms delay | `.nav-cat`, `.peek` |
-| Arrival, once | 550ms, `cubic-bezier(.2, .7, .2, 1)` | `.reveal` sections below the fold |
 | Transient message | 6s (the `toast()` default), then fade | Toasts |
 
 **Rules:**
 - Animate only `opacity`, `transform` and colour; never layout.
-- **One change per hover:** colour or fill. Not that plus a lift and a shadow.
+- **One change per hover:** colour or fill. Never a lift, a scale or a shadow.
+- **Nothing animates on arrival or on scroll.** A page is there when it's drawn; sections don't fade or slide in.
 - **Only loading loops** (`.climb`). No pulses, shimmers or breathing glows. Easter eggs are opt-in and play once.
 - **Reduced motion:** every animation has a `prefers-reduced-motion: reduce` rule next to it. JS uses
   `reducedMotion()` and `scrollBehavior()`.
@@ -301,7 +341,7 @@ Bar.*
 | **Hover** | Actions: the fill moves up one layer. Inputs: the border lightens. Links: underline. Title links: accent | This follows Foundations (lighter fill for actions, lighter border for inputs). Never the only cue |
 | **Focus** | `:focus-visible`: a 2px accent outline at a 2px offset. Inputs: an accent border | Distinct from hover, never clipped by a parent. No ring on the H1 that the router focuses |
 | **Pressed or checked** (a toggle that stays on: `.chip.active`, `.btn[aria-pressed]`, `.fun-chip`) | `--accent-bg` fill, `--accent-line` edge, accent text; buttons add ✓ | Always with `aria-pressed` |
-| **Current or selected** (`.tabs a.active`, `.nav-top.active`, `.diff[aria-current]`, `.dan-stage.selected`) | Tabs and nav: a 2px accent underline. Objects: an accent border on `--accent-bg` | Always with `aria-current` |
+| **Current or selected** (`.tabs a.active`, `.nav-top.active`, `.diff[aria-current]`, `.dan-stage.selected`) | Tabs and nav: a 2px accent underline (a bottom border; an inset shadow leaves a sliver beside a tab of fractional width). Objects: an accent border on `--accent-bg` | Always with `aria-current` |
 | **You** (`.me` rows) | `--accent-bg` and a 2px inset accent left edge | Only the player signed in with osu! in this browser |
 | **Disabled** | `opacity: .45`, no hover change | Hide a control that rarely applies. Disable one that's usually there, and say why in visible text. Never hide buttons |
 | **Invalid input** | Number fields keep the last valid value | No red borders while typing |
@@ -339,6 +379,24 @@ list isn't a failure. There are three kinds:
 *Sources: the matching Foundations component pages (Button, Toggle, Radio Button, Tab, Dropdown, Slider, List and
 Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout).*
 
+### Use the piece that exists
+
+A new feature is built from these. If what you need is in the left column, the right column is how the site already
+draws it; a new class may add layout, never a second look for the same thing.
+
+| You need | Use |
+|---|---|
+| A status ("Draft", "Voting is open", "Voided") | Words: `.badge` (`.t10-state`), dim; `--text` when it's good news, `--red` for a problem |
+| A small mark or value beside a name ("legend", "clip", "3 of 5") | The tag: `.legend-tag` (`.t10-pill`), a thin outline, `--r-xs` |
+| A toggle that stays on (a filter, thank, endorse) | `.chip` / `.btn[aria-pressed]`: `--r-sm`, the pressed look of §8 |
+| A switch between sibling views | `tabs()`; a second, smaller switch inside a tab is a `chipGroup()` under the page head |
+| Links to other pages or to parts of this one | `.page-links`, `.jump-links`: plain accent links in a row |
+| A figure with its name (a stat, a countdown, a total) | `stat()` or `.kv`: the label above, the value in `--text` |
+| A list of things | `.rows` / `scoreRow()`, or a table |
+| A note | `.notice`: plain dim text. One that must not be missed: text between hairlines |
+| Nothing to show | `.empty` |
+| A thing with its own state and action (a ballot, a game, a Dan stage) | A box: `--surface`, `--border`, `--r` |
+
 ### Buttons (`.btn`)
 
 - **Sizes:** 36px, `.btn-small` 30px, `.btn-icon` 30px square.
@@ -360,7 +418,9 @@ Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout)
 
 - Filters: a labelled group of toggle buttons for five or fewer options that should all be visible. Use a `.select`
   for more.
-- A chip that only shows a value is a `.badge`.
+- A chip that only shows a value is a `.badge`. A chip that only goes somewhere is a link: "On this page" links are
+  `.jump-links`, not chips.
+- A chip row that switches what the page shows sits under the page head, never above the H1.
 
 ### Tabs (`tabs()`)
 
@@ -390,7 +450,7 @@ Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout)
 ### Tables and score rows
 
 - **Tables** (`.table-wrap`):
-  - Small, faint headers on `--bg-2`; numbers right-aligned.
+  - Headers are labels (§3: `--fs-sm`, 500, dim, sentence case) on `--bg-2`; numbers right-aligned.
   - Rows get a `--surface-2` hover.
   - Under 600px, `.col-opt` columns fold into `.cell-sub`.
 - **Score rows** (`scoreRow()`):
@@ -407,7 +467,9 @@ Multi-column Views, Label, Help Box, Tooltip, Search Field, Text Field, Foldout)
   rank.
 - **Layout:** one open strip split by hairlines, not boxes, with rows aligned via subgrid.
 - **Label:** a sentence-case noun phrase in `--fs-sm`, dim.
-- **Value:** `--fs-2xl`. It shrinks to fit (`.stat-fit`) and never wraps.
+- **Value:** `--fs-2xl`, `--text`. It shrinks to fit (`.stat-fit`) and never wraps.
+- **A countdown** is this strip too (`.t10-cd`): days, hours, min and sec as four figures under their labels, split
+  by hairlines. Not four boxes, and not in the accent.
 - A value that links to its leaderboard uses `.stat-link`.
 - At most one strip of four to six tiles per page, with the hero first.
 
@@ -427,18 +489,28 @@ far Portugal has got, then a one-line caption.
 
 ### Home page
 
-The home page answers, in order: who we are, how far we've got, who's on top, what to play, what's happening. One
-hero, then sections that step down.
-1. **Hero:** H1, one lead sentence, the actions and the stat strip (`.hero-stats`). Under it, full width, the two
-   community goals as bands (`.hero-ladder`): the Dan ladder (how far up), then the completion goal (how far across,
-   `goalBand()`). They are the only progress marks on the page.
-2. **Throne line:** Tris's #1s, a ruled row.
-3. **Portugal's best:** the three top 5s.
-4. **Two columns:** what to play on the left (map of the week, "This week so far", then "Still to clear": the three
+The home page is the community's front page, not a landing page. It opens like every other page and goes straight
+to the data: who we are in one line, how far we've got, who's on top, what to play, what's happening.
+1. **Page head** (`.home-head`): the H1 at the size every page's H1 has, one sentence that carries the totals in
+   words ("… 144,258 scores by 252 players on 59,490 maps"), then the actions: the Discord as the one primary
+   button, "How to join" and "Find yourself" (or "Your profile") as plain links.
+2. **The two community goals** as full-width bands (`.hero-ladder`): the Dan ladder (how far up), the site's own
+   mark and the first big thing on the page, then the completion goal (how far across, `goalBand()`). They are the
+   only progress marks on the page.
+3. **Throne line:** Tris's #1s, a ruled row.
+4. **Portugal's best:** the three top 5s. Each board's name is the link to its leaderboard.
+5. **Two columns:** what to play on the left (map of the week, "This week so far", then "Still to clear": the three
    easiest uncleared ranked maps and the latest first clear, `goalNext()`); what's happening on the right (recent
-   activity, then King of the hill's month and the open bounties, in the shape of "This week so far", from meta.json's
-   `hill` and bounties.json, never hill.json).
-5. **Since 2018**, then **How to join**.
+   activity as a ruled list, `.feed-open`, then King of the hill's month and the open bounties, in the shape of "This
+   week so far", from meta.json's `hill` and bounties.json, never hill.json).
+6. **Since 2018** (the years along one rule, no dots), and nothing after it.
+
+What it must not grow back, because each is what a generated landing page has:
+- **A hero:** an oversized headline beside a grid of big totals. Totals nobody came to look up go in the sentence;
+  Records has them as figures.
+- **"How it works" steps** or any section that sells the site. How to join is its own page, one link away.
+- **A second button**, a slogan, or a closing call to action. The footer's Discord button is enough.
+- **The same link twice in one section** ("All leaderboards" and three "Full leaderboard"s).
 
 Completion appears twice and never more: the figure in the hero, and the nudge beside the map of the week. Neither
 loads `completion.json` (about 90 KB compressed); both read `meta.json`'s `completion` (`homeGoal()` in
@@ -459,7 +531,8 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
   a Challenges tab shows only the others, so a map in two challenges links both ways.
 - **`.legend-tag`** is the "legend" or "inactive" tag: faint text in a thin `--border-strong` outline (the user's
   choice; the one boxed status), middle-aligned so it's centred on the name. It must explain itself visibly (see
-  Tooltips).
+  Tooltips). It is the site's only tag: "Experimental" (`.exp-tag`) and the Top 10's marks (`.t10-pill`: "clip",
+  "you", "3 of 5") are the same outline, never a filled or round pill.
 - **`.fun-chip`** is an in-joke as a toggletip, on profiles and maps only, three at most before "+N more".
 
 ### Search and fields
@@ -519,9 +592,16 @@ Prefer status as words in the line under a name (`.profile-line`): Foundations d
 
 ### Notices, toasts and disclosures
 
-- **`.notice`** is a plain dim paragraph.
-- **`.toast`** is only for brief confirmation ("Copied"), never for something that needs action.
-- **No modal dialogs.** Foundations keeps those for questions the user must answer, and the site has none.
+- **`.notice`** is a plain dim paragraph. A note people must not miss (the mods' warning where you write, "your
+  ballot is in") is text between two hairlines (`.t10-modwarn`, `.t10-done`, `.t10-cta`), never a tinted or
+  accent-bordered panel.
+- **`.toast`** is only for brief confirmation ("Copied"), never for something that needs action. A sentence, with no
+  emoji.
+- **No modal dialogs.** Foundations keeps those for questions the user must answer, and the site has none. The one
+  layer over the page is the Top 10's dossier drawer (a player looked up without losing your list): it slides over
+  `--scrim`, closes on Escape or a click outside, and nothing else may use the pattern.
+- **Steps** (`.steps`) are numbered 1, 2, 3 in the display face, never "01". **A timeline** (`.since`, `.timeline`) is
+  its years along one rule, with no dots or markers.
 - **`details.history`** holds heavy, secondary content. Its summary is in sentence case with "Show ▸" and "Hide ▾".
   Never hide frequently used controls in one.
 
@@ -584,6 +664,8 @@ Messaging, Label, Tooltip, Accessibility (link text).*
   intro.
 - **Labels** are nouns of one to three words, with no end punctuation. **Buttons and menu items** are verbs.
 - **Explain once**, where it's needed, and link to `/glossary` instead of repeating the explanation above every table.
+- **Words, not symbols:** a status, a confirmation and a count are written out ("Submitted · public", "Thanked.",
+  "3 endorsements"). No emoji stands in for a word (§6).
 - **Use players' own terms:** pp, FC, SS, nomod, HDDT, converts, loved, snipe, Dan. New terms go in the glossary.
 
 **Languages:**
@@ -624,7 +706,9 @@ wrong".
 ## 13. Review checklist
 
 **Do:**
+- [ ] Run `node tools/design-check.mjs` (and `npm test`, which runs it).
 - [ ] Use existing tokens and helpers. A new colour, size or space becomes a token in `:root`.
+- [ ] Build from the pieces in §9's "Use the piece that exists" before writing a class.
 - [ ] Give each view one hero; everything else steps down in size or colour.
 - [ ] Box only objects you can pick up whole; group with space and hairlines.
 - [ ] Use sentence case, labels of three words at most, and buttons that start with a verb.
@@ -640,15 +724,22 @@ wrong".
 - [ ] Check at 375px and 1440px, in English and Portuguese.
 
 **Don't:**
-- [ ] Hex values in components, or `style=""` in page JS.
-- [ ] Uppercase or letter-spaced labels, or slogans under an H1.
-- [ ] New boxes, card grids or `border-left` stripes to make something stand out.
-- [ ] Glows, coloured shadows, gradients, shimmer, pulses, or glass beyond the top bar.
+- [ ] Hex values in components, or `style=""` in page JS (it may only carry a value from the data).
+- [ ] Uppercase or letter-spaced labels, table headers included, or slogans under an H1.
+- [ ] New boxes, card grids, `border-left` stripes, tinted panels or coloured borders to make something stand out.
+- [ ] Glows, coloured shadows, gradients, shimmer, pulses, glass or blur, anywhere.
+- [ ] Anything that fades or slides in on scroll, or lifts on hover.
+- [ ] Pills: fully round tags, status chips or toggles.
+- [ ] Emoji before a heading, button, tab or status, or as a counter (🍌 aside).
+- [ ] Numbers in the accent; countdowns as boxes; "01" step numbers; dots on timelines.
+- [ ] A hero, a grid of vanity totals or "how it works" steps on the home page.
+- [ ] Chips as links or tags; a chip row above the H1.
+- [ ] A second look for something §9 already has, or a size, radius or breakpoint off the scale.
 - [ ] Colour as the only signal, or a second job for a colour.
 - [ ] Rainbows on controls (osu!'s own data colours aside).
 - [ ] Dashed borders as a private code.
 - [ ] Pills for values osu! doesn't pill.
-- [ ] Arrows after link text.
+- [ ] Arrows after link text, ↗ included.
 - [ ] Jokes in loaders, errors, empty states or buttons, or invented jokes.
 - [ ] Needed explanations hidden in `title` tooltips.
 - [ ] Type under 12px, or between scale steps.
@@ -671,6 +762,21 @@ The `design-pass` branch (2026-10-26) applied this guide to the site:
 - quips only on the rare real-lore events, and no emoji in the activity feed;
 - the "Fewer boxes" and "Quieter labels" overrides folded into their original rules.
 
+The consistency pass (2026-11-10) took out what still read as generated, and made the rules checkable:
+- the Top 10 pages, written after the design pass with their own stylesheet, are on the system: status in words, one
+  tag, toggles at `--r-sm`, plain borders, figures in `--text`, the countdown as a strip, notes between hairlines, no
+  emoji, the kind chips under the page head;
+- nothing is translucent (the top bar, its menus, the ballot's bottom bar) and nothing fades up on scroll (the
+  `.reveal` motion and its module are gone); the ladder no longer lifts on hover;
+- table headers are sentence-case labels, the last uppercase on the site;
+- steps are 1, 2, 3; the timelines have no dots; Records' "on this page" links are links, not chips;
+- no emoji before links and no ↗ after them, on any page;
+- the home page lost its hero (the three-line headline, the grid of totals) and its "How to join" steps: it opens with
+  a normal page head, the totals in its one sentence, and the ladder (§9, Home page);
+- the current tab's underline is a border (the inset shadow left a sliver beside some tabs);
+- glyph and loader sizes sit on the scale; the Top 10's breakpoints are the site's;
+- `tools/design-check.mjs` checks all of this in `npm test`.
+
 Still open. Line numbers drift, so search for the selector.
 
 1. **Some meaning is still only in `title` or `aria-label`.** The quieter `.diff-new` (no Portuguese scores yet) says
@@ -678,14 +784,20 @@ Still open. Line numbers drift, so search for the selector.
    toggletips now (`tipTag()`).
 2. **One hex value outside `:root`:** the tile stroke in `ambience.css`. A `data:` URI can't read a variable; it's
    `--cat-c` by value.
+3. **The Top 10's tabs sit above the H1**, because each of its views has its own H1; everywhere else tabs follow
+   the page's one H1. One H1 for the section ("Top 10 of 2026") with the tabs under it would match.
+4. **The Top 10 still boxes more than it needs:** a showcase entry, a ballot post and a result row are each a
+   bordered card in a grid of cards. A post and a result row could be rows of one `.rows` list.
+5. **The Top 10's styles live in `web/src/ui/top10-style.ts`**, not `site.css`. The check reads both; they can move
+   as they are.
 
 Done since: the blocks once appended to `site.css` (search, "you", sign-in, the a11y fixes, goal, peek) sit in their
 sections, with a Challenges section and a Utilities section last; rank links on stat tiles have a 45px-tall hit area and
 heading links reach 44px on touch; spacing is on the scale everywhere (§4); tabs and top 5 lines read their figures apart from their names; the menu button, the
 bacalhau loader and the flash easter egg calm down under reduced motion.
 
-Allowed on purpose: table headers in small capitals, and fluid sizes made with `clamp()` (H1, stat values, Dan
-glyphs). Each of those is bounded by scale steps.
+Allowed on purpose: fluid sizes made with `clamp()` (H1, stat values, Dan glyphs), each bounded by scale steps, and
+what `tools/design-check.mjs` lists in `ALLOW`, each with its reason.
 
 ---
 

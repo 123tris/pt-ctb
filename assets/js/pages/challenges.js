@@ -92,7 +92,7 @@ function weekSection(week, maps, index, me, now) {
       </div>
     </section>
     <div class="mt-3 mb-6 btn-row">
-      <a class="btn btn-primary" href="${osuMap(week.map)}" target="_blank" rel="noopener">${t('Open on osu!')} ↗</a>
+      <a class="btn btn-primary" href="${osuMap(week.map)}" target="_blank" rel="noopener">${t('Open on osu!')}</a>
       <a class="btn" href="/map/${week.map}">${t('Full leaderboard')}</a>
     </div>
     <div class="section-head"><h2>${t('This week’s plays')}</h2></div>

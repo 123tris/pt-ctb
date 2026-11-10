@@ -266,7 +266,7 @@ test('duels: the duels being played, the ladder a page at a time, and the latest
   assert.ok(live.includes(ctx.t('As of the last data update, {ago}', { ago: ctx.fmt.ago(json('meta.json').generatedAt) })));
   assert.equal(count(live, /<div class="row duel-row duel-live">/g), file.live.length);
   assert.deepEqual([...live.matchAll(/<a class="player duel-side" href="\/player\/(\d+)">/g)].map(m => Number(m[1])), file.live.flatMap(d => d.players.map(p => p.u)));
-  assert.ok(live.includes('<a href="https://osu.ppy.sh/community/matches/120000001" target="_blank" rel="noopener">Lobby on osu! ↗</a>'));
+  assert.ok(live.includes('<a href="https://osu.ppy.sh/community/matches/120000001" target="_blank" rel="noopener">Lobby on osu!</a>'));
   assert.ok(live.includes(`<img class="avatar avatar-sm" src="https://a.ppy.sh/${OFF}"`) && live.includes('<span class="duel-name ">Ghost &lt;Duelist&gt;</span>'));
   assert.equal(count(live, /started /g), 1, 'a live duel with no start says nothing of it');
   // The ladder: its first page in the file's order, rated then provisional, the visitor's row marked.

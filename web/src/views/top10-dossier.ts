@@ -104,8 +104,8 @@ function careerBody(ctx: Ctx, d: Data, { compact = false } = {}): Safe {
 
     <h3 class="t10-h3">${t('Legendary plays')}</h3>
     ${d.plays === null ? html`<p class="muted small">${t('The showcase couldn’t be loaded.')}</p>`
-      : shown.length ? html`<ul class="t10-show-list">${shown.map(p => html`<li>${p.score ? scoreCard(ctx, p.score, p.score_ref) : p.clip ? html`<div class="t10-score t10-score-bare"><a href="${p.clip}" target="_blank" rel="noopener">🎬 ${t('Clip')} ↗</a></div>` : ''}
-          ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}<span class="small faint">🔥 ${fmt.num(p.endorsements ?? 0)}</span></li>`)}</ul>`
+      : shown.length ? html`<ul class="t10-show-list">${shown.map(p => html`<li>${p.score ? scoreCard(ctx, p.score, p.score_ref) : p.clip ? html`<div class="t10-score t10-score-bare"><a href="${p.clip}" target="_blank" rel="noopener">${t('Clip')}</a></div>` : ''}
+          ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}<span class="small faint">${ctx.tn(p.endorsements ?? 0, '{n} endorsement', '{n} endorsements')}</span></li>`)}</ul>`
       : html`<p class="muted small">${t('Nobody has picked a legendary play of {name}’s yet.', { name })} <a href="/top10/plays?scope=alltime&player=${d.id}">${t('Pick one')}</a></p>`}
 
     ${compact ? html`<p class="btn-row mt-4"><a class="btn btn-small" href="/top10/dossier/${d.id}/alltime">${t('Open the full dossier')}</a></p>` : ''}
@@ -169,8 +169,8 @@ export function dossierBody(ctx: Ctx, d: Data, { compact = false } = {}): Safe {
 
     <h3 class="t10-h3">${t('Showcased by the community')}</h3>
     ${d.plays === null ? html`<p class="muted small">${t('The showcase couldn’t be loaded.')}</p>`
-      : shown.length ? html`<ul class="t10-show-list">${shown.map(p => html`<li>${p.score ? scoreCard(ctx, p.score, p.score_ref) : p.clip ? html`<div class="t10-score t10-score-bare"><a href="${p.clip}" target="_blank" rel="noopener">🎬 ${t('Clip')} ↗</a></div>` : ''}
-          ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}<span class="small faint">🔥 ${fmt.num(p.endorsements ?? 0)}</span></li>`)}</ul>`
+      : shown.length ? html`<ul class="t10-show-list">${shown.map(p => html`<li>${p.score ? scoreCard(ctx, p.score, p.score_ref) : p.clip ? html`<div class="t10-score t10-score-bare"><a href="${p.clip}" target="_blank" rel="noopener">${t('Clip')}</a></div>` : ''}
+          ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}<span class="small faint">${ctx.tn(p.endorsements ?? 0, '{n} endorsement', '{n} endorsements')}</span></li>`)}</ul>`
       : html`<p class="muted small">${t('Nobody has showcased a play of {name}’s yet.', { name })} <a href="/top10/plays?player=${d.id}">${t('Showcase one')}</a></p>`}
 
     ${compact ? html`<p class="btn-row mt-4"><a class="btn btn-small" href="/top10/dossier/${d.id}/${d.year}">${t('Open the full dossier')}</a></p>`
@@ -195,7 +195,7 @@ export function render(ctx: Ctx, d: Data): Safe {
           <a class="btn btn-small" href="/top10/ballots?player=${d.id}${d.career ? '&kind=alltime' : ''}">${t('What voters wrote about {name}', { name })}</a></div></div>
     </header>
     ${views}
-    ${ctx.me === d.id && d.showcase === 'open' ? html`<div class="t10-cta t10-cta-go">${caseLink(ctx, d.career ? 'alltime' : 'year')}</div>` : ''}
+    ${ctx.me === d.id && d.showcase === 'open' ? html`<div class="t10-cta">${caseLink(ctx, d.career ? 'alltime' : 'year')}</div>` : ''}
     ${dossierBody(ctx, d)}`;
 }
 

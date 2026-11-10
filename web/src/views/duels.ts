@@ -67,7 +67,7 @@ function liveRow(ctx: Ctx, d: LiveDuel, players: Players): Safe {
     <span class="row-meta">
       <span>${formatText(ctx, d)}</span>
       ${d.start ? html`<span class="sep"></span><span class="faint" title="${fmt.dateTime(d.start)}">${t('started {ago}', { ago: fmt.ago(d.start) })}</span>` : ''}
-      ${d.mp ? html`<span class="sep"></span><a href="${matchUrl(d.mp)}" target="_blank" rel="noopener">${t('Lobby on osu!')} ↗</a>` : ''}
+      ${d.mp ? html`<span class="sep"></span><a href="${matchUrl(d.mp)}" target="_blank" rel="noopener">${t('Lobby on osu!')}</a>` : ''}
     </span>
   </div>`;
 }

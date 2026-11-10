@@ -139,7 +139,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
 
   if (slug === 'kings') {
     const head = html`
-      ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${t('All players')}</a><a href="/compare">${t('Compare two players')}</a><a href="/challenges/hill?at=crowns"><span aria-hidden="true">👑</span> ${t('King of the hill crowns')}</a></p>` })}
+      ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${t('All players')}</a><a href="/compare">${t('Compare two players')}</a><a href="/challenges/hill?at=crowns">${t('King of the hill crowns')}</a></p>` })}
       ${tabs(BOARDS.map(b => ({ href: `/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}`;
     kingsPage(root, { kings: recs?.kings, index, me, query, head, intro: INTRO.kings });
     return;
@@ -153,7 +153,7 @@ export default async function rankings(root, { params, query, isCurrent }) {
   let mod = modChoices.includes(query.mod) ? query.mod : defaultMod;
 
   root.innerHTML = String(html`
-    ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${t('All players')}</a><a href="/compare">${t('Compare two players')}</a><a href="/challenges/hill?at=crowns"><span aria-hidden="true">👑</span> ${t('King of the hill crowns')}</a></p>` })}
+    ${pageHead({ title: t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${t('All players')}</a><a href="/compare">${t('Compare two players')}</a><a href="/challenges/hill?at=crowns">${t('King of the hill crowns')}</a></p>` })}
     ${tabs(BOARDS.map(b => ({ href: `/rankings/${b.slug}`, label: b.label, active: b === board })), t('Leaderboard type'))}
     <p class="muted">${INTRO[slug]}${slug === 'ranked' && m.dump ? html` <span class="faint">${t('Players and plays imported from the osu! data dump of {date}.', { date: m.dump.replaceAll('_', '-') })}</span>` : ''}</p>
     <div class="toolbar">

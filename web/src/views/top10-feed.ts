@@ -1,7 +1,7 @@
 // /top10/ballots: every submitted ballot, read like the forum threads (§6). By voter, each ballot is a post: the
 // intro, the list with each write-up under its player (and the scores it cites), the mentions and ones to watch, the
 // closing message. By player (?player=<id>), everything written about one player, with who wrote it and where they
-// placed them ("#1 by ExPin"); with no player picked, who has been written about. A write-up about you has a ❤️ to
+// placed them ("#1 by ExPin"); with no player picked, who has been written about. A write-up about you has a button to
 // thank its writer (§3.5). Your own ballot comes first, and if you haven't made one there's a nudge to do that before
 // reading everyone else's (§12, herding).
 
@@ -40,8 +40,8 @@ export function writeupBlock(ctx: Ctx, d: Data, b: PublicBallot, subject: number
     ${(w.cites ?? []).length ? html`<div class="t10-cites">${(w.cites ?? []).map(ref => scoreCard(ctx, b.scores?.[ref] ?? null, ref))}</div>` : ''}
     <div class="t10-wu-foot">
       ${mine && d.thanksOpen ? html`<button class="t10-thanks ${w.thanked ? 't10-thanks-on' : ''}" type="button" data-thank="${b.voter}" aria-pressed="${String(Boolean(w.thanked))}">
-          ❤️ <span>${w.thanked ? t('Thanked') : t('Thank {name}', { name: nameOf(d.core, b.voter) })}</span></button>`
-        : thanks ? html`<span class="small faint">❤️ ${t('{name} thanked this', { name: nameOf(d.core, subject) })}</span>` : ''}
+          <span>${w.thanked ? t('Thanked') : t('Thank {name}', { name: nameOf(d.core, b.voter) })}</span></button>`
+        : thanks ? html`<span class="small faint">${t('{name} thanked this', { name: nameOf(d.core, subject) })}</span>` : ''}
     </div>
   </div>`;
 }
@@ -86,7 +86,7 @@ function aboutPlayer(ctx: Ctx, d: Data, id: number): Safe {
   const r = rowOf(d.core.players, id);
   return html`<header class="t10-about-head">${r >= 0 ? avatar(ctx, d.core.players, r, 'avatar-md') : ''}<div>
       <h2 class="m-0">${t('About {name}', { name: nameOf(d.core, id) })}</h2>
-      <a class="small" href="/top10/dossier/${id}/${d.kind === 'alltime' ? 'alltime' : d.season.year}">${d.kind === 'alltime' ? t('{name}’s career', { name: nameOf(d.core, id) }) : t('{name}’s year', { name: nameOf(d.core, id) })} →</a></div></header>
+      <a class="small" href="/top10/dossier/${id}/${d.kind === 'alltime' ? 'alltime' : d.season.year}">${d.kind === 'alltime' ? t('{name}’s career', { name: nameOf(d.core, id) }) : t('{name}’s year', { name: nameOf(d.core, id) })}</a></div></header>
     ${items.length ? html`<ul class="t10-about">${items.map(({ b, w, place }) => html`<li class="t10-post">
         <div class="t10-about-by"><b>${place}</b> ${t('by')} ${playerLinkId(ctx, d.core.players, b.voter, 'avatar-sm')}</div>
         ${writeupBlock(ctx, d, b, id, w)}</li>`)}</ul>`

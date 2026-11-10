@@ -2,7 +2,6 @@
    - The page sits on faint azulejo tiles, with film grain.
      The tiles live in the margins beside the page and fade out behind the reading column so text stays clear.
    - The logo's name is set in Unbounded.
-   - Motion: sections further down fade up once as they arrive; nothing else moves on its own.
    - The tiles' stroke is the azulejo blue (#73c5e8, --cat-c by value): a data: URI can't read a CSS variable. */
 
 :root {
@@ -30,9 +29,8 @@ body::after {
 }
 ::selection { background: var(--accent); color: var(--accent-ink); }
 
-/* The top bar and its menus are frosted glass over the background. */
-.topbar { background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4); }
-.nav-menu { background: color-mix(in srgb, var(--surface-2) 90%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 18px 40px rgba(0, 0, 0, .45); }
+/* Menus float over the page, so they get the one shadow (site.css --shadow-float). Nothing is translucent. */
+.nav-menu { box-shadow: var(--shadow-float); }
 
 /* ---- The logo's name --------------------------------------------------------------------------------------- */
 
@@ -44,14 +42,3 @@ body::after {
   unicode-range: U+20, U+43, U+50, U+54, U+61, U+63, U+68, U+74;
 }
 .brand { font-family: 'Unbounded', var(--display); font-weight: 800; letter-spacing: -.02em; }
-
-/* ---- Motion ------------------------------------------------------------------------------------------------------ */
-
-/* Motion confirms a change and never performs (DESIGN.md §7): no pulses, shimmers, glows or lifts. The one entrance:
-   sections further down fade up the first time they scroll into view (core/reveal.js adds .reveal, then .in). */
-.reveal { opacity: 0; transform: translateY(16px); transition: opacity .55s ease, transform .55s cubic-bezier(.2, .7, .2, 1); }
-.reveal.in { opacity: 1; transform: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal { opacity: 1; transform: none; }
-}

@@ -11,7 +11,6 @@ export { startTracking, trackView, trackError } from './track.ts';
 export { startFun } from './fun.ts';
 export { initSearch } from './search.ts';
 export { initYou, readSignIn } from './you.ts';
-export { initReveal } from './reveal.ts';
 export { initConsent } from './consent.ts';
 export { moved } from './moved.ts';
 export { NotFound } from '../kernel/store.ts';

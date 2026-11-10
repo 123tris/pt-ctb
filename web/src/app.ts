@@ -13,7 +13,7 @@ import { PAGE_MODULES, match, moved as unmoved, pageKey, pageObject, pageOf, typ
 import { oldPage, type RouterPage } from './client/page.ts';
 import {
   CONFIG, lang, htmlLang, setLang, store, clientCtx, here, go, setTitle, enhanceTables, openSearch, startTips, checkOldUi,
-  startTracking, trackView, trackError, startFun, initSearch, initYou, readSignIn, initReveal, initConsent, moved,
+  startTracking, trackView, trackError, startFun, initSearch, initYou, readSignIn, initConsent, moved,
   NotFound, loading, notFoundQuips, pick,
 } from './client/shell.ts';
 
@@ -290,7 +290,6 @@ clientCtx().then(c => {
   startFun(ctx);
   initSearch(ctx);
   initYou(ctx, signedIn);
-  initReveal();
   initConsent(ctx);
   footer(ctx);
 });

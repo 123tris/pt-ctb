@@ -210,10 +210,10 @@ export function replayLink(ctx: Ctx, replay: Replay | null | undefined): Safe | 
   const { t } = ctx;
   if (!replay?.url) return '';
   if (replay.kind === 'osu') {
-    return html`<span class="t10-replay"><a href="${replay.url}" target="_blank" rel="noopener">⬇ ${t('Download replay')} ↗</a> <span class="small faint">${t('needs you signed in on osu!')}</span></span>`;
+    return html`<span class="t10-replay"><a href="${replay.url}" target="_blank" rel="noopener">${t('Download replay')}</a> <span class="small faint">${t('needs you signed in on osu!')}</span></span>`;
   }
   // data.ptcatch.com serves it as an attachment under its name (cross-origin, so download="" alone wouldn't name it).
-  return html`<span class="t10-replay"><a href="${replay.url}" ${replay.name ? html`download="${replay.name}"` : raw('download')}>⬇ ${t('Download replay')}</a>${replay.name ? html` <span class="small faint">${replay.name}</span>` : ''}</span>`;
+  return html`<span class="t10-replay"><a href="${replay.url}" ${replay.name ? html`download="${replay.name}"` : raw('download')}>${t('Download replay')}</a>${replay.name ? html` <span class="small faint">${replay.name}</span>` : ''}</span>`;
 }
 
 /**
@@ -453,11 +453,11 @@ export function rules(ctx: Ctx, season: Season, kind: Kind = 'year'): Safe {
 
 /** The mods' warning (§3.3 rule 4), shown in full where you write, not only in the folded rules. */
 export const modWarning = ({ t }: Ctx): Safe =>
-  html`<p class="t10-modwarn">⚠️ ${t('Mods read every write-up before bananas are paid. Filler, copy-paste or spam is removed, and it costs the ballot all its write-up bananas.')}</p>`;
+  html`<p class="t10-modwarn">${t('Mods read every write-up before bananas are paid. Filler, copy-paste or spam is removed, and it costs the ballot all its write-up bananas.')}</p>`;
 
 /** The note that ballots are public (decision 7), shown before you submit. */
 export const publicNote = ({ t }: Ctx): Safe =>
-  html`<p class="t10-public">👁 ${t('Ballots are public. Once you submit, your list and write-ups show on the site with your name, like a forum post. Drafts stay private.')}</p>`;
+  html`<p class="t10-public">${t('Ballots are public. Once you submit, your list and write-ups show on the site with your name, like a forum post. Drafts stay private.')}</p>`;
 
 /** The Top 10 pages' tabs. */
 export function top10Tabs(ctx: Ctx, current: string, year: number): Safe {
@@ -511,8 +511,8 @@ export function scoreCard(ctx: Ctx, card: Card | null | undefined, ref: string |
   if (!card?.map) {
     const showcased = Boolean(card?.play) || Boolean(ref?.startsWith('play:'));
     const who = card?.player ? html` <a class="dim-link" href="/top10/plays?player=${card.player}">${t('in the showcase')}</a>` : '';
-    const text = showcased ? html`🎬 ${t('A play from the showcase')}${who}${card?.clip ? html` · <a href="${card.clip}" target="_blank" rel="noopener">${t('Watch the clip')} ↗</a>` : ''}`
-      : href ? html`<a href="${href}" target="_blank" rel="noopener">${t('This score on osu!')} ↗</a>` : t('A score');
+    const text = showcased ? html`${t('A play from the showcase')}${who}${card?.clip ? html` · <a href="${card.clip}" target="_blank" rel="noopener">${t('Watch the clip')}</a>` : ''}`
+      : href ? html`<a href="${href}" target="_blank" rel="noopener">${t('This score on osu!')}</a>` : t('A score');
     return html`<div class="t10-score t10-score-bare">${text}${extra}</div>`;
   }
   const title = card.title ? `${card.artist ? `${card.artist} – ` : ''}${card.title}` : t('Map {id}', { id: card.map });
@@ -528,7 +528,7 @@ export function scoreCard(ctx: Ctx, card: Card | null | undefined, ref: string |
     ${card.set ? html`<img class="t10-score-cover" src="https://assets.ppy.sh/beatmaps/${card.set}/covers/list.jpg" alt="" loading="lazy" data-hide-broken>` : html`<span class="t10-score-cover"></span>`}
     <span class="t10-score-text">
       <a class="t10-score-title" href="/map/${card.map}">${title}${card.version ? html` <span class="faint">[${card.version}]</span>` : ''}</a>
-      <span class="t10-score-figs">${figures}${href ? html` · <a class="dim-link" href="${href}" target="_blank" rel="noopener">osu! ↗</a>` : ''}</span>
+      <span class="t10-score-figs">${figures}${href ? html` · <a class="dim-link" href="${href}" target="_blank" rel="noopener">osu!</a>` : ''}</span>
     </span>
     ${extra}
   </div>`;

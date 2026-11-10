@@ -266,7 +266,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     if (ds.step !== undefined) return toWrite(Number(ds.step));
     if (el.hasAttribute('data-prev')) return toWrite(e.writing - 1);
     if (el.hasAttribute('data-next')) return toWrite(e.writing + 1);
-    if (el.hasAttribute('data-finish')) { await save(); e.mode = 'list'; e.fresh = false; writeQuery({}); rebuild(); toast(t('Thanks for writing ✍️')); return; }
+    if (el.hasAttribute('data-finish')) { await save(); e.mode = 'list'; e.fresh = false; writeQuery({}); rebuild(); toast(t('Thanks for writing')); return; }
     if (ds.prompt) {
       prompt = prompt === ds.prompt ? '' : ds.prompt;
       root.querySelectorAll<HTMLElement>('[data-prompt]').forEach(c => { const on = c.dataset.prompt === prompt; c.classList.toggle('active', on); c.setAttribute('aria-pressed', String(on)); });
@@ -358,7 +358,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
     e.status = 'submitted';
     e.fresh = true;
     toWrite(0);
-    announce(kind === 'alltime' ? t('Your top 10 of all time is in ✅') : t('Your top 10 is in ✅'));
+    announce(kind === 'alltime' ? t('Your top 10 of all time is in') : t('Your top 10 is in'));
   }
 
   async function withdraw(button: HTMLButtonElement): Promise<void> {
@@ -411,7 +411,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data, e: Editor): void {
       store.pack(playerPack(id), readPlayer).catch(() => null),
     ]);
     if (writeOrder(e)[e.writing]?.id !== id) return;
-    const out: CiteChoice[] = shown.map(p => ({ ref: p.score_ref || `play:${p.id}`, card: p.score ?? null, label: `🔥 ${fmt.num(p.endorsements ?? 0)}` }));
+    const out: CiteChoice[] = shown.map(p => ({ ref: p.score_ref || `play:${p.id}`, card: p.score ?? null, label: ctx.tn(p.endorsements ?? 0, '{n} endorsement', '{n} endorsements') }));
     for (const c of kind === 'alltime' ? careerChoices(pack, id) : yearChoices(pack, year, id)) if (!out.some(o => o.ref === c.ref)) out.push(c);
     choices = out.slice(0, 25);
     if (citeOpen) redrawWriter();

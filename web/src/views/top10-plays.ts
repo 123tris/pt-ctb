@@ -1,6 +1,6 @@
 // /top10/plays: "Plays of <year>", the score showcase (§4.1). Anyone signed in adds a score (an osu! score link, or one
 // of a player's plays of the year, which the site already has) or a clip (YouTube, Twitch, Streamable: for plays the
-// site can't see), with an optional caption. Everyone can 🔥 endorse each entry once; the most endorsed rise to the top.
+// site can't see), with an optional caption. Everyone can endorse each entry once; the most endorsed rise to the top.
 // ?player=<id> shows one player's. No bananas for submissions. The showcase has its own window, which opens before
 // voting does (season.showcase). A PT player's own scores come first: the form starts on their plays, best first, and
 // "Your best scores" shows their plays in it, with how many of the OWN_LIMIT they may add they have (?player=<their id>
@@ -54,14 +54,14 @@ export function playItem(ctx: Ctx, d: Pick<Data, 'core' | 'showcase'>, p: ShowPl
   const n = p.endorsements ?? 0;
   const created = toSec(p.created);
   return html`<li class="t10-show" data-play="${p.id}">
-    <div class="t10-show-who">${playerLinkId(ctx, d.core.players, p.player, 'avatar-sm')}${p.clip ? html`<span class="t10-pill">🎬 ${t('clip')}</span>` : ''}</div>
+    <div class="t10-show-who">${playerLinkId(ctx, d.core.players, p.player, 'avatar-sm')}${p.clip ? html`<span class="t10-pill">${t('clip')}</span>` : ''}</div>
     ${p.score_ref || p.score ? scoreCard(ctx, p.score, p.score_ref) : ''}
-    ${p.clip ? html`<a class="t10-clip" href="${p.clip}" target="_blank" rel="noopener">▶ ${t('Watch the clip')} ↗</a>` : ''}
+    ${p.clip ? html`<a class="t10-clip" href="${p.clip}" target="_blank" rel="noopener">${t('Watch the clip')}</a>` : ''}
     ${replayLink(ctx, p.replay)}
     ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}
     <div class="t10-show-foot">
       <button class="t10-endorse ${p.endorsed ? 't10-endorse-on' : ''}" type="button" data-endorse="${p.id}" aria-pressed="${String(Boolean(p.endorsed))}"
-        ${ctx.me === null || d.showcase === 'before' ? raw('disabled') : ''} aria-label="${t('Endorse: {n}', { n: fmt.num(n) })}">🔥 <b>${fmt.num(n)}</b></button>
+        ${ctx.me === null || d.showcase === 'before' ? raw('disabled') : ''} aria-label="${t('Endorse: {n}', { n: fmt.num(n) })}">${t('Endorse')} <b>${fmt.num(n)}</b></button>
       <span class="small faint">${t('shown by {name}', { name: nameOf(d.core, p.submitter) })}${created ? html` · ${fmt.ago(created)}` : ''}</span>
       ${p.submitter === ctx.me ? html`<span class="t10-own-actions">${d.showcase === 'open' ? html`<button class="btn btn-small" type="button" data-edit="${p.id}">${t('Edit')}</button>` : ''}<button class="btn btn-small t10-remove" type="button" data-delete="${p.id}">${t('Remove')}</button></span>` : ''}
     </div>
@@ -109,8 +109,8 @@ export function mineBox(ctx: Ctx, d: Pick<Data, 'plays' | 'scope' | 'core'>): Sa
     <p class="small muted">${d.scope === 'alltime'
       ? t('You’ve added {n} of {limit} of your own plays to the legendary ones. All-time voters see them on your career page.', vars)
       : t('You’ve added {n} of {limit} of your own scores. It’s how you make your case: voters see them on your dossier.', vars)}</p>
-    ${yours.length ? html`<ul class="t10-show-list">${yours.map(p => html`<li>${p.score ? scoreCard(ctx, p.score, p.score_ref) : p.clip ? html`<div class="t10-score t10-score-bare"><a href="${p.clip}" target="_blank" rel="noopener">🎬 ${t('Clip')} ↗</a></div>` : ''}
-        <span class="small faint">🔥 ${fmt.num(p.endorsements ?? 0)}${p.submitter !== ctx.me ? html` · ${t('shown by {name}', { name: nameOf(d.core, p.submitter) })}` : ''}</span></li>`)}</ul>`
+    ${yours.length ? html`<ul class="t10-show-list">${yours.map(p => html`<li>${p.score ? scoreCard(ctx, p.score, p.score_ref) : p.clip ? html`<div class="t10-score t10-score-bare"><a href="${p.clip}" target="_blank" rel="noopener">${t('Clip')}</a></div>` : ''}
+        <span class="small faint">${ctx.tn(p.endorsements ?? 0, '{n} endorsement', '{n} endorsements')}${p.submitter !== ctx.me ? html` · ${t('shown by {name}', { name: nameOf(d.core, p.submitter) })}` : ''}</span></li>`)}</ul>`
       : html`<p class="small m-0">${t('None yet: pick your best from your plays below.')}</p>`}
   </section>`;
 }
@@ -163,12 +163,13 @@ export function render(ctx: Ctx, d: Data): Safe {
   const canAdd = ctx.me !== null && d.showcase === 'open' && !d.trouble;
   const scopes = html`<nav class="chips t10-kinds" aria-label="${t('Which plays')}">
     <a class="chip ${d.scope === 'year' ? 'active' : ''}" href="/top10/plays" ${d.scope === 'year' ? raw('aria-current="page"') : ''}>${t('Plays of {year}', { year })}</a>
-    <a class="chip ${d.scope === 'alltime' ? 'active' : ''}" href="/top10/plays?scope=alltime" ${d.scope === 'alltime' ? raw('aria-current="page"') : ''}>👑 ${t('Legendary plays')}</a></nav>`;
-  return html`${top10Tabs(ctx, 'plays', year)}${scopes}
+    <a class="chip ${d.scope === 'alltime' ? 'active' : ''}" href="/top10/plays?scope=alltime" ${d.scope === 'alltime' ? raw('aria-current="page"') : ''}>${t('Legendary plays')}</a></nav>`;
+  return html`${top10Tabs(ctx, 'plays', year)}
     <header class="page-head"><h1>${d.scope === 'alltime' ? t('Legendary plays') : t('Plays of {year}', { year })}</h1>
       <p>${d.scope === 'alltime'
-        ? t('The plays that made PT catch history, from any year, for the all-time ballot. 🔥 the ones every voter should know; the most endorsed rise to the top.')
-        : t('The year’s notable scores, picked by the community, for voters who don’t follow everyone. 🔥 the ones that deserve a look; the most endorsed rise to the top.')}</p></header>
+        ? t('The plays that made PT catch history, from any year, for the all-time ballot. Endorse the ones every voter should know; the most endorsed rise to the top.')
+        : t('The year’s notable scores, picked by the community, for voters who don’t follow everyone. Endorse the ones that deserve a look; the most endorsed rise to the top.')}</p></header>
+    ${scopes}
     ${troubleNote(ctx, d.trouble === 'signin' ? null : d.trouble)}
     ${canAdd && d.eligible ? mineBox(ctx, d) : ''}
     ${canAdd ? addForm(ctx, d) : ctx.me === null ? html`<p class="notice">${t('Sign in with osu! to showcase plays and endorse them.')} ${signInButton(ctx, d.signInHere)}</p>`
@@ -177,7 +178,7 @@ export function render(ctx: Ctx, d: Data): Safe {
       <label class="t10-field t10-field-inline"><span>${t('Player')}</span>
         <select class="select" data-filter-player><option value="">${t('Everyone')}</option>
           ${d.candidates.filter(c => c.active || d.scope === 'alltime' || c.id === d.player).map(c => html`<option value="${c.id}" ${c.id === d.player ? raw('selected') : ''}>${c.name}</option>`)}</select></label>
-      ${d.player !== null ? html`<a class="small" href="/top10/dossier/${d.player}/${d.scope === 'alltime' ? 'alltime' : year}">${d.scope === 'alltime' ? t('{name}’s career', { name: nameOf(d.core, d.player) }) : t('{name}’s year', { name: nameOf(d.core, d.player) })} →</a>` : ''}
+      ${d.player !== null ? html`<a class="small" href="/top10/dossier/${d.player}/${d.scope === 'alltime' ? 'alltime' : year}">${d.scope === 'alltime' ? t('{name}’s career', { name: nameOf(d.core, d.player) }) : t('{name}’s year', { name: nameOf(d.core, d.player) })}</a>` : ''}
     </div>
     ${list.length ? html`<ul class="t10-show-grid" data-plays>${list.map(p => playItem(ctx, d, p))}</ul>`
       : html`<p class="empty" data-plays>${d.player !== null ? t('Nothing showcased for {name} yet.', { name: nameOf(d.core, d.player) }) : t('Nothing showcased yet.')}</p>`}`;

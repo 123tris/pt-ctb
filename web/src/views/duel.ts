@@ -108,7 +108,7 @@ export function render(ctx: Ctx, data: Data): Safe {
     ${d.status === 'abandoned' ? html`<p class="notice">${t('Abandoned: no round counted for 30 minutes, so it doesn’t count for anyone’s rating and any wager went back.')}</p>`
       : d.status === 'forfeit' ? html`<p class="notice">${d.ranked ? t('{name} forfeited, which counts as a loss.', { name: loser }) : t('{name} forfeited.', { name: loser })}</p>` : ''}
     <div class="btn-row mt-3">
-      ${d.mp ? html`<a class="btn" href="${matchUrl(d.mp)}" target="_blank" rel="noopener">${t('Match on osu!')} ↗</a>` : ''}
+      ${d.mp ? html`<a class="btn" href="${matchUrl(d.mp)}" target="_blank" rel="noopener">${t('Match on osu!')}</a>` : ''}
       <a class="btn" href="/challenges/duels">${t('All duels')}</a>
     </div>
 

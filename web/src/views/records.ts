@@ -191,7 +191,7 @@ export function render(ctx: Ctx, { core, records: r, economy: eco }: Data): Safe
       <p>${t('The biggest marks across every score the bot keeps: each player’s best play on each map.')}</p>
     </header>
 
-    <nav class="jump-links" aria-label="${t('On this page')}">${jumps.map(([id, label]) => html`<a class="chip" href="/records?at=${id}">${label}</a>`)}</nav>
+    <nav class="jump-links" aria-label="${t('On this page')}">${jumps.map(([id, label]) => html`<a href="/records?at=${id}">${label}</a>`)}</nav>
 
     <div class="stats">
       ${stat(t('Scores'), fmt.num(r.totals.scores))}

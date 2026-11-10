@@ -71,7 +71,7 @@ export function weeklySummary(ctx: Ctx, weekly: Weekly | null | undefined, maps:
     ${top && play ? html`<div class="week-top"><span class="faint small">${t('Top play')}</span> ${playerLinkId(ctx, players, top[0], 'avatar-sm')}
       <span>${ppText(ctx, play[S.PP])}</span> <a class="dim-link" href="/map/${play[S.MAP]}">${mapLabel(ctx, play[S.MAP], maps[play[S.MAP]])}</a></div>` : ''}
     ${current?.most.length ? html`<div class="week-top"><span class="faint small">${t('Most plays')}</span> ${playerLinkId(ctx, players, current.most[0][0], 'avatar-sm')} <span class="muted">${fmt.plural(current.most[0][1], 'play')}</span></div>` : ''}
-    ${mapVote ? html`<div class="week-top"><span class="faint small">${t('Next map')}</span> ${t('Pick the map of the week for {week}.', { week: weekRange(ctx, mapVote) })} <a href="${mapVote.url}" target="_blank" rel="noopener">${t('Vote on Discord')} ↗</a></div>` : ''}
+    ${mapVote ? html`<div class="week-top"><span class="faint small">${t('Next map')}</span> ${t('Pick the map of the week for {week}.', { week: weekRange(ctx, mapVote) })} <a href="${mapVote.url}" target="_blank" rel="noopener">${t('Vote on Discord')}</a></div>` : ''}
   </section>`;
 }
 
@@ -143,7 +143,7 @@ export function weeklyRecap(ctx: Ctx, weekly: Weekly | null | undefined, maps: R
         <div class="row-main"><span class="muted small">${i + 1}.</span>${mapLink(ctx, id, maps[id])}</div>
         <div class="row-meta"><span>${t('{players} from Portugal', { players: fmt.plural(n, 'player') })}</span></div>
       </div>`)}</div>
-      <div class="mt-3 btn-row"><a class="btn btn-primary" href="${mapVote.url}" target="_blank" rel="noopener">${t('Vote on Discord')} ↗</a></div>
+      <div class="mt-3 btn-row"><a class="btn btn-primary" href="${mapVote.url}" target="_blank" rel="noopener">${t('Vote on Discord')}</a></div>
     </section>` : ''}
 
     ${past.length ? html`<section class="section">

@@ -3,7 +3,7 @@
 // closing message), and the picker under it: every PT player, the most active this year first, with filters and
 // search; your own card greyed out. ⓘ opens a player's dossier in a drawer. Drafts save themselves.
 //
-// Once the ballot is in, the page turns to write-ups (§3.4): one player at a time, with prompt chips, 📎 cite a score
+// Once the ballot is in, the page turns to write-ups (§3.4): one player at a time, with prompt chips, cite a score
 // and a live word counter that mirrors the server's (ui/top10.ts wordMeter). Everything here is pure; the browser half
 // is top10-ballot.mount.ts, which keeps the editor's state and draws these parts again as it changes.
 
@@ -106,7 +106,7 @@ export const writeOrder = (e: Editor): { id: number; kind: Target }[] => [
   ...e.watch.map(id => ({ id, kind: 'watch' as const })),
 ];
 
-/** Where a player is on the ballot: "#3", "=6", "HM", "👀", or ''. */
+/** Where a player is on the ballot: "#3", "=6", "HM" (an honourable mention), "W" (one to watch), or ''. */
 export function placeOf(e: Editor, id: number): string {
   const i = e.rows.findIndex(r => r.id === id);
   if (i >= 0) {
@@ -114,7 +114,7 @@ export function placeOf(e: Editor, id: number): string {
     return `${spots.filter(s => s === spots[i]).length > 1 ? '=' : '#'}${spots[i]}`;
   }
   if (e.mentions.includes(id)) return 'HM';
-  if (e.watch.includes(id)) return '👀';
+  if (e.watch.includes(id)) return 'W';
   return '';
 }
 
@@ -277,7 +277,7 @@ export function writerSection(ctx: Ctx, d: Data, e: Editor, access: Access, { pr
   const cited = w.cites.map(ref => ({ ref, card: e.scores[ref] ?? choices?.find(c => c.ref === ref)?.card ?? null }));
 
   return html`<section class="t10-writer" aria-labelledby="t10-w-h" data-writer>
-    ${e.fresh ? html`<div class="t10-done"><p class="t10-done-big">${d.kind === 'alltime' ? t('Your top 10 of all time is in ✅') : t('Your top 10 is in ✅')}</p><p class="m-0">${t('Now the good part: tell them why. One player at a time, and every word is optional.')}</p></div>` : ''}
+    ${e.fresh ? html`<div class="t10-done"><p class="t10-done-big">${d.kind === 'alltime' ? t('Your top 10 of all time is in') : t('Your top 10 is in')}</p><p class="m-0">${t('Now the good part: tell them why. One player at a time, and every word is optional.')}</p></div>` : ''}
     <div class="t10-writer-top">
       <span class="t10-count">${t('{n} of {max} written', { n: fmt.num(ranked.length), max: fmt.num(e.rows.length) })}</span>
       <span class="small faint">${full.length === e.rows.length && e.rows.length ? t('Everyone at 40+ words: +30 🍌') : t('+30 🍌 when everyone on your list has 40+ words')}</span>
@@ -300,7 +300,7 @@ export function writerSection(ctx: Ctx, d: Data, e: Editor, access: Access, { pr
     <div data-meter>${wordMeter(ctx, wordsOf(w.body).length, flags, { pays: kind === 'list' })}</div>
 
     <div class="t10-cites" data-cites>${cited.map(c => scoreCard(ctx, c.card, c.ref, can ? html`<button class="t10-icon t10-x" type="button" data-uncite="${c.ref}" aria-label="${t('Remove this score')}">✕</button>` : ''))}</div>
-    ${can ? html`<button class="btn btn-small" type="button" data-cite aria-expanded="${String(citeOpen)}">📎 ${t('Cite a score')}</button>` : ''}
+    ${can ? html`<button class="btn btn-small" type="button" data-cite aria-expanded="${String(citeOpen)}">${t('Cite a score')}</button>` : ''}
     ${citeOpen ? html`<div class="t10-cite-pick" data-cite-pick>${choices === null ? html`<p class="small muted">${t('Loading…')}</p>`
       : choices.length ? html`<p class="small muted m-0">${d.kind === 'alltime' ? t('Their legendary plays and career best plays, any year. A cited score shows as a card under your write-up.')
         : t('Their showcased scores and plays of {year}. A cited score shows as a card under your write-up.', { year: d.season.year })}</p>
@@ -319,7 +319,7 @@ export function writerSection(ctx: Ctx, d: Data, e: Editor, access: Access, { pr
 /** The status line: draft or in, and the last save. */
 export function statusLine(ctx: Ctx, e: Editor, access: Access, save: string): Safe {
   const { t } = ctx;
-  const chip = e.status === 'submitted' ? html`<span class="t10-state t10-state-in">✅ ${t('Submitted · public')}</span>`
+  const chip = e.status === 'submitted' ? html`<span class="t10-state t10-state-in">${t('Submitted · public')}</span>`
     : e.status === 'void' ? html`<span class="t10-state t10-state-void">${t('Voided')}</span>`
       : html`<span class="t10-state">${t('Draft · only you can see it')}</span>`;
   return html`${chip} <span class="small faint" data-save aria-live="polite">${access === 'local' ? t('Kept in this browser') : save}</span>`;
@@ -373,9 +373,10 @@ export function render(ctx: Ctx, d: Data, e: Editor): Safe {
   const { t } = ctx;
   const access = accessOf(ctx, d);
   const year = d.season.year;
-  const head = html`${top10Tabs(ctx, 'vote', year)}${kindSwitch(ctx, d.kind, year)}
+  const head = html`${top10Tabs(ctx, 'vote', year)}
     <header class="page-head t10-head"><h1>${d.kind === 'alltime' ? t('Your top 10 of all time') : t('Your top 10 of {year}', { year })}</h1>
-      <p class="t10-status" data-status>${access === 'signed-out' || access === 'ineligible' ? phaseName(ctx, d.phase) : statusLine(ctx, e, access, '')}</p></header>`;
+      <p class="t10-status" data-status>${access === 'signed-out' || access === 'ineligible' ? phaseName(ctx, d.phase) : statusLine(ctx, e, access, '')}</p></header>
+    ${kindSwitch(ctx, d.kind, year)}`;
   const rulesBox = html`<details class="t10-rules-box"><summary>${t('The rules')}</summary>${rules(ctx, d.season, d.kind)}</details>`;
   if (access === 'signed-out') {
     return html`${head}${troubleNote(ctx, d.trouble === 'signin' ? null : d.trouble)}

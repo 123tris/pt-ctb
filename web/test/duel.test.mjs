@@ -82,7 +82,7 @@ test('a ranked duel: the scoreboard, ratings before and after, the facts and the
   assert.ok(facts.includes('6.12–7.35★'));
   assert.ok(facts.includes('100 🍌 each on it'));
   assert.ok(facts.includes(`<span title="${ctx.fmt.dateTime(pageOf(128).duels[128].end)}">${ctx.fmt.date(pageOf(128).duels[128].end)}</span>`));
-  assert.ok(page.includes('<a class="btn" href="https://osu.ppy.sh/community/matches/118000128" target="_blank" rel="noopener">Match on osu! ↗</a>'));
+  assert.ok(page.includes('<a class="btn" href="https://osu.ppy.sh/community/matches/118000128" target="_blank" rel="noopener">Match on osu!</a>'));
   assert.ok(!page.includes('class="notice">'), 'a finished duel has no notice');
 });
 

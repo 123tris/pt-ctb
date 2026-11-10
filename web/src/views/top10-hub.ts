@@ -46,8 +46,8 @@ function showcaseNote(ctx: Ctx, d: Data): Safe | '' {
   const player = ctx.me !== null && d.hub?.me?.eligible !== false;
   const early = d.phase === 'before';
   if (!early && !player) return '';
-  return html`<div class="t10-cta t10-cta-go">
-    ${early ? html`<p class="m-0">🔥 ${t('The showcase is open now: add your best scores before voting opens on {date}.', { date: lisbon(ctx, toSec(d.season.opens), { time: false }) })}</p>` : ''}
+  return html`<div class="t10-cta">
+    ${early ? html`<p class="m-0">${t('The showcase is open now: add your best scores before voting opens on {date}.', { date: lisbon(ctx, toSec(d.season.opens), { time: false }) })}</p>` : ''}
     ${player ? caseLink(ctx) : html`<a class="btn" href="/top10/plays">${t('Plays of {year}', { year: d.season.year })}</a>`}
   </div>`;
 }
@@ -60,15 +60,15 @@ function ballotCard(ctx: Ctx, d: Data, kind: Kind): Safe {
   const turnout = turnoutOf(d.hub, kind);
   const href = kind === 'alltime' ? '/top10/vote/alltime' : '/top10/vote';
   const can = ctx.me !== null && d.hub?.me?.eligible !== false;
-  const state = mine?.status === 'submitted' ? html`<span class="t10-state t10-state-in">✅ ${t('Yours is in')}</span>`
+  const state = mine?.status === 'submitted' ? html`<span class="t10-state t10-state-in">${t('Yours is in')}</span>`
     : mine?.status === 'void' ? html`<span class="t10-state t10-state-void">${t('Voided')}</span>`
       : mine?.picks?.length ? html`<span class="t10-state">${t('Draft')}</span>` : can ? html`<span class="t10-state">${t('Not started')}</span>` : '';
   const label = mine?.status === 'submitted' ? t('Edit your ballot') : mine?.picks?.length ? t('Finish your ballot') : d.phase === 'before' ? t('Start your list') : t('Vote now');
   const way = !can || d.phase === 'revealed' ? ''
     : d.phase === 'closed' ? html`<a class="btn btn-small" href="/top10/ballots${kind === 'alltime' ? '?kind=alltime' : ''}">${t('Read the ballots')}</a>`
       : html`<a class="btn ${mine?.status === 'submitted' ? '' : 'btn-primary'}" href="${href}">${label}</a>`;
-  return html`<section class="t10-ballot-card ${kind === 'alltime' ? 't10-ballot-card-alltime' : ''}" aria-labelledby="t10-bc-${kind}">
-    <h2 id="t10-bc-${kind}" class="m-0">${kind === 'alltime' ? '👑 ' : '🏆 '}${kindName(ctx, kind, year)}</h2>
+  return html`<section class="t10-ballot-card" aria-labelledby="t10-bc-${kind}">
+    <h2 id="t10-bc-${kind}" class="m-0">${kindName(ctx, kind, year)}</h2>
     <p class="muted m-0">${kind === 'alltime' ? t('The greatest PT catch players ever, legends included. Their whole career counts.')
       : t('The players of {year}: what they did this year, and nothing else.', { year })}</p>
     <div class="t10-ballot-meta">${state}
@@ -136,11 +136,11 @@ export function render(ctx: Ctx, d: Data): Safe {
     <section class="section" aria-labelledby="t10-more-h">
       <h2 id="t10-more-h">${t('While you decide')}</h2>
       <div class="grid grid-auto">
-        <a class="card card-link" href="/top10/plays"><h3 class="m-0">🔥 ${t('Plays of {year}', { year })}</h3><p class="muted m-0">${t('The year’s notable scores, showcased and endorsed by the community. Add the ones voters should see.')}</p></a>
-        <a class="card card-link" href="/top10/plays?scope=alltime"><h3 class="m-0">👑 ${t('Legendary plays')}</h3><p class="muted m-0">${t('The plays that made PT catch history, from any year, for the all-time ballot.')}</p></a>
-        <a class="card card-link" href="/top10/ballots"><h3 class="m-0">📝 ${t('Ballots')}</h3><p class="muted m-0">${t('Every submitted list and what its voter wrote, like the forum threads. Make your own list first.')}</p></a>
-        ${ctx.me !== null ? html`<a class="card card-link" href="/top10/dossier/${ctx.me}/${year}"><h3 class="m-0">📇 ${t('Your year')}</h3><p class="muted m-0">${t('Your dossier: what voters see when they look you up.')}</p></a>` : ''}
-        ${ctx.me !== null ? html`<a class="card card-link" href="/top10/dossier/${ctx.me}/alltime"><h3 class="m-0">📜 ${t('Your career')}</h3><p class="muted m-0">${t('What all-time voters see: your best plays, peak rank and past placements.')}</p></a>` : ''}
+        <a class="card card-link" href="/top10/plays"><h3 class="m-0">${t('Plays of {year}', { year })}</h3><p class="muted m-0">${t('The year’s notable scores, showcased and endorsed by the community. Add the ones voters should see.')}</p></a>
+        <a class="card card-link" href="/top10/plays?scope=alltime"><h3 class="m-0">${t('Legendary plays')}</h3><p class="muted m-0">${t('The plays that made PT catch history, from any year, for the all-time ballot.')}</p></a>
+        <a class="card card-link" href="/top10/ballots"><h3 class="m-0">${t('Ballots')}</h3><p class="muted m-0">${t('Every submitted list and what its voter wrote, like the forum threads. Make your own list first.')}</p></a>
+        ${ctx.me !== null ? html`<a class="card card-link" href="/top10/dossier/${ctx.me}/${year}"><h3 class="m-0">${t('Your year')}</h3><p class="muted m-0">${t('Your dossier: what voters see when they look you up.')}</p></a>` : ''}
+        ${ctx.me !== null ? html`<a class="card card-link" href="/top10/dossier/${ctx.me}/alltime"><h3 class="m-0">${t('Your career')}</h3><p class="muted m-0">${t('What all-time voters see: your best plays, peak rank and past placements.')}</p></a>` : ''}
       </div>
     </section>
 

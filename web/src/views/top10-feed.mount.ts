@@ -1,4 +1,4 @@
-// /top10/ballots in the browser: ❤️ thanks on the write-ups about you (§3.5), drawn again from the answer.
+// /top10/ballots in the browser: thanks on the write-ups about you (§3.5), drawn again from the answer.
 
 import type { Ctx } from '../kernel/ctx.ts';
 import { toast } from '../client/fun.ts';
@@ -23,7 +23,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     if (typeof res.body?.thanks === 'number') w.thanks = res.body.thanks;
     const block = button.closest('.t10-wu');
     if (block) block.outerHTML = String(writeupBlock(ctx, d, ballot, ctx.me, w));
-    if (w.thanked) toast(t('Thanked ❤️ They get +5 🍌 once the results are finalized.'));
+    if (w.thanked) toast(t('Thanked. They get +5 🍌 once the results are finalized.'));
     root.querySelector<HTMLElement>(`[data-thank="${voter}"]`)?.focus();
   });
 }

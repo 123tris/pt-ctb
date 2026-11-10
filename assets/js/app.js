@@ -9,7 +9,6 @@ import { NOT_FOUND, pick } from './core/lore.js';
 import { startFun } from './core/fun.js';
 import { initSearch } from './core/search.js';
 import { initYou } from './core/you.js';
-import { initReveal } from './core/reveal.js';
 import { startTracking, trackView, trackError } from './core/track.js';
 import { initConsent } from './core/consent.js';
 import * as fmt from './core/fmt.js';
@@ -297,7 +296,6 @@ new MutationObserver(() => enhanceTables(root)).observe(root, { childList: true,
 startFun();
 initSearch();
 initYou();
-initReveal();
 initConsent();
 
 if (CONFIG.discordInvite) {

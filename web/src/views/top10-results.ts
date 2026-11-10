@@ -261,7 +261,7 @@ function kindChips(ctx: Ctx, d: Data, label: string): Safe | '' {
   const kinds = editionsOf(d.hub).filter(e => e.year === d.year).map(e => e.kind);
   if (!kinds.includes('year') || !kinds.includes('alltime')) return '';
   return html`<nav class="chips t10-kinds" aria-label="${ctx.t('Which ballot')}">${(['year', 'alltime'] as const).map(k =>
-    html`<a class="chip ${k === d.kind ? 'active' : ''}" href="${resultsHref(d.year, k)}" ${k === d.kind ? html`aria-current="page"` : ''}>${k === 'alltime' ? html`👑 ${ctx.t('Top 10 of all time')}` : html`🏆 ${ctx.t('Top 10 of {year}', { year: label })}`}</a>`)}</nav>`;
+    html`<a class="chip ${k === d.kind ? 'active' : ''}" href="${resultsHref(d.year, k)}" ${k === d.kind ? html`aria-current="page"` : ''}>${k === 'alltime' ? ctx.t('Top 10 of all time') : ctx.t('Top 10 of {year}', { year: label })}</a>`)}</nav>`;
 }
 
 export function title(ctx: Ctx, d: Data): string {
@@ -286,7 +286,7 @@ export function render(ctx: Ctx, d: Data): Safe {
       : soon ? t('The results come out {when}, Lisbon time.', { when: lisbon(ctx, toSec(d.season.reveal)) })
         : t('There are no results for this one.');
     return html`${head()}${troubleNote(ctx, d.trouble)}
-      <div class="empty t10-soon"><p class="t10-done-big">🏆</p>
+      <div class="empty t10-soon">
         ${text ? html`<p>${text}</p>` : ''}
         <div class="btn-row justify-center">${soon ? html`<a class="btn" href="/top10/ballots${ballots}">${t('Read the ballots')}</a><a class="btn" href="/top10/plays${d.kind === 'alltime' ? '?scope=alltime' : ''}">${d.kind === 'alltime' ? t('Legendary plays') : t('Plays of {year}', { year: season })}</a>`
           : html`<a class="btn" href="/top10">${t('Top 10 of {year}', { year: season })}</a>`}</div>
@@ -300,7 +300,7 @@ export function render(ctx: Ctx, d: Data): Safe {
   const lead = html`<p>${past
       ? tn(r.ballots, 'Combined from the one list posted in the osu! forum thread, with the same formula as today’s ballots.', 'Combined from the {n} lists posted in the osu! forum thread, with the same formula as today’s ballots.')
       : tn(r.ballots, '{n} ballot counted.', '{n} ballots counted.')}
-      ${past && r.thread ? th('Source: {link}. The write-ups are there, in each voter’s post.', { link: html`<a href="${r.thread}" target="_blank" rel="noopener">${t('the original thread on osu!')} ↗</a>` }) : ''}</p>`;
+      ${past && r.thread ? th('Source: {link}. The write-ups are there, in each voter’s post.', { link: html`<a href="${r.thread}" target="_blank" rel="noopener">${t('the original thread on osu!')}</a>` }) : ''}</p>`;
   return html`${head(lead)}
 
     <p class="small faint t10-res-key">${t('The squares count the lists that put each player #1, #2 and so on, to #10.')}</p>
@@ -319,7 +319,7 @@ export function render(ctx: Ctx, d: Data): Safe {
     ${lists.length ? html`<section class="section" aria-labelledby="t10-lists-h">
       <h2 id="t10-lists-h">${t('The lists')}</h2>
       <p class="muted">${t('Each voter’s post in the thread, with their list and what they wrote.')}</p>
-      <ul class="t10-res-counts">${lists.map(l => html`<li><a href="${l.post!}" target="_blank" rel="noopener">${nameOf(d, l.voter)} ↗</a></li>`)}</ul>
+      <ul class="t10-res-counts">${lists.map(l => html`<li><a href="${l.post!}" target="_blank" rel="noopener">${nameOf(d, l.voter)}</a></li>`)}</ul>
     </section>` : !past && d.year === season ? html`<p><a class="btn btn-small" href="/top10/ballots${d.kind === 'alltime' ? '?kind=alltime' : ''}">${t('Read the ballots')}</a></p>` : ''}
 
     ${howNote(ctx, past)}

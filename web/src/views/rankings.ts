@@ -46,7 +46,7 @@ export const title = (ctx: Ctx, slug: Tab) => labels(ctx)[slug].board;
 
 /** The page's heading and its tabs, the same on every board. */
 export const head = (ctx: Ctx, slug: Tab): Safe => html`
-    ${pageHead({ title: ctx.t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${ctx.t('All players')}</a><a href="/compare">${ctx.t('Compare two players')}</a><a href="${CROWNS_HREF}"><span aria-hidden="true">👑</span> ${ctx.t('King of the hill crowns')}</a></p>` })}
+    ${pageHead({ title: ctx.t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${ctx.t('All players')}</a><a href="/compare">${ctx.t('Compare two players')}</a><a href="${CROWNS_HREF}">${ctx.t('King of the hill crowns')}</a></p>` })}
     ${tabs(SLUGS.map(s => ({ href: `/rankings/${s}`, label: labels(ctx)[s].label, active: s === slug })), ctx.t('Leaderboard type'))}`;
 
 /** The board's rows in players, best first. */

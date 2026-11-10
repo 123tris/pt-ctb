@@ -20,7 +20,7 @@ export default async function team(root) {
       <div class="card">
         <h2>Top 10 PT Catch Players</h2>
         <p class="muted">${t('Every year since 2020, someone posts their top 10 Portuguese catch players on the osu! forums and everyone replies with their own list. The rule since day one: you’re supposed to leave yourself out.')}</p>
-        <div class="link-list one-col">${TOP10_THREADS.map(([year, url]) => html`<a href="${url}" target="_blank" rel="noopener"><b>${t('The {year} list', { year })}</b><span>${t('osu! forums')} ↗</span></a>`)}</div>
+        <div class="link-list one-col">${TOP10_THREADS.map(([year, url]) => html`<a href="${url}" target="_blank" rel="noopener"><b>${t('The {year} list', { year })}</b><span>${t('osu! forums')}</span></a>`)}</div>
       </div>
       <div class="card">
         <h2>${t('The currency')}</h2>

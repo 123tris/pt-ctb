@@ -103,8 +103,8 @@ function playsList(ctx: Ctx, d: Data): Safe {
   const plays = d.queue?.plays ?? [];
   if (!plays.length) return empty(t('Nothing showcased yet.'));
   return html`<ul class="t10-queue">${plays.map(p => html`<li class="t10-q ${p.status === 'hidden' ? 't10-q-struck' : ''}" data-item="p${p.id}">
-    <div class="t10-q-head">${playerLinkId(ctx, d.core.players, p.player, 'avatar-sm')} <span class="small faint">${t('shown by {name}', { name: nameOf(d.core, p.submitter) })} · 🔥 ${p.endorsements ?? 0}</span>
-      ${p.clip ? html`<span class="t10-pill">🎬 ${t('clip')}</span>` : ''}${p.scope === 'alltime' ? html`<span class="t10-pill t10-pill-legend">👑 ${t('legendary')}</span>` : ''}${p.status === 'hidden' ? html`<span class="t10-pill t10-pill-warn">${t('hidden')}</span>` : ''}</div>
+    <div class="t10-q-head">${playerLinkId(ctx, d.core.players, p.player, 'avatar-sm')} <span class="small faint">${t('shown by {name}', { name: nameOf(d.core, p.submitter) })} · ${ctx.tn(p.endorsements ?? 0, '{n} endorsement', '{n} endorsements')}</span>
+      ${p.clip ? html`<span class="t10-pill">${t('clip')}</span>` : ''}${p.scope === 'alltime' ? html`<span class="t10-pill t10-pill-legend">${t('legendary')}</span>` : ''}${p.status === 'hidden' ? html`<span class="t10-pill t10-pill-warn">${t('hidden')}</span>` : ''}</div>
     ${p.score ? scoreCard(ctx, p.score, p.score_ref) : ''}${p.clip ? html`<a href="${p.clip}" target="_blank" rel="noopener">${p.clip}</a>` : ''}
     ${replayLink(ctx, p.replay)}${p.status === 'hidden' && p.reason ? html`<p class="small muted">${t('Reason: {reason}', { reason: p.reason })}</p>` : ''}
     ${p.caption ? html`<p class="t10-caption">“${p.caption}”</p>` : ''}
@@ -131,7 +131,7 @@ function ballotsTable(ctx: Ctx, d: Data): Safe {
 function logList(ctx: Ctx, d: Data): Safe {
   const { t, fmt } = ctx;
   const log = d.queue?.log ?? [];
-  return log.length ? html`<ul class="admin-log">${log.slice(0, 100).map(l => html`<li><b>${nameOf(d.core, l.admin)}</b> ${l.action} <code>${l.target}</code>${l.kind === 'alltime' || l.target.includes(':alltime:') ? html` <span class="t10-pill t10-pill-legend">👑</span>` : ''}${l.reason ? html` · ${l.reason}` : ''}
+  return log.length ? html`<ul class="admin-log">${log.slice(0, 100).map(l => html`<li><b>${nameOf(d.core, l.admin)}</b> ${l.action} <code>${l.target}</code>${l.kind === 'alltime' || l.target.includes(':alltime:') ? html` <span class="t10-pill t10-pill-legend">${ctx.t('All time')}</span>` : ''}${l.reason ? html` · ${l.reason}` : ''}
       ${toSec(l.at) ? html` <span class="faint small">${fmt.dateTime(toSec(l.at))}</span>` : ''}</li>`)}</ul>` : html`<p class="small faint">${t('Nothing yet.')}</p>`;
 }
 
@@ -170,7 +170,7 @@ function kindPreview(ctx: Ctx, core: CorePack, r: any, payouts: any[], thankRows
     <h3 class="t10-h3">${t('Payouts the bot will get')}</h3>
     <p class="small muted">${t('The bot works the amounts out itself; these are what its default config pays: 20 a ballot, 1 per word a write-up (up to 40), +30 when all are 40+ words. Plus {n} thanks at 5 each.', { n: fmt.num(thanks.length) })}</p>
     ${dataTable(t('Payouts'), html`${col(t('Voter'))}${col(t('Paid write-ups'), 'num')}${col(t('All 40+'))}${col('🍌', 'num')}`,
-      pays.map(p => html`<tr><td>${playerLinkId(ctx, core.players, p.osuId, 'avatar-sm')}</td><td class="num">${fmt.num(p.payload.writeups.length)}</td><td>${p.payload.allFull ? '✅' : ''}</td><td class="num">${fmt.num(bananas(p))}</td></tr>`))}`;
+      pays.map(p => html`<tr><td>${playerLinkId(ctx, core.players, p.osuId, 'avatar-sm')}</td><td class="num">${fmt.num(p.payload.writeups.length)}</td><td>${p.payload.allFull ? '✓' : ''}</td><td class="num">${fmt.num(bananas(p))}</td></tr>`))}`;
 }
 
 export function render(ctx: Ctx, d: Data, filter: WriteupFilter = 'flagged'): Safe {

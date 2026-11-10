@@ -34,9 +34,9 @@ test('which pages the new client draws, and their first data', () => {
 
 test('every board’s heading links to the King of the hill crown table, in both languages', () => {
   for (const slug of ['converts', 'mods', 'kings']) {
-    assert.match(String(head(ctxFor('en', 0), slug)), /<p class="page-links">.*<a href="\/challenges\/hill\?at=crowns"><span aria-hidden="true">👑<\/span> King of the hill crowns<\/a><\/p>/s, slug);
+    assert.match(String(head(ctxFor('en', 0), slug)), /<p class="page-links">.*<a href="\/challenges\/hill\?at=crowns">King of the hill crowns<\/a><\/p>/s, slug);
   }
-  assert.ok(String(head(ctxFor('pt', 0), 'converts')).includes(`👑</span> ${PT['King of the hill crowns']}</a>`));
+  assert.ok(String(head(ctxFor('pt', 0), 'converts')).includes(`>${PT['King of the hill crowns']}</a>`));
 });
 
 test('the edge puts the page’s slice of the manifests and preloads in its <head>, and nothing elsewhere', () => {

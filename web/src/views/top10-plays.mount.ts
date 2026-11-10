@@ -1,5 +1,5 @@
 // /top10/plays in the browser: the add form (a player's plays of the year from their pack, a pasted score link, or a
-// clip), 🔥 endorse, removing your own entry, and the player filter, which keeps itself in the address. "Your best
+// clip), endorse, removing your own entry, and the player filter, which keeps itself in the address. "Your best
 // scores" follows what you add and remove.
 
 import type { Ctx } from '../kernel/ctx.ts';
@@ -207,7 +207,7 @@ export function mount(root: HTMLElement, ctx: Ctx, d: Data): void {
     else root.querySelector('[data-year-plays]')!.innerHTML = '';
     drawList();
     // With a replay file: osu! may keep this score's replay, and then the site links to theirs rather than storing it.
-    toast(res.body?.replay === 'osu' ? t('Added to the showcase. osu! keeps this score’s replay, so the site links to theirs.') : t('Added to the showcase 🔥'));
+    toast(res.body?.replay === 'osu' ? t('Added to the showcase. osu! keeps this score’s replay, so the site links to theirs.') : t('Added to the showcase.'));
     writeQuery({ scope: d.scope === 'alltime' ? 'alltime' : '', player: d.player ?? '' });
   });
 }

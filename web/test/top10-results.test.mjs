@@ -98,7 +98,7 @@ test('2025: the ranking, its figures and spots strip, the tie-break, the also-ra
   assert.match(out, /aria-label="Spots on the lists: #1 ×1, #2 ×3, #3 ×4"/);
   assert.match(out, /Combined from the 9 lists posted in the osu! forum thread/);
   assert.match(out, /href="https:\/\/osu\.ppy\.sh\/community\/forums\/topics\/2172025"/);
-  assert.match(out, /href="https:\/\/osu\.ppy\.sh\/community\/forums\/posts\/10124622"[^>]*>suzuhiro77 ↗/);
+  assert.match(out, /href="https:\/\/osu\.ppy\.sh\/community\/forums\/posts\/10124622"[^>]*>suzuhiro77<\/a>/);
   // Nelson is 11th: below the top 10, under "also received votes".
   const [top, more] = out.split('Also received votes');
   assert.match(top, /TRUE_PLAYER36/);
@@ -133,7 +133,7 @@ test('2020: the year’s list and the all-time one switch between each other; la
   const d = data({ year: 2020, kind: 'alltime', results: at });
   const out = String(render(ctxFor(), d));
   assert.match(out, /Top 10 of all time · 2020/);
-  assert.match(out, /<nav class="chips t10-kinds"[^>]*><a class="chip " href="\/top10\/2020"[^>]*>🏆 Top 10 of 2020<\/a><a class="chip active" href="\/top10\/2020\/alltime" aria-current="page">👑 Top 10 of all time/);
+  assert.match(out, /<nav class="chips t10-kinds"[^>]*><a class="chip " href="\/top10\/2020"[^>]*>Top 10 of 2020<\/a><a class="chip active" href="\/top10\/2020\/alltime" aria-current="page">Top 10 of all time/);
   assert.match(out, /href="\/top10\/2020\/alltime"[^>]*>2020, all time<\/a>/);
   assert.doesNotMatch(out, /All time \(2020\)/);
   // No ones to watch on an all-time list.

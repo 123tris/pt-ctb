@@ -140,7 +140,7 @@ function miniBoard(list, key, cat) {
   const rows = list.filter(p => p[key] > 0).sort((a, b) => b[key] - a[key]).slice(0, 5);
   const me = myId();
   return html`<div class="card">
-    <h3 class="board-title"><span class="cat cat-${cat}">${CAT_LABEL[cat]}</span></h3>
+    <h3 class="board-title"><a class="title-link" href="/rankings/${{ c: 'converts', u: 'loved', r: 'ranked' }[cat]}"><span class="cat cat-${cat}">${CAT_LABEL[cat]}</span></a></h3>
     <div class="mini-board">
       ${rows.map((p, i) => {
         // The official top 5 includes players inactive on osu! (osu! shows them at 0 pp), tagged as such; legends
@@ -153,7 +153,6 @@ function miniBoard(list, key, cat) {
         </a>`;
       })}
     </div>
-    <p class="card-foot"><a href="/rankings/${{ c: 'converts', u: 'loved', r: 'ranked' }[cat]}">${t('Full leaderboard')}</a></p>
   </div>`;
 }
 
@@ -173,29 +172,22 @@ export default async function home(root, { isCurrent }) {
   const counts = passCounts(list);
 
   root.innerHTML = String(html`
-    <section class="hero">
-      <div>
-        <h1>${th('Portugal’s {catch} community', { catch: html`<em>osu!catch</em>` })}</h1>
-        <p>${t('Leaderboards, the Dan course and weekly challenges, from everything the PT-CTB Discord’s bot tracks.')}</p>
-        <div class="hero-actions">
-          ${CONFIG.discordInvite ? html`<a class="btn btn-primary" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">${t('Join the Discord')}</a>` : ''}
-          <a href="/rankings">${t('See the leaderboards')}</a>
-          ${mine ? html`<a href="/player/${mine.id}">${t('Your profile')}</a>` : signInHere() ? html`<button type="button" class="link-button" data-signin>${t('Sign in with osu!')}</button>`
-            : html`<button type="button" class="link-button" data-find>${t('Find yourself')}</button>`}
-        </div>
+    <header class="page-head home-head">
+      <h1>${th('Portugal’s {catch} community', { catch: html`<em>osu!catch</em>` })}</h1>
+      <p>${t('Leaderboards, the Dan course and weekly challenges, from everything the PT-CTB Discord’s bot tracks: {scores} scores by {players} players on {maps} maps.',
+        { scores: fmt.num(m.totals.scores), players: fmt.num(m.totals.players), maps: fmt.num(m.totals.maps) })}</p>
+      <div class="hero-actions">
+        ${CONFIG.discordInvite ? html`<a class="btn btn-primary" href="${CONFIG.discordInvite}" target="_blank" rel="noopener">${t('Join the Discord')}</a>` : ''}
+        <a href="/join">${t('How to join')}</a>
+        ${mine ? html`<a href="/player/${mine.id}">${t('Your profile')}</a>` : signInHere() ? html`<button type="button" class="link-button" data-signin>${t('Sign in with osu!')}</button>`
+          : html`<button type="button" class="link-button" data-find>${t('Find yourself')}</button>`}
       </div>
-      <dl class="hero-stats">
-        <div><dt>${t('Players tracked')}</dt><dd>${fmt.num(m.totals.players)}</dd></div>
-        <div><dt>${t('Scores')}</dt><dd>${fmt.num(m.totals.scores)}</dd></div>
-        <div><dt>${t('Maps played')}</dt><dd>${fmt.num(m.totals.maps)}</dd></div>
-        <div><dt>${t('Fruits caught')}</dt><dd>${fmt.num(m.totals.fruits)}</dd></div>
-      </dl>
-      <div class="hero-ladder">
-        ${ladderBand(counts, { mine: highestDan(mine) })}
-        <p class="hero-caption">${ladderCaption(counts)} <a href="/challenges/dan">${t('Open the Dan course')}</a></p>
-        ${goalBand(m.completion)}
-      </div>
-    </section>
+    </header>
+    <div class="hero-ladder">
+      ${ladderBand(counts, { mine: highestDan(mine) })}
+      <p class="hero-caption">${ladderCaption(counts)} <a href="/challenges/dan">${t('Open the Dan course')}</a></p>
+      ${goalBand(m.completion)}
+    </div>
 
     ${season() === 'xmas' ? html`<p class="mt-4 notice">${th('{greeting}, you lot. Play less, eat more. 🎅', { greeting: html`<span lang="pt-PT">Feliz Natal</span>` })}</p>` : ''}
 
@@ -230,7 +222,7 @@ export default async function home(root, { isCurrent }) {
       </div>
       <div>
         <div class="section-head"><h2>${t('Recent activity')}</h2><a href="/activity">${t('See all')}</a></div>
-        <div class="feed">${act.events.slice(0, 5).map(e => eventItem(e, index, act.maps))}</div>
+        <div class="feed feed-open">${act.events.slice(0, 5).map(e => eventItem(e, index, act.maps))}</div>
         ${hillSummary(m.hill, index)}
         ${bountySummary(board)}
       </div>
@@ -239,15 +231,6 @@ export default async function home(root, { isCurrent }) {
     <section class="section">
       <div class="section-head"><h2>${t('Since 2018')}</h2><a href="/team">${t('Team Portugal')}</a></div>
       <ol class="since">${HISTORY.map(([year, text]) => html`<li><span class="since-year">${year}</span><p>${text}</p></li>`)}</ol>
-    </section>
-
-    <section class="section">
-      <div class="section-head"><h2>${t('How to join')}</h2><a href="/join">${t('The full guide')}</a></div>
-      <div class="steps steps-row">
-          <div class="step"><div><b>${t('Join the Discord server')}</b><p>${t('That’s where the bot lives and where the community chats, shares plays and sets up matches.')}</p></div></div>
-          <div class="step"><div><b>${th('Verify your account with {command}', { command: html`<span class="kbd">/verify</span>` })}</b><p>${t('You sign in to osu! and, if your account is Portuguese, you get the verified role straight away.')}</p></div></div>
-          <div class="step"><div><b>${t('Play!')}</b><p>${th('The bot fetches recent plays for everyone it tracks every 15 minutes, and new plays show up here within a few minutes after that. You can also use {command} to show your latest one.', { command: html`<span class="kbd">/rs</span>` })}</p></div></div>
-        </div>
     </section>
   `);
   root.querySelector('[data-find]')?.addEventListener('click', openSearch);

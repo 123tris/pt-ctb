@@ -185,7 +185,7 @@ function miniBoard(ctx: Ctx, players: Players, key: 'cv' | 'ul' | 'pp', cat: Cat
   rows.sort((a, b) => values[b] - values[a]);
   const slug = { c: 'converts', u: 'loved', r: 'ranked' }[cat];
   return html`<div class="card">
-    <h3 class="board-title"><span class="cat cat-${cat}">${catLabel(ctx, cat)}</span></h3>
+    <h3 class="board-title"><a class="title-link" href="/rankings/${slug}"><span class="cat cat-${cat}">${catLabel(ctx, cat)}</span></a></h3>
     <div class="mini-board">
       ${rows.slice(0, 5).map((row, i) => {
         const id = players.id[row];
@@ -199,7 +199,6 @@ function miniBoard(ctx: Ctx, players: Players, key: 'cv' | 'ul' | 'pp', cat: Cat
         </a>`;
       })}
     </div>
-    <p class="card-foot"><a href="/rankings/${slug}">${t('Full leaderboard')}</a></p>
   </div>`;
 }
 
@@ -224,29 +223,22 @@ export function render(ctx: Ctx, { core, home, invite, signIn }: Data): Safe {
   const counts = passCounts(players);
 
   return html`
-    <section class="hero">
-      <div>
-        <h1>${th('Portugal’s {catch} community', { catch: html`<em>osu!catch</em>` })}</h1>
-        <p>${t('Leaderboards, the Dan course and weekly challenges, from everything the PT-CTB Discord’s bot tracks.')}</p>
-        <div class="hero-actions">
-          ${invite ? html`<a class="btn btn-primary" href="${invite}" target="_blank" rel="noopener">${t('Join the Discord')}</a>` : ''}
-          <a href="/rankings">${t('See the leaderboards')}</a>
-          ${mine >= 0 ? html`<a href="/player/${ctx.me}">${t('Your profile')}</a>` : signIn ? html`<button type="button" class="link-button" data-signin>${t('Sign in with osu!')}</button>`
-            : html`<button type="button" class="link-button" data-find>${t('Find yourself')}</button>`}
-        </div>
+    <header class="page-head home-head">
+      <h1>${th('Portugal’s {catch} community', { catch: html`<em>osu!catch</em>` })}</h1>
+      <p>${t('Leaderboards, the Dan course and weekly challenges, from everything the PT-CTB Discord’s bot tracks: {scores} scores by {players} players on {maps} maps.',
+        { scores: fmt.num(home.totals.scores), players: fmt.num(home.totals.players), maps: fmt.num(home.totals.maps) })}</p>
+      <div class="hero-actions">
+        ${invite ? html`<a class="btn btn-primary" href="${invite}" target="_blank" rel="noopener">${t('Join the Discord')}</a>` : ''}
+        <a href="/join">${t('How to join')}</a>
+        ${mine >= 0 ? html`<a href="/player/${ctx.me}">${t('Your profile')}</a>` : signIn ? html`<button type="button" class="link-button" data-signin>${t('Sign in with osu!')}</button>`
+          : html`<button type="button" class="link-button" data-find>${t('Find yourself')}</button>`}
       </div>
-      <dl class="hero-stats">
-        <div><dt>${t('Players tracked')}</dt><dd>${fmt.num(home.totals.players)}</dd></div>
-        <div><dt>${t('Scores')}</dt><dd>${fmt.num(home.totals.scores)}</dd></div>
-        <div><dt>${t('Maps played')}</dt><dd>${fmt.num(home.totals.maps)}</dd></div>
-        <div><dt>${t('Fruits caught')}</dt><dd>${fmt.num(home.totals.fruits)}</dd></div>
-      </dl>
-      <div class="hero-ladder">
-        ${ladderBand(ctx, counts, { mine: mine >= 0 ? highestDan(players, mine) : -1 })}
-        <p class="hero-caption">${ladderCaption(ctx, counts)} <a href="/challenges/dan">${t('Open the Dan course')}</a></p>
-        ${goalBand(ctx, home.completion)}
-      </div>
-    </section>
+    </header>
+    <div class="hero-ladder">
+      ${ladderBand(ctx, counts, { mine: mine >= 0 ? highestDan(players, mine) : -1 })}
+      <p class="hero-caption">${ladderCaption(ctx, counts)} <a href="/challenges/dan">${t('Open the Dan course')}</a></p>
+      ${goalBand(ctx, home.completion)}
+    </div>
 
     ${isChristmas(ctx) ? html`<p class="mt-4 notice">${th('{greeting}, you lot. Play less, eat more. 🎅', { greeting: html`<span lang="pt-PT">Feliz Natal</span>` })}</p>` : ''}
 
@@ -281,7 +273,7 @@ export function render(ctx: Ctx, { core, home, invite, signIn }: Data): Safe {
       </div>
       <div>
         <div class="section-head"><h2>${t('Recent activity')}</h2><a href="/activity">${t('See all')}</a></div>
-        <div class="feed">${home.events.map(e => eventItem(ctx, e, players, home.maps))}</div>
+        <div class="feed feed-open">${home.events.map(e => eventItem(ctx, e, players, home.maps))}</div>
         ${hillSummary(ctx, home.hill, players)}
         ${bountySummary(ctx, home.bounties)}
       </div>
@@ -292,13 +284,5 @@ export function render(ctx: Ctx, { core, home, invite, signIn }: Data): Safe {
       <ol class="since">${history(ctx).map(([year, text]) => html`<li><span class="since-year">${year}</span><p>${text}</p></li>`)}</ol>
     </section>
 
-    <section class="section">
-      <div class="section-head"><h2>${t('How to join')}</h2><a href="/join">${t('The full guide')}</a></div>
-      <div class="steps steps-row">
-          <div class="step"><div><b>${t('Join the Discord server')}</b><p>${t('That’s where the bot lives and where the community chats, shares plays and sets up matches.')}</p></div></div>
-          <div class="step"><div><b>${th('Verify your account with {command}', { command: html`<span class="kbd">/verify</span>` })}</b><p>${t('You sign in to osu! and, if your account is Portuguese, you get the verified role straight away.')}</p></div></div>
-          <div class="step"><div><b>${t('Play!')}</b><p>${th('The bot fetches recent plays for everyone it tracks every 15 minutes, and new plays show up here within a few minutes after that. You can also use {command} to show your latest one.', { command: html`<span class="kbd">/rs</span>` })}</p></div></div>
-        </div>
-    </section>
   `;
 }

@@ -100,6 +100,7 @@
 
   /* Floating layers only (menus, popovers, toasts): one neutral shadow. Nothing on the page has one. */
   --shadow-float: 0 14px 36px rgba(0, 0, 0, .45);
+  --scrim: rgba(0, 0, 0, .55);     /* behind the one drawer (the Top 10 dossier) */
 
   --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;           /* text and every number */
   --display: 'Josefin Sans', 'Inter', system-ui, sans-serif;                          /* headings and the brand */
@@ -537,9 +538,10 @@ input[type='checkbox'] { accent-color: var(--accent); width: 15px; height: 15px;
 
 /* Spaced by a gap, not padding, so a strip that wraps on a phone starts each line at the left edge. */
 .tabs { display: flex; flex-wrap: wrap; column-gap: var(--sp-6); border-bottom: 1px solid var(--border); margin-bottom: var(--sp-6); }
-.tabs a { padding: var(--sp-3) 0; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
+/* The current tab's rule is a border, as the nav's is: an inset shadow leaves a sliver down a tab of fractional width. */
+.tabs a { padding: var(--sp-3) 0 calc(var(--sp-3) - 2px); border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
 .tabs a:hover { color: var(--text); text-decoration: none; }
-.tabs a.active { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.tabs a.active { color: var(--text); border-bottom-color: var(--accent); }
 .tabs .count { color: var(--text-faint); font-size: var(--fs-xs); font-weight: 500; margin-left: var(--sp-1); }
 
 /* A category: a small square in its colour, then the name. */
@@ -617,10 +619,7 @@ a.map:hover .map-title { color: var(--accent); }
 .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r); background: var(--surface); }
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: var(--sp-2) var(--sp-4); text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-th {
-  font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); font-weight: 600;
-  background: var(--bg-2); padding-block: var(--sp-2);
-}
+th { font-size: var(--fs-sm); color: var(--text-dim); font-weight: 500; background: var(--bg-2); padding-block: var(--sp-2); }
 tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: var(--surface-2); }
 td.num, th.num { text-align: right; }
@@ -666,8 +665,8 @@ tr.target:not(.me) { background: var(--surface-2); }
 .kings-table { table-layout: fixed; }
 .kings-table th:first-child { width: 31%; }
 .kings-table th:last-child { width: 20%; }
-.kings-table tbody th { background: transparent; text-transform: none; letter-spacing: normal; font-size: var(--fs-md); font-weight: 500; }
-.kings-table thead th { font-size: var(--fs-xs); white-space: normal; }
+.kings-table tbody th { background: transparent; font-size: var(--fs-md); color: var(--text); }
+.kings-table thead th { white-space: normal; }
 .kings-table tr:last-child th { border-bottom: 0; }
 .king-title { color: var(--gold); white-space: nowrap; }
 .king-tie { display: block; color: var(--text-dim); font-size: var(--fs-sm); font-weight: 400; }
@@ -727,7 +726,7 @@ td.hill-king { color: var(--text); font-weight: 700; }
 .hill-kept { table-layout: fixed; }
 .hill-kept .col-slot { width: 5.5rem; }
 @media (max-width: 600px) { .hill-kept .col-slot { width: 4.75rem; } }
-.hill-kept tbody th { background: transparent; color: var(--text); font-size: var(--fs-sm); font-weight: 700; text-transform: none; letter-spacing: 0; }
+.hill-kept tbody th { background: transparent; color: var(--text); font-weight: 700; }
 .hill-kept tr:last-child th { border-bottom: 0; }
 /* Duels (pages/duels.js, pages/duel.js, core/duels.js): a duel in a list is one row, the two sides with the points
    between them (the winner's name in bold, the loser's dim) and its format and time on the right. An abandoned duel is
@@ -804,7 +803,7 @@ td.hill-king { color: var(--text); font-weight: 700; }
 .duel-more[open] > summary { margin-bottom: var(--sp-1); }
 /* "Experimental" beside Duels' name while they're new (core/duels.js experimentalTag): the legend tag, sized to sit in
    a tab, a heading or a card title. */
-.exp-tag { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; letter-spacing: 0; text-transform: none; vertical-align: middle; }
+.exp-tag { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; vertical-align: middle; }
 h1 .exp-tag { font-size: var(--fs-sm); }
 .exp-note { margin: 0 0 var(--sp-4); font-size: var(--fs-sm); }
 /* Linked badges (challenge chips) and pool player links get a 24px hit area. */
@@ -920,30 +919,21 @@ a.row.card-link:last-child { border-bottom: 0; }
 
 /* ---- Home --------------------------------------------------------------------------------------- */
 
-/* The hero sits on the page itself, no box: the title and numbers, then the Dan ladder across the full width. */
-.hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--sp-8); align-items: end; padding-top: var(--sp-2); }
-.hero h1 { font-size: clamp(2.25rem, 6vw, var(--fs-4xl)); max-width: 14ch; margin-bottom: .35em; line-height: 1; }
-.hero h1 em { font-style: normal; }
-.hero p { color: var(--text-dim); font-size: var(--fs-lg); max-width: 50ch; margin-bottom: var(--sp-6); }
-.hero-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-top: 1px solid var(--border); }
-.hero-stats div { display: flex; flex-direction: column; justify-content: space-between; padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
-.hero-stats div:nth-child(odd) { padding-right: var(--sp-4); }
-.hero-stats div:nth-child(even) { padding-left: var(--sp-4); border-left: 1px solid var(--border); }
-.hero-stats dt { color: var(--text-dim); font-size: var(--fs-sm); font-weight: 500; }
-.hero-stats dd { margin: 2px 0 0; font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
-@media (max-width: 760px) { .hero { grid-template-columns: minmax(0, 1fr); gap: var(--sp-6); } }
-@media (max-width: 480px) { .hero-stats dd { font-size: var(--fs-xl); } }
+/* The home page opens like every other page: its H1, one sentence (with the totals in it) and the actions. No hero:
+   the first big thing on the page is the Dan ladder, the site's own mark, not a headline. */
+.home-head { margin-bottom: var(--sp-6); }
+.home-head h1 em { font-style: normal; }
 
 /* The Dan ladder (core/ladder.js): the course's 19 glyphs as the site's mark. A stage lights up once someone in Portugal
    has passed it (numerals in the text colour, Hebrew letters in gold); the highest one reached is the accent, with a
    rule under it. Unlit stages stay as faint outlines of what's left to climb. */
-.hero-ladder { grid-column: 1 / -1; padding-top: var(--sp-6); border-top: 1px solid var(--border); }
+.hero-ladder { padding-top: var(--sp-6); border-top: 1px solid var(--border); }
 .ladder { display: block; color: inherit; }
 .ladder:hover { text-decoration: none; }
 .ladder-rungs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(19, minmax(0, 1fr)); }
 .rung { position: relative; display: grid; justify-items: center; gap: var(--sp-2); padding: var(--sp-2) 0; }
 .rung:nth-child(12) { border-left: 1px solid var(--border); }
-.rung-glyph { font: 700 clamp(1.25rem, 2.6vw, 2.25rem)/1 var(--display); color: transparent; -webkit-text-stroke: 1px var(--border-strong); transition: transform .15s; }
+.rung-glyph { font: 700 clamp(1.25rem, 2.6vw, 2.25rem)/1 var(--display); color: transparent; -webkit-text-stroke: 1px var(--border-strong); }
 .rung.lit .rung-glyph { color: var(--text); -webkit-text-stroke: 0; }
 .rung-he.lit .rung-glyph { color: var(--gold); }
 /* Hebrew letters come from a system font whose overlapping contours show through an outline, so unlit ones are a
@@ -951,13 +941,12 @@ a.row.card-link:last-child { border-bottom: 0; }
 .rung-he:not(.lit) .rung-glyph { color: color-mix(in srgb, var(--gold) 30%, var(--bg)); -webkit-text-stroke: 0; }
 .rung.top .rung-glyph { color: var(--text); }
 .rung.top::after { content: ''; position: absolute; left: 25%; right: 25%; bottom: 0; height: 2px; border-radius: 1px; background: var(--accent); }
-.rung-n { font-size: var(--fs-xs); color: var(--text-faint); }
+.rung-n { font-size: var(--fs-xs); color: var(--text-faint); transition: color .12s; }
 .rung.mine .rung-n { color: var(--accent); font-weight: 700; }
-.ladder:hover .rung-glyph { transform: translateY(-2px); }
-.hero .hero-caption { max-width: none; margin: var(--sp-3) 0 0; font-size: var(--fs-sm); }
+.ladder:hover .rung-n { color: var(--text); }
+.hero-caption { max-width: 90ch; margin: var(--sp-3) 0 0; color: var(--text-dim); font-size: var(--fs-sm); text-wrap: pretty; }
 .hero-caption b { color: var(--text); font-weight: 600; }
 .hero-caption [lang='pt-PT'] { font-family: var(--display); font-weight: 600; color: var(--text); white-space: nowrap; }
-@media (prefers-reduced-motion: reduce) { .ladder:hover .rung-glyph { transform: none; } }
 /* The completion goal (home.js goalBand), the ladder's second band: how far across, where the ladder is how far up. A
    figure the size of the hero stats on a thin meter (the Completion page's .goal-bar), then a caption like the
    ladder's. The figure and meter are one link, as the ladder is. */
@@ -975,26 +964,23 @@ a.row.card-link:last-child { border-bottom: 0; }
   .rung:nth-child(12) { border-left: 0; }
 }
 
-/* "Since 2018": the community's story on one line, a dot per year, the latest filled. */
+/* "Since 2018": the community's story on one line, a year per column under one rule. */
 .since { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid var(--border-strong); }
-.since li { position: relative; padding: var(--sp-4) var(--sp-6) 0 0; }
-.since li::before { content: ''; position: absolute; top: -4px; left: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--bg); border: 1px solid var(--text-faint); }
-.since li:last-child::before { background: var(--text); border-color: var(--text); }
+.since li { padding: var(--sp-4) var(--sp-6) 0 0; }
 .since-year { display: block; margin-bottom: var(--sp-2); font: 700 var(--fs-2xl)/1 var(--display); }
 .since p { margin: 0; color: var(--text-dim); font-size: var(--fs-sm); }
 @media (max-width: 760px) {
   .since { grid-template-columns: minmax(0, 1fr); border-top: 0; border-left: 1px solid var(--border-strong); }
   .since li { padding: 0 0 var(--sp-4) var(--sp-6); }
   .since li:last-child { padding-bottom: 0; }
-  .since li::before { top: 6px; left: -4px; }
   .since-year { font-size: var(--fs-xl); margin-bottom: 2px; }
 }
 
-/* Numbered steps: 01, 02… in the display face. */
+/* Numbered steps: 1, 2, 3 in the display face. */
 .steps { counter-reset: step; display: grid; gap: var(--sp-4); }
-.step { display: grid; grid-template-columns: 34px 1fr; gap: var(--sp-3); align-items: baseline; }
+.step { display: grid; grid-template-columns: var(--sp-6) 1fr; gap: var(--sp-3); align-items: baseline; }
 .step::before {
-  counter-increment: step; content: counter(step, decimal-leading-zero);
+  counter-increment: step; content: counter(step);
   font: 700 var(--fs-xl)/1 var(--display); color: var(--text-faint);
 }
 .step p { margin: 2px 0 0; color: var(--text-dim); }
@@ -1040,16 +1026,14 @@ a.row.card-link:last-child { border-bottom: 0; }
 .week-top > .faint { min-width: 7.5em; }
 .week-top .dim-link { flex: 1 1 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
 
-/* Home: one main action (the Discord), the rest as plain links; "How to join" as three steps side by side. */
-.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-6); }
+/* Home: one main action (the Discord), the rest as plain links. */
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-6); margin-top: var(--sp-4); }
 .hero-actions > a:not(.btn), .hero-actions .link-button { font-weight: 600; color: var(--text); }
 .hero-actions > a:not(.btn):hover, .hero-actions .link-button:hover { color: var(--accent); }
 .link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
 .link-button:hover { text-decoration: underline; text-underline-offset: 3px; }
-.steps-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-6); }
-@media (max-width: 760px) { .steps-row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); } }
 
-/* Home, "Portugal's best": the three boards' names as the titles over each top 5. */
+/* Home, "Portugal's best": the three boards' names as the titles over each top 5, each linking to its leaderboard. */
 .card > h3.board-title .cat { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
 
 /* A one-column link list (Team Portugal's forum threads). */
@@ -1202,7 +1186,7 @@ a.row.card-link:last-child { border-bottom: 0; }
 a.dan-stage:hover { text-decoration: none; }
 .dan-stage:hover { border-color: var(--border-strong); background: var(--surface-2); }
 .dan-stage.selected { border-color: var(--accent); background: var(--accent-bg); }
-.dan-glyph { font: 700 2.25rem/1 var(--display); margin-bottom: var(--sp-3); color: var(--text); }
+.dan-glyph { font: 700 var(--fs-3xl)/1 var(--display); margin-bottom: var(--sp-3); color: var(--text); }
 .dan-stage.hebrew .dan-glyph { color: var(--gold); }
 /* A stage not passed yet (by this player, or by anyone) keeps only the outline of its glyph, as on the home ladder. */
 .dan-stage.locked { color: var(--text-dim); }
@@ -1213,7 +1197,7 @@ a.dan-stage:hover { text-decoration: none; }
   .dan-ladder { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
   .dan-stage { padding: var(--sp-3) var(--sp-2); }
   .dan-stage .points, .dan-stage > b, .dan-stage .avatars { display: none; }
-  .dan-stage .dan-glyph { font-size: 1.75rem; margin-bottom: var(--sp-2); }
+  .dan-stage .dan-glyph { font-size: var(--fs-2xl); margin-bottom: var(--sp-2); }
   .dan-stage .small { font-size: var(--fs-xs); line-height: 1.3; }
 }
 .dan-stage .points { position: absolute; top: 12px; right: 12px; font-size: var(--fs-xs); color: var(--text-faint); font-weight: 600; }
@@ -1272,6 +1256,9 @@ a.dan-stage:hover { text-decoration: none; }
 }
 .event { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); min-width: 0; }
 .event:last-child { border-bottom: 0; }
+/* The home page's feed sits in a column of ruled lists, so it's ruled too, not boxed. */
+.feed-open { border: 0; border-top: 1px solid var(--border); border-radius: 0; background: none; }
+.feed-open .event { padding-inline: 0; }
 .feed-more { display: flex; justify-content: center; margin-top: var(--sp-3); }
 .feed-more[hidden] { display: none; }
 .event-head { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-xs); color: var(--text-faint); margin-bottom: 2px; }
@@ -1294,7 +1281,7 @@ a.dan-stage:hover { text-decoration: none; }
 .ev-pass { --k: var(--text-faint); }
 .ev-mile { --k: var(--text-faint); }
 .ev-join { --k: var(--text-faint); }
-.chip .event-kind { letter-spacing: 0; text-transform: none; font-weight: inherit; color: inherit; }
+.chip .event-kind { font-weight: inherit; color: inherit; }
 .chip .event-kind::before { background: var(--k); }
 
 /* WCAG 2.5.8: the map link under each activity event stands on its own line, so it gets a 24px-tall target. */
@@ -1382,7 +1369,7 @@ a.dan-stage:hover { text-decoration: none; }
 .duel { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--sp-4); align-items: stretch; }
 .duel-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: var(--sp-6); text-align: center; display: grid; gap: var(--sp-2); justify-items: center; }
 .duel-card .value { font-size: var(--fs-3xl); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
-.duel-vs { align-self: center; font-family: var(--display); font-weight: 700; color: var(--text-faint); letter-spacing: .06em; }
+.duel-vs { align-self: center; font-family: var(--display); font-weight: 700; color: var(--text-faint); }
 @media (max-width: 600px) {
   .duel { grid-template-columns: 1fr; gap: var(--sp-2); }
   .duel-vs { justify-self: center; }
@@ -1447,7 +1434,7 @@ a.dan-stage:hover { text-decoration: none; }
 .row-placeholder::before { content: ''; display: block; width: 60%; height: 12px; margin-top: var(--sp-3); border-radius: var(--r-xs); background: var(--surface-3); opacity: .6; }
 @media (max-width: 760px) { .row-placeholder { height: 123px; } }
 /* The loader (ui.js climber): one window onto the Dan glyphs, stepping from 0 up to Shin and round again. */
-.climb { display: block; width: 3ch; height: 1.15em; margin: 0 auto var(--sp-3); overflow: hidden; font: 700 1.875rem/1.15 var(--display); color: var(--text); text-align: center; }
+.climb { display: block; width: 3ch; height: 1.15em; margin: 0 auto var(--sp-3); overflow: hidden; font: 700 var(--fs-2xl)/1.15 var(--display); color: var(--text); text-align: center; }
 .climb-strip { display: grid; animation: climb 3.8s steps(19) infinite; }
 .climb-strip > span { height: 1.15em; }
 .climb-strip > span:nth-child(n + 12) { color: var(--gold); }
@@ -1514,12 +1501,12 @@ a.dan-stage:hover { text-decoration: none; }
 .fun-more { color: var(--text-dim); border-color: var(--border); }
 
 /* "On this page" links at the top of long pages (Records). */
-.jump-links { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0 0 var(--sp-6); }
+.jump-links { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); margin: 0 0 var(--sp-6); font-size: var(--fs-sm); font-weight: 500; }
 .fun-tip { margin: var(--sp-2) 0 0; max-width: 60ch; font-size: var(--fs-sm); color: var(--text-dim); }
 .fun-tip b { color: var(--text); margin-right: var(--sp-1); }
 .map-tags { margin-top: var(--sp-3); }
 
-.signature h3 .faint { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.signature h3 .faint { font-weight: 500; }
 .lore-card { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
 .lore-card .eyebrow { margin-bottom: var(--sp-1); }
 .lore-card p { margin: 0 0 var(--sp-1); }
@@ -1759,9 +1746,8 @@ details[open] > summary .admin-chevron { transform: rotate(180deg); }
 .cmp-aura .label { color: var(--gold); }
 .special-round { min-height: 1.4em; margin: -4px 0 var(--sp-2); color: var(--gold); font-weight: 600; font-size: var(--fs-sm); }
 
-.timeline { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--border-strong); }
-.timeline li { position: relative; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--sp-4); padding: 0 0 var(--sp-4) var(--sp-4); }
-.timeline li::before { content: ''; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-faint); }
+.timeline { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border-strong); }
+.timeline li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--sp-4); padding: 0 0 var(--sp-4) var(--sp-4); }
 .timeline-year { font: 700 var(--fs-lg)/1.3 var(--display); color: var(--text-faint); }
 .timeline-body p { margin: 2px 0 0; color: var(--text-dim); }
 
@@ -1787,12 +1773,12 @@ details[open] > summary .admin-chevron { transform: rotate(180deg); }
 /* Bacalhau mode (type "bacalhau"): the loader shows a cod instead of climbing the Dan. */
 .bacalhau .climb { width: auto; height: auto; overflow: visible; }
 .bacalhau .climb-strip { display: none; }
-.bacalhau .climb::before { content: '🐟'; display: inline-block; font-size: 26px; animation: bob .8s ease-in-out infinite alternate; }
+.bacalhau .climb::before { content: '🐟'; display: inline-block; font-size: var(--fs-2xl); animation: bob .8s ease-in-out infinite alternate; }
 @keyframes bob { to { transform: translateY(-8px) rotate(-12deg); } }
 @media (prefers-reduced-motion: reduce) { .bacalhau .climb::before { animation: none; } }
 
 /* The logo's seasonal hat: Santa in December, a bacalhau on Portugal Day. */
-[data-season] .brand::after { font-size: 1rem; margin-left: -2px; }
+[data-season] .brand::after { font-size: var(--fs-lg); margin-left: -2px; }
 [data-season='xmas'] .brand::after { content: '🎅'; }
 [data-season='ptday'] .brand::after { content: '🐟'; }
 
