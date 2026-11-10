@@ -17,9 +17,11 @@
 // is the built-in one unless TOP10_SEASON is set in the shell (top10/season.js), e.g. one that's open now:
 //   TOP10_SEASON='{"year":2026,"opens":"2026-11-01T00:00:00Z","closes":"2026-11-30T23:59:59Z","reveal":"2026-12-02T12:00:00Z","thanksUntil":"2026-12-31T23:59:59Z"}'
 //
-// Review aids, for requests to localhost only (tools/local-review.js, never deployed): a "Design: new / old" button
-// sits in the corner. "Old" sets a cookie, and then every site file this branch has changed since it last took in dev is served as dev had it, straight from git, so the old CSS,
-// markup and JS come back together. Drop this once the design pass is merged.
+// Review aids, for requests to localhost only (tools/local-review.js, never deployed): a "Design: after / before"
+// button sits in the corner. "Before" sets a cookie, and then the site is served as it was where this branch last took
+// in dev, straight from git: every site file the branch has changed since (committed or not), and the web client
+// bundled from that commit's sources, so the old CSS, markup and JS come back together. Drop this once the design
+// pass is merged.
 
 import http from 'node:http';
 import fs from 'node:fs';
@@ -194,7 +196,7 @@ http.createServer(async (req, res) => {
     // With `home` set the site sends its usage counts; without --usage there's nowhere to keep them.
     if (!usage && url.pathname === '/api/hit') { res.writeHead(204).end(); return; }
   }
-  if (url.pathname.startsWith('/assets/web/')) return serveWeb(res, path.basename(url.pathname));
+  if (url.pathname.startsWith('/assets/web/')) return serveWeb(res, path.basename(url.pathname), isLocal(req) && wantsOld(req) && before ? before.base : null);
   const dataPath = localData && url.pathname.startsWith('/data/');
   let file = dataPath ? path.join(dataDir, decodeURIComponent(url.pathname.slice('/data/'.length))) : path.join(root, decodeURIComponent(url.pathname));
   if (!file.startsWith(dataPath ? dataDir : root)) { res.writeHead(403).end(); return; }
@@ -203,7 +205,7 @@ http.createServer(async (req, res) => {
   const isPage = url.pathname === '/' || (!path.extname(url.pathname) && describe(url.pathname) !== null);
   const page = isPage ? '/index.html' : decodeURIComponent(url.pathname);
   if (local && page === '/index.html') readBefore(); // on every page load, so new edits and commits count
-  const old = local && wantsOld(req) && before?.files.has(page) ? oldText(page) : null;
+  const old = local && wantsOld(req) && before && before.files.has(page) ? oldText(page) : null;
   if (old !== null || page === '/index.html') {
     let text = old ?? fs.readFileSync(path.join(root, page), 'utf8');
     if (page === '/index.html') {
@@ -243,9 +245,31 @@ http.createServer(async (req, res) => {
  */
 let web = null;
 let webEntries = '';
-async function serveWeb(res, name) {
+/** The design switch's "before": the web client bundled from a commit's sources, one build per commit. */
+const oldWebs = new Map();
+function oldWeb(build, base) {
+  if (!oldWebs.has(base)) {
+    // That commit's web/ and assets/js, in a temp folder (git archive: nothing here or in the index is touched).
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ptctb-before-'));
+    const tar = path.join(dir, 'src.tar');
+    git('archive', '--format=tar', '-o', tar, base, 'web', 'assets/js');
+    execFileSync('tar', ['-xf', tar, '-C', dir]);
+    fs.rmSync(tar);
+    oldWebs.set(base, build.buildWeb({ outdir: path.join(dir, 'assets', 'web'), minify: false, from: dir })
+      .then(() => dir, e => { oldWebs.delete(base); throw e; }));
+  }
+  return oldWebs.get(base);
+}
+async function serveWeb(res, name, base = null) {
   try {
     const build = await import('./web-build.mjs');
+    if (base) {
+      const file = path.join(await oldWeb(build, base), 'assets', 'web', name);
+      if (!fs.existsSync(file)) { res.writeHead(404).end('Not found'); return; }
+      res.writeHead(200, { 'Content-Type': TYPES['.js'], 'Cache-Control': 'no-cache' });
+      res.end(fs.readFileSync(file));
+      return;
+    }
     const now = JSON.stringify(build.entries());
     if (web && now !== webEntries) { (await web).dispose(); web = null; }
     webEntries = now;

@@ -18,17 +18,14 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const oldSite = path.join(root, 'assets', 'js') + path.sep;
-/** Where the bundle is served from: imports of the old site are written relative to it. */
-const served = path.join(root, 'assets', 'web');
 
 /**
  * The bundle's entry points: the app (assets/web/app.js) and the pages the new client draws, every file in
  * web/src/entries (assets/web/<name>.js, which the app loads, and the old router where the app can't load).
  */
-export const entries = () => ({
+export const entries = (from = root) => ({
   app: 'web/src/app.ts',
-  ...Object.fromEntries(fs.readdirSync(path.join(root, 'web', 'src', 'entries'))
+  ...Object.fromEntries(fs.readdirSync(path.join(from, 'web', 'src', 'entries'))
     .filter(f => f.endsWith('.ts')).sort().map(f => [f.slice(0, -3), `web/src/entries/${f}`])),
 });
 
@@ -41,9 +38,12 @@ const PURE = new Set(['core/routes.js', 'core/maps-search.js', 'core/model.js', 
  * Keeps imports of the shared old modules (SHARED) as imports, at their address relative to assets/web/; lets the pure
  * ones (PURE) be bundled; refuses the rest.
  */
-const keepOldSite = {
+const keepOldSite = from => ({
   name: 'keep-old-site',
   setup(build) {
+    const oldSite = path.join(from, 'assets', 'js') + path.sep;
+    /** Where the bundle is served from: imports of the old site are written relative to it. */
+    const served = path.join(from, 'assets', 'web');
     build.onResolve({ filter: /^\.\.?\// }, args => {
       const file = path.resolve(args.resolveDir, args.path);
       if (!file.startsWith(oldSite)) return undefined;
@@ -55,13 +55,16 @@ const keepOldSite = {
       };
     });
   },
-};
+});
 
-/** esbuild's options; `minify` off (with inline source maps) for local work. */
-export function webOptions({ outdir, minify = true }) {
+/**
+ * esbuild's options; `minify` off (with inline source maps) for local work. `from` is the checkout to bundle: this
+ * one, or another copy of the sources (tools/serve.mjs bundles the client as it was before a branch's changes).
+ */
+export function webOptions({ outdir, minify = true, from = root }) {
   return {
-    absWorkingDir: root,
-    entryPoints: Object.fromEntries(Object.entries(entries()).map(([name, file]) => [name, path.join(root, file)])),
+    absWorkingDir: from,
+    entryPoints: Object.fromEntries(Object.entries(entries(from)).map(([name, file]) => [name, path.join(from, file)])),
     bundle: true,
     format: 'esm',
     splitting: true,
@@ -74,15 +77,15 @@ export function webOptions({ outdir, minify = true }) {
     chunkNames: 'chunk-[hash]',
     metafile: true,
     logLevel: 'warning',
-    plugins: [keepOldSite],
+    plugins: [keepOldSite(from)],
   };
 }
 
 /** Builds into `outdir`; the result's metafile lists every output and its size. */
-export const buildWeb = ({ outdir, minify }) => esbuild.build(webOptions({ outdir, minify }));
+export const buildWeb = ({ outdir, minify, from }) => esbuild.build(webOptions({ outdir, minify, from }));
 
 /** An incremental build kept in memory (tools/serve.mjs): rebuild() returns outputFiles. */
-export const webContext = ({ outdir, minify = false }) => esbuild.context({ ...webOptions({ outdir, minify }), write: false });
+export const webContext = ({ outdir, minify = false, from }) => esbuild.context({ ...webOptions({ outdir, minify, from }), write: false });
 
 /**
  * A pure module of web/src (no browser code), for the build's own use: build-site.mjs reads the page table
