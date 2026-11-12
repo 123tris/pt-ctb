@@ -141,7 +141,26 @@ public static class Schemas
         ]),
     ]);
 
-    public static readonly PackSchema[] All = [Core, Player, Search];
+    /// <summary>
+    /// The yearly ranked boards (Export/Build.Years.cs): a board per year maps were ranked, newest first, each a run of
+    /// rows best first. Players by osu! id, as everywhere; the core pack has their names.
+    /// </summary>
+    public static readonly PackSchema Years = new("years", "Ranked pp by the year the maps were ranked, one board per year.",
+    [
+        new("years", "The years with a board, newest first", [
+            new("year", ColKind.U16, "The year the maps were ranked (UTC)"),
+            new("from", ColKind.U32, "Its first row in rows"),
+            new("players", ColKind.U16, "Its rows: the players on its board"),
+            new("maps", ColKind.U32, "Maps ranked that year with a play counted here"),
+        ]),
+        new("rows", "Every board's players, best first", [
+            new("id", ColKind.U32, "osu! id"),
+            new("pp", ColKind.I32, "Weighted pp from that year's maps, hundredths"),
+            new("plays", ColKind.U16, "Plays counted (one per map)"),
+        ]),
+    ]);
+
+    public static readonly PackSchema[] All = [Core, Player, Search, Years];
 
     public static PackSchema ByName(string name) => All.First(s => s.Name == name);
 }

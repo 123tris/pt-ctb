@@ -32,6 +32,7 @@ public sealed partial class Build
         var packs = new List<(string, byte[])>
         {
             ("packs/core.ptcb", CorePack(fileHash)), ("packs/search.ptcb", SearchPack()), ("packs/home.json", HomeFile()),
+            ("packs/years.ptcb", YearsPack()),
         };
         var files = playerFiles.Values.ToList();
         var bytes = new byte[files.Count][];
@@ -327,6 +328,37 @@ public sealed partial class Build
         w.Table("maps", n).Column("maps", "id", ids.Select(x => (uint)x).ToArray()).Column("maps", "set", set)
             .Column("maps", "version", version).Column("maps", "stars", stars).Column("maps", "ar", ar)
             .Column("maps", "maxCombo", maxCombo).Column("maps", "mode", mode);
+        return w.ToArray();
+    }
+
+    /// <summary>The yearly ranked boards (<see cref="RankedYears"/>), one run of rows per year.</summary>
+    private byte[] YearsPack()
+    {
+        var years = RankedYearBoards();
+        var year = new ushort[years.Count];
+        var from = new uint[years.Count];
+        var count = new ushort[years.Count];
+        var mapCount = new uint[years.Count];
+        var id = new List<uint>();
+        var pp = new List<int>();
+        var plays = new List<ushort>();
+        for (var i = 0; i < years.Count; i++)
+        {
+            year[i] = (ushort)years[i].Value;
+            from[i] = (uint)id.Count;
+            count[i] = (ushort)years[i].Rows.Count;
+            mapCount[i] = (uint)years[i].Maps;
+            foreach (var row in years[i].Rows)
+            {
+                id.Add((uint)row.Uid);
+                pp.Add(Hundredths(row.Pp));
+                plays.Add((ushort)Math.Min(row.Plays, ushort.MaxValue));
+            }
+        }
+        var w = new PackWriter(Schemas.Years);
+        w.Table("years", years.Count).Column("years", "year", year).Column("years", "from", from).Column("years", "players", count)
+            .Column("years", "maps", mapCount);
+        w.Table("rows", id.Count).Column("rows", "id", id.ToArray()).Column("rows", "pp", pp.ToArray()).Column("rows", "plays", plays.ToArray());
         return w.ToArray();
     }
 

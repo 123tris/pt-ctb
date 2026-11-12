@@ -54,7 +54,8 @@ test('the page table: every address the old app loads, with the same new entry a
 });
 
 const ADDRESSES = [
-  '', '/', 'rankings', 'rankings/loved', 'rankings/mods', 'rankings/', 'players', 'player/3821475', 'player/3821475/loved',
+  '', '/', 'rankings', 'rankings/loved', 'rankings/mods', 'rankings/', 'rankings/ranked/2024', 'rankings/converts/2024',
+  'rankings/ranked/x', 'rankings/ranked/2024/x', 'players', 'player/3821475', 'player/3821475/loved',
   'player/3821475/converts', 'player/abc', 'player', 'player/1/2/3', 'maps', 'map/2311555', 'map', 'map/x', 'activity',
   'challenges', 'challenges/dan', 'challenges/hill', 'challenges/bounties', 'dan', 'dan/x', 'verify', 'duel/7', 'duel',
   'games', 'games/guess', 'games/daily', 'games/quiz', 'calculator', 'compare', 'compare/1', 'compare/1/2', 'compare/1/2/3',
@@ -86,9 +87,14 @@ test('a few keys spelled out: ids left out, a sub-view in the query kept, compar
   assert.equal(key('activity', { view: 'plays' }), 'activity/plays');
   assert.equal(key('compare/1/2'), 'compare/pair');
   assert.equal(key('compare/1'), 'compare/one');
+  assert.equal(key('rankings/ranked/2024'), 'rankings/ranked/year');
+  assert.equal(key('rankings/ranked'), 'rankings/ranked');
   assert.equal(pageObject(match('compare/1/2')), 'p1|p2');
   assert.equal(pageObject(match('map/5')), 'm5');
   // Switching a profile's list is a new view, not a new page; another player is a new page.
   assert.equal(pageOf('/player/1/loved'), pageOf('/player/1'));
   assert.notEqual(pageOf('/player/1'), pageOf('/player/2'));
+  // So is switching between the leaderboards, and between the Ranked board's years.
+  assert.equal(pageOf('/rankings/ranked/2024'), pageOf('/rankings/ranked'));
+  assert.equal(pageOf('/rankings/ranked/2024'), pageOf('/rankings/converts'));
 });

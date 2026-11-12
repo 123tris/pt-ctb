@@ -23,7 +23,7 @@ import { here, go } from './core/ui.js';
  */
 const LOADERS = {
   '': () => import('../web/home.js').catch(() => import('./pages/home.js')),
-  'rankings/:board?': () => import('../web/rankings.js').catch(() => import('./pages/rankings.js')),
+  'rankings/:board?/:year?': () => import('../web/rankings.js').catch(() => import('./pages/rankings.js')),
   'players': () => import('../web/players.js').catch(() => import('./pages/players.js')),
   'player/:id/:tab?': () => import('../web/player.js').catch(() => import('./pages/player.js')),
   'maps': () => import('../web/maps.js').catch(() => import('./pages/maps.js')),
@@ -51,20 +51,22 @@ function match(path) {
 }
 
 /**
- * Route params that only pick a view within a page: a profile's score list, a leaderboard, a challenge. Changing one
+ * Route params that only pick a view within a page: a profile's score list, a leaderboard (and the Ranked board's year),
+ * a challenge. Changing one
  * keeps the page where it is: no scroll to the top, the old view (dimmed if the new one takes a moment) instead of the
  * loader, and focus back on the tab that was picked. The profile redraws just its list (pages/player.js); the others
  * redraw the page.
  */
-const SUB_VIEWS = { 'player/:id/:tab?': 'tab', 'rankings/:board?': 'board', 'challenges/:tab?': 'tab' };
+const SUB_VIEWS = { 'player/:id/:tab?': ['tab'], 'rankings/:board?/:year?': ['board', 'year'], 'challenges/:tab?': ['tab'] };
 
 /** Which page an address's path shows, the same for two paths that differ only in a sub-view. */
 function pageOf(pathname) {
   const path = unmoved((pathname ?? '').replace(/^\/+/, ''));
   const found = match(path);
-  const sub = found && SUB_VIEWS[found.pattern];
-  if (!sub) return path;
-  const { [sub]: _, ...rest } = found.params;
+  const subs = found && SUB_VIEWS[found.pattern];
+  if (!subs) return path;
+  const rest = { ...found.params };
+  for (const sub of subs) delete rest[sub];
   return `${found.pattern} ${JSON.stringify(rest)}`;
 }
 
@@ -78,6 +80,8 @@ function pageKey(found, path, query) {
   const name = keys.map((k, i) => (!k.startsWith(':') ? k : ID_PARAMS.has(k.slice(1).replace('?', '')) ? '' : parts[i] ?? ''))
     .filter(Boolean).join('/') || 'home';
   if (found.pattern.startsWith('compare')) return `${name}${found.params.b ? '/pair' : found.params.a ? '/one' : ''}`;
+  // A Ranked board by year counts as one page whichever the year: rankings/ranked/year.
+  if (found.pattern.startsWith('rankings') && found.params.board === 'ranked' && /^\d{4}$/.test(found.params.year ?? '')) return `${name}/year`;
   const extra = query.view || query.mode;
   return extra ? `${name}/${extra}` : name;
 }

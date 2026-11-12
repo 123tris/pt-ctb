@@ -16,6 +16,9 @@ export const CORE = 'packs/core.ptcb';
 /** The pack with every map with Portuguese plays: the Maps page's list and search. */
 export const SEARCH = 'packs/search.ptcb';
 
+/** The yearly ranked boards (the Ranked tab's /rankings/ranked/:year). */
+export const YEARS = 'packs/years.ptcb';
+
 /** The Leaderboards tabs that add a JSON file to the core pack (the others are the core pack alone). */
 const BOARD_JSON: Record<string, string> = { mods: 'modrankings.json', plays: 'topplays.json', kings: 'records.json' };
 
@@ -43,7 +46,11 @@ const challengesJson = (tab: string | undefined) =>
  */
 const ROUTES: { pattern: RegExp; first: (m: RegExpMatchArray, query: URLSearchParams) => First | null }[] = [
   { pattern: /^$/, first: () => ({ packs: [CORE, HOME], json: [] }) },
-  { pattern: /^rankings(?:\/([^/]*))?$/, first: m => ({ packs: [CORE], json: BOARD_JSON[m[1]] ? [BOARD_JSON[m[1]]] : [] }) },
+  // A Ranked board by year (/rankings/ranked/2024) adds the years pack.
+  {
+    pattern: /^rankings(?:\/([^/]*)(?:\/([^/]*))?)?$/,
+    first: m => ({ packs: m[1] === 'ranked' && /^\d{4}$/.test(m[2] ?? '') ? [CORE, YEARS] : [CORE], json: BOARD_JSON[m[1]] ? [BOARD_JSON[m[1]]] : [] }),
+  },
   {
     pattern: /^calculator$/,
     first: (_, query) => ({ packs: [CORE], json: Number(query.get('map')) > 0 ? [mapBucket(Number(query.get('map')))] : [] }),

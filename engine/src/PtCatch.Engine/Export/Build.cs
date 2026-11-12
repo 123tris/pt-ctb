@@ -18,6 +18,11 @@ public sealed class Person
     /// <summary>What pp is counted from, by category.</summary>
     public readonly List<int>[] PpLists = [null, null, null, null];
     public List<int> PpOnly = new();
+    /// <summary>
+    /// Every ranked catch-specific play before the board picks one per map by score (the yearly ranked pp count each
+    /// map's best pp from it).
+    /// </summary>
+    public List<int> RankedPool = new();
     public List<int> DumpTop = new();
     public List<int> DumpMods = new();
     public List<int> LiveRanked = new();

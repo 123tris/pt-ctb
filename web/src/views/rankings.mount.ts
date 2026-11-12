@@ -6,6 +6,7 @@ import type { CorePack } from '../gen/packs.ts';
 import { BOARD_CAT, FIRST_ROWS, boardBody, boardRows, visible, filterNote, type State } from './rankings.ts';
 import { announce, writeQuery } from '../client/ui.ts';
 import { addInFrames } from '../client/dom.ts';
+import { wireRankedSwitch } from './ranked-years.mount.ts';
 
 /** `drawn`: how many of the board's rows render() drew; the rest are added here, a batch per frame. */
 export function mount(root: HTMLElement, ctx: Ctx, core: CorePack, state: State, drawn = Infinity): void {
@@ -19,6 +20,7 @@ export function mount(root: HTMLElement, ctx: Ctx, core: CorePack, state: State,
   const cat = BOARD_CAT[state.slug];
   const total = boardRows(core, cat).length;
   const legendsOn = () => legends?.checked ?? true;
+  if (state.slug === 'ranked') wireRankedSwitch(root, ctx);
 
   const saveQuery = () => writeQuery({ q: filter.value.trim(), legends: legends && !legends.checked ? '0' : '' });
   const apply = ({ speak = false } = {}) => {

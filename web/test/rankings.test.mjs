@@ -7,10 +7,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readCore } from '../src/gen/packs.ts';
+import { readCore, readYears } from '../src/gen/packs.ts';
 import { makeText } from '../src/kernel/i18n.ts';
 import { makeFmt } from '../src/kernel/fmt.ts';
 import { render, readState, head } from '../src/views/rankings.ts';
+import * as rankedYears from '../src/views/ranked-years.ts';
 import { inlineData } from '../edge/inline.ts';
 import { firstData } from '../src/routes.ts';
 import { PT } from '../../assets/js/core/pt.js';
@@ -29,6 +30,9 @@ test('which pages the new client draws, and their first data', () => {
   assert.deepEqual(firstData('/rankings'), { packs: ['packs/core.ptcb'], json: [] });
   assert.deepEqual(firstData('/rankings/ranked/'), { packs: ['packs/core.ptcb'], json: [] });
   assert.deepEqual(firstData('/rankings/mods'), { packs: ['packs/core.ptcb'], json: ['modrankings.json'] });
+  assert.deepEqual(firstData('/rankings/ranked/2024'), { packs: ['packs/core.ptcb', 'packs/years.ptcb'], json: [] });
+  assert.deepEqual(firstData('/rankings/converts/2024'), { packs: ['packs/core.ptcb'], json: [] });
+  assert.deepEqual(firstData('/rankings/ranked/x'), { packs: ['packs/core.ptcb'], json: [] });
   assert.equal(firstData('/nowhere/123'), null);
 });
 
@@ -138,4 +142,49 @@ test('a file the data doesn’t have is in the slice as null, with no preload, s
   assert.equal(await store.hasJson('economy.json'), false);
   assert.equal(await store.hasJson('bounties.json'), true);
   assert.equal(asked, 0, 'no manifest fetched');
+});
+
+const readPack = (name, read) => {
+  const bytes = fs.readFileSync(path.join(dir, 'packs', name));
+  return read(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+};
+const pressed = page => [...page.matchAll(/data-ranked-view="(\w+)" aria-pressed="true"/g)].map(m => m[1]);
+const options = page => [...page.matchAll(/<option value="(\d+)" ?(selected)?>/g)].map(m => [Number(m[1]), Boolean(m[2])]);
+
+test('the Ranked tab’s switch: the official board, or a year ranked', () => {
+  assert.equal(rankedYears.yearParam('2024'), 2024);
+  assert.equal(rankedYears.yearParam('24'), null);
+  assert.equal(rankedYears.yearParam(undefined), null);
+  const ctx = ctxFor('en', Date.UTC(2026, 0, 1) / 1000);
+  const page = String(rankedYears.render(ctx, { core: null, years: null }, rankedYears.readState(2025, {})));
+  assert.deepEqual(pressed(page), ['years']);
+  assert.deepEqual(options(page), [[2025, true]], 'the year asked for, even with no data for it');
+  assert.match(page, /The boards by year ranked arrive with the next data update\./);
+  assert.match(page, /<a href="\/rankings\/ranked" class="active" aria-current="page">Ranked<\/a>/);
+});
+
+test('a year’s board: the pack’s rows in order, the years newest first, in both languages', { skip: skip || (!fs.existsSync(path.join(dir, 'packs', 'years.ptcb')) && 'no years pack') }, () => {
+  const core = readPack('core.ptcb', readCore);
+  const years = readPack('years.ptcb', readYears);
+  const ctx = ctxFor('en', core.info.generatedAt[0]);
+  const official = String(render(ctx, core, readState('ranked', {})));
+  assert.deepEqual(pressed(official), ['official']);
+  assert.deepEqual(options(official), []);
+  const year = years.years.year[0];
+  const { from, count } = rankedYears.boardOf(years, year);
+  const page = String(rankedYears.render(ctx, { core, years }, rankedYears.readState(year, {})));
+  assert.deepEqual(pressed(page), ['years']);
+  assert.deepEqual(options(page), [...years.years.year].map(y => [y, y === year]));
+  assert.deepEqual([...page.matchAll(/<td class="cell-player"><a class="player" href="\/player\/(\d+)"/g)].map(m => Number(m[1])), [...years.rows.id.slice(from, from + count)]);
+  assert.match(page, new RegExp(`<p class="result-count" id="count">${ctx.fmt.plural(count, 'player')}</p>`));
+  assert.equal(rankedYears.title(ctx, year), `Ranked ${year} leaderboard`);
+  // The filter: rows that don't match are hidden in the first paint.
+  const first = core.players.name.at(core.players.id.indexOf(years.rows.id[from]));
+  const filtered = rowsOf(String(rankedYears.render(ctx, { core, years }, rankedYears.readState(year, { q: first.toUpperCase() }))));
+  assert.ok(filtered.filter(r => !r.cls.split(' ').includes('hidden')).every(r => r.name.includes(first.toLowerCase())));
+  // A year with no board says so; Portuguese draws the same board in the visitor's language.
+  assert.match(String(rankedYears.render(ctx, { core, years }, rankedYears.readState(1990, {}))), /Nobody has pp from maps ranked in 1990 yet\./);
+  const pt = String(rankedYears.render(ctxFor('pt', core.info.generatedAt[0]), { core, years }, rankedYears.readState(year, {})));
+  assert.ok(pt.includes(`>${PT['By year ranked']}</button>`));
+  assert.ok(pt.includes(PT['Ranked {year} leaderboard'].replace('{year}', year)));
 });

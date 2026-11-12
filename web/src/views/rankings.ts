@@ -1,13 +1,14 @@
 // The Converts, Loved and Ranked leaderboards (/rankings/converts|loved|ranked), from the core pack alone. The same
-// page as assets/js/pages/rankings.js draws, which still draws the Mods, Top plays and Star kings tabs.
+// page as assets/js/pages/rankings.js draws, which still draws the Mods, Top plays and Star kings tabs. The Ranked
+// tab's boards by year ranked (/rankings/ranked/:year) are ranked-years.ts.
 //
 // render() is pure: the whole page, already filtered by the address's ?q= and ?legends=, so the first paint is final
 // and the edge can send it as it is. The browser-only part (the filter box, the checkbox) is rankings.mount.ts.
 
-import { html, type Safe } from '../kernel/html.ts';
+import { html, raw, type Safe } from '../kernel/html.ts';
 import type { Ctx } from '../kernel/ctx.ts';
-import type { CorePack } from '../gen/packs.ts';
-import { pageHead, tabs, empty, emptyFiltered, resultCount, dataTable, col } from '../ui/page.ts';
+import type { CorePack, YearsPack } from '../gen/packs.ts';
+import { pageHead, tabs, empty, emptyFiltered, resultCount, dataTable, col, chipGroup } from '../ui/page.ts';
 import { CROWNS_HREF } from './hill.ts';
 import { playerLink, ppText, officialPp, isInactiveOnOsu, isInactive, isLegend, legendTag, inactiveTag, statusTag, type Players } from '../ui/players.ts';
 
@@ -48,6 +49,27 @@ export const title = (ctx: Ctx, slug: Tab) => labels(ctx)[slug].board;
 export const head = (ctx: Ctx, slug: Tab): Safe => html`
     ${pageHead({ title: ctx.t('Leaderboards'), extra: html`<p class="page-links"><a href="/players">${ctx.t('All players')}</a><a href="/compare">${ctx.t('Compare two players')}</a><a href="${CROWNS_HREF}">${ctx.t('King of the hill crowns')}</a></p>` })}
     ${tabs(SLUGS.map(s => ({ href: `/rankings/${s}`, label: labels(ctx)[s].label, active: s === slug })), ctx.t('Leaderboard type'))}`;
+
+/** The current year (UTC, as the boards by year count a map's ranked date): where "By year ranked" goes. */
+export const thisYear = (ctx: Ctx): number => new Date(ctx.now() * 1000).getUTCFullYear();
+
+/** A year's board on the Ranked tab. */
+export const yearHref = (year: number) => `/rankings/ranked/${year}`;
+
+/**
+ * The Ranked tab's switch: the official board or the boards by year ranked (`year` null: the official one), and on
+ * those, which year, newest first (the year asked for is listed even when it has no board yet). The official board
+ * doesn't load the years pack, so it shows only the switch.
+ */
+export function rankedSwitch(ctx: Ctx, years: YearsPack | null, year: number | null): Safe {
+  const { t } = ctx;
+  const list = years ? [...years.years.year] : [];
+  if (year !== null && !list.includes(year)) list.push(year);
+  list.sort((a, b) => b - a);
+  return html`${chipGroup(t('Leaderboard'), 'ranked-view', [['official', t('Official')], ['years', t('By year ranked')]], year === null ? 'official' : 'years')}
+    ${year !== null ? html`<select class="select" id="ranked-year" aria-label="${t('Year ranked')}">${list.map(y =>
+      html`<option value="${y}" ${y === year ? raw('selected') : ''}>${y}</option>`)}</select>` : ''}`;
+}
 
 /** The board's rows in players, best first. */
 export function boardRows(core: CorePack, cat: Cat): Uint16Array {
@@ -198,6 +220,7 @@ export function render(ctx: Ctx, core: CorePack, state: State, upTo = Infinity):
   return html`${head(ctx, state.slug)}
     <p class="muted">${intro}</p>
     <div class="toolbar">
+      ${state.slug === 'ranked' ? rankedSwitch(ctx, null, null) : ''}
       <input class="input" type="search" id="filter" placeholder="${t('Search players…')}" aria-label="${t('Search this leaderboard')}" value="${state.q}">
       ${legendsBox}
     </div>

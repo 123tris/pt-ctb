@@ -394,3 +394,35 @@ export const SEARCH_HASH = 'c7a3f5c3';
 /** Reads a search pack, refusing one of another layout. */
 export const readSearch = (buffer: ArrayBuffer): SearchPack =>
   readPack(buffer, 'search', SEARCH_HASH) as unknown as SearchPack;
+
+/** Ranked pp by the year the maps were ranked, one board per year. */
+export interface YearsPack {
+  /** The years with a board, newest first */
+  years: {
+    rows: number;
+    /** The year the maps were ranked (UTC) */
+    year: Uint16Array;
+    /** Its first row in rows */
+    from: Uint32Array;
+    /** Its rows: the players on its board */
+    players: Uint16Array;
+    /** Maps ranked that year with a play counted here */
+    maps: Uint32Array;
+  };
+  /** Every board's players, best first */
+  rows: {
+    rows: number;
+    /** osu! id */
+    id: Uint32Array;
+    /** Weighted pp from that year's maps, hundredths */
+    pp: Int32Array;
+    /** Plays counted (one per map) */
+    plays: Uint16Array;
+  };
+}
+
+export const YEARS_HASH = '375b59a7';
+
+/** Reads a years pack, refusing one of another layout. */
+export const readYears = (buffer: ArrayBuffer): YearsPack =>
+  readPack(buffer, 'years', YEARS_HASH) as unknown as YearsPack;

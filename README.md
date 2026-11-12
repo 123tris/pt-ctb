@@ -42,6 +42,7 @@ and is imported by both the exporter and the pages, so the two can't drift apart
 |---|---|
 | `/` | Home: top 5s, map of the week, latest activity, how to join |
 | `/rankings/{converts,loved,ranked,mods,plays}` | Leaderboards, osupepe-style mod rankings, and the country's top plays (by source and mod) |
+| `/rankings/ranked/{year}` | The Ranked tab by year ranked: pp from plays on the maps ranked (or approved) that year alone, catch maps and converts alike, each map's best-pp play weighted as osu! does (no bonus pp). From the years pack (`engine/…/Export/Build.Years.cs`) |
 | `/players`, `/player/{id}/{tab}` | Player list (the header search's "all results", not in the nav) and profiles (scores, Dan, pp history) |
 | `/maps`, `/map/{id}` | Map search and per-map Portuguese leaderboards |
 | `/activity`, `/activity?view=plays` | Snipes, top plays, Dan passes, overtakes; recent plays |

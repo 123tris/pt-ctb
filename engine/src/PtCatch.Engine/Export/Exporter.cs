@@ -274,6 +274,12 @@ public static class Exporter
                 }
             }
             log($"  {packs.Count} packs ({packs.Sum(p => (long)p.Bytes.Length) / 1e6:F1} MB) in packs/");
+            var skipped = build.YearsSkipped;
+            if (skipped.NoMapPlays + skipped.NoDatePlays > 0)
+            {
+                log($"  yearly ranked pp left out {skipped.NoMapPlays} plays on {skipped.NoMap.Count} uncached maps and " +
+                    $"{skipped.NoDatePlays} plays on {skipped.NoDate.Count} ranked maps with no ranked date");
+            }
             Stage("packs");
         }
         log($"  {files.Count + 1} files ({result.Bytes / 1e6:F1} MB), {result.Changed} changed, {result.Removed} removed in {clock.Elapsed.TotalSeconds:F1}s");

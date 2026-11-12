@@ -4,7 +4,7 @@
 
 export const PAGES = [
   '',
-  'rankings/:board?',
+  'rankings/:board?/:year?',
   'players',
   'player/:id/:tab?',
   'maps',

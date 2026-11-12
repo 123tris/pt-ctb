@@ -127,6 +127,7 @@ public sealed partial class Build
             // The lists hold the board plays, one per map. A convert map can also have a best-pp play that isn't
             // the board play (PpOnly); PpLists are what pp is counted from.
             var converts = p.Lists[(int)Cat.Convert];
+            p.RankedPool = p.Lists[(int)Cat.Ranked];
             foreach (var cat in Rules.Cats)
             {
                 p.Lists[(int)cat] = BestOnBoard(p.Lists[(int)cat], cat);

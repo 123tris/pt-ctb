@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readCore, readPlayer, readSearch, GRADES, COLOURS } from '../src/gen/packs.ts';
+import { readCore, readPlayer, readSearch, readYears, GRADES, COLOURS } from '../src/gen/packs.ts';
 import { decodeMapsSearch, decodeSearchMaps } from '../../assets/js/core/maps-search.js';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -146,4 +146,53 @@ test('home.json: what the home page shows, as the files it comes from have it', 
   assert.equal(home.throne, records.throne?.held ?? null);
   assert.deepEqual(home.bounties.open, bounties.open ?? []);
   for (const b of home.bounties.open) assert.deepEqual(home.bounties.maps[b[0]], bounties.maps[b[0]]);
+});
+
+test('years pack: a board per year ranked, as the players’ files and the map buckets give them', { skip: skip || (!fs.existsSync(path.join(dir, 'packs', 'years.ptcb')) && 'no years pack') }, () => {
+  const { years, rows } = readYears(pack('years.ptcb'));
+  const players = new Set(json('players.json').map(p => p.id));
+  // Each map's status and ranked date, from its bucket (the player files leave the dates out).
+  const buckets = new Map();
+  const mapMeta = id => {
+    const b = id % 128;
+    if (!buckets.has(b)) buckets.set(b, json(`maps/${b}.json`));
+    return buckets.get(b)[id]?.m;
+  };
+  const expected = new Map();
+  for (const id of players) {
+    const file = json(`players/${id}.json`);
+    // The converts' best-pp play per map (board play or pp.c) and the ranked board plays.
+    const best = new Map();
+    for (const t of [...file.scores.c, ...(file.pp?.c ?? []), ...file.scores.r]) {
+      const old = best.get(t[0]);
+      if (!old || t[1] > old[1] || (t[1] === old[1] && t[7] > old[7])) best.set(t[0], t);
+    }
+    for (const t of best.values()) {
+      const m = mapMeta(t[0]);
+      if (!m || !(m[12] === 1 || m[12] === 2) || !m[15] || !(t[1] > 0)) continue;
+      const key = `${new Date(m[15] * 1000).getUTCFullYear()}:${id}`;
+      (expected.get(key) ?? expected.set(key, []).get(key)).push(t[1]);
+    }
+  }
+  let from = 0;
+  const seen = new Set();
+  for (let y = 0; y < years.rows; y++) {
+    if (y) assert.ok(years.year[y] < years.year[y - 1], 'newest year first');
+    assert.equal(years.from[y], from, `${years.year[y]} rows follow on`);
+    for (let r = from; r < from + years.players[y]; r++) {
+      const id = rows.id[r];
+      const at = `${years.year[y]} #${r - from + 1} (${id})`;
+      assert.ok(players.has(id), `${at} is a home-country player`);
+      if (r > from) assert.ok(rows.pp[r] < rows.pp[r - 1] || (rows.pp[r] === rows.pp[r - 1] && rows.id[r] > rows.id[r - 1]), `${at} best first`);
+      const pps = (expected.get(`${years.year[y]}:${id}`) ?? []).sort((a, b) => b - a);
+      assert.equal(rows.plays[r], pps.length, `${at} plays`);
+      // A ranked catch map counts its best-pp play, which can beat the board's (best score) play the files list.
+      const total = pps.reduce((sum, pp, i) => sum + pp * 0.95 ** i, 0);
+      assert.ok(rows.pp[r] >= Math.round(total * 100) - 1, `${at} pp ${rows.pp[r]} ≥ ${total}`);
+      seen.add(`${years.year[y]}:${id}`);
+    }
+    from += years.players[y];
+  }
+  assert.equal(rows.rows, from);
+  assert.deepEqual([...expected.keys()].filter(k => !seen.has(k)), [], 'everyone with a counted play is on that year’s board');
 });

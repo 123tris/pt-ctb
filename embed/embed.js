@@ -111,7 +111,13 @@ export function describe(pathname) {
   const section = pattern.split('/')[0];
   const isId = v => /^\d{1,10}$/.test(v ?? '');
 
-  if (section === 'rankings') return pair(BOARDS[params.board] ?? BOARDS.converts);
+  if (section === 'rankings') {
+    // A Ranked board by year (/rankings/ranked/2024): pp from that year's maps alone.
+    if (params.board === 'ranked' && /^\d{4}$/.test(params.year ?? '')) {
+      return pair([`Ranked ${params.year} leaderboard`, `Portugal’s osu!catch players by pp from the maps ranked in ${params.year} alone: catch maps and converts, weighted the way osu! does it.`]);
+    }
+    return pair(BOARDS[params.board] ?? BOARDS.converts);
+  }
   if (section === 'challenges') return pair(CHALLENGES[params.tab] ?? CHALLENGES.week);
   if (section === 'games') return pair(GAMES[params.game ?? ''] ?? GAMES['']);
   if (section === 'player') {

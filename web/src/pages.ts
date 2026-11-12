@@ -21,7 +21,7 @@ export interface Found {
  */
 export const PAGE_MODULES: Readonly<Record<string, { entry: string; old?: string }>> = {
   '': { entry: 'home', old: 'home' },
-  'rankings/:board?': { entry: 'rankings', old: 'rankings' },
+  'rankings/:board?/:year?': { entry: 'rankings', old: 'rankings' },
   'players': { entry: 'players', old: 'players' },
   'player/:id/:tab?': { entry: 'player', old: 'player' },
   'maps': { entry: 'maps', old: 'maps' },
@@ -57,20 +57,22 @@ export const match = (path: string): Found | null => matchPage(path) as Found | 
 export const moved = (path: string): string => unmoved(path);
 
 /**
- * Route params that only pick a view within a page: a profile's score list, a leaderboard, a challenge. Changing one
+ * Route params that only pick a view within a page: a profile's score list, a leaderboard (and the Ranked board's year),
+ * a challenge. Changing one
  * keeps the page where it is: no scroll to the top, the old view (dimmed if the new one takes a moment) instead of the
  * loader, and focus back on the tab that was picked. The profile redraws just its list (views/player.mount.ts); the
  * others redraw the page.
  */
-export const SUB_VIEWS: Readonly<Record<string, string>> = { 'player/:id/:tab?': 'tab', 'rankings/:board?': 'board', 'challenges/:tab?': 'tab' };
+export const SUB_VIEWS: Readonly<Record<string, readonly string[]>> = { 'player/:id/:tab?': ['tab'], 'rankings/:board?/:year?': ['board', 'year'], 'challenges/:tab?': ['tab'] };
 
 /** Which page an address's path shows, the same for two paths that differ only in a sub-view. */
 export function pageOf(pathname: string | null | undefined): string {
   const path = unmoved((pathname ?? '').replace(/^\/+/, ''));
   const found = match(path);
-  const sub = found && SUB_VIEWS[found.pattern];
-  if (!sub) return path;
-  const { [sub]: _, ...rest } = found.params;
+  const subs = found && SUB_VIEWS[found.pattern];
+  if (!subs) return path;
+  const rest = { ...found.params };
+  for (const sub of subs) delete rest[sub];
   return `${found.pattern} ${JSON.stringify(rest)}`;
 }
 
@@ -84,6 +86,8 @@ export function pageKey(found: Found, path: string, query: Query): string {
   const name = keys.map((k, i) => (!k.startsWith(':') ? k : ID_PARAMS.has(k.slice(1).replace('?', '')) ? '' : parts[i] ?? ''))
     .filter(Boolean).join('/') || 'home';
   if (found.pattern.startsWith('compare')) return `${name}${found.params.b ? '/pair' : found.params.a ? '/one' : ''}`;
+  // A Ranked board by year counts as one page whichever the year: rankings/ranked/year.
+  if (found.pattern.startsWith('rankings') && found.params.board === 'ranked' && /^\d{4}$/.test(found.params.year ?? '')) return `${name}/year`;
   const extra = query.view || query.mode;
   return extra ? `${name}/${extra}` : name;
 }
