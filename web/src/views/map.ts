@@ -67,6 +67,8 @@ export interface Data {
   diffs: readonly Diff[] | null;
   bounties: Bounties | null;
   site: SiteBrief;
+  /** Came from one of the bot's map links before choosing where those open: the page offers the choice. */
+  offerLinks?: boolean;
 }
 
 /** The page's title: the map's artist and title. */
@@ -132,6 +134,22 @@ function bountyLines(ctx: Ctx, wanted: readonly OpenBounty[], players: Players):
     ${pot ? html`${potLine(ctx, { pot, funds, poster, expires }, players)}<p class="m-0 small"><a href="/challenges/bounties">${ctx.t('Fund it on the Bounties tab')}</a></p>` : ''}`);
 }
 
+/**
+ * Where the bot's map links should open (maplinks/maplinks.js), asked the first time one lands here: keep them on this
+ * page, or send them straight to osu!. Either link keeps the choice in this browser, then opens this map by it.
+ */
+function linksOffer(ctx: Ctx, id: number): Safe {
+  const { t, th } = ctx;
+  return html`<div class="links-offer">
+    <p class="m-0">${t('The bot’s map links bring you to the map’s page here. Would you rather they opened on osu!?')}</p>
+    <div class="btn-row">
+      <a class="btn btn-small" href="/maplinks/osu?map=${id}">${t('Open them on osu!')}</a>
+      <a class="btn btn-small" href="/maplinks/ptcatch?map=${id}">${t('Keep them here')}</a>
+    </div>
+    <p class="m-0 small faint">${th('Saved in this browser. You can change it any time on the {page}.', { page: html`<a href="/commands">${t('Bot commands page')}</a>` })}</p>
+  </div>`;
+}
+
 export function render(ctx: Ctx, data: Data): Safe {
   const { t, tn, fmt } = ctx;
   const { id, entry, meta, diffs } = data;
@@ -172,6 +190,8 @@ export function render(ctx: Ctx, data: Data): Safe {
         ${unrankedForever ? html`<p class="m-0 mt-2 small faint">${t('Still waiting to be ranked. Since 2018, probably.')}</p>` : ''}
       </div>
     </section>
+
+    ${data.offerLinks ? linksOffer(ctx, id) : ''}
 
     ${lore ? html`<div class="lore-card">
       <span class="eyebrow">${lore.title}</span>

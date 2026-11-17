@@ -1,9 +1,11 @@
 // /commands for the app's router: the bot's own list (commands.json), or the hand-written one when the data has
-// none or it can't be read, as the old page does. No packs, so the old page never has to stand in.
+// none or it can't be read, as the old page does. No packs, so the old page never has to stand in. Also where this
+// browser chooses where the bot's map links open (the `maplinks` cookie, maplinks/maplinks.js).
 
 import { page } from '../client/page.ts';
 import { store } from '../client/boot.ts';
 import { render, title, type CommandsFile, type Data } from '../views/commands.ts';
+import { choiceOf } from '../../../maplinks/maplinks.js';
 
 /** commands.json when the export lists it, or null: the bot writes it on start, so older data has none. */
 async function commandsFile(): Promise<CommandsFile | null> {
@@ -15,7 +17,7 @@ async function commandsFile(): Promise<CommandsFile | null> {
 
 export default page<Data>({
   old: 'commands',
-  load: async () => ({ file: await commandsFile() }),
+  load: async () => ({ file: await commandsFile(), mapLinks: choiceOf(document.cookie) === 'osu' ? 'osu' : 'ptcatch' }),
   title: ctx => title(ctx),
   render: (ctx, data) => render(ctx, data),
 });

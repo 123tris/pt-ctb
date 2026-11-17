@@ -33,6 +33,7 @@ import { plainName } from '../assets/js/core/data-name.js';
 import { describe, pageFor } from '../embed/embed.js';
 import { CONFIG } from '../assets/js/config.js';
 import { inlineData, manifestsFor } from '../web/edge/inline.ts';
+import { mapLink, chooseLinks } from '../maplinks/maplinks.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = Number(process.argv.slice(2).find(a => /^\d+$/.test(a))) || 8080;
@@ -179,6 +180,14 @@ function oldText(page) {
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`);
+  // The bot's map links, as functions/b/[id].js and functions/maplinks/[choice].js answer them (maplinks/maplinks.js).
+  const mapAddress = url.pathname.match(/^\/b\/([^/]+)\/?$/), choiceAddress = url.pathname.match(/^\/maplinks\/([^/]+)\/?$/);
+  if (mapAddress) {
+    const data = localData ? `${url.origin}/data/` : CONFIG.data;
+    const fetchJson = u => fetch(u).then(r => (r.ok ? r.json() : Promise.reject(new Error(`${r.status} ${u}`))));
+    return serveFunction(req, res, url, async request => (await mapLink(request, mapAddress[1], { data, fetchJson })) ?? new Response('Not found', { status: 404 }));
+  }
+  if (choiceAddress) return serveFunction(req, res, url, async request => chooseLinks(request, choiceAddress[1]));
   if (usage && url.pathname === '/api/hit' && req.method === 'POST') return serveUsage(req, res, url, usage.recordHit);
   if (usage && url.pathname === '/stats') return serveUsage(req, res, url, usage.stats);
   if (economy && isLocal(req)) {

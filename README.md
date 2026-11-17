@@ -55,12 +55,19 @@ and is imported by both the exporter and the pages, so the two can't drift apart
 | `/records` | Records and community stats |
 | `/rankings/kings` | King of each whole-star range (10★ and above combined), with separate catch and convert boards; tied totals share the title. `?stars=6&src=converts` is one range's full board: everyone with a #1 there, ties sharing a rank |
 | `/recap/{id}/{year}` | A player's year in review |
-| `/commands`, `/verify`, `/team` | Bot commands, how `/verify` works, Team Portugal |
+| `/commands`, `/verify`, `/team` | Bot commands (with where the bot's map links open in this browser), how `/verify` works, Team Portugal |
+| `/b/{map id}`, `/maplinks/{osu,ptcatch}` | Not pages: the map links the bot posts, and the switch for where they open (below) |
 
 Filters, sort and page are kept in the address's query (e.g. `/maps?q=freedom&cat=r&page=2`), so Back and shared links
 restore them. Old `#/…` addresses still work: the site turns them into the path. Every page address gets index.html from
 `functions/[[path]].js`, with the page's own title, description and picture in its `<head>` (`embed/embed.js`), so a
 link posted on Discord previews that page: a player's rank and pp, a map's stars and #1, a leaderboard's description.
+
+The bot links maps as `/b/{map id}` rather than osu!'s address, and whoever clicks decides where those go
+(`functions/b/[id].js`, code in `maplinks/maplinks.js`): the map's page here by default, or osu!'s page for it once they
+choose that. Discord doesn't say who clicked, so the choice is the browser's `maplinks` cookie, set by
+`/maplinks/{osu,ptcatch}` from the Bot commands page, from the map page the first time a bot link lands there, or from
+the bot's `!maplinks`. A map the site has nothing on (no plays, no challenge running on it) always goes to osu!.
 
 ## Running it
 

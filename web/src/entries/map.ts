@@ -13,6 +13,7 @@ import { CORE, mapBucket } from '../routes.ts';
 import type { MapMeta } from '../ui/maps.ts';
 import { render, title, type Data, type Bucket, type Bounties, type Diff, type SiteBrief } from '../views/map.ts';
 import { mount } from '../views/map.mount.ts';
+import { choiceOf } from '../../../maplinks/maplinks.js';
 
 /** dan.json's stages, each with its map and the map's details. */
 interface Dan {
@@ -41,7 +42,7 @@ async function mapSet(set: number): Promise<readonly Diff[] | null> {
 
 export default page<Data>({
   old: 'map',
-  load: async (_, { params }) => {
+  load: async (_, { params, query }) => {
     const id = Number(params.id);
     // The challenges running now, for the chips under the title: bounties.json is small and cached, and meta.json (the
     // manifest the store already has) holds the map of the week and King of the hill's month in brief. A missing or
@@ -56,7 +57,10 @@ export default page<Data>({
     const meta = entry?.m ?? await otherMeta(id, site, bounties);
     // The set's difficulties, when the data has them (sets/ came after the map files) and they include this one.
     const set = meta?.[M.SET] ? await mapSet(meta[M.SET]).catch(() => null) : null;
-    return { id, core, entry, meta, diffs: set?.some(d => d[0] === id) ? set : null, bounties, site };
+    // Came from one of the bot's map links (/b/<id> adds ?via=bot) before saying where those should open: the page
+    // offers the choice (maplinks/maplinks.js).
+    const offerLinks = query.via === 'bot' && choiceOf(document.cookie) === null;
+    return { id, core, entry, meta, diffs: set?.some(d => d[0] === id) ? set : null, bounties, site, offerLinks };
   },
   title: (ctx, data) => title(ctx, data),
   render: (ctx, data) => render(ctx, data),

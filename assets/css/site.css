@@ -1076,6 +1076,8 @@ a.row.card-link:last-child { border-bottom: 0; }
   .diffs { flex-wrap: nowrap; max-height: none; overflow: auto hidden; scrollbar-width: none; margin: var(--sp-2) -24px 0; padding: var(--sp-1) var(--sp-6); }
   .diffs::-webkit-scrollbar { display: none; }
 }
+/* The first time a bot link lands on a map: where should its map links open? A note between hairlines (DESIGN.md §9). */
+.links-offer { display: grid; gap: var(--sp-2); margin-top: var(--sp-4); padding: var(--sp-3) 0; border-block: 1px solid var(--border); }
 /* A map's leaderboard views (the plays that count, and those from before it was ranked), when it has both. */
 .board-views { margin: -4px 0 var(--sp-3); }
 .board-views .faint { font-size: var(--fs-xs); }

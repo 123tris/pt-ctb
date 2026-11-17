@@ -239,3 +239,22 @@ test('the players in Portuguese', { skip: noPacks }, () => {
   assert.ok(page.includes(`>${PT['Converts pp']}</option>`));
   assert.ok(!page.includes('All ') && !page.includes('Last played'));
 });
+
+test('the Bot commands page says where the bot’s map links open in this browser, and switches it', () => {
+  const here = String(commands.render(en, { file: null, mapLinks: 'ptcatch' }));
+  assert.match(here, /<section class="section map-links" id="map-links">\s*<h2>Map links<\/h2>/);
+  assert.match(here, /In this browser, they open <b>the map’s page here<\/b>\./);
+  assert.match(here, /<a class="btn btn-small" href="\/maplinks\/osu">Open them on osu! instead<\/a>/);
+  assert.match(here, /<span class="kbd">!maplinks<\/span>/);
+  // The card comes before the command list, which it leaves as it was.
+  assert.ok(here.indexOf('map-links') < here.indexOf('cmd-list'));
+  assert.equal(sectionsOf(here).length, 7);
+
+  const osu = String(commands.render(en, { file: null, mapLinks: 'osu' }));
+  assert.match(osu, /they open <b>on osu!<\/b>\./);
+  assert.match(osu, /<a class="btn btn-small" href="\/maplinks\/ptcatch">Open them here instead<\/a>/);
+  assert.match(String(commands.render(pt, { file: null, mapLinks: 'osu' })), /Neste browser, abrem <b>no osu!<\/b>\.[\s\S]*>Abri-los antes aqui<\/a>/);
+
+  // No choice to show (a test, or a caller that doesn't read the cookie): no card.
+  assert.doesNotMatch(String(commands.render(en, { file: null })), /map-links/);
+});

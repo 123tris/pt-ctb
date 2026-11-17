@@ -25,6 +25,8 @@ export interface CommandsFile {
 export interface Data {
   /** The bot's list, or null for the hand-written one. */
   file: CommandsFile | null;
+  /** Where the bot's map links open in this browser (maplinks/maplinks.js); left out, the card isn't drawn. */
+  mapLinks?: 'ptcatch' | 'osu';
 }
 
 /** A command (its name and options) and what it does. */
@@ -116,14 +118,35 @@ function groups(ctx: Ctx, file: CommandsFile | null): Group[] {
 
 export const title = ({ t }: Ctx) => t('Bot commands');
 
-export function render(ctx: Ctx, { file }: Data): Safe {
+const kbd = (text: string) => html`<span class="kbd">${text}</span>`;
+
+/**
+ * Where the bot's map links (ptcatch.com/b/<id>) open in this browser, and the link that switches it: /maplinks/<choice>
+ * keeps the choice (maplinks/maplinks.js) and comes back here.
+ */
+function mapLinksCard(ctx: Ctx, choice: 'ptcatch' | 'osu'): Safe {
+  const { t, th } = ctx;
+  const osu = choice === 'osu';
+  return html`<section class="section map-links" id="map-links">
+    <h2>${t('Map links')}</h2>
+    <p>${th('The bot’s map links go through this site, so each of you chooses where they open. In this browser, they open {where}.', {
+      where: html`<b>${osu ? t('on osu!') : t('the map’s page here')}</b>`,
+    })}</p>
+    <div class="btn-row">
+      <a class="btn btn-small" href="/maplinks/${osu ? 'ptcatch' : 'osu'}">${osu ? t('Open them here instead') : t('Open them on osu! instead')}</a>
+    </div>
+    <p class="small faint">${th('A map this site has nothing on always opens on osu!. The choice stays in the browser it was made in: on your phone, type {cmd} in Discord and open its link from there.', { cmd: kbd('!maplinks') })}</p>
+  </section>`;
+}
+
+export function render(ctx: Ctx, { file, mapLinks }: Data): Safe {
   const { t, th, fmt } = ctx;
-  const kbd = (text: string) => html`<span class="kbd">${text}</span>`;
   return html`
     <header class="page-head">
       <h1>${t('Bot commands')}</h1>
       <p>${th('Type {slash} in Discord to see every command. Most also work with a {bang} prefix (for example {rs}).', { slash: kbd('/'), bang: kbd('!'), rs: kbd('!rs') })}</p>
     </header>
+    ${mapLinks ? mapLinksCard(ctx, mapLinks) : ''}
     <div class="grid grid-2">
       <div class="card">
         <h2 class="card-h">${t('Why is the bot called Alphonse?')}</h2>

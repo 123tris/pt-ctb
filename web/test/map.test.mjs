@@ -235,3 +235,24 @@ test('the map’s tags and its story are the old modules’ (badges.js mapTags, 
   }
   assert.ok(tagged > 1000 && stories > 20, `${tagged} tagged, ${stories} stories`);
 });
+
+test('a bot link’s first landing asks where the bot’s map links should open (maplinks/maplinks.js)', () => {
+  // A map nobody here has played draws without the export: nothing on it needs the players.
+  const at = 1_800_000_000;
+  const ctxIn = lang => {
+    const text = makeText(lang, lang === 'pt' ? PT : {});
+    return { ...text, fmt: makeFmt(text, { now: () => at }), now: () => at, data: 'https://data.example/', me: null };
+  };
+  const bare = { id: UNKNOWN, core: { players: null }, entry: null, meta: null, diffs: null, bounties: null, site: {} };
+  const asked = String(render(ctxIn('en'), { ...bare, offerLinks: true }));
+  assert.equal(count(asked, /<div class="links-offer">/g), 1);
+  assert.ok(asked.includes(`<a class="btn btn-small" href="/maplinks/osu?map=${UNKNOWN}">Open them on osu!</a>`));
+  assert.ok(asked.includes(`<a class="btn btn-small" href="/maplinks/ptcatch?map=${UNKNOWN}">Keep them here</a>`));
+  assert.match(asked, /<a href="\/commands">Bot commands page<\/a>/);
+  // It comes right after the banner, before the map's details.
+  assert.ok(asked.indexOf('links-offer') > asked.indexOf('</section>') && asked.indexOf('links-offer') < asked.indexOf('mt-4 btn-row'));
+  assert.match(String(render(ctxIn('pt'), { ...bare, offerLinks: true })), />Abri-los no osu!<\/a>/);
+  // Anyone who has chosen, or came some other way, isn't asked.
+  assert.doesNotMatch(String(render(ctxIn('en'), bare)), /links-offer/);
+  assert.doesNotMatch(String(render(ctxIn('en'), { ...bare, offerLinks: false })), /links-offer/);
+});
