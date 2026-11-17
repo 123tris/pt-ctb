@@ -11,7 +11,7 @@ import type { CorePack } from '../gen/packs.ts';
 import { S, M, CAT, STATUS, DAN_MAPS } from '../kernel/model.ts';
 import { funChips } from '../ui/page.ts';
 import { playerLinkId, ppText, type Players } from '../ui/players.ts';
-import { mapText, bannerArt, starsBadge, starColor, osuMap, osuGame, type MapMeta } from '../ui/maps.ts';
+import { mapText, bannerArt, starsBadge, starColor, osuMap, osuGame, previewButton, type MapMeta } from '../ui/maps.ts';
 import { scoreStats, scoreWhen, posBadge, catChip, type Cat, type Play } from '../ui/scores.ts';
 import { danName } from '../ui/events.ts';
 import { mapTags } from '../ui/badges.ts';
@@ -210,6 +210,7 @@ export function render(ctx: Ctx, data: Data): Safe {
     </dl>` : ''}
 
     <div class="mt-4 btn-row">
+      ${previewButton(ctx, meta?.[M.SET])}
       <a class="btn btn-small" href="${osuGame(id)}" title="${t('Opens this difficulty in the osu! game (on stable, downloading it through osu!direct needs supporter)')}">${t('Open in osu!')}</a>
       ${meta?.[M.MAX_COMBO] ? html`<a class="btn btn-small" href="/calculator?map=${id}">${t('Calculate pp')}</a>` : ''}
     </div>

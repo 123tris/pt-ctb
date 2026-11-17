@@ -14,7 +14,7 @@ import type { CorePack } from '../gen/packs.ts';
 import { M, S } from '../kernel/model.ts';
 import { empty, pageHead, tabs } from '../ui/page.ts';
 import { playerLinkId, ppText, type Players } from '../ui/players.ts';
-import { bannerArt, mapLink, mapText, osuMap, starsBadge, type MapMeta } from '../ui/maps.ts';
+import { bannerArt, mapLink, mapText, osuMap, previewButton, starsBadge, type MapMeta } from '../ui/maps.ts';
 import { catChip, posBadge, scoreStats, scoreWhen, type Cat, type Play } from '../ui/scores.ts';
 import { passCounts, topStage } from '../ui/ladder.ts';
 import { danName } from '../ui/events.ts';
@@ -195,6 +195,7 @@ function weekSection(ctx: Ctx, week: Week | null, maps: Record<string, MapMeta>,
     </section>
     <div class="mt-3 mb-6 btn-row">
       <a class="btn btn-primary" href="${osuMap(week.map)}" target="_blank" rel="noopener">${t('Open on osu!')}</a>
+      ${previewButton(ctx, meta?.[M.SET], 'btn')}
       <a class="btn" href="/map/${week.map}">${t('Full leaderboard')}</a>
     </div>
     <div class="section-head"><h2>${t('This week’s plays')}</h2></div>

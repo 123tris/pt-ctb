@@ -13,7 +13,7 @@ import { PAGE_MODULES, match, moved as unmoved, pageKey, pageObject, pageOf, typ
 import { oldPage, type RouterPage } from './client/page.ts';
 import {
   CONFIG, lang, htmlLang, setLang, store, clientCtx, here, go, setTitle, enhanceTables, openSearch, startTips, checkOldUi,
-  startTracking, trackView, trackError, startFun, initSearch, initYou, readSignIn, initConsent, moved,
+  startTracking, trackView, trackError, startFun, startPreviews, initSearch, initYou, readSignIn, initConsent, moved,
   NotFound, loading, notFoundQuips, pick,
 } from './client/shell.ts';
 
@@ -281,6 +281,7 @@ clientCtx().then(c => {
   translatePage(ctx);
   wireNav();
   startTips();
+  startPreviews(ctx);
   wireLinks();
   lastPath = location.pathname;
   startTracking();

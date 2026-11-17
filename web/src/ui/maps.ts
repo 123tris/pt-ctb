@@ -15,6 +15,20 @@ export const osuMap = (id: number) => `https://osu.ppy.sh/beatmaps/${id}?mode=fr
 export const osuGame = (id: number) => `osu://b/${id}`;
 export const coverUrl = (set: number | null | undefined, kind = 'list') => (set ? `https://assets.ppy.sh/beatmaps/${set}/covers/${kind}.jpg` : '');
 
+/**
+ * osu!'s preview of a set's song: the 10-second clip osu!'s own pages play. The address says .mp3, but osu! serves Ogg
+ * Vorbis (audio/ogg). It goes straight from osu! to the visitor (client/preview.ts): the site keeps no audio and passes
+ * none through.
+ */
+export const previewUrl = (set: number) => `https://b.ppy.sh/preview/${set}.mp3`;
+
+/** A button that plays the set's song preview (client/preview.ts), or nothing without a set id. `cls` sizes it. */
+export function previewButton(ctx: Ctx, set: number | null | undefined, cls = 'btn btn-small'): Safe | '' {
+  return set
+    ? html`<button class="${cls} preview-btn" type="button" data-preview="${set}" aria-pressed="false" title="${ctx.t('Plays osu!’s 10-second preview of the song')}">${ctx.t('Listen')}</button>`
+    : '';
+}
+
 /** { title, sub } for a map; maps the bot only knows by id get a placeholder title. */
 export function mapText(ctx: Ctx, id: number, meta: MapMeta): { title: string; sub: string } {
   if (!meta || !meta[M.TITLE] || meta[M.TITLE] === 'Unknown') return { title: ctx.t('Map #{id}', { id }), sub: ctx.t('No map details') };

@@ -728,6 +728,13 @@ export const PT = {
   'Opens this difficulty in the osu! game (on stable, downloading it through osu!direct needs supporter)': 'Abre esta dificuldade no jogo osu! (no stable, descarregá-la pelo osu!direct precisa de supporter)',
   'Open in osu!': 'Abrir no osu!',
   'Calculate pp': 'Calcular pp',
+  // The song preview (osu!'s 10-second clip), on a map's page and the map of the week's (client/preview.ts).
+  'Listen': 'Ouvir',
+  'Plays osu!’s 10-second preview of the song': 'Toca o excerto de 10 segundos da música, do osu!',
+  'No preview': 'Sem excerto',
+  'osu! has no preview of this song': 'O osu! não tem excerto desta música',
+  'This browser can’t play osu!’s previews': 'Este browser não consegue tocar os excertos do osu!',
+  'Couldn’t reach osu!. Try again in a moment.': 'Não foi possível chegar ao osu!. Tenta outra vez daqui a pouco.',
   // Where the bot's map links open (maplinks/maplinks.js): the map page's question, and the Bot commands page's card.
   'The bot’s map links bring you to the map’s page here. Would you rather they opened on osu!?': 'Os links de mapas do bot trazem-te à página do mapa aqui. Preferes que abram no osu!?',
   'Open them on osu!': 'Abri-los no osu!',

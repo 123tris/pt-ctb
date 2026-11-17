@@ -559,6 +559,23 @@ h3 .cat { color: var(--text); }
 .btn[aria-pressed='true'] { border-color: var(--accent-line); background: var(--accent-bg); color: var(--accent); }
 .btn[aria-pressed='true']::before { content: '✓'; }
 
+/* Song previews (client/preview.ts): a play sign, a pause sign while the clip plays, and its progress as a line along
+   the bottom edge (--p, 0 to 1). The sign pulses while the clip loads. */
+.preview-btn { position: relative; overflow: hidden; }
+.preview-btn::before {
+  content: ''; width: 0; height: 0; border-style: solid; border-width: 5px 0 5px 8px;
+  border-color: transparent transparent transparent currentColor;
+}
+.btn.preview-btn[aria-pressed='true']::before { content: ''; box-sizing: border-box; width: 8px; height: 10px; border-width: 0 3px; border-color: currentColor; }
+.preview-btn::after {
+  content: ''; position: absolute; left: 0; bottom: 0; width: 100%; height: 2px; background: var(--accent);
+  transform: scaleX(var(--p, 0)); transform-origin: left;
+}
+.preview-btn.loading::before { animation: preview-wait .6s ease-in-out infinite alternate; }
+.preview-btn[disabled]::before { content: none; }
+@keyframes preview-wait { to { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .preview-btn.loading::before { animation: none; opacity: .5; } }
+
 /* ---- osu! bits: mods, grades, stars ------------------------------------------------------------- */
 
 .mods { display: inline-flex; gap: 2px; flex-wrap: wrap; }
