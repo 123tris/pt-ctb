@@ -131,11 +131,26 @@ async function run(t, load) {
   return { posts, items: Object.fromEntries(env.items) };
 }
 
+/**
+ * The new module's events as the old one sends them, once each is checked to say which app drew its page: without
+ * that, and only up to the detail when nothing comes after it.
+ */
+function asOld(posts, app = 'new') {
+  return posts.map(post => {
+    if (!post.body.e) return post;
+    const e = post.body.e.map(([kind, name, detail, ref, value, obj, drawn]) => {
+      assert.equal(drawn, app, `${kind} ${name}`);
+      return ref || value !== null || obj ? [kind, name, detail, ref, value, obj] : [kind, name, detail];
+    });
+    return { ...post, body: { ...post.body, e } };
+  });
+}
+
 test('the same visit sends the same batches as the old module, and opting out forgets the same way', async t => {
   const old = await run(t, () => import('../../assets/js/core/track.js'));
   const now = await run(t, () => import('../src/client/track.ts'));
   assert.ok(old.posts.length >= 2, 'a batch and the request to forget');
-  assert.deepEqual(now.posts, old.posts);
+  assert.deepEqual(asOld(now.posts), old.posts);
   // What's left in the browser afterwards: opted out, the ids gone.
   assert.deepEqual(now.items, old.items);
   // The first batch, spelled out where the dashboard reads it.
@@ -146,7 +161,7 @@ test('the same visit sends the same batches as the old module, and opting out fo
     id: 'ID', s: 'S', d: 'desktop', p: 3821475, w: 'osu', pr: 'proof', pn: 'Tris', m: 1, f: 1, e: undefined,
     c: { vw: 1280, vh: 780, sc: 'dark', ln: 'en-GB' },
   });
-  assert.deepEqual(first.body.e[0], ['perf', 'ttfb', 'home', '', 81, '']);
+  assert.deepEqual(first.body.e[0], ['perf', 'ttfb', 'home', '', 81, '', 'new']);
   // More than a batch's worth of events: two batches, the second without the once-a-session part.
   const events = now.posts.flatMap(p => p.body.e ?? []);
   assert.equal(now.posts.length, 3);
@@ -155,6 +170,44 @@ test('the same visit sends the same batches as the old module, and opting out fo
   assert.ok(events.some(e => e[0] === 'view' && e[1] === 'rankings/converts' && e[2] === 'nav-menu'));
   assert.ok(events.some(e => e[0] === 'dwell' && e[1] === 'player' && e[4] === 4321));
   assert.deepEqual(now.posts.at(-1).body, { forget: 'ID' });
+});
+
+/**
+ * A page's feel, the same in both modules: its slowest answer to a tap (INP) and worst burst of layout shift (CLS, in
+ * thousandths), sent when it's left. The new module also says when an old page stood in. Fresh copies of the modules
+ * (a query on their address), since the first test left them started and opted out.
+ */
+test('how pages feel: the slowest answer and the worst burst of shift, per page, and which app drew it', async t => {
+  const feel = async load => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const env = browser();
+    CONFIG.home = ORIGIN;
+    const observed = {};
+    window.PerformanceObserver = class { constructor(fn) { this.fn = fn; } observe({ type }) { observed[type] = this.fn; } };
+    globalThis.PerformanceObserver = window.PerformanceObserver;
+    const send = (type, entries) => observed[type]?.({ getEntries: () => entries });
+    const m = await load();
+    m.startTracking();
+    t.mock.timers.tick(1);
+    m.trackView('maps', { ms: 40 });
+    send('event', [{ interactionId: 0, duration: 400 }, { interactionId: 7, duration: 96 }, { interactionId: 8, duration: 184 }]);
+    send('layout-shift', [
+      { startTime: 100, value: 0.05, hadRecentInput: false }, { startTime: 600, value: 0.04, hadRecentInput: false },
+      { startTime: 900, value: 0.3, hadRecentInput: true }, { startTime: 9000, value: 0.02, hadRecentInput: false },
+    ]);
+    m.trackView('player', { ms: 300, obj: 'p1', app: 'fallback' });
+    send('event', [{ interactionId: 9, duration: 24 }]);
+    env.fire('window', 'pagehide', {});
+    const posts = (await Promise.all(env.posts)).map(plain);
+    t.mock.timers.reset();
+    delete globalThis.PerformanceObserver;
+    return posts.flatMap(p => p.body.e).filter(e => e[1] === 'inp' || e[1] === 'cls');
+  };
+  const old = await feel(() => import('../../assets/js/core/track.js?feel'));
+  const now = await feel(() => import('../src/client/track.ts?feel'));
+  // Not the key press without an interaction (0), and not the shift right after an input; the two close shifts are one burst.
+  assert.deepEqual(old, [['perf', 'inp', 'maps', '', 184, ''], ['perf', 'cls', 'maps', '', 90, ''], ['perf', 'inp', 'player', '', 24, '']]);
+  assert.deepEqual(now, [['perf', 'inp', 'maps', '', 184, '', 'new'], ['perf', 'cls', 'maps', '', 90, '', 'new'], ['perf', 'inp', 'player', '', 24, '', 'fallback']]);
 });
 
 test('when nothing is counted: elsewhere, Do Not Track, Global Privacy Control, opted out, or no consent yet', async () => {

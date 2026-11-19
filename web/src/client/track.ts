@@ -1,5 +1,6 @@
 // Usage counts, so we know who uses which parts of the site and what gets in their way: assets/js/core/track.js, the
-// same events with the same fields to the same endpoint, which feed usage/store.js and the owner's dashboard (/stats).
+// same events with the same fields to the same endpoint, plus which app drew the page (App), which feed usage/store.js
+// and the owner's dashboard (/stats).
 // What's sent, why and for how long it's kept is on the privacy page (views/privacy.ts).
 //
 // Each browser gets a random visitor id and a session id (localStorage, never derived from the device). When the
@@ -46,8 +47,14 @@ export function trackingBlock(): string {
 }
 const enabled = () => !trackingBlock();
 
-/** One event: [kind, name, detail], or with [ref, value, obj] after it. */
-type Hit = [string, string, string] | [string, string, string, string, number | null, string];
+/**
+ * Which app drew a page: this one, or this one with an old page standing in (client/page.ts). Events carry it so the
+ * dashboard can tell them from each other and from the old app's, which send none.
+ */
+export type App = 'new' | 'fallback';
+
+/** One event: [kind, name, detail, ref, value, obj, app]. The old app sends [kind, name, detail], or up to obj. */
+type Hit = [string, string, string, string, number | null, string, App];
 
 let queue: Hit[] = [];
 let timer: ReturnType<typeof setTimeout> | 0 = 0;
@@ -55,6 +62,7 @@ let sent = 0;
 let started = false;
 let page = '';
 let pageObj = '';
+let pageApp: App = 'new';
 let interacted = false;
 let source = { area: '', at: 0 };
 let firstView = true;
@@ -151,9 +159,7 @@ export function track(kind: string, name: string, detail = '', ref = '', value: 
   if (!started || !enabled() || sent >= MAX_PER_LOAD) return;
   sent++;
   sessionId(); // keeps the session alive while events happen
-  queue.push(ref || value !== null || obj
-    ? [kind, clean(name), clean(detail), ref, value === null ? null : Math.round(value), obj]
-    : [kind, clean(name), clean(detail)]);
+  queue.push([kind, clean(name), clean(detail), ref, value === null ? null : Math.round(value), obj, pageApp]);
   if (queue.length >= MAX_QUEUE) flush();
   else if (!timer) timer = setTimeout(flush, FLUSH_MS);
 }
@@ -184,14 +190,16 @@ function sendDwell(): void {
  * Called by the router after a page has drawn. `key` names the page without ids ("player/loved", "map",
  * "games/guess"). The detail says how the visitor got there: nav, more-menu, search, page (a link in the page),
  * footer, you-menu, or "direct" (first page of the visit, a typed or shared link, Back/Forward). `ms` is how long the
- * page took from the address changing to drawn; `obj` what it's about (see track).
+ * page took from the address changing to drawn; `obj` what it's about (see track); `app` which app drew it (see App).
  */
-export function trackView(key: string, { ms = null, obj = '' }: { ms?: number | null; obj?: string } = {}): void {
+export function trackView(key: string, { ms = null, obj = '', app = 'new' }: { ms?: number | null; obj?: string; app?: App } = {}): void {
   if (!firstView) reportLargestPaint(); // only the first page's largest paint counts: later ones are in-app navigation
   sendDwell();
+  reportFeel();
   flushQuery();
   page = key;
   pageObj = obj;
+  pageApp = app;
   interacted = false;
   const via = Date.now() - source.at < 3000 && source.area ? source.area : 'direct';
   source = { area: '', at: 0 };
@@ -314,6 +322,41 @@ function watchFetches(): void {
   } catch { /* an older browser without these entry types */ }
 }
 
+// How a page feels once it's there, sent when it's left: its slowest answer to a tap, click or key, from the input to
+// the next paint (its INP: pages get few interactions, so the slowest one), and its worst burst of layout shift (CLS,
+// in thousandths). Browsers without these entry types (Safari) send neither.
+interface Shift extends PerformanceEntry { value: number; hadRecentInput: boolean }
+let slowest = 0;
+let shift = 0;
+let burst = { value: 0, start: 0, last: 0 };
+function watchFeel(): void {
+  if (!('PerformanceObserver' in window)) return;
+  try {
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries() as PerformanceEventTiming[]) if (entry.interactionId) slowest = Math.max(slowest, entry.duration);
+    }).observe({ type: 'event', durationThreshold: 16, buffered: true } as PerformanceObserverInit);
+  } catch { /* no Event Timing */ }
+  try {
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries() as Shift[]) {
+        if (entry.hadRecentInput) continue;
+        // Shifts under a second apart, within five seconds, are one burst (as CLS counts them).
+        if (entry.startTime - burst.last > 1000 || entry.startTime - burst.start > 5000) burst = { value: 0, start: entry.startTime, last: 0 };
+        burst.value += entry.value;
+        burst.last = entry.startTime;
+        shift = Math.max(shift, burst.value);
+      }
+    }).observe({ type: 'layout-shift', buffered: true });
+  } catch { /* no Layout Instability */ }
+}
+function reportFeel(): void {
+  if (page && slowest) track('perf', 'inp', page, '', slowest);
+  if (page && Math.round(shift * 1000)) track('perf', 'cls', page, '', shift * 1000);
+  slowest = 0;
+  shift = 0;
+  burst = { value: 0, start: 0, last: 0 };
+}
+
 export function startTracking(): void {
   if (started || !enabled()) return;
   started = true;
@@ -349,10 +392,11 @@ export function startTracking(): void {
   window.addEventListener('error', e => trackError(e.error ?? e.message, `${fileOf(e.filename)}:${e.lineno ?? 0}`));
   window.addEventListener('unhandledrejection', e => trackError(e.reason, 'promise'));
   watchFetches();
+  watchFeel();
   if (document.readyState === 'complete') setTimeout(reportLoad);
   else addEventListener('load', () => setTimeout(reportLoad), { once: true });
   shownAt = document.visibilityState === 'visible' ? performance.now() : 0;
-  const leave = () => { flushQuery(); sendDwell(); reportLargestPaint(); flush(); };
+  const leave = () => { flushQuery(); sendDwell(); reportFeel(); reportLargestPaint(); flush(); };
   addEventListener('pagehide', leave);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') leave();
