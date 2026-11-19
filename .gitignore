@@ -10,3 +10,5 @@ dist/
 # The site data and the exporter's memory live on Cloudflare R2 (publish.ps1, tools/r2-sync.mjs), not in git.
 data/
 state/
+# npm run perf's latest run (perf/baseline.json and perf/budgets.json are kept).
+perf/latest.json

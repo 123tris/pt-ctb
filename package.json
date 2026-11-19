@@ -9,11 +9,13 @@
     "test": "node --test embed/*.test.mjs signin/*.test.mjs maplinks/*.test.mjs usage/*.test.mjs economy/*.test.mjs top10/*.test.mjs tools/*.test.mjs tools/lib/*.test.mjs web/test/*.test.mjs",
     "build": "node tools/build-site.mjs",
     "typecheck": "tsc -p web",
+    "perf": "node tools/perf.mjs",
     "engine:parity": "node tools/engine-parity.mjs",
     "gen": "dotnet run --project engine/src/PtCatch.Engine.Cli -c Release -- gen-ts"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
+    "playwright": "1.64.1",
     "sharp": "^0.35.5",
     "typescript": "^7.0.2"
   }

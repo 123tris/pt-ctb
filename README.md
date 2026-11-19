@@ -77,6 +77,7 @@ npm run serve             # http://localhost:8080/ (live data; add -- --local-da
 npm run build             # dist/: what Cloudflare Pages publishes (tools/build-site.mjs, with the web client)
 npm test                  # all tests
 npm run typecheck         # the web client's TypeScript
+npm run perf              # where page loads spend their time, against perf/budgets.json (tools/perf.mjs; once: npx playwright install chromium)
 node tools/i18n-check.mjs   # Portuguese strings that are missing or no longer used
 .\publish.ps1             # on main only: export (with --fetch-titles), upload what changed to R2
 .\install-publish-task.ps1   # run publish.ps1 every 15 minutes

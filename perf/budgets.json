@@ -1,0 +1,166 @@
+{
+  "tolerance": 0.1,
+  "note": "Per page and condition, the most each may take: lcp in ms (seeded at the median plus 20%), kb transferred. npm run perf fails past these by more than the tolerance. Lower them as pages get faster.",
+  "routes": {
+    "/": {
+      "desktop-cold": {
+        "lcp": 750,
+        "kb": 380
+      },
+      "desktop-warm": {
+        "lcp": 600
+      },
+      "phone-cold": {
+        "lcp": 3150,
+        "kb": 310
+      },
+      "phone-warm": {
+        "lcp": 3100
+      }
+    },
+    "/rankings": {
+      "desktop-cold": {
+        "lcp": 750,
+        "kb": 340
+      },
+      "desktop-warm": {
+        "lcp": 700
+      },
+      "phone-cold": {
+        "lcp": 3800,
+        "kb": 270
+      },
+      "phone-warm": {
+        "lcp": 3650
+      }
+    },
+    "/player/6205809": {
+      "desktop-cold": {
+        "lcp": 1300,
+        "kb": 320
+      },
+      "desktop-warm": {
+        "lcp": 1100
+      },
+      "phone-cold": {
+        "lcp": 3650,
+        "kb": 370
+      },
+      "phone-warm": {
+        "lcp": 3250
+      }
+    },
+    "/maps": {
+      "desktop-cold": {
+        "lcp": 850,
+        "kb": 410
+      },
+      "desktop-warm": {
+        "lcp": 950
+      },
+      "phone-cold": {
+        "lcp": 3100,
+        "kb": 350
+      },
+      "phone-warm": {
+        "lcp": 2500
+      }
+    },
+    "/map/553728": {
+      "desktop-cold": {
+        "lcp": 2150,
+        "kb": 520
+      },
+      "desktop-warm": {
+        "lcp": 600
+      },
+      "phone-cold": {
+        "lcp": 3850,
+        "kb": 430
+      },
+      "phone-warm": {
+        "lcp": 2900
+      }
+    },
+    "/activity": {
+      "desktop-cold": {
+        "lcp": 2150,
+        "kb": 270
+      },
+      "desktop-warm": {
+        "lcp": 1250
+      },
+      "phone-cold": {
+        "lcp": 2700,
+        "kb": 270
+      },
+      "phone-warm": {
+        "lcp": 2750
+      }
+    },
+    "/challenges": {
+      "desktop-cold": {
+        "lcp": 1300,
+        "kb": 370
+      },
+      "desktop-warm": {
+        "lcp": 600
+      },
+      "phone-cold": {
+        "lcp": 3150,
+        "kb": 330
+      },
+      "phone-warm": {
+        "lcp": 2800
+      }
+    },
+    "/records": {
+      "desktop-cold": {
+        "lcp": 950,
+        "kb": 370
+      },
+      "desktop-warm": {
+        "lcp": 1200
+      },
+      "phone-cold": {
+        "lcp": 4100,
+        "kb": 330
+      },
+      "phone-warm": {
+        "lcp": 3600
+      }
+    },
+    "/calculator": {
+      "desktop-cold": {
+        "lcp": 1200,
+        "kb": 220
+      },
+      "desktop-warm": {
+        "lcp": 500
+      },
+      "phone-cold": {
+        "lcp": 2450,
+        "kb": 220
+      },
+      "phone-warm": {
+        "lcp": 2350
+      }
+    },
+    "/glossary": {
+      "desktop-cold": {
+        "lcp": 650,
+        "kb": 210
+      },
+      "desktop-warm": {
+        "lcp": 550
+      },
+      "phone-cold": {
+        "lcp": 2500,
+        "kb": 220
+      },
+      "phone-warm": {
+        "lcp": 2650
+      }
+    }
+  }
+}
