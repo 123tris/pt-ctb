@@ -157,15 +157,14 @@ export const recordWords = ({ t, fmt }: Ctx, w: number, l: number): string =>
 export const recordText = (ctx: Ctx, w: number, l: number): Safe =>
   html`<span title="${recordWords(ctx, w, l)}">${ctx.fmt.num(w)}–${ctx.fmt.num(l)}</span>`;
 
-/** "3 wins in a row" (streak > 0) or "2 losses in a row" (< 0); '' for none. */
-export const streakWords = ({ tn }: Ctx, n: number): string =>
-  (n > 0 ? tn(n, '{n} win in a row', '{n} wins in a row') : n < 0 ? tn(-n, '{n} loss in a row', '{n} losses in a row') : '');
+/** "3 wins in a row"; '' for none. Losing runs (streak < 0) are never shown, only win streaks. */
+export const streakWords = ({ tn }: Ctx, n: number): string => (n > 0 ? tn(n, '{n} win in a row', '{n} wins in a row') : '');
 
-/** The same, short: "W3" / "L2", with the words for screen readers and on hover. */
+/** The same, short: "W3", with the words for screen readers and on hover; a dash without a win streak. */
 export function streakText(ctx: Ctx, n: number): Safe {
   const { t, fmt } = ctx;
-  return n
-    ? html`<span title="${streakWords(ctx, n)}"><span aria-hidden="true">${n > 0 ? t('W{n}', { n: fmt.num(n) }) : t('L{n}', { n: fmt.num(-n) })}</span><span class="sr-only">${streakWords(ctx, n)}</span></span>`
+  return n > 0
+    ? html`<span title="${streakWords(ctx, n)}"><span aria-hidden="true">${t('W{n}', { n: fmt.num(n) })}</span><span class="sr-only">${streakWords(ctx, n)}</span></span>`
     : html`<span class="faint">—</span>`;
 }
 

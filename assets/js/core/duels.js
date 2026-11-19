@@ -27,10 +27,10 @@ export const ratingText = (r, rd) => html`${fmt.num(r)}${rd ? html` <small class
 /** "6–1", read out as "6 wins, 1 loss". */
 export const recordText = (w, l) => html`<span title="${t('{wins}, {losses}', { wins: fmt.plural(w, 'win'), losses: fmt.plural(l, 'loss', 'losses') })}">${fmt.num(w)}–${fmt.num(l)}</span>`;
 
-/** "3 wins in a row" (streak > 0) or "2 losses in a row" (< 0); '' for none. */
-export const streakWords = n => (n > 0 ? tn(n, '{n} win in a row', '{n} wins in a row') : n < 0 ? tn(-n, '{n} loss in a row', '{n} losses in a row') : '');
-/** The same, short: "W3" / "L2", with the words for screen readers and on hover. */
-export const streakText = n => (n ? html`<span title="${streakWords(n)}"><span aria-hidden="true">${n > 0 ? t('W{n}', { n: fmt.num(n) }) : t('L{n}', { n: fmt.num(-n) })}</span><span class="sr-only">${streakWords(n)}</span></span>` : html`<span class="faint">—</span>`);
+/** "3 wins in a row"; '' for none. Losing runs (streak < 0) are never shown, only win streaks. */
+export const streakWords = n => (n > 0 ? tn(n, '{n} win in a row', '{n} wins in a row') : '');
+/** The same, short: "W3", with the words for screen readers and on hover; a dash without a win streak. */
+export const streakText = n => (n > 0 ? html`<span title="${streakWords(n)}"><span aria-hidden="true">${t('W{n}', { n: fmt.num(n) })}</span><span class="sr-only">${streakWords(n)}</span></span>` : html`<span class="faint">—</span>`);
 
 /** A rating change: "+12", "−9" (a real minus), "±0". */
 export const deltaText = d => html`<span class="duel-delta">${d > 0 ? '+' : d < 0 ? '−' : '±'}${fmt.num(Math.abs(d))}</span>`;

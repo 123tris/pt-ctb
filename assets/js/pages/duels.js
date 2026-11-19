@@ -41,7 +41,7 @@ function ladderTable(rows, index, me) {
     <tbody>${rows.map(r => html`<tr class="${r.u === me ? 'me' : ''} ${r.prov ? 'duel-prov' : ''}">
       <td class="rank ${r.rank === 1 ? 'king-rank' : ''}">${r.rank ?? html`<span aria-label="${t('provisional')}">–</span>`}</td>
       <td class="cell-player">${playerLink(duelist(r, index), null, 'avatar-sm')}${r.prov ? html` ${provisionalTag()}` : ''}
-        <span class="cell-sub">${t('{wins}, {losses}', { wins: fmt.plural(r.w, 'win'), losses: fmt.plural(r.l, 'loss', 'losses') })}${r.streak ? ` · ${streakWords(r.streak)}` : ''}</span></td>
+        <span class="cell-sub">${t('{wins}, {losses}', { wins: fmt.plural(r.w, 'win'), losses: fmt.plural(r.l, 'loss', 'losses') })}${r.streak > 0 ? ` · ${streakWords(r.streak)}` : ''}</span></td>
       <td class="num duel-rating">${ratingText(r.r, r.rd)}</td>
       <td class="num col-opt">${recordText(r.w, r.l)}</td>
       <td class="col-opt">${streakText(r.streak)}</td>

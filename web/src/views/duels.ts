@@ -81,7 +81,7 @@ export function ladderTable(ctx: Ctx, rows: readonly LadderRow[], players: Playe
     <tbody>${rows.map(r => html`<tr class="${r.u === ctx.me ? 'me' : ''} ${r.prov ? 'duel-prov' : ''}">
       <td class="rank ${r.rank === 1 ? 'king-rank' : ''}">${r.rank ?? html`<span aria-label="${t('provisional')}">–</span>`}</td>
       <td class="cell-player">${duelistLink(ctx, players, r, 'avatar-sm')}${r.prov ? html` ${provisionalTag(ctx)}` : ''}
-        <span class="cell-sub">${recordWords(ctx, r.w, r.l)}${r.streak ? ` · ${streakWords(ctx, r.streak)}` : ''}</span></td>
+        <span class="cell-sub">${recordWords(ctx, r.w, r.l)}${r.streak > 0 ? ` · ${streakWords(ctx, r.streak)}` : ''}</span></td>
       <td class="num duel-rating">${ratingText(ctx, r.r, r.rd)}</td>
       <td class="num col-opt">${recordText(ctx, r.w, r.l)}</td>
       <td class="col-opt">${streakText(ctx, r.streak)}</td>
