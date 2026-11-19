@@ -40,3 +40,6 @@ export async function onRequestGet({ request, env, next }) {
   headers.set('Vary', 'User-Agent');
   return new Response(page, { status: 200, headers });
 }
+
+// Some link unfurlers ask with HEAD first: the same answer (the runtime leaves out the body).
+export const onRequestHead = onRequestGet;
