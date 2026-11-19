@@ -419,7 +419,6 @@ export const PT = {
   'Best play': 'Melhor jogada',
   'best {pp} pp': 'melhor: {pp} pp',
   'Place in these top plays': 'Lugar nestas melhores jogadas',
-  'All players': 'Todos os jogadores',
   'Compare two players': 'Comparar dois jogadores',
   'Leaderboard type': 'Tipo de classificação',
   'Players and plays imported from the osu! data dump of {date}.': 'Jogadores e jogadas importados do data dump do osu! de {date}.',
@@ -2196,7 +2195,6 @@ export const PT = {
   'your all-time write-up about {name}': 'o teu texto de sempre sobre {name}',
   'your all-time ballot': 'o teu boletim de sempre',
   'Neither ballot has 5 counted lists: {year} yearly and {alltime} all-time. Nothing was saved.': 'Nenhum boletim tem 5 listas contadas: {year} do ano e {alltime} de sempre. Nada foi guardado.',
-  'King of the hill crowns': 'Coroas do Rei da colina',
   // ---- Top 10: the showcase opens before voting, your own best scores first, replays osu! keeps ------------------
   'The showcase isn’t open yet.': 'A montra ainda não abriu.',
   'The showcase has closed.': 'A montra já fechou.',

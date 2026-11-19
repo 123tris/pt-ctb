@@ -1,6 +1,6 @@
 // The King of the hill tab's browser half: the season picker (chips, or a select past five seasons) redraws the crown
-// table, and the tier chips switch the pool's tier on phones; both are kept in the address. ?at=crowns (the link from
-// Leaderboards) opens the tab scrolled to the crown table, once: the address drops it.
+// table, and the tier chips switch the pool's tier on phones; both are kept in the address. ?at=crowns opens the tab
+// scrolled to the crown table, once: the address drops it.
 
 import type { Ctx } from '../kernel/ctx.ts';
 import type { Players } from '../ui/players.ts';

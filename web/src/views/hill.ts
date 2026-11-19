@@ -2,7 +2,7 @@
 // who holds each crown, the crown table (all time or one season) and the past months. From hill.json
 // (tools/lib/hill.mjs), which Challenges only shows the tab for once the export has it, with players from the core
 // pack. ?season=2026-Q4 opens the crown table on that season; ?tier=challenger shows that tier first on phones;
-// ?at=crowns brings the crown table into view (CROWNS_HREF, the link from Leaderboards).
+// ?at=crowns (CROWNS_HREF) brings the crown table into view.
 // hill.mount.ts handles the season and tier choices.
 
 import { html, raw, type Safe, type Value } from '../kernel/html.ts';

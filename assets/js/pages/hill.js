@@ -191,8 +191,7 @@ function pastMonth(m, index) {
 /**
  * The tab's panel, which Challenges only shows when the export has hill.json. `now` is what else is running
  * (challenge-chips.js runningNow). ?season=2026-Q4 opens the crown table on that season; ?tier=challenger shows that
- * tier first on phones; ?at=crowns (the link from Leaderboards) opens the tab scrolled to the crown table, once: the
- * address drops it.
+ * tier first on phones; ?at=crowns opens the tab scrolled to the crown table, once: the address drops it.
  */
 export function renderHill(root, { hill, index, me, query, now }) {
   const { current, months, seasons, players, maps } = hill;

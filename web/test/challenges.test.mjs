@@ -242,7 +242,7 @@ test('King of the hill: the pool, the crown table for each season, and the past 
   assert.equal(count(past, /<div class="hill-month">/g), 2);
   assert.match(past, /No crowns given/);
   assert.match(past, /<th>Open<\/th><th>Challenger<\/th>/);
-  // ?at=crowns (Leaderboards' link, CROWNS_HREF) points at the crown table's section, which the mount scrolls to.
+  // ?at=crowns (CROWNS_HREF) points at the crown table's section, which the mount scrolls to.
   assert.equal(CROWNS_HREF, '/challenges/hill?at=crowns');
   assert.equal(hillState(ctx, rich, { at: 'crowns' }).crowns, true);
   assert.equal(hillState(ctx, rich, {}).crowns, false);
